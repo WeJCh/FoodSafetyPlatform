@@ -1,0 +1,25 @@
+server:
+  port: 8084
+
+spring:
+  application:
+    name: warning-service
+  cloud:
+    nacos:
+      config:
+        import-check:
+          enabled: false
+      discovery:
+        server-addr: ${NACOS_ADDR:127.0.0.1:8848}
+    sentinel:
+      transport:
+        dashboard: ${SENTINEL_DASHBOARD:127.0.0.1:8080}
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:mysql://${DB_HOST:127.0.0.1}:${DB_PORT:3306}/food_warning_db?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai
+    username: ${DB_USER:root}
+    password: ${DB_PASSWORD:123456}
+
+mybatis-plus:
+  configuration:
+    map-underscore-to-camel-case: true

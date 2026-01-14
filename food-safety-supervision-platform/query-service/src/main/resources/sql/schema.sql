@@ -1,0 +1,37 @@
+﻿-- query-service schema
+CREATE DATABASE IF NOT EXISTS food_query_db
+DEFAULT CHARACTER SET utf8mb4
+COLLATE utf8mb4_general_ci;
+
+USE food_query_db;
+
+CREATE TABLE IF NOT EXISTS stat_enterprise (
+  id BIGINT PRIMARY KEY AUTO_INCREMENT,
+  total_count INT COMMENT '企业总数',
+  key_count INT COMMENT '重点监管企业数',
+  stat_date DATE COMMENT '统计日期',
+  create_time DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+  deleted TINYINT DEFAULT 0 COMMENT '逻辑删除 1-已删 0-未删'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='企业统计表';
+
+CREATE TABLE IF NOT EXISTS stat_inspection (
+  id BIGINT PRIMARY KEY AUTO_INCREMENT,
+  inspection_count INT COMMENT '检查总次数',
+  fail_count INT COMMENT '不合格次数',
+  stat_date DATE COMMENT '统计日期',
+  create_time DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+  deleted TINYINT DEFAULT 0 COMMENT '逻辑删除 1-已删 0-未删'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='检查统计表';
+
+CREATE TABLE IF NOT EXISTS stat_complaint (
+  id BIGINT PRIMARY KEY AUTO_INCREMENT,
+  total_count INT COMMENT '投诉总量',
+  handled_count INT COMMENT '已处理数量',
+  timeout_count INT COMMENT '超时数量',
+  stat_date DATE COMMENT '统计日期',
+  create_time DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+  deleted TINYINT DEFAULT 0 COMMENT '逻辑删除 1-已删 0-未删'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='投诉统计表';

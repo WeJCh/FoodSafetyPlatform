@@ -1,0 +1,29 @@
+server:
+  port: 8082
+
+spring:
+  application:
+    name: regulation-service
+  cloud:
+    nacos:
+      config:
+        import-check:
+          enabled: false
+      discovery:
+        server-addr: ${NACOS_ADDR:127.0.0.1:8848}
+    sentinel:
+      transport:
+        dashboard: ${SENTINEL_DASHBOARD:127.0.0.1:8080}
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:mysql://${DB_HOST:127.0.0.1}:${DB_PORT:3306}/food_regulation_db?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai
+    username: ${DB_USER:root}
+    password: ${DB_PASSWORD:123456}
+
+mybatis-plus:
+  configuration:
+    map-underscore-to-camel-case: true
+
+jwt:
+  secret: "foodUserServiceJwtSecretKey123456"
+  expiration-minutes: 120

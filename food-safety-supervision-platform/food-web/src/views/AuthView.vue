@@ -126,7 +126,7 @@
 import { reactive, ref } from "vue";
 import { login, register, registerEnterprise, verify } from "../api/auth";
 
-const emit = defineEmits(["admin-login", "enterprise-login"]);
+const emit = defineEmits(["admin-login", "enterprise-login", "regulator-login"]);
 
 const view = ref("login");
 const loading = ref(false);
@@ -169,6 +169,13 @@ async function handleLogin() {
     const result = await login(loginForm);
     if (result.userType === "ADMIN") {
       emit("admin-login", {
+        token: result.token,
+        username: result.username,
+        userType: result.userType
+      });
+      setStatus("");
+    } else if (result.userType === "REGULATOR") {
+      emit("regulator-login", {
         token: result.token,
         username: result.username,
         userType: result.userType

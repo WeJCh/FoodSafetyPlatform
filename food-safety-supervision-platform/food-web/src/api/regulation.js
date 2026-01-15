@@ -21,3 +21,60 @@ export function submitEnterpriseProfile(token, payload) {
     body: JSON.stringify(payload)
   });
 }
+
+export function createRegulatorProfile(token, payload) {
+  return requestWithBase(REGULATION_BASE_URL, "/api/regulation/regulators", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`
+    },
+    body: JSON.stringify(payload)
+  });
+}
+
+export function fetchRegulatorProfiles(token, params = {}) {
+  const search = new URLSearchParams();
+  if (params.roleType) search.append("roleType", params.roleType);
+  if (params.jurisdictionArea) search.append("jurisdictionArea", params.jurisdictionArea);
+  const query = search.toString();
+  return requestWithBase(
+    REGULATION_BASE_URL,
+    `/api/regulation/regulators${query ? `?${query}` : ""}`,
+    {
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${token}`
+      }
+    }
+  );
+}
+
+export function updateRegulatorStatus(token, id, status) {
+  return requestWithBase(REGULATION_BASE_URL, `/api/regulation/regulators/${id}/status`, {
+    method: "PUT",
+    headers: {
+      Authorization: `Bearer ${token}`
+    },
+    body: JSON.stringify({ status })
+  });
+}
+
+export function fetchEnterprises(token, params = {}) {
+  const search = new URLSearchParams();
+  if (params.enterpriseName) search.append("enterpriseName", params.enterpriseName);
+  if (params.status) search.append("status", params.status);
+  if (params.approvalStatus) search.append("approvalStatus", params.approvalStatus);
+  if (params.page) search.append("page", params.page);
+  if (params.size) search.append("size", params.size);
+  const query = search.toString();
+  return requestWithBase(
+    REGULATION_BASE_URL,
+    `/api/regulation/enterprises${query ? `?${query}` : ""}`,
+    {
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${token}`
+      }
+    }
+  );
+}

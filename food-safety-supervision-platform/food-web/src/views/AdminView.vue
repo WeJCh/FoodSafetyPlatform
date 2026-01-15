@@ -56,7 +56,7 @@
             <button :class="{ active: subSection === 'create' }" @click="subSection = 'create'">
               添加监管人员
             </button>
-            <button :class="{ active: subSection === 'list' }" @click="subSection = 'list'">
+            <button :class="{ active: subSection === 'list' }" @click="subSection = 'list'; loadRegulators()">
               监管人员列表
             </button>
             <button :class="{ active: subSection === 'roles' }" @click="subSection = 'roles'">
@@ -81,11 +81,7 @@
             </label>
             <label>
               姓名
-              <input v-model.trim="regulatorForm.fullName" required placeholder="请输入姓名" />
-            </label>
-            <label>
-              身份证号
-              <input v-model.trim="regulatorForm.idNumber" required placeholder="18 位身份证号" />
+              <input v-model.trim="regulatorForm.name" required placeholder="请输入姓名" />
             </label>
             <label>
               工作证件 URL（可选）
@@ -111,6 +107,49 @@
             </button>
           </form>
 
+          <div v-else-if="section === 'regulators' && subSection === 'list'">
+            <div class="section-title">监管人员列表</div>
+            <form class="filter-bar" @submit.prevent="handleSearch">
+              <label>
+                角色类型
+                <select v-model="listQuery.roleType">
+                  <option value="">全部</option>
+                  <option value="REGULATOR_ENFORCER">执法人员</option>
+                  <option value="REGULATOR_ADMIN">区域管理员</option>
+                </select>
+              </label>
+              <label>
+                管辖区域
+                <input v-model.trim="listQuery.jurisdictionArea" placeholder="输入区域关键字" />
+              </label>
+              <button class="primary" type="submit" :disabled="listLoading">
+                {{ listLoading ? "查询中..." : "查询" }}
+              </button>
+            </form>
+
+            <div class="list-table">
+              <div class="list-row list-header">
+                <span>姓名</span>
+                <span>角色</span>
+                <span>辖区</span>
+                <span>状态</span>
+                <span>操作</span>
+              </div>
+              <div v-if="!regulatorList.length" class="list-empty">
+                暂无监管人员
+              </div>
+              <div v-for="item in regulatorList" :key="item.id" class="list-row">
+                <span>{{ item.name }}</span>
+                <span>{{ item.roleType }}</span>
+                <span>{{ item.jurisdictionArea }}</span>
+                <span>{{ item.status === 1 ? "在岗" : "停用" }}</span>
+                <button class="ghost" type="button" @click="handleToggle(item)">
+                  {{ item.status === 1 ? "停用" : "启用" }}
+                </button>
+              </div>
+            </div>
+          </div>
+
           <div v-else-if="section === 'regulators'" class="placeholder">
             <strong>功能占位</strong>
             <p>{{ regulatorSubLabel }} 将在后续版本实现。</p>
@@ -133,6 +172,7 @@
 <script setup>
 import { computed, reactive, ref } from "vue";
 import { createRegulator } from "../api/auth";
+import { createRegulatorProfile, fetchRegulatorProfiles, updateRegulatorStatus } from "../api/regulation";
 
 const props = defineProps({
   adminUser: {
@@ -155,13 +195,32 @@ const subSection = ref("create");
 const regulatorForm = reactive({
   username: "",
   password: "",
-  fullName: "",
-  idNumber: "",
+  name: "",
   workIdUrl: "",
   phone: "",
   roleType: "REGULATOR_ENFORCER",
   jurisdictionArea: ""
 });
+
+const listQuery = reactive({
+  roleType: "",
+  jurisdictionArea: ""
+});
+
+const regulatorList = ref([]);
+const listLoading = ref(false);
+
+async function loadRegulators() {
+  listLoading.value = true;
+  setStatus("");
+  try {
+    regulatorList.value = await fetchRegulatorProfiles(props.token, listQuery);
+  } catch (error) {
+    setStatus(error.message || "加载监管人员失败", "error");
+  } finally {
+    listLoading.value = false;
+  }
+}
 
 const sectionLabel = computed(() => {
   if (section.value === "enterprise-approval") return "企业审批";
@@ -187,12 +246,81 @@ async function handleCreate() {
   loading.value = true;
   setStatus("");
   try {
-    await createRegulator(regulatorForm, props.token);
-    setStatus("监管人员创建成功。", "success");
+    const user = await createRegulator(
+      {
+        username: regulatorForm.username,
+        password: regulatorForm.password,
+        fullName: regulatorForm.name,
+        phone: regulatorForm.phone,
+        userType: "REGULATOR",
+        roleType: regulatorForm.roleType
+      },
+      props.token
+    );
+    await createRegulatorProfile(props.token, {
+      userId: user.id,
+      name: regulatorForm.name,
+      phone: regulatorForm.phone,
+      roleType: regulatorForm.roleType,
+      jurisdictionArea: regulatorForm.jurisdictionArea,
+      workIdUrl: regulatorForm.workIdUrl
+    });
+    setStatus("监管人员创建成功，档案已同步。", "success");
+    subSection.value = "list";
+    await loadRegulators();
   } catch (error) {
     setStatus(error.message || "创建失败", "error");
   } finally {
     loading.value = false;
   }
 }
+
+async function handleSearch() {
+  await loadRegulators();
+}
+
+async function handleToggle(regulator) {
+  const nextStatus = regulator.status === 1 ? 0 : 1;
+  try {
+    await updateRegulatorStatus(props.token, regulator.id, nextStatus);
+    regulator.status = nextStatus;
+  } catch (error) {
+    setStatus(error.message || "更新状态失败", "error");
+  }
+}
 </script>
+
+<style scoped>
+.filter-bar {
+  display: grid;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.list-table {
+  border-radius: 14px;
+  border: 1px solid var(--stroke);
+  background: #faf6f1;
+  overflow: hidden;
+}
+
+.list-row {
+  display: grid;
+  grid-template-columns: 1.4fr 1.2fr 1.6fr 0.8fr 0.8fr;
+  gap: 8px;
+  padding: 12px 14px;
+  align-items: center;
+  font-size: 13px;
+}
+
+.list-header {
+  font-weight: 600;
+  background: #f1e6db;
+}
+
+.list-empty {
+  padding: 16px;
+  color: var(--muted);
+  font-size: 13px;
+}
+</style>

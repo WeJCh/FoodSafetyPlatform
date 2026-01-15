@@ -1,11 +1,12 @@
 package com.mortal.regulation.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.mortal.regulation.client.UserServiceClient;
+import com.mortal.regulation.common.PageResult;
 import com.mortal.regulation.dto.EnterpriseApprovalDTO;
 import com.mortal.regulation.dto.EnterpriseProfileDTO;
-import com.mortal.regulation.entity.EnterpriseAccount;
 import com.mortal.regulation.entity.FoodEnterprise;
-import com.mortal.regulation.mapper.EnterpriseAccountMapper;
 import com.mortal.regulation.mapper.FoodEnterpriseMapper;
 import com.mortal.regulation.service.EnterpriseProfileService;
 import com.mortal.regulation.vo.EnterpriseProfileVO;
@@ -23,20 +24,20 @@ public class EnterpriseProfileServiceImpl implements EnterpriseProfileService {
     private static final String APPROVAL_REJECTED = "REJECTED";
 
     private final FoodEnterpriseMapper foodEnterpriseMapper;
-    private final EnterpriseAccountMapper enterpriseAccountMapper;
+    private final UserServiceClient userServiceClient;
 
     public EnterpriseProfileServiceImpl(FoodEnterpriseMapper foodEnterpriseMapper,
-                                        EnterpriseAccountMapper enterpriseAccountMapper) {
+                                        UserServiceClient userServiceClient) {
         this.foodEnterpriseMapper = foodEnterpriseMapper;
-        this.enterpriseAccountMapper = enterpriseAccountMapper;
+        this.userServiceClient = userServiceClient;
     }
 
     @Override
     public EnterpriseProfileVO submitProfile(Long userId, EnterpriseProfileDTO dto) {
-        EnterpriseAccount account = findAccount(userId);
-        FoodEnterprise enterprise = account == null ? null : foodEnterpriseMapper.selectById(account.getEnterpriseId());
+        FoodEnterprise enterprise = findEnterpriseByUserId(userId);
         if (enterprise == null) {
             enterprise = new FoodEnterprise();
+            enterprise.setUserId(userId);
             enterprise.setStatus(STATUS_NORMAL);
             enterprise.setCreateTime(LocalDateTime.now());
         }
@@ -60,34 +61,51 @@ public class EnterpriseProfileServiceImpl implements EnterpriseProfileService {
             foodEnterpriseMapper.updateById(enterprise);
         }
 
-        if (account == null) {
-            EnterpriseAccount newAccount = new EnterpriseAccount();
-            newAccount.setUserId(userId);
-            newAccount.setEnterpriseId(enterprise.getId());
-            newAccount.setCreateTime(LocalDateTime.now());
-            newAccount.setUpdateTime(LocalDateTime.now());
-            newAccount.setDeleted(0);
-            enterpriseAccountMapper.insert(newAccount);
-        } else if (!enterprise.getId().equals(account.getEnterpriseId())) {
-            account.setEnterpriseId(enterprise.getId());
-            account.setUpdateTime(LocalDateTime.now());
-            enterpriseAccountMapper.updateById(account);
-        }
-
         return toVO(enterprise);
     }
 
     @Override
     public EnterpriseProfileVO getProfile(Long userId) {
-        EnterpriseAccount account = findAccount(userId);
-        if (account == null) {
-            return null;
-        }
-        FoodEnterprise enterprise = foodEnterpriseMapper.selectById(account.getEnterpriseId());
+        FoodEnterprise enterprise = findEnterpriseByUserId(userId);
         if (enterprise == null || isDeleted(enterprise.getDeleted())) {
             return null;
         }
         return toVO(enterprise);
+    }
+
+    @Override
+    public EnterpriseProfileVO getById(Long enterpriseId) {
+        FoodEnterprise enterprise = foodEnterpriseMapper.selectById(enterpriseId);
+        if (enterprise == null || isDeleted(enterprise.getDeleted())) {
+            return null;
+        }
+        return toVO(enterprise);
+    }
+
+    @Override
+    public PageResult<EnterpriseProfileVO> list(String enterpriseName,
+                                                String status,
+                                                String approvalStatus,
+                                                int page,
+                                                int size) {
+        var wrapper = new LambdaQueryWrapper<FoodEnterprise>()
+            .eq(FoodEnterprise::getDeleted, 0);
+        if (StringUtils.hasText(enterpriseName)) {
+            wrapper.like(FoodEnterprise::getEnterpriseName, enterpriseName.trim());
+        }
+        if (StringUtils.hasText(status)) {
+            wrapper.eq(FoodEnterprise::getStatus, normalize(status));
+        }
+        if (StringUtils.hasText(approvalStatus)) {
+            wrapper.eq(FoodEnterprise::getApprovalStatus, normalize(approvalStatus));
+        }
+        wrapper.orderByDesc(FoodEnterprise::getUpdateTime);
+        Page<FoodEnterprise> pageInfo = foodEnterpriseMapper.selectPage(new Page<>(page, size), wrapper);
+        List<EnterpriseProfileVO> records = pageInfo.getRecords()
+            .stream()
+            .map(this::toVO)
+            .toList();
+        return PageResult.of(records, pageInfo.getTotal(), page, size);
     }
 
     @Override
@@ -114,10 +132,30 @@ public class EnterpriseProfileServiceImpl implements EnterpriseProfileService {
         return toVO(enterprise);
     }
 
-    private EnterpriseAccount findAccount(Long userId) {
-        return enterpriseAccountMapper.selectOne(new LambdaQueryWrapper<EnterpriseAccount>()
-            .eq(EnterpriseAccount::getUserId, userId)
-            .eq(EnterpriseAccount::getDeleted, 0));
+    @Override
+    public void deleteEnterprise(Long enterpriseId) {
+        FoodEnterprise enterprise = requireEnterprise(enterpriseId);
+        enterprise.setDeleted(1);
+        enterprise.setUpdateTime(LocalDateTime.now());
+        foodEnterpriseMapper.updateById(enterprise);
+        if (enterprise.getUserId() != null) {
+            userServiceClient.deleteUser(enterprise.getUserId());
+        }
+    }
+
+    @Override
+    public void deleteEnterpriseByUserId(Long userId) {
+        FoodEnterprise enterprise = findEnterpriseByUserId(userId);
+        if (enterprise == null) {
+            throw new IllegalArgumentException("enterprise not found");
+        }
+        deleteEnterprise(enterprise.getId());
+    }
+
+    private FoodEnterprise findEnterpriseByUserId(Long userId) {
+        return foodEnterpriseMapper.selectOne(new LambdaQueryWrapper<FoodEnterprise>()
+            .eq(FoodEnterprise::getUserId, userId)
+            .eq(FoodEnterprise::getDeleted, 0));
     }
 
     private FoodEnterprise requireEnterprise(Long enterpriseId) {
@@ -147,6 +185,7 @@ public class EnterpriseProfileServiceImpl implements EnterpriseProfileService {
     private EnterpriseProfileVO toVO(FoodEnterprise enterprise) {
         EnterpriseProfileVO vo = new EnterpriseProfileVO();
         vo.setId(enterprise.getId());
+        vo.setUserId(enterprise.getUserId());
         vo.setEnterpriseName(enterprise.getEnterpriseName());
         vo.setLicenseNo(enterprise.getLicenseNo());
         vo.setAddress(enterprise.getAddress());
@@ -161,5 +200,9 @@ public class EnterpriseProfileServiceImpl implements EnterpriseProfileService {
         vo.setCreateTime(enterprise.getCreateTime());
         vo.setUpdateTime(enterprise.getUpdateTime());
         return vo;
+    }
+
+    private String normalize(String value) {
+        return StringUtils.hasText(value) ? value.trim().toUpperCase() : null;
     }
 }

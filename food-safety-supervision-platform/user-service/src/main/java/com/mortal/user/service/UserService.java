@@ -20,4 +20,6 @@ public interface UserService {
     UserVO getUserById(Long id);
 
     UserVO updateUser(UserUpdateDTO dto);
+
+    void deleteUser(Long id);
 }

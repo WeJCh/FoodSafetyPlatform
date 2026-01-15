@@ -68,3 +68,6 @@ spring:
           uri: lb://warning-service
           predicates:
             - Path=/api/warning/**
+
+jwt:
+  secret: "foodUserServiceJwtSecretKey123456"

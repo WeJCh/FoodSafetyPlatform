@@ -12,6 +12,7 @@ public class FoodEnterprise {
 
     @TableId(type = IdType.AUTO)
     private Long id;
+    private Long userId;
     private String enterpriseName;
     private String licenseNo;
     private String address;

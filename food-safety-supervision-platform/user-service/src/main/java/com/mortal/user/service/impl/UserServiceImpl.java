@@ -1,6 +1,7 @@
 package com.mortal.user.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.mortal.user.dto.LoginDTO;
 import com.mortal.user.dto.LoginResult;
 import com.mortal.user.dto.PublicRegisterDTO;
@@ -82,6 +83,9 @@ public class UserServiceImpl implements UserService {
         if (user.getStatus() != null && user.getStatus() == 0) {
             throw new IllegalArgumentException("user disabled");
         }
+        if (user.getDeleted() != null && user.getDeleted() == 1) {
+            throw new IllegalArgumentException("user deleted");
+        }
         String token = tokenUtil.generateToken(user.getId(), user.getUsername(), user.getUserType());
         LoginResult result = new LoginResult();
         result.setUserId(user.getId());
@@ -101,13 +105,16 @@ public class UserServiceImpl implements UserService {
     @Override
     public UserVO getUserById(Long id) {
         User user = userMapper.selectById(id);
-        return user == null ? null : toUserVO(user);
+        if (user == null || (user.getDeleted() != null && user.getDeleted() == 1)) {
+            return null;
+        }
+        return toUserVO(user);
     }
 
     @Override
     public UserVO updateUser(UserUpdateDTO dto) {
         User user = userMapper.selectById(dto.getId());
-        if (user == null) {
+        if (user == null || (user.getDeleted() != null && user.getDeleted() == 1)) {
             throw new IllegalArgumentException("user not found");
         }
         user.setRealName(dto.getRealName());
@@ -116,6 +123,21 @@ public class UserServiceImpl implements UserService {
         user.setUpdateTime(LocalDateTime.now());
         userMapper.updateById(user);
         return toUserVO(user);
+    }
+
+    @Override
+    public void deleteUser(Long id) {
+        User user = userMapper.selectById(id);
+        if (user == null || (user.getDeleted() != null && user.getDeleted() == 1)) {
+            return;
+        }
+        user.setDeleted(1);
+        user.setStatus(0);
+        user.setUpdateTime(LocalDateTime.now());
+        userMapper.updateById(user);
+        userRoleMapper.update(null, new LambdaUpdateWrapper<UserRole>()
+            .eq(UserRole::getUserId, id)
+            .set(UserRole::getDeleted, 1));
     }
 
     private UserVO toUserVO(User user) {
@@ -147,6 +169,7 @@ public class UserServiceImpl implements UserService {
         user.setStatus(1);
         user.setCreateTime(LocalDateTime.now());
         user.setUpdateTime(LocalDateTime.now());
+        user.setDeleted(0);
         userMapper.insert(user);
         return user;
     }

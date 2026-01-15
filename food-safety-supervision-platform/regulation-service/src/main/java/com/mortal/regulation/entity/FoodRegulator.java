@@ -7,13 +7,18 @@ import java.time.LocalDateTime;
 import lombok.Data;
 
 @Data
-@TableName("enterprise_account")
-public class EnterpriseAccount {
+@TableName("food_regulator")
+public class FoodRegulator {
 
     @TableId(type = IdType.AUTO)
     private Long id;
     private Long userId;
-    private Long enterpriseId;
+    private String name;
+    private String phone;
+    private String roleType;
+    private String jurisdictionArea;
+    private Integer status;
+    private String workIdUrl;
     private LocalDateTime createTime;
     private LocalDateTime updateTime;
     private Integer deleted;

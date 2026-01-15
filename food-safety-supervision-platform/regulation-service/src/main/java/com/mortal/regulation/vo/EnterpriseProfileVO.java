@@ -7,6 +7,7 @@ import lombok.Data;
 public class EnterpriseProfileVO {
 
     private Long id;
+    private Long userId;
     private String enterpriseName;
     private String licenseNo;
     private String address;

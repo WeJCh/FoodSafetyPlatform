@@ -16,6 +16,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.DeleteMapping;
 
 @RestController
 @RequestMapping("/api/regulation/enterprise")
@@ -82,6 +83,27 @@ public class EnterpriseProfileController {
             return ApiResponse.failure(403, "regulator only");
         }
         return ApiResponse.success(enterpriseProfileService.reject(id, identity.userId(), dto));
+    }
+
+    @DeleteMapping("/{id}")
+    public ApiResponse<Void> deleteEnterprise(@RequestHeader("Authorization") String token,
+                                              @PathVariable Long id) {
+        UserIdentity identity = resolveIdentity(token);
+        if (!identity.isRegulator()) {
+            return ApiResponse.failure(403, "regulator only");
+        }
+        enterpriseProfileService.deleteEnterprise(id);
+        return ApiResponse.success(null);
+    }
+
+    @DeleteMapping("/profile")
+    public ApiResponse<Void> deleteMyEnterprise(@RequestHeader("Authorization") String token) {
+        UserIdentity identity = resolveIdentity(token);
+        if (!identity.isEnterprise()) {
+            return ApiResponse.failure(403, "enterprise user only");
+        }
+        enterpriseProfileService.deleteEnterpriseByUserId(identity.userId());
+        return ApiResponse.success(null);
     }
 
     private UserIdentity resolveIdentity(String token) {

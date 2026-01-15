@@ -5,8 +5,18 @@ COLLATE utf8mb4_general_ci;
 
 USE food_regulation_db;
 
+-- 按照依赖顺序删除表（先删除有外键约束的子表，再删除父表）
+DROP TABLE IF EXISTS complaint_handle;
+DROP TABLE IF EXISTS complaint;
+DROP TABLE IF EXISTS rectification_task;
+DROP TABLE IF EXISTS inspection_item;
+DROP TABLE IF EXISTS inspection_record;
+DROP TABLE IF EXISTS food_enterprise;
+DROP TABLE IF EXISTS food_regulator;
+
 CREATE TABLE IF NOT EXISTS food_enterprise (
   id BIGINT PRIMARY KEY AUTO_INCREMENT,
+  user_id BIGINT NOT NULL COMMENT '对应user-service账号ID',
   enterprise_name VARCHAR(100) NOT NULL COMMENT '企业名称',
   license_no VARCHAR(50) COMMENT '许可证编号',
   address VARCHAR(255) COMMENT '地址',
@@ -20,18 +30,24 @@ CREATE TABLE IF NOT EXISTS food_enterprise (
   approved_time DATETIME COMMENT '审核时间',
   create_time DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
   update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
-  deleted TINYINT DEFAULT 0 COMMENT '逻辑删除 1-已删 0-未删'
+  deleted TINYINT DEFAULT 0 COMMENT '逻辑删除 1-已删 0-未删',
+  UNIQUE KEY uk_enterprise_user (user_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='食品企业信息表';
 
-CREATE TABLE IF NOT EXISTS enterprise_account (
+CREATE TABLE IF NOT EXISTS food_regulator (
   id BIGINT PRIMARY KEY AUTO_INCREMENT,
-  user_id BIGINT NOT NULL COMMENT '用户ID',
-  enterprise_id BIGINT NOT NULL COMMENT '企业ID',
+  user_id BIGINT NOT NULL COMMENT '对应user-service账号ID',
+  name VARCHAR(50) NOT NULL COMMENT '姓名',
+  phone VARCHAR(20) COMMENT '手机号',
+  role_type VARCHAR(30) NOT NULL COMMENT 'REGULATOR_ADMIN / REGULATOR_ENFORCER',
+  jurisdiction_area VARCHAR(100) NOT NULL COMMENT '辖区（省/市/区/街道）',
+  status TINYINT DEFAULT 1 COMMENT '1-在岗 0-停用',
+  work_id_url VARCHAR(255) COMMENT '工作证件附件',
   create_time DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
   update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
   deleted TINYINT DEFAULT 0 COMMENT '逻辑删除 1-已删 0-未删',
-  UNIQUE KEY uk_enterprise_account_user (user_id)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='企业账号绑定表';
+  UNIQUE KEY uk_regulator_user (user_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='监管人员档案表';
 
 CREATE TABLE IF NOT EXISTS inspection_record (
   id BIGINT PRIMARY KEY AUTO_INCREMENT,

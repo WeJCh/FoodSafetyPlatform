@@ -35,7 +35,7 @@ export function createRegulatorProfile(token, payload) {
 export function fetchRegulatorProfiles(token, params = {}) {
   const search = new URLSearchParams();
   if (params.roleType) search.append("roleType", params.roleType);
-  if (params.jurisdictionArea) search.append("jurisdictionArea", params.jurisdictionArea);
+  if (params.regionId) search.append("regionId", params.regionId);
   const query = search.toString();
   return requestWithBase(
     REGULATION_BASE_URL,
@@ -77,4 +77,14 @@ export function fetchEnterprises(token, params = {}) {
       }
     }
   );
+}
+
+export function fetchRegions(token, parentId = null) {
+  const query = parentId === null ? "" : `?parentId=${parentId}`;
+  return requestWithBase(REGULATION_BASE_URL, `/api/regulation/regions${query}`, {
+    method: "GET",
+    headers: {
+      Authorization: `Bearer ${token}`
+    }
+  });
 }

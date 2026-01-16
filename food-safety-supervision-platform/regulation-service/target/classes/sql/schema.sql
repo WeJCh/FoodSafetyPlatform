@@ -11,15 +11,35 @@ DROP TABLE IF EXISTS complaint;
 DROP TABLE IF EXISTS rectification_task;
 DROP TABLE IF EXISTS inspection_item;
 DROP TABLE IF EXISTS inspection_record;
+DROP TABLE IF EXISTS food_regulator_region;
+DROP TABLE IF EXISTS addr_location;
+DROP TABLE IF EXISTS addr_region;
 DROP TABLE IF EXISTS food_enterprise;
 DROP TABLE IF EXISTS food_regulator;
+
+CREATE TABLE IF NOT EXISTS addr_region (
+  id BIGINT PRIMARY KEY AUTO_INCREMENT,
+  parent_id BIGINT COMMENT '上级区域',
+  name VARCHAR(50) NOT NULL COMMENT '区域名称',
+  level TINYINT NOT NULL COMMENT '1省 2市 3区县 4街道',
+  deleted TINYINT DEFAULT 0 COMMENT '逻辑删除 1-已删 0-未删'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='行政区划';
+
+CREATE TABLE IF NOT EXISTS addr_location (
+  id BIGINT PRIMARY KEY AUTO_INCREMENT,
+  region_id BIGINT NOT NULL COMMENT '所属区域',
+  detail VARCHAR(255) NOT NULL COMMENT '详细地址',
+  deleted TINYINT DEFAULT 0 COMMENT '逻辑删除 1-已删 0-未删',
+  KEY idx_location_region (region_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='地址信息';
 
 CREATE TABLE IF NOT EXISTS food_enterprise (
   id BIGINT PRIMARY KEY AUTO_INCREMENT,
   user_id BIGINT NOT NULL COMMENT '对应user-service账号ID',
   enterprise_name VARCHAR(100) NOT NULL COMMENT '企业名称',
   license_no VARCHAR(50) COMMENT '许可证编号',
-  address VARCHAR(255) COMMENT '地址',
+  region_id BIGINT NOT NULL COMMENT '所属行政区',
+  address_id BIGINT NOT NULL COMMENT '地址ID',
   principal VARCHAR(50) COMMENT '负责人',
   principal_phone VARCHAR(20) COMMENT '负责人电话',
   regulator_name VARCHAR(50) COMMENT '包保责任人',
@@ -31,7 +51,8 @@ CREATE TABLE IF NOT EXISTS food_enterprise (
   create_time DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
   update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
   deleted TINYINT DEFAULT 0 COMMENT '逻辑删除 1-已删 0-未删',
-  UNIQUE KEY uk_enterprise_user (user_id)
+  UNIQUE KEY uk_enterprise_user (user_id),
+  KEY idx_enterprise_region (region_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='食品企业信息表';
 
 CREATE TABLE IF NOT EXISTS food_regulator (
@@ -40,7 +61,6 @@ CREATE TABLE IF NOT EXISTS food_regulator (
   name VARCHAR(50) NOT NULL COMMENT '姓名',
   phone VARCHAR(20) COMMENT '手机号',
   role_type VARCHAR(30) NOT NULL COMMENT 'REGULATOR_ADMIN / REGULATOR_ENFORCER',
-  jurisdiction_area VARCHAR(100) NOT NULL COMMENT '辖区（省/市/区/街道）',
   status TINYINT DEFAULT 1 COMMENT '1-在岗 0-停用',
   work_id_url VARCHAR(255) COMMENT '工作证件附件',
   create_time DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
@@ -48,6 +68,14 @@ CREATE TABLE IF NOT EXISTS food_regulator (
   deleted TINYINT DEFAULT 0 COMMENT '逻辑删除 1-已删 0-未删',
   UNIQUE KEY uk_regulator_user (user_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='监管人员档案表';
+
+CREATE TABLE IF NOT EXISTS food_regulator_region (
+  id BIGINT PRIMARY KEY AUTO_INCREMENT,
+  regulator_id BIGINT NOT NULL COMMENT '监管人员ID',
+  region_id BIGINT NOT NULL COMMENT '辖区ID',
+  deleted TINYINT DEFAULT 0 COMMENT '逻辑删除 1-已删 0-未删',
+  UNIQUE KEY uk_regulator_region (regulator_id, region_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='监管人员辖区';
 
 CREATE TABLE IF NOT EXISTS inspection_record (
   id BIGINT PRIMARY KEY AUTO_INCREMENT,

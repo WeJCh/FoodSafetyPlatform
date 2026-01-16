@@ -15,7 +15,8 @@ public class FoodEnterprise {
     private Long userId;
     private String enterpriseName;
     private String licenseNo;
-    private String address;
+    private Long regionId;
+    private Long addressId;
     private String principal;
     private String principalPhone;
     private String regulatorName;

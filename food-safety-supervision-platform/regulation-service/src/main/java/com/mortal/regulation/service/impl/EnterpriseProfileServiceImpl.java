@@ -6,12 +6,20 @@ import com.mortal.regulation.client.UserServiceClient;
 import com.mortal.regulation.common.PageResult;
 import com.mortal.regulation.dto.EnterpriseApprovalDTO;
 import com.mortal.regulation.dto.EnterpriseProfileDTO;
+import com.mortal.regulation.entity.AddrLocation;
+import com.mortal.regulation.entity.AddrRegion;
 import com.mortal.regulation.entity.FoodEnterprise;
+import com.mortal.regulation.mapper.AddrLocationMapper;
+import com.mortal.regulation.mapper.AddrRegionMapper;
 import com.mortal.regulation.mapper.FoodEnterpriseMapper;
 import com.mortal.regulation.service.EnterpriseProfileService;
 import com.mortal.regulation.vo.EnterpriseProfileVO;
 import java.time.LocalDateTime;
+import java.util.Collections;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.stream.Collectors;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
@@ -24,11 +32,17 @@ public class EnterpriseProfileServiceImpl implements EnterpriseProfileService {
     private static final String APPROVAL_REJECTED = "REJECTED";
 
     private final FoodEnterpriseMapper foodEnterpriseMapper;
+    private final AddrLocationMapper addrLocationMapper;
+    private final AddrRegionMapper addrRegionMapper;
     private final UserServiceClient userServiceClient;
 
     public EnterpriseProfileServiceImpl(FoodEnterpriseMapper foodEnterpriseMapper,
+                                        AddrLocationMapper addrLocationMapper,
+                                        AddrRegionMapper addrRegionMapper,
                                         UserServiceClient userServiceClient) {
         this.foodEnterpriseMapper = foodEnterpriseMapper;
+        this.addrLocationMapper = addrLocationMapper;
+        this.addrRegionMapper = addrRegionMapper;
         this.userServiceClient = userServiceClient;
     }
 
@@ -41,9 +55,12 @@ public class EnterpriseProfileServiceImpl implements EnterpriseProfileService {
             enterprise.setStatus(STATUS_NORMAL);
             enterprise.setCreateTime(LocalDateTime.now());
         }
+        requireRegion(dto.getRegionId());
+        AddrLocation location = upsertLocation(enterprise.getAddressId(), dto.getRegionId(), dto.getAddressDetail());
         enterprise.setEnterpriseName(dto.getEnterpriseName());
         enterprise.setLicenseNo(dto.getLicenseNo());
-        enterprise.setAddress(dto.getAddress());
+        enterprise.setRegionId(dto.getRegionId());
+        enterprise.setAddressId(location.getId());
         enterprise.setPrincipal(dto.getPrincipal());
         enterprise.setPrincipalPhone(dto.getPrincipalPhone());
         enterprise.setApprovalStatus(APPROVAL_PENDING);
@@ -61,7 +78,7 @@ public class EnterpriseProfileServiceImpl implements EnterpriseProfileService {
             foodEnterpriseMapper.updateById(enterprise);
         }
 
-        return toVO(enterprise);
+        return toVO(enterprise, location.getDetail());
     }
 
     @Override
@@ -70,7 +87,7 @@ public class EnterpriseProfileServiceImpl implements EnterpriseProfileService {
         if (enterprise == null || isDeleted(enterprise.getDeleted())) {
             return null;
         }
-        return toVO(enterprise);
+        return toVO(enterprise, resolveAddressDetail(enterprise.getAddressId()));
     }
 
     @Override
@@ -79,7 +96,7 @@ public class EnterpriseProfileServiceImpl implements EnterpriseProfileService {
         if (enterprise == null || isDeleted(enterprise.getDeleted())) {
             return null;
         }
-        return toVO(enterprise);
+        return toVO(enterprise, resolveAddressDetail(enterprise.getAddressId()));
     }
 
     @Override
@@ -101,20 +118,22 @@ public class EnterpriseProfileServiceImpl implements EnterpriseProfileService {
         }
         wrapper.orderByDesc(FoodEnterprise::getUpdateTime);
         Page<FoodEnterprise> pageInfo = foodEnterpriseMapper.selectPage(new Page<>(page, size), wrapper);
-        List<EnterpriseProfileVO> records = pageInfo.getRecords()
-            .stream()
-            .map(this::toVO)
+        List<FoodEnterprise> enterprises = pageInfo.getRecords();
+        Map<Long, String> addressMap = loadAddressDetails(enterprises);
+        List<EnterpriseProfileVO> records = enterprises.stream()
+            .map(enterprise -> toVO(enterprise, addressMap.get(enterprise.getAddressId())))
             .toList();
         return PageResult.of(records, pageInfo.getTotal(), page, size);
     }
 
     @Override
     public List<EnterpriseProfileVO> listPending() {
-        return foodEnterpriseMapper.selectList(new LambdaQueryWrapper<FoodEnterprise>()
-                .eq(FoodEnterprise::getApprovalStatus, APPROVAL_PENDING)
-                .eq(FoodEnterprise::getDeleted, 0))
-            .stream()
-            .map(this::toVO)
+        List<FoodEnterprise> enterprises = foodEnterpriseMapper.selectList(new LambdaQueryWrapper<FoodEnterprise>()
+            .eq(FoodEnterprise::getApprovalStatus, APPROVAL_PENDING)
+            .eq(FoodEnterprise::getDeleted, 0));
+        Map<Long, String> addressMap = loadAddressDetails(enterprises);
+        return enterprises.stream()
+            .map(enterprise -> toVO(enterprise, addressMap.get(enterprise.getAddressId())))
             .toList();
     }
 
@@ -122,14 +141,14 @@ public class EnterpriseProfileServiceImpl implements EnterpriseProfileService {
     public EnterpriseProfileVO approve(Long enterpriseId, Long operatorId, EnterpriseApprovalDTO dto) {
         FoodEnterprise enterprise = requireEnterprise(enterpriseId);
         applyApproval(enterprise, APPROVAL_APPROVED, operatorId, dto);
-        return toVO(enterprise);
+        return toVO(enterprise, resolveAddressDetail(enterprise.getAddressId()));
     }
 
     @Override
     public EnterpriseProfileVO reject(Long enterpriseId, Long operatorId, EnterpriseApprovalDTO dto) {
         FoodEnterprise enterprise = requireEnterprise(enterpriseId);
         applyApproval(enterprise, APPROVAL_REJECTED, operatorId, dto);
-        return toVO(enterprise);
+        return toVO(enterprise, resolveAddressDetail(enterprise.getAddressId()));
     }
 
     @Override
@@ -138,6 +157,7 @@ public class EnterpriseProfileServiceImpl implements EnterpriseProfileService {
         enterprise.setDeleted(1);
         enterprise.setUpdateTime(LocalDateTime.now());
         foodEnterpriseMapper.updateById(enterprise);
+        markAddressDeleted(enterprise.getAddressId());
         if (enterprise.getUserId() != null) {
             userServiceClient.deleteUser(enterprise.getUserId());
         }
@@ -166,6 +186,58 @@ public class EnterpriseProfileServiceImpl implements EnterpriseProfileService {
         return enterprise;
     }
 
+    private void requireRegion(Long regionId) {
+        if (regionId == null) {
+            throw new IllegalArgumentException("regionId required");
+        }
+        AddrRegion region = addrRegionMapper.selectById(regionId);
+        if (region == null || isDeleted(region.getDeleted())) {
+            throw new IllegalArgumentException("region not found");
+        }
+    }
+
+    private AddrLocation upsertLocation(Long addressId, Long regionId, String detail) {
+        String cleanedDetail = StringUtils.hasText(detail) ? detail.trim() : detail;
+        if (addressId != null) {
+            AddrLocation location = addrLocationMapper.selectById(addressId);
+            if (location != null && !isDeleted(location.getDeleted())) {
+                location.setRegionId(regionId);
+                location.setDetail(cleanedDetail);
+                addrLocationMapper.updateById(location);
+                return location;
+            }
+        }
+        AddrLocation location = new AddrLocation();
+        location.setRegionId(regionId);
+        location.setDetail(cleanedDetail);
+        location.setDeleted(0);
+        addrLocationMapper.insert(location);
+        return location;
+    }
+
+    private String resolveAddressDetail(Long addressId) {
+        if (addressId == null) {
+            return null;
+        }
+        AddrLocation location = addrLocationMapper.selectById(addressId);
+        if (location == null || isDeleted(location.getDeleted())) {
+            return null;
+        }
+        return location.getDetail();
+    }
+
+    private void markAddressDeleted(Long addressId) {
+        if (addressId == null) {
+            return;
+        }
+        AddrLocation location = addrLocationMapper.selectById(addressId);
+        if (location == null || isDeleted(location.getDeleted())) {
+            return;
+        }
+        location.setDeleted(1);
+        addrLocationMapper.updateById(location);
+    }
+
     private void applyApproval(FoodEnterprise enterprise, String status, Long operatorId, EnterpriseApprovalDTO dto) {
         enterprise.setApprovalStatus(status);
         enterprise.setApprovalComment(dto == null ? null : dto.getComment());
@@ -178,17 +250,37 @@ public class EnterpriseProfileServiceImpl implements EnterpriseProfileService {
         foodEnterpriseMapper.updateById(enterprise);
     }
 
+    private Map<Long, String> loadAddressDetails(List<FoodEnterprise> enterprises) {
+        if (enterprises == null || enterprises.isEmpty()) {
+            return Collections.emptyMap();
+        }
+        List<Long> addressIds = enterprises.stream()
+            .map(FoodEnterprise::getAddressId)
+            .filter(Objects::nonNull)
+            .distinct()
+            .toList();
+        if (addressIds.isEmpty()) {
+            return Collections.emptyMap();
+        }
+        return addrLocationMapper.selectBatchIds(addressIds)
+            .stream()
+            .filter(location -> !isDeleted(location.getDeleted()))
+            .collect(Collectors.toMap(AddrLocation::getId, AddrLocation::getDetail, (a, b) -> a));
+    }
+
     private boolean isDeleted(Integer deleted) {
         return deleted != null && deleted == 1;
     }
 
-    private EnterpriseProfileVO toVO(FoodEnterprise enterprise) {
+    private EnterpriseProfileVO toVO(FoodEnterprise enterprise, String addressDetail) {
         EnterpriseProfileVO vo = new EnterpriseProfileVO();
         vo.setId(enterprise.getId());
         vo.setUserId(enterprise.getUserId());
         vo.setEnterpriseName(enterprise.getEnterpriseName());
         vo.setLicenseNo(enterprise.getLicenseNo());
-        vo.setAddress(enterprise.getAddress());
+        vo.setRegionId(enterprise.getRegionId());
+        vo.setAddressId(enterprise.getAddressId());
+        vo.setAddressDetail(addressDetail);
         vo.setPrincipal(enterprise.getPrincipal());
         vo.setPrincipalPhone(enterprise.getPrincipalPhone());
         vo.setRegulatorName(enterprise.getRegulatorName());

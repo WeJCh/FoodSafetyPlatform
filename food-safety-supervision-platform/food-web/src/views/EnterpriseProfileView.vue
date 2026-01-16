@@ -55,8 +55,51 @@
             <input v-model.trim="form.licenseNo" placeholder="请输入许可证编号" />
           </label>
           <label>
-            企业地址
-            <input v-model.trim="form.address" placeholder="请输入企业地址" />
+            省份
+            <select v-model="regionSelection.provinceId" @change="handleProvinceChange">
+              <option value="">请选择省</option>
+              <option v-for="item in regionOptions.provinces" :key="item.id" :value="item.id">
+                {{ item.name }}
+              </option>
+            </select>
+          </label>
+          <label>
+            城市
+            <select v-model="regionSelection.cityId" :disabled="!regionSelection.provinceId" @change="handleCityChange">
+              <option value="">请选择市</option>
+              <option v-for="item in regionOptions.cities" :key="item.id" :value="item.id">
+                {{ item.name }}
+              </option>
+            </select>
+          </label>
+          <label>
+            区县
+            <select
+              v-model="regionSelection.countyId"
+              :disabled="!regionSelection.cityId"
+              @change="handleCountyChange"
+            >
+              <option value="">请选择区县</option>
+              <option v-for="item in regionOptions.counties" :key="item.id" :value="item.id">
+                {{ item.name }}
+              </option>
+            </select>
+          </label>
+          <label>
+            街道
+            <select v-model="regionSelection.streetId" :disabled="!regionSelection.countyId">
+              <option value="">请选择街道</option>
+              <option v-for="item in regionOptions.streets" :key="item.id" :value="item.id">
+                {{ item.name }}
+              </option>
+            </select>
+          </label>
+          <div v-if="existingRegionId && !regionSelection.provinceId" class="hint">
+            当前区域ID：{{ existingRegionId }}
+          </div>
+          <label>
+            详细地址
+            <input v-model.trim="form.addressDetail" required placeholder="请输入详细地址" />
           </label>
           <label>
             负责人姓名
@@ -82,7 +125,7 @@
 
 <script setup>
 import { computed, onMounted, reactive, ref } from "vue";
-import { fetchEnterpriseProfile, submitEnterpriseProfile } from "../api/regulation";
+import { fetchEnterpriseProfile, fetchRegions, submitEnterpriseProfile } from "../api/regulation";
 
 const props = defineProps({
   token: {
@@ -100,16 +143,31 @@ const emit = defineEmits(["logout"]);
 const loading = ref(false);
 const profileLoaded = ref(false);
 const status = reactive({ message: "", type: "" });
+const existingRegionId = ref(null);
 const profile = reactive({
   approvalStatus: "",
   approvalComment: "",
   approvedTime: ""
 });
 
+const regionOptions = reactive({
+  provinces: [],
+  cities: [],
+  counties: [],
+  streets: []
+});
+
+const regionSelection = reactive({
+  provinceId: "",
+  cityId: "",
+  countyId: "",
+  streetId: ""
+});
+
 const form = reactive({
   enterpriseName: "",
   licenseNo: "",
-  address: "",
+  addressDetail: "",
   principal: "",
   principalPhone: ""
 });
@@ -139,7 +197,7 @@ function setStatus(message, type = "info") {
 function resetForm(payload = {}) {
   form.enterpriseName = payload.enterpriseName || "";
   form.licenseNo = payload.licenseNo || "";
-  form.address = payload.address || "";
+  form.addressDetail = payload.addressDetail || "";
   form.principal = payload.principal || "";
   form.principalPhone = payload.principalPhone || "";
 }
@@ -150,11 +208,13 @@ async function loadProfile() {
     profile.approvalStatus = data.approvalStatus || "";
     profile.approvalComment = data.approvalComment || "";
     profile.approvedTime = data.approvedTime || "";
+    existingRegionId.value = data.regionId || null;
     resetForm(data);
     profileLoaded.value = true;
   } catch (error) {
     if (String(error?.message).includes("not found")) {
       profileLoaded.value = false;
+      existingRegionId.value = null;
       resetForm();
       return;
     }
@@ -166,7 +226,12 @@ async function handleSubmit() {
   loading.value = true;
   setStatus("");
   try {
-    const data = await submitEnterpriseProfile(props.token, { ...form });
+    const regionId = resolveEnterpriseRegionId();
+    if (!regionId) {
+      setStatus("请选择所属行政区", "error");
+      return;
+    }
+    const data = await submitEnterpriseProfile(props.token, { ...form, regionId });
     profile.approvalStatus = data.approvalStatus || "PENDING";
     profile.approvalComment = data.approvalComment || "";
     profile.approvedTime = data.approvedTime || "";
@@ -183,8 +248,70 @@ function handleLogout() {
   emit("logout");
 }
 
+async function loadRegions(parentId, targetKey) {
+  try {
+    regionOptions[targetKey] = await fetchRegions(props.token, parentId);
+  } catch (error) {
+    setStatus(error.message || "加载行政区失败", "error");
+  }
+}
+
+function resetRegion(level) {
+  if (level === "province") {
+    regionSelection.cityId = "";
+    regionSelection.countyId = "";
+    regionSelection.streetId = "";
+    regionOptions.cities = [];
+    regionOptions.counties = [];
+    regionOptions.streets = [];
+  } else if (level === "city") {
+    regionSelection.countyId = "";
+    regionSelection.streetId = "";
+    regionOptions.counties = [];
+    regionOptions.streets = [];
+  } else if (level === "county") {
+    regionSelection.streetId = "";
+    regionOptions.streets = [];
+  }
+}
+
+async function handleProvinceChange() {
+  resetRegion("province");
+  const provinceId = Number(regionSelection.provinceId || 0);
+  if (!provinceId) return;
+  await loadRegions(provinceId, "cities");
+}
+
+async function handleCityChange() {
+  resetRegion("city");
+  const cityId = Number(regionSelection.cityId || 0);
+  if (!cityId) return;
+  await loadRegions(cityId, "counties");
+}
+
+async function handleCountyChange() {
+  resetRegion("county");
+  const countyId = Number(regionSelection.countyId || 0);
+  if (!countyId) return;
+  await loadRegions(countyId, "streets");
+}
+
+function resolveEnterpriseRegionId() {
+  if (regionOptions.streets.length) {
+    return Number(regionSelection.streetId || 0) || null;
+  }
+  if (regionOptions.counties.length) {
+    return Number(regionSelection.countyId || 0) || null;
+  }
+  if (regionOptions.cities.length) {
+    return Number(regionSelection.cityId || 0) || null;
+  }
+  return Number(regionSelection.provinceId || 0) || existingRegionId.value || null;
+}
+
 onMounted(() => {
   loadProfile();
+  loadRegions(null, "provinces");
 });
 </script>
 
@@ -223,5 +350,11 @@ onMounted(() => {
 .status-note {
   font-size: 12px;
   color: inherit;
+}
+
+.hint {
+  font-size: 12px;
+  color: var(--muted);
+  margin-top: -6px;
 }
 </style>

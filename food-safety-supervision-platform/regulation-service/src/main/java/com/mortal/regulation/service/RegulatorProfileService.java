@@ -12,7 +12,7 @@ public interface RegulatorProfileService {
 
     RegulatorProfileVO getById(Long id);
 
-    List<RegulatorProfileVO> list(String roleType, String jurisdictionArea);
+    List<RegulatorProfileVO> list(String roleType, Long regionId);
 
     RegulatorProfileVO updateStatus(Long id, Integer status);
 

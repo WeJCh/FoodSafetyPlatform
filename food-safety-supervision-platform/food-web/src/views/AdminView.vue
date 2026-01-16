@@ -99,8 +99,48 @@
               </select>
             </label>
             <label>
-              管辖区域
-              <input v-model.trim="regulatorForm.jurisdictionArea" required placeholder="省/市/区/街道" />
+              管辖省份
+              <select v-model="regulatorRegion.provinceId" @change="handleRegulatorProvinceChange">
+                <option value="">请选择省</option>
+                <option v-for="item in regulatorRegions.provinces" :key="item.id" :value="item.id">
+                  {{ item.name }}
+                </option>
+              </select>
+            </label>
+            <label>
+              管辖城市
+              <select
+                v-model="regulatorRegion.cityId"
+                :disabled="!regulatorRegion.provinceId"
+                @change="handleRegulatorCityChange"
+              >
+                <option value="">请选择市</option>
+                <option v-for="item in regulatorRegions.cities" :key="item.id" :value="item.id">
+                  {{ item.name }}
+                </option>
+              </select>
+            </label>
+            <label>
+              管辖区县
+              <select
+                v-model="regulatorRegion.countyId"
+                :disabled="!regulatorRegion.cityId"
+                @change="handleRegulatorCountyChange"
+              >
+                <option value="">请选择区县</option>
+                <option v-for="item in regulatorRegions.counties" :key="item.id" :value="item.id">
+                  {{ item.name }}
+                </option>
+              </select>
+            </label>
+            <label>
+              管辖街道
+              <select v-model="regulatorRegion.streetId" :disabled="!regulatorRegion.countyId">
+                <option value="">请选择街道</option>
+                <option v-for="item in regulatorRegions.streets" :key="item.id" :value="item.id">
+                  {{ item.name }}
+                </option>
+              </select>
             </label>
             <button class="primary" type="submit" :disabled="loading">
               {{ loading ? "创建中..." : "创建监管人员" }}
@@ -119,8 +159,48 @@
                 </select>
               </label>
               <label>
-                管辖区域
-                <input v-model.trim="listQuery.jurisdictionArea" placeholder="输入区域关键字" />
+                省份
+                <select v-model="filterRegion.provinceId" @change="handleFilterProvinceChange">
+                  <option value="">请选择省</option>
+                  <option v-for="item in filterRegions.provinces" :key="item.id" :value="item.id">
+                    {{ item.name }}
+                  </option>
+                </select>
+              </label>
+              <label>
+                城市
+                <select
+                  v-model="filterRegion.cityId"
+                  :disabled="!filterRegion.provinceId"
+                  @change="handleFilterCityChange"
+                >
+                  <option value="">请选择市</option>
+                  <option v-for="item in filterRegions.cities" :key="item.id" :value="item.id">
+                    {{ item.name }}
+                  </option>
+                </select>
+              </label>
+              <label>
+                区县
+                <select
+                  v-model="filterRegion.countyId"
+                  :disabled="!filterRegion.cityId"
+                  @change="handleFilterCountyChange"
+                >
+                  <option value="">请选择区县</option>
+                  <option v-for="item in filterRegions.counties" :key="item.id" :value="item.id">
+                    {{ item.name }}
+                  </option>
+                </select>
+              </label>
+              <label>
+                街道
+                <select v-model="filterRegion.streetId" :disabled="!filterRegion.countyId">
+                  <option value="">请选择街道</option>
+                  <option v-for="item in filterRegions.streets" :key="item.id" :value="item.id">
+                    {{ item.name }}
+                  </option>
+                </select>
               </label>
               <button class="primary" type="submit" :disabled="listLoading">
                 {{ listLoading ? "查询中..." : "查询" }}
@@ -131,7 +211,7 @@
               <div class="list-row list-header">
                 <span>姓名</span>
                 <span>角色</span>
-                <span>辖区</span>
+                <span>辖区ID</span>
                 <span>状态</span>
                 <span>操作</span>
               </div>
@@ -141,7 +221,7 @@
               <div v-for="item in regulatorList" :key="item.id" class="list-row">
                 <span>{{ item.name }}</span>
                 <span>{{ item.roleType }}</span>
-                <span>{{ item.jurisdictionArea }}</span>
+                <span>{{ Array.isArray(item.regionIds) ? item.regionIds.join(",") : "-" }}</span>
                 <span>{{ item.status === 1 ? "在岗" : "停用" }}</span>
                 <button class="ghost" type="button" @click="handleToggle(item)">
                   {{ item.status === 1 ? "停用" : "启用" }}
@@ -170,9 +250,14 @@
 </template>
 
 <script setup>
-import { computed, reactive, ref } from "vue";
+import { computed, onMounted, reactive, ref } from "vue";
 import { createRegulator } from "../api/auth";
-import { createRegulatorProfile, fetchRegulatorProfiles, updateRegulatorStatus } from "../api/regulation";
+import {
+  createRegulatorProfile,
+  fetchRegulatorProfiles,
+  updateRegulatorStatus,
+  fetchRegions
+} from "../api/regulation";
 
 const props = defineProps({
   adminUser: {
@@ -198,13 +283,40 @@ const regulatorForm = reactive({
   name: "",
   workIdUrl: "",
   phone: "",
-  roleType: "REGULATOR_ENFORCER",
-  jurisdictionArea: ""
+  roleType: "REGULATOR_ENFORCER"
 });
 
 const listQuery = reactive({
   roleType: "",
-  jurisdictionArea: ""
+  regionId: ""
+});
+
+const regulatorRegions = reactive({
+  provinces: [],
+  cities: [],
+  counties: [],
+  streets: []
+});
+
+const regulatorRegion = reactive({
+  provinceId: "",
+  cityId: "",
+  countyId: "",
+  streetId: ""
+});
+
+const filterRegions = reactive({
+  provinces: [],
+  cities: [],
+  counties: [],
+  streets: []
+});
+
+const filterRegion = reactive({
+  provinceId: "",
+  cityId: "",
+  countyId: "",
+  streetId: ""
 });
 
 const regulatorList = ref([]);
@@ -246,6 +358,11 @@ async function handleCreate() {
   loading.value = true;
   setStatus("");
   try {
+    const regionId = resolveRegulatorRegionId();
+    if (!regionId) {
+      setStatus("请选择管辖区域", "error");
+      return;
+    }
     const user = await createRegulator(
       {
         username: regulatorForm.username,
@@ -262,7 +379,7 @@ async function handleCreate() {
       name: regulatorForm.name,
       phone: regulatorForm.phone,
       roleType: regulatorForm.roleType,
-      jurisdictionArea: regulatorForm.jurisdictionArea,
+      regionIds: [regionId],
       workIdUrl: regulatorForm.workIdUrl
     });
     setStatus("监管人员创建成功，档案已同步。", "success");
@@ -275,7 +392,140 @@ async function handleCreate() {
   }
 }
 
+async function loadRegulatorRegions(parentId, targetKey) {
+  try {
+    regulatorRegions[targetKey] = await fetchRegions(props.token, parentId);
+  } catch (error) {
+    setStatus(error.message || "加载行政区失败", "error");
+  }
+}
+
+function resetRegulatorRegion(level) {
+  if (level === "province") {
+    regulatorRegion.cityId = "";
+    regulatorRegion.countyId = "";
+    regulatorRegion.streetId = "";
+    regulatorRegions.cities = [];
+    regulatorRegions.counties = [];
+    regulatorRegions.streets = [];
+  } else if (level === "city") {
+    regulatorRegion.countyId = "";
+    regulatorRegion.streetId = "";
+    regulatorRegions.counties = [];
+    regulatorRegions.streets = [];
+  } else if (level === "county") {
+    regulatorRegion.streetId = "";
+    regulatorRegions.streets = [];
+  }
+}
+
+async function handleRegulatorProvinceChange() {
+  resetRegulatorRegion("province");
+  const provinceId = Number(regulatorRegion.provinceId || 0);
+  if (!provinceId) return;
+  await loadRegulatorRegions(provinceId, "cities");
+}
+
+async function handleRegulatorCityChange() {
+  resetRegulatorRegion("city");
+  const cityId = Number(regulatorRegion.cityId || 0);
+  if (!cityId) return;
+  await loadRegulatorRegions(cityId, "counties");
+}
+
+async function handleRegulatorCountyChange() {
+  resetRegulatorRegion("county");
+  const countyId = Number(regulatorRegion.countyId || 0);
+  if (!countyId) return;
+  await loadRegulatorRegions(countyId, "streets");
+}
+
+function resolveRegulatorRegionId() {
+  if (regulatorRegions.streets.length) {
+    return Number(regulatorRegion.streetId || 0) || null;
+  }
+  if (regulatorRegions.counties.length) {
+    return Number(regulatorRegion.countyId || 0) || null;
+  }
+  if (regulatorRegions.cities.length) {
+    return Number(regulatorRegion.cityId || 0) || null;
+  }
+  return Number(regulatorRegion.provinceId || 0) || null;
+}
+
+async function loadFilterRegions(parentId, targetKey) {
+  try {
+    filterRegions[targetKey] = await fetchRegions(props.token, parentId);
+  } catch (error) {
+    setStatus(error.message || "加载行政区失败", "error");
+  }
+}
+
+function resetFilterRegion(level) {
+  if (level === "province") {
+    filterRegion.cityId = "";
+    filterRegion.countyId = "";
+    filterRegion.streetId = "";
+    filterRegions.cities = [];
+    filterRegions.counties = [];
+    filterRegions.streets = [];
+  } else if (level === "city") {
+    filterRegion.countyId = "";
+    filterRegion.streetId = "";
+    filterRegions.counties = [];
+    filterRegions.streets = [];
+  } else if (level === "county") {
+    filterRegion.streetId = "";
+    filterRegions.streets = [];
+  }
+}
+
+async function handleFilterProvinceChange() {
+  resetFilterRegion("province");
+  const provinceId = Number(filterRegion.provinceId || 0);
+  if (!provinceId) return;
+  await loadFilterRegions(provinceId, "cities");
+}
+
+async function handleFilterCityChange() {
+  resetFilterRegion("city");
+  const cityId = Number(filterRegion.cityId || 0);
+  if (!cityId) return;
+  await loadFilterRegions(cityId, "counties");
+}
+
+async function handleFilterCountyChange() {
+  resetFilterRegion("county");
+  const countyId = Number(filterRegion.countyId || 0);
+  if (!countyId) return;
+  await loadFilterRegions(countyId, "streets");
+}
+
+function resolveFilterRegionId() {
+  if (filterRegion.streetId) return Number(filterRegion.streetId);
+  if (filterRegion.countyId) return Number(filterRegion.countyId);
+  if (filterRegion.cityId) return Number(filterRegion.cityId);
+  if (filterRegion.provinceId) return Number(filterRegion.provinceId);
+  return null;
+}
+
+async function loadProvinces() {
+  try {
+    const provinces = await fetchRegions(props.token, null);
+    regulatorRegions.provinces = provinces;
+    filterRegions.provinces = provinces;
+  } catch (error) {
+    setStatus(error.message || "加载行政区失败", "error");
+  }
+}
+
+onMounted(async () => {
+  await loadProvinces();
+});
+
 async function handleSearch() {
+  const regionId = resolveFilterRegionId();
+  listQuery.regionId = regionId ? String(regionId) : "";
   await loadRegulators();
 }
 

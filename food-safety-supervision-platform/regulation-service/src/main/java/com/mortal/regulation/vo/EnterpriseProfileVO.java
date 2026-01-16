@@ -10,7 +10,9 @@ public class EnterpriseProfileVO {
     private Long userId;
     private String enterpriseName;
     private String licenseNo;
-    private String address;
+    private Long regionId;
+    private Long addressId;
+    private String addressDetail;
     private String principal;
     private String principalPhone;
     private String regulatorName;

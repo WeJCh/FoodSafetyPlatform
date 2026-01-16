@@ -72,12 +72,12 @@ public class RegulatorProfileController {
     @GetMapping
     public ApiResponse<List<RegulatorProfileVO>> list(@RequestHeader("Authorization") String token,
                                                       @RequestParam(required = false) String roleType,
-                                                      @RequestParam(required = false) String jurisdictionArea) {
+                                                      @RequestParam(required = false) Long regionId) {
         UserIdentity identity = resolveIdentity(token);
         if (!identity.isAdmin()) {
             return ApiResponse.failure(403, "admin only");
         }
-        return ApiResponse.success(regulatorProfileService.list(roleType, jurisdictionArea));
+        return ApiResponse.success(regulatorProfileService.list(roleType, regionId));
     }
 
     @PutMapping("/{id}/status")

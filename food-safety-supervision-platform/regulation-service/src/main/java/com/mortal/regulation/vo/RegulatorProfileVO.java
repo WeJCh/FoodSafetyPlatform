@@ -1,6 +1,7 @@
 package com.mortal.regulation.vo;
 
 import java.time.LocalDateTime;
+import java.util.List;
 import lombok.Data;
 
 @Data
@@ -11,7 +12,7 @@ public class RegulatorProfileVO {
     private String name;
     private String phone;
     private String roleType;
-    private String jurisdictionArea;
+    private List<Long> regionIds;
     private Integer status;
     private String workIdUrl;
     private LocalDateTime createTime;

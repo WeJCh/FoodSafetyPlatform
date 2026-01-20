@@ -1,0 +1,656 @@
+<template>
+  <div class="app-shell regulator-shell">
+
+    <div class="form-panel">
+      <div class="card">
+        <div class="section-title">监管人员</div>
+        <div class="admin-info">
+          <div>账号：{{ regulatorUser.username }}</div>
+          <div>角色：{{ regulatorUser.userType }}</div>
+          <div>职责：执法人员</div>
+        </div>
+
+        <div class="sub-nav">
+          <button :class="{ active: section === 'enterprises' }" @click="section = 'enterprises'">
+            企业列表
+          </button>
+          <button :class="{ active: section === 'tasks' }" @click="handleTaskEnter">
+            我的任务
+          </button>
+          <button :class="{ active: section === 'inspections' }" @click="section = 'inspections'">
+            检查记录
+          </button>
+          <button :class="{ active: section === 'rectification' }" @click="section = 'rectification'">
+            整改跟进
+          </button>
+        </div>
+
+        <div v-if="section === 'enterprises'">
+          <form class="filter-bar" @submit.prevent="handleSearch">
+            <label>
+              企业名称
+              <input v-model.trim="filters.enterpriseName" placeholder="输入企业名称" />
+            </label>
+            <label>
+              企业状态
+              <select v-model="filters.status">
+                <option value="">全部</option>
+                <option value="NORMAL">正常</option>
+                <option value="KEY">重点监管</option>
+              </select>
+            </label>
+            <label>
+              审核状态
+              <select v-model="filters.approvalStatus">
+                <option value="">全部</option>
+                <option value="PENDING">待审核</option>
+                <option value="APPROVED">已通过</option>
+                <option value="REJECTED">已驳回</option>
+              </select>
+            </label>
+            <button class="primary" type="submit" :disabled="loading">
+              {{ loading ? "查询中..." : "查询" }}
+            </button>
+          </form>
+
+          <div class="list-table">
+            <div class="list-row list-header">
+              <span>企业名称</span>
+              <span>状态</span>
+              <span>审核</span>
+              <span>负责人</span>
+              <span>更新时间</span>
+              <span>操作</span>
+            </div>
+            <div v-if="!records.length" class="list-empty">
+              暂无企业数据
+            </div>
+            <div v-for="item in records" :key="item.id" class="list-row">
+              <span>{{ item.enterpriseName }}</span>
+              <span>{{ formatStatus(item.status) }}</span>
+              <span>{{ formatApprovalStatus(item.approvalStatus) }}</span>
+              <span>{{ item.principal || "-" }}</span>
+              <span>{{ formatTime(item.updateTime) }}</span>
+              <button class="ghost" type="button" @click="handleViewDetail(item)">查看详情</button>
+            </div>
+          </div>
+
+          <div class="pager">
+            <span>共 {{ total }} 条，{{ page }}/{{ pages }} 页</span>
+            <div class="pager-actions">
+              <button class="ghost" type="button" :disabled="page <= 1" @click="changePage(page - 1)">
+                上一页
+              </button>
+              <button class="ghost" type="button" :disabled="page >= pages" @click="changePage(page + 1)">
+                下一页
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div v-else-if="section === 'tasks'">
+          <div class="section-title">我的任务</div>
+          <form class="filter-bar" @submit.prevent="handleTaskSearch">
+            <label>
+              任务状态
+              <select v-model="taskFilters.status">
+                <option value="">全部</option>
+                <option value="ASSIGNED">待执行</option>
+                <option value="IN_PROGRESS">执行中</option>
+                <option value="COMPLETED">已完成</option>
+              </select>
+            </label>
+            <button class="primary" type="submit" :disabled="taskLoading">
+              {{ taskLoading ? "查询中..." : "查询" }}
+            </button>
+          </form>
+
+          <div class="list-table task-table">
+            <div class="list-row list-header task-header">
+              <span>任务号</span>
+              <span>企业</span>
+              <span>优先级</span>
+              <span>状态</span>
+              <span>截止时间</span>
+              <span>操作</span>
+            </div>
+            <div v-if="!taskRecords.length" class="list-empty">
+              暂无任务
+            </div>
+            <div v-for="task in taskRecords" :key="task.id" class="list-row task-row">
+              <span>{{ task.taskNo }}</span>
+              <span>{{ task.enterpriseName || "-" }}</span>
+              <span>{{ formatTaskPriority(task.priority) }}</span>
+              <span>{{ formatTaskStatus(task.status) }}</span>
+              <span>{{ formatTime(task.deadline) }}</span>
+              <div class="action-buttons">
+                <button
+                  v-if="task.status === 'ASSIGNED'"
+                  class="ghost"
+                  type="button"
+                  :disabled="taskLoading"
+                  @click="handleStartTask(task)"
+                >
+                  开始执行
+                </button>
+                <button
+                  v-if="task.status === 'IN_PROGRESS'"
+                  class="primary"
+                  type="button"
+                  @click="handleSelectTask(task)"
+                >
+                  提交检查
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div v-if="activeTask" class="task-submit">
+            <div class="section-subtitle">检查结果填报</div>
+            <div class="task-meta">
+              <span>任务：{{ activeTask.taskNo }}</span>
+              <span>企业：{{ activeTask.enterpriseName || "-" }}</span>
+            </div>
+            <form class="task-form" @submit.prevent="handleSubmitTask">
+              <label>
+                检查日期
+                <input v-model="taskForm.inspectionDate" type="date" required />
+              </label>
+              <label>
+                检查结果
+                <select v-model="taskForm.result">
+                  <option value="PASS">合格</option>
+                  <option value="FAIL">不合格</option>
+                </select>
+              </label>
+              <label>
+                总体问题描述
+                <textarea v-model.trim="taskForm.problemDesc" rows="3" placeholder="如有问题请填写"></textarea>
+              </label>
+              <div class="task-items">
+                <div class="task-item" v-for="(item, index) in taskForm.items" :key="index">
+                  <input v-model.trim="item.itemName" placeholder="检查项" />
+                  <select v-model="item.itemResult">
+                    <option value="PASS">合格</option>
+                    <option value="FAIL">不合格</option>
+                  </select>
+                  <input v-model.trim="item.problemDesc" placeholder="问题描述（可选）" />
+                  <button class="ghost" type="button" @click="removeItem(index)">
+                    删除
+                  </button>
+                </div>
+                <button class="ghost" type="button" @click="addItem">添加检查项</button>
+              </div>
+              <div class="task-actions">
+                <button class="primary" type="submit" :disabled="taskLoading">
+                  {{ taskLoading ? "提交中..." : "提交结果" }}
+                </button>
+                <button class="ghost" type="button" @click="clearActiveTask">取消</button>
+              </div>
+            </form>
+          </div>
+        </div>
+
+        <div v-else class="placeholder">
+          <strong>功能占位</strong>
+          <p>{{ sectionLabel }} 将在后续版本实现。</p>
+        </div>
+
+        <button class="ghost" type="button" @click="handleLogout">退出登录</button>
+
+        <div class="status" :class="status.type" v-if="status.message">
+          {{ status.message }}
+        </div>
+      </div>
+    </div>
+  </div>
+</template>
+
+<script setup>
+import { computed, onMounted, reactive, ref } from "vue";
+import {
+  fetchEnterprises,
+  fetchMyInspectionTasks,
+  startInspectionTask,
+  submitInspectionTask
+} from "../api/regulation";
+
+const props = defineProps({
+  token: {
+    type: String,
+    required: true
+  },
+  regulatorUser: {
+    type: Object,
+    required: true
+  }
+});
+
+const emit = defineEmits(["logout", "view-enterprise"]);
+
+const section = ref("enterprises");
+
+const filters = reactive({
+  enterpriseName: "",
+  status: "",
+  approvalStatus: ""
+});
+
+const status = reactive({ message: "", type: "" });
+const loading = ref(false);
+const records = ref([]);
+const page = ref(1);
+const size = ref(8);
+const total = ref(0);
+const pages = ref(1);
+const taskLoading = ref(false);
+const taskRecords = ref([]);
+const taskPage = ref(1);
+const taskSize = ref(8);
+const taskTotal = ref(0);
+const taskPages = ref(1);
+const taskFilters = reactive({
+  status: ""
+});
+const activeTask = ref(null);
+const taskForm = reactive({
+  inspectionDate: "",
+  result: "PASS",
+  problemDesc: "",
+  items: [
+    {
+      itemName: "",
+      itemResult: "PASS",
+      problemDesc: ""
+    }
+  ]
+});
+
+function setStatus(message, type = "info") {
+  status.message = message;
+  status.type = type;
+}
+
+const sectionLabelMap = {
+  tasks: "我的任务",
+  inspections: "检查记录",
+  rectification: "整改跟进"
+};
+
+const sectionLabel = computed(() => sectionLabelMap[section.value] || "当前模块");
+
+const statusMap = {
+  NORMAL: "正常",
+  KEY: "重点监管"
+};
+
+const approvalStatusMap = {
+  PENDING: "待审核",
+  APPROVED: "已通过",
+  REJECTED: "已驳回"
+};
+
+const taskStatusMap = {
+  CREATED: "待派发",
+  ASSIGNED: "待执行",
+  IN_PROGRESS: "执行中",
+  COMPLETED: "已完成",
+  CLOSED: "已关闭"
+};
+
+const taskPriorityMap = {
+  LOW: "低",
+  MEDIUM: "中",
+  HIGH: "高"
+};
+
+function formatStatus(value) {
+  return statusMap[value] || value || "-";
+}
+
+function formatApprovalStatus(value) {
+  return approvalStatusMap[value] || value || "-";
+}
+
+function formatTaskStatus(value) {
+  return taskStatusMap[value] || value || "-";
+}
+
+function formatTaskPriority(value) {
+  return taskPriorityMap[value] || value || "-";
+}
+
+async function load() {
+  loading.value = true;
+  setStatus("");
+  try {
+    const data = await fetchEnterprises(props.token, {
+      ...filters,
+      page: page.value,
+      size: size.value
+    });
+    records.value = data.records || [];
+    total.value = data.total || 0;
+    page.value = data.page || 1;
+    size.value = data.size || size.value;
+    pages.value = data.pages || 1;
+  } catch (error) {
+    setStatus(error.message || "加载企业列表失败", "error");
+  } finally {
+    loading.value = false;
+  }
+}
+
+async function loadTasks() {
+  taskLoading.value = true;
+  setStatus("");
+  try {
+    const data = await fetchMyInspectionTasks(props.token, {
+      ...taskFilters,
+      page: taskPage.value,
+      size: taskSize.value
+    });
+    taskRecords.value = data.records || [];
+    taskTotal.value = data.total || 0;
+    taskPage.value = data.page || 1;
+    taskSize.value = data.size || taskSize.value;
+    taskPages.value = data.pages || 1;
+  } catch (error) {
+    setStatus(error.message || "加载任务列表失败", "error");
+  } finally {
+    taskLoading.value = false;
+  }
+}
+
+async function handleTaskSearch() {
+  taskPage.value = 1;
+  await loadTasks();
+}
+
+async function handleStartTask(task) {
+  taskLoading.value = true;
+  setStatus("");
+  try {
+    await startInspectionTask(props.token, task.id);
+    setStatus("任务已开始执行。", "success");
+    await loadTasks();
+  } catch (error) {
+    setStatus(error.message || "开始任务失败", "error");
+  } finally {
+    taskLoading.value = false;
+  }
+}
+
+function handleSelectTask(task) {
+  activeTask.value = task;
+  taskForm.inspectionDate = new Date().toISOString().slice(0, 10);
+  taskForm.result = "PASS";
+  taskForm.problemDesc = "";
+  taskForm.items = [
+    {
+      itemName: "",
+      itemResult: "PASS",
+      problemDesc: ""
+    }
+  ];
+}
+
+function clearActiveTask() {
+  activeTask.value = null;
+}
+
+function addItem() {
+  taskForm.items.push({
+    itemName: "",
+    itemResult: "PASS",
+    problemDesc: ""
+  });
+}
+
+function removeItem(index) {
+  if (taskForm.items.length <= 1) {
+    return;
+  }
+  taskForm.items.splice(index, 1);
+}
+
+async function handleSubmitTask() {
+  if (!activeTask.value) {
+    return;
+  }
+  if (!taskForm.inspectionDate) {
+    setStatus("请选择检查日期", "error");
+    return;
+  }
+  taskLoading.value = true;
+  setStatus("");
+  try {
+    const items = taskForm.items
+      .filter((item) => item.itemName && item.itemName.trim())
+      .map((item) => ({
+        itemName: item.itemName,
+        itemResult: item.itemResult,
+        problemDesc: item.problemDesc
+      }));
+    await submitInspectionTask(props.token, activeTask.value.id, {
+      inspectionDate: taskForm.inspectionDate,
+      result: taskForm.result,
+      problemDesc: taskForm.problemDesc,
+      items
+    });
+    setStatus("检查结果已提交。", "success");
+    clearActiveTask();
+    await loadTasks();
+  } catch (error) {
+    setStatus(error.message || "提交结果失败", "error");
+  } finally {
+    taskLoading.value = false;
+  }
+}
+
+async function handleSearch() {
+  page.value = 1;
+  await load();
+}
+
+async function changePage(nextPage) {
+  page.value = nextPage;
+  await load();
+}
+
+async function handleTaskEnter() {
+  section.value = "tasks";
+  await loadTasks();
+}
+
+function handleLogout() {
+  emit("logout");
+}
+
+function handleViewDetail(item) {
+  emit("view-enterprise", item.id);
+}
+
+function formatTime(value) {
+  if (!value) return "-";
+  return String(value).replace("T", " ").slice(0, 16);
+}
+
+onMounted(() => {
+  load();
+});
+</script>
+
+<style scoped>
+.regulator-shell {
+  grid-template-columns: 1fr;
+}
+
+.regulator-shell .hero-panel {
+  padding: 48px 80px 32px;
+}
+
+.regulator-shell .hero-content h1 {
+  font-size: 34px;
+}
+
+.regulator-shell .hero-content p {
+  max-width: 720px;
+  font-size: 16px;
+}
+
+.regulator-shell .hero-highlights {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.regulator-shell .form-panel {
+  padding: 20px 80px 70px;
+  align-items: flex-start;
+}
+
+.regulator-shell .card {
+  max-width: 980px;
+  width: 100%;
+}
+
+.filter-bar {
+  display: grid;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.sub-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.sub-nav button {
+  padding: 8px 14px;
+  border-radius: 999px;
+  border: 1px solid var(--stroke);
+  background: transparent;
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.sub-nav button.active {
+  background: #efe2d3;
+  border-color: transparent;
+  font-weight: 600;
+}
+
+.placeholder {
+  border-radius: 12px;
+  border: 1px dashed var(--stroke);
+  padding: 16px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.list-table {
+  border-radius: 14px;
+  border: 1px solid var(--stroke);
+  background: #faf6f1;
+  overflow: hidden;
+}
+
+.list-row {
+  display: grid;
+  grid-template-columns: 1.6fr 0.9fr 0.9fr 1fr 1.2fr 0.8fr;
+  gap: 8px;
+  padding: 12px 14px;
+  align-items: center;
+  font-size: 13px;
+}
+
+.list-header {
+  font-weight: 600;
+  background: #f1e6db;
+}
+
+.task-header,
+.task-row {
+  grid-template-columns: 1.2fr 1.6fr 0.8fr 0.9fr 1fr 1.2fr;
+}
+
+.task-submit {
+  margin-top: 18px;
+  padding: 16px;
+  border-radius: 14px;
+  border: 1px solid var(--stroke);
+  background: #fff6ea;
+}
+
+.section-subtitle {
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+
+.task-meta {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  font-size: 12px;
+  color: var(--muted);
+  margin-bottom: 12px;
+}
+
+.task-form {
+  display: grid;
+  gap: 12px;
+}
+
+.task-items {
+  display: grid;
+  gap: 10px;
+}
+
+.task-item {
+  display: grid;
+  grid-template-columns: 1.4fr 0.8fr 1.2fr auto;
+  gap: 8px;
+  align-items: center;
+}
+
+.task-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+}
+
+.list-empty {
+  padding: 16px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.pager {
+  margin: 16px 0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.pager-actions {
+  display: flex;
+  gap: 8px;
+}
+
+@media (max-width: 1024px) {
+  .regulator-shell .hero-panel {
+    padding: 36px 40px 24px;
+  }
+
+  .regulator-shell .form-panel {
+    padding: 10px 40px 60px;
+  }
+
+  .regulator-shell .hero-highlights {
+    grid-template-columns: 1fr;
+  }
+}
+</style>

@@ -4,21 +4,30 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.mortal.regulation.client.UserServiceClient;
 import com.mortal.regulation.common.PageResult;
+import com.mortal.regulation.dto.EnterpriseApprovalBatchDTO;
 import com.mortal.regulation.dto.EnterpriseApprovalDTO;
 import com.mortal.regulation.dto.EnterpriseProfileDTO;
 import com.mortal.regulation.entity.AddrLocation;
 import com.mortal.regulation.entity.AddrRegion;
 import com.mortal.regulation.entity.FoodEnterprise;
+import com.mortal.regulation.entity.FoodRegulator;
+import com.mortal.regulation.entity.FoodRegulatorRegion;
 import com.mortal.regulation.mapper.AddrLocationMapper;
 import com.mortal.regulation.mapper.AddrRegionMapper;
 import com.mortal.regulation.mapper.FoodEnterpriseMapper;
+import com.mortal.regulation.mapper.FoodRegulatorMapper;
+import com.mortal.regulation.mapper.FoodRegulatorRegionMapper;
 import com.mortal.regulation.service.EnterpriseProfileService;
+import com.mortal.regulation.vo.BatchActionResult;
 import com.mortal.regulation.vo.EnterpriseProfileVO;
 import java.time.LocalDateTime;
+import java.util.ArrayDeque;
 import java.util.Collections;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.stream.Collectors;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
@@ -34,15 +43,21 @@ public class EnterpriseProfileServiceImpl implements EnterpriseProfileService {
     private final FoodEnterpriseMapper foodEnterpriseMapper;
     private final AddrLocationMapper addrLocationMapper;
     private final AddrRegionMapper addrRegionMapper;
+    private final FoodRegulatorMapper foodRegulatorMapper;
+    private final FoodRegulatorRegionMapper foodRegulatorRegionMapper;
     private final UserServiceClient userServiceClient;
 
     public EnterpriseProfileServiceImpl(FoodEnterpriseMapper foodEnterpriseMapper,
                                         AddrLocationMapper addrLocationMapper,
                                         AddrRegionMapper addrRegionMapper,
+                                        FoodRegulatorMapper foodRegulatorMapper,
+                                        FoodRegulatorRegionMapper foodRegulatorRegionMapper,
                                         UserServiceClient userServiceClient) {
         this.foodEnterpriseMapper = foodEnterpriseMapper;
         this.addrLocationMapper = addrLocationMapper;
         this.addrRegionMapper = addrRegionMapper;
+        this.foodRegulatorMapper = foodRegulatorMapper;
+        this.foodRegulatorRegionMapper = foodRegulatorRegionMapper;
         this.userServiceClient = userServiceClient;
     }
 
@@ -105,6 +120,29 @@ public class EnterpriseProfileServiceImpl implements EnterpriseProfileService {
                                                 String approvalStatus,
                                                 int page,
                                                 int size) {
+        return listByRegionIds(enterpriseName, status, approvalStatus, page, size, null);
+    }
+
+    @Override
+    public PageResult<EnterpriseProfileVO> listForRegulator(Long userId,
+                                                            String enterpriseName,
+                                                            String status,
+                                                            String approvalStatus,
+                                                            int page,
+                                                            int size) {
+        List<Long> regionIds = resolveRegulatorRegionIds(userId);
+        if (regionIds.isEmpty()) {
+            return PageResult.of(List.of(), 0, page, size);
+        }
+        return listByRegionIds(enterpriseName, status, approvalStatus, page, size, regionIds);
+    }
+
+    private PageResult<EnterpriseProfileVO> listByRegionIds(String enterpriseName,
+                                                            String status,
+                                                            String approvalStatus,
+                                                            int page,
+                                                            int size,
+                                                            List<Long> regionIds) {
         var wrapper = new LambdaQueryWrapper<FoodEnterprise>()
             .eq(FoodEnterprise::getDeleted, 0);
         if (StringUtils.hasText(enterpriseName)) {
@@ -115,6 +153,9 @@ public class EnterpriseProfileServiceImpl implements EnterpriseProfileService {
         }
         if (StringUtils.hasText(approvalStatus)) {
             wrapper.eq(FoodEnterprise::getApprovalStatus, normalize(approvalStatus));
+        }
+        if (regionIds != null && !regionIds.isEmpty()) {
+            wrapper.in(FoodEnterprise::getRegionId, regionIds);
         }
         wrapper.orderByDesc(FoodEnterprise::getUpdateTime);
         Page<FoodEnterprise> pageInfo = foodEnterpriseMapper.selectPage(new Page<>(page, size), wrapper);
@@ -138,17 +179,43 @@ public class EnterpriseProfileServiceImpl implements EnterpriseProfileService {
     }
 
     @Override
+    public List<EnterpriseProfileVO> listPendingForRegulator(Long userId) {
+        List<Long> regionIds = resolveRegulatorRegionIds(userId);
+        if (regionIds.isEmpty()) {
+            return List.of();
+        }
+        List<FoodEnterprise> enterprises = foodEnterpriseMapper.selectList(new LambdaQueryWrapper<FoodEnterprise>()
+            .eq(FoodEnterprise::getApprovalStatus, APPROVAL_PENDING)
+            .eq(FoodEnterprise::getDeleted, 0)
+            .in(FoodEnterprise::getRegionId, regionIds));
+        Map<Long, String> addressMap = loadAddressDetails(enterprises);
+        return enterprises.stream()
+            .map(enterprise -> toVO(enterprise, addressMap.get(enterprise.getAddressId())))
+            .toList();
+    }
+
+    @Override
     public EnterpriseProfileVO approve(Long enterpriseId, Long operatorId, EnterpriseApprovalDTO dto) {
         FoodEnterprise enterprise = requireEnterprise(enterpriseId);
-        applyApproval(enterprise, APPROVAL_APPROVED, operatorId, dto);
+        applyApproval(enterprise, APPROVAL_APPROVED, operatorId, dto.getComment(), dto.getRegulatorName());
         return toVO(enterprise, resolveAddressDetail(enterprise.getAddressId()));
     }
 
     @Override
     public EnterpriseProfileVO reject(Long enterpriseId, Long operatorId, EnterpriseApprovalDTO dto) {
         FoodEnterprise enterprise = requireEnterprise(enterpriseId);
-        applyApproval(enterprise, APPROVAL_REJECTED, operatorId, dto);
+        applyApproval(enterprise, APPROVAL_REJECTED, operatorId, dto.getComment(), dto.getRegulatorName());
         return toVO(enterprise, resolveAddressDetail(enterprise.getAddressId()));
+    }
+
+    @Override
+    public BatchActionResult approveBatch(Long operatorId, EnterpriseApprovalBatchDTO dto) {
+        return batchApply(dto.getIds(), operatorId, APPROVAL_APPROVED, dto.getComment(), dto.getRegulatorName());
+    }
+
+    @Override
+    public BatchActionResult rejectBatch(Long operatorId, EnterpriseApprovalBatchDTO dto) {
+        return batchApply(dto.getIds(), operatorId, APPROVAL_REJECTED, dto.getComment(), dto.getRegulatorName());
     }
 
     @Override
@@ -196,6 +263,49 @@ public class EnterpriseProfileServiceImpl implements EnterpriseProfileService {
         }
     }
 
+    private List<Long> resolveRegulatorRegionIds(Long userId) {
+        if (userId == null) {
+            return List.of();
+        }
+        FoodRegulator regulator = foodRegulatorMapper.selectOne(new LambdaQueryWrapper<FoodRegulator>()
+            .eq(FoodRegulator::getUserId, userId)
+            .eq(FoodRegulator::getDeleted, 0));
+        if (regulator == null) {
+            return List.of();
+        }
+        List<Long> directRegionIds = foodRegulatorRegionMapper.selectList(new LambdaQueryWrapper<FoodRegulatorRegion>()
+                .eq(FoodRegulatorRegion::getRegulatorId, regulator.getId())
+                .eq(FoodRegulatorRegion::getDeleted, 0))
+            .stream()
+            .map(FoodRegulatorRegion::getRegionId)
+            .filter(Objects::nonNull)
+            .distinct()
+            .toList();
+        if (directRegionIds.isEmpty()) {
+            return List.of();
+        }
+        return collectRegionIds(directRegionIds);
+    }
+
+    private List<Long> collectRegionIds(List<Long> rootIds) {
+        Set<Long> result = new LinkedHashSet<>();
+        ArrayDeque<Long> queue = new ArrayDeque<>(rootIds);
+        while (!queue.isEmpty()) {
+            Long current = queue.poll();
+            if (current == null || result.contains(current)) {
+                continue;
+            }
+            result.add(current);
+            List<AddrRegion> children = addrRegionMapper.selectList(new LambdaQueryWrapper<AddrRegion>()
+                .eq(AddrRegion::getParentId, current)
+                .eq(AddrRegion::getDeleted, 0));
+            for (AddrRegion child : children) {
+                queue.add(child.getId());
+            }
+        }
+        return result.stream().toList();
+    }
+
     private AddrLocation upsertLocation(Long addressId, Long regionId, String detail) {
         String cleanedDetail = StringUtils.hasText(detail) ? detail.trim() : detail;
         if (addressId != null) {
@@ -238,16 +348,53 @@ public class EnterpriseProfileServiceImpl implements EnterpriseProfileService {
         addrLocationMapper.updateById(location);
     }
 
-    private void applyApproval(FoodEnterprise enterprise, String status, Long operatorId, EnterpriseApprovalDTO dto) {
+    private void applyApproval(FoodEnterprise enterprise,
+                               String status,
+                               Long operatorId,
+                               String comment,
+                               String regulatorName) {
         enterprise.setApprovalStatus(status);
-        enterprise.setApprovalComment(dto == null ? null : dto.getComment());
+        enterprise.setApprovalComment(comment);
         enterprise.setApprovedBy(operatorId);
         enterprise.setApprovedTime(LocalDateTime.now());
-        if (dto != null && StringUtils.hasText(dto.getRegulatorName())) {
-            enterprise.setRegulatorName(dto.getRegulatorName());
+        if (StringUtils.hasText(regulatorName)) {
+            enterprise.setRegulatorName(regulatorName.trim());
         }
         enterprise.setUpdateTime(LocalDateTime.now());
         foodEnterpriseMapper.updateById(enterprise);
+    }
+
+    private BatchActionResult batchApply(List<Long> ids,
+                                         Long operatorId,
+                                         String status,
+                                         String comment,
+                                         String regulatorName) {
+        BatchActionResult result = new BatchActionResult();
+        if (ids == null || ids.isEmpty()) {
+            result.setSuccessCount(0);
+            result.setFailedIds(List.of());
+            return result;
+        }
+        List<Long> failed = new java.util.ArrayList<>();
+        int successCount = 0;
+        for (Long id : ids) {
+            if (id == null) {
+                failed.add(null);
+                continue;
+            }
+            FoodEnterprise enterprise = foodEnterpriseMapper.selectById(id);
+            if (enterprise == null
+                || isDeleted(enterprise.getDeleted())
+                || !APPROVAL_PENDING.equals(enterprise.getApprovalStatus())) {
+                failed.add(id);
+                continue;
+            }
+            applyApproval(enterprise, status, operatorId, comment, regulatorName);
+            successCount += 1;
+        }
+        result.setSuccessCount(successCount);
+        result.setFailedIds(failed);
+        return result;
     }
 
     private Map<Long, String> loadAddressDetails(List<FoodEnterprise> enterprises) {

@@ -1,10 +1,12 @@
 package com.mortal.regulation.controller;
 
 import com.mortal.regulation.common.ApiResponse;
+import com.mortal.regulation.dto.EnterpriseApprovalBatchDTO;
 import com.mortal.regulation.dto.EnterpriseApprovalDTO;
 import com.mortal.regulation.dto.EnterpriseProfileDTO;
 import com.mortal.regulation.service.EnterpriseProfileService;
 import com.mortal.regulation.util.JwtUserResolver;
+import com.mortal.regulation.vo.BatchActionResult;
 import com.mortal.regulation.vo.EnterpriseProfileVO;
 import jakarta.validation.Valid;
 import java.util.List;
@@ -60,13 +62,16 @@ public class EnterpriseProfileController {
         if (!identity.isRegulator()) {
             return ApiResponse.failure(403, "regulator only");
         }
-        return ApiResponse.success(enterpriseProfileService.listPending());
+        if (identity.isAdmin()) {
+            return ApiResponse.success(enterpriseProfileService.listPending());
+        }
+        return ApiResponse.success(enterpriseProfileService.listPendingForRegulator(identity.userId()));
     }
 
     @PutMapping("/{id}/approve")
     public ApiResponse<EnterpriseProfileVO> approve(@RequestHeader("Authorization") String token,
                                                     @PathVariable Long id,
-                                                    @RequestBody(required = false) EnterpriseApprovalDTO dto) {
+                                                    @Valid @RequestBody EnterpriseApprovalDTO dto) {
         UserIdentity identity = resolveIdentity(token);
         if (!identity.isRegulator()) {
             return ApiResponse.failure(403, "regulator only");
@@ -77,12 +82,32 @@ public class EnterpriseProfileController {
     @PutMapping("/{id}/reject")
     public ApiResponse<EnterpriseProfileVO> reject(@RequestHeader("Authorization") String token,
                                                    @PathVariable Long id,
-                                                   @RequestBody(required = false) EnterpriseApprovalDTO dto) {
+                                                   @Valid @RequestBody EnterpriseApprovalDTO dto) {
         UserIdentity identity = resolveIdentity(token);
         if (!identity.isRegulator()) {
             return ApiResponse.failure(403, "regulator only");
         }
         return ApiResponse.success(enterpriseProfileService.reject(id, identity.userId(), dto));
+    }
+
+    @PutMapping("/approve-batch")
+    public ApiResponse<BatchActionResult> approveBatch(@RequestHeader("Authorization") String token,
+                                                       @Valid @RequestBody EnterpriseApprovalBatchDTO dto) {
+        UserIdentity identity = resolveIdentity(token);
+        if (!identity.isRegulator()) {
+            return ApiResponse.failure(403, "regulator only");
+        }
+        return ApiResponse.success(enterpriseProfileService.approveBatch(identity.userId(), dto));
+    }
+
+    @PutMapping("/reject-batch")
+    public ApiResponse<BatchActionResult> rejectBatch(@RequestHeader("Authorization") String token,
+                                                      @Valid @RequestBody EnterpriseApprovalBatchDTO dto) {
+        UserIdentity identity = resolveIdentity(token);
+        if (!identity.isRegulator()) {
+            return ApiResponse.failure(403, "regulator only");
+        }
+        return ApiResponse.success(enterpriseProfileService.rejectBatch(identity.userId(), dto));
     }
 
     @DeleteMapping("/{id}")
@@ -123,6 +148,10 @@ public class EnterpriseProfileController {
 
         boolean isRegulator() {
             return "REGULATOR".equals(userType) || "ADMIN".equals(userType);
+        }
+
+        boolean isAdmin() {
+            return "ADMIN".equals(userType);
         }
     }
 }

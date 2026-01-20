@@ -1,28 +1,5 @@
 <template>
   <div class="app-shell">
-    <div class="hero-panel">
-      <div class="hero-content">
-        <span class="badge">监管工作台</span>
-        <h1>监管企业列表</h1>
-        <p>
-          查看企业备案信息与审核状态，支持按状态快速筛选。更多监管任务将在后续模块展开。
-        </p>
-        <div class="hero-highlights">
-          <div>
-            <strong>企业档案</strong>
-            <span>统一查看备案信息</span>
-          </div>
-          <div>
-            <strong>审核状态</strong>
-            <span>跟踪企业备案进度</span>
-          </div>
-          <div>
-            <strong>监管入口</strong>
-            <span>后续衔接检查与投诉</span>
-          </div>
-        </div>
-      </div>
-    </div>
 
     <div class="form-panel">
       <div class="card">
@@ -30,6 +7,7 @@
         <div class="admin-info">
           <div>账号：{{ regulatorUser.username }}</div>
           <div>角色：{{ regulatorUser.userType }}</div>
+          <div>职责：{{ roleLabel }}</div>
         </div>
 
         <form class="filter-bar" @submit.prevent="handleSearch">
@@ -72,8 +50,8 @@
           </div>
           <div v-for="item in records" :key="item.id" class="list-row">
             <span>{{ item.enterpriseName }}</span>
-            <span>{{ item.status }}</span>
-            <span>{{ item.approvalStatus }}</span>
+            <span>{{ formatStatus(item.status) }}</span>
+            <span>{{ formatApprovalStatus(item.approvalStatus) }}</span>
             <span>{{ item.principal || "-" }}</span>
             <span>{{ formatTime(item.updateTime) }}</span>
           </div>
@@ -102,7 +80,7 @@
 </template>
 
 <script setup>
-import { onMounted, reactive, ref } from "vue";
+import { computed, onMounted, reactive, ref } from "vue";
 import { fetchEnterprises } from "../api/regulation";
 
 const props = defineProps({
@@ -118,6 +96,12 @@ const props = defineProps({
 
 const emit = defineEmits(["logout"]);
 
+const roleLabel = computed(() => {
+  if (props.regulatorUser?.roleType === "REGULATOR_ADMIN") return "区域管理员";
+  if (props.regulatorUser?.roleType === "REGULATOR_ENFORCER") return "执法人员";
+  return "监管人员";
+});
+
 const filters = reactive({
   enterpriseName: "",
   status: "",
@@ -131,6 +115,15 @@ const page = ref(1);
 const size = ref(8);
 const total = ref(0);
 const pages = ref(1);
+const statusMap = {
+  NORMAL: "正常",
+  KEY: "重点监管"
+};
+const approvalStatusMap = {
+  PENDING: "待审核",
+  APPROVED: "已通过",
+  REJECTED: "已驳回"
+};
 
 function setStatus(message, type = "info") {
   status.message = message;
@@ -175,6 +168,14 @@ function handleLogout() {
 function formatTime(value) {
   if (!value) return "-";
   return String(value).replace("T", " ").slice(0, 16);
+}
+
+function formatStatus(value) {
+  return statusMap[value] || value || "-";
+}
+
+function formatApprovalStatus(value) {
+  return approvalStatusMap[value] || value || "-";
 }
 
 onMounted(() => {

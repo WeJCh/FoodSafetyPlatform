@@ -9,4 +9,6 @@ public interface RegionService {
     RegionVO create(RegionCreateDTO dto);
 
     List<RegionVO> listByParentId(Long parentId);
+
+    List<RegionVO> getPath(Long id);
 }

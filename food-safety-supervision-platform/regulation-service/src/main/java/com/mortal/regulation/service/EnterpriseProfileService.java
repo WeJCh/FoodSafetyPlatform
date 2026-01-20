@@ -1,8 +1,10 @@
 package com.mortal.regulation.service;
 
 import com.mortal.regulation.common.PageResult;
+import com.mortal.regulation.dto.EnterpriseApprovalBatchDTO;
 import com.mortal.regulation.dto.EnterpriseApprovalDTO;
 import com.mortal.regulation.dto.EnterpriseProfileDTO;
+import com.mortal.regulation.vo.BatchActionResult;
 import com.mortal.regulation.vo.EnterpriseProfileVO;
 import java.util.List;
 
@@ -20,11 +22,24 @@ public interface EnterpriseProfileService {
                                          int page,
                                          int size);
 
+    PageResult<EnterpriseProfileVO> listForRegulator(Long userId,
+                                                     String enterpriseName,
+                                                     String status,
+                                                     String approvalStatus,
+                                                     int page,
+                                                     int size);
+
     List<EnterpriseProfileVO> listPending();
+
+    List<EnterpriseProfileVO> listPendingForRegulator(Long userId);
 
     EnterpriseProfileVO approve(Long enterpriseId, Long operatorId, EnterpriseApprovalDTO dto);
 
     EnterpriseProfileVO reject(Long enterpriseId, Long operatorId, EnterpriseApprovalDTO dto);
+
+    BatchActionResult approveBatch(Long operatorId, EnterpriseApprovalBatchDTO dto);
+
+    BatchActionResult rejectBatch(Long operatorId, EnterpriseApprovalBatchDTO dto);
 
     void deleteEnterprise(Long enterpriseId);
 

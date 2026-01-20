@@ -20,29 +20,6 @@
     </aside>
 
     <div class="admin-main">
-      <div class="hero-panel">
-        <div class="hero-content">
-          <span class="badge">管理员中心</span>
-          <h1>系统管理员控制台</h1>
-          <p>
-            创建监管人员账号并分配角色类型。后续可在此扩展审核、账号管理等功能。
-          </p>
-          <div class="hero-highlights">
-            <div>
-              <strong>监管人员添加</strong>
-              <span>创建执法人员或区域管理员</span>
-            </div>
-            <div>
-              <strong>账号管理</strong>
-              <span>后续扩展用户管理与审核</span>
-            </div>
-            <div>
-              <strong>统一入口</strong>
-              <span>管理员专属操作空间</span>
-            </div>
-          </div>
-        </div>
-      </div>
 
       <div class="form-panel">
         <div class="card">

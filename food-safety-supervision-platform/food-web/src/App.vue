@@ -11,11 +11,25 @@
     :token="adminToken"
     @logout="handleLogout"
   />
-  <RegulatorView
-    v-else-if="view === 'regulator'"
+  <RegulatorAdminView
+    v-else-if="view === 'regulator-admin'"
     :regulator-user="regulatorUser"
     :token="regulatorToken"
     @logout="handleLogout"
+    @view-enterprise="handleViewEnterprise"
+  />
+  <RegulatorEnforcerView
+    v-else-if="view === 'regulator-enforcer'"
+    :regulator-user="regulatorUser"
+    :token="regulatorToken"
+    @logout="handleLogout"
+    @view-enterprise="handleViewEnterprise"
+  />
+  <EnterpriseDetailView
+    v-else-if="view === 'enterprise-detail'"
+    :token="regulatorToken"
+    :enterprise-id="enterpriseDetailId"
+    @back="handleBackFromDetail"
   />
   <EnterpriseProfileView
     v-else
@@ -29,8 +43,11 @@
 import { reactive, ref } from "vue";
 import AdminView from "./views/AdminView.vue";
 import AuthView from "./views/AuthView.vue";
+import EnterpriseDetailView from "./views/EnterpriseDetailView.vue";
 import EnterpriseProfileView from "./views/EnterpriseProfileView.vue";
-import RegulatorView from "./views/RegulatorView.vue";
+import RegulatorAdminView from "./views/RegulatorAdminView.vue";
+import RegulatorEnforcerView from "./views/RegulatorEnforcerView.vue";
+import { fetchRegulatorProfile } from "./api/regulation";
 
 const view = ref("auth");
 const adminToken = ref("");
@@ -38,7 +55,9 @@ const adminUser = reactive({ username: "", userType: "" });
 const enterpriseToken = ref("");
 const enterpriseUser = reactive({ username: "", userType: "" });
 const regulatorToken = ref("");
-const regulatorUser = reactive({ username: "", userType: "" });
+const regulatorUser = reactive({ username: "", userType: "", roleType: "" });
+const enterpriseDetailId = ref("");
+const returnView = ref("");
 
 function handleAdminLogin(payload) {
   adminToken.value = payload.token;
@@ -54,11 +73,27 @@ function handleEnterpriseLogin(payload) {
   view.value = "enterprise";
 }
 
-function handleRegulatorLogin(payload) {
+async function handleRegulatorLogin(payload) {
   regulatorToken.value = payload.token;
   regulatorUser.username = payload.username;
   regulatorUser.userType = payload.userType;
-  view.value = "regulator";
+  regulatorUser.roleType = "";
+  const profile = await fetchRegulatorProfile(payload.token).catch(() => null);
+  regulatorUser.roleType = profile?.roleType || "";
+  view.value = profile?.roleType === "REGULATOR_ADMIN" ? "regulator-admin" : "regulator-enforcer";
+}
+
+function handleViewEnterprise(id) {
+  if (!id) return;
+  enterpriseDetailId.value = id;
+  returnView.value = view.value;
+  view.value = "enterprise-detail";
+}
+
+function handleBackFromDetail() {
+  view.value = returnView.value || "regulator-admin";
+  enterpriseDetailId.value = "";
+  returnView.value = "";
 }
 
 function handleLogout() {
@@ -71,6 +106,9 @@ function handleLogout() {
   regulatorToken.value = "";
   regulatorUser.username = "";
   regulatorUser.userType = "";
+  regulatorUser.roleType = "";
+  enterpriseDetailId.value = "";
+  returnView.value = "";
   view.value = "auth";
 }
 </script>

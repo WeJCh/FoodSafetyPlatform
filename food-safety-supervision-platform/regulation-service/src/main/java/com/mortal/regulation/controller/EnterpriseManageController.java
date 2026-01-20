@@ -36,7 +36,12 @@ public class EnterpriseManageController {
         if (!identity.isRegulator()) {
             return ApiResponse.failure(403, "regulator only");
         }
-        return ApiResponse.success(enterpriseProfileService.list(enterpriseName, status, approvalStatus, page, size));
+        if (identity.isAdmin()) {
+            return ApiResponse.success(enterpriseProfileService.list(enterpriseName, status, approvalStatus, page, size));
+        }
+        return ApiResponse.success(
+            enterpriseProfileService.listForRegulator(identity.userId(), enterpriseName, status, approvalStatus, page, size)
+        );
     }
 
     @GetMapping("/{id}")
@@ -83,6 +88,10 @@ public class EnterpriseManageController {
 
         boolean isRegulator() {
             return "REGULATOR".equals(userType) || "ADMIN".equals(userType);
+        }
+
+        boolean isAdmin() {
+            return "ADMIN".equals(userType);
         }
     }
 }

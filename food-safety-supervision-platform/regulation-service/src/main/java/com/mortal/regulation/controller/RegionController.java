@@ -7,6 +7,7 @@ import com.mortal.regulation.util.JwtUserResolver;
 import com.mortal.regulation.vo.RegionVO;
 import jakarta.validation.Valid;
 import java.util.List;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -42,6 +43,13 @@ public class RegionController {
                                             @RequestParam(required = false) Long parentId) {
         resolveIdentity(token);
         return ApiResponse.success(regionService.listByParentId(parentId));
+    }
+
+    @GetMapping("/{id}/path")
+    public ApiResponse<List<RegionVO>> getPath(@RequestHeader("Authorization") String token,
+                                               @PathVariable Long id) {
+        resolveIdentity(token);
+        return ApiResponse.success(regionService.getPath(id));
     }
 
     private UserIdentity resolveIdentity(String token) {

@@ -49,6 +49,15 @@ export function fetchRegulatorProfiles(token, params = {}) {
   );
 }
 
+export function fetchRegulatorProfile(token) {
+  return requestWithBase(REGULATION_BASE_URL, "/api/regulation/regulators/me", {
+    method: "GET",
+    headers: {
+      Authorization: `Bearer ${token}`
+    }
+  });
+}
+
 export function updateRegulatorStatus(token, id, status) {
   return requestWithBase(REGULATION_BASE_URL, `/api/regulation/regulators/${id}/status`, {
     method: "PUT",
@@ -86,5 +95,148 @@ export function fetchRegions(token, parentId = null) {
     headers: {
       Authorization: `Bearer ${token}`
     }
+  });
+}
+
+export function fetchRegionPath(token, id) {
+  return requestWithBase(REGULATION_BASE_URL, `/api/regulation/regions/${id}/path`, {
+    method: "GET",
+    headers: {
+      Authorization: `Bearer ${token}`
+    }
+  });
+}
+
+export function fetchPendingEnterprises(token) {
+  return requestWithBase(REGULATION_BASE_URL, "/api/regulation/enterprise/pending", {
+    method: "GET",
+    headers: {
+      Authorization: `Bearer ${token}`
+    }
+  });
+}
+
+export function approveEnterprise(token, id, payload = {}) {
+  return requestWithBase(REGULATION_BASE_URL, `/api/regulation/enterprise/${id}/approve`, {
+    method: "PUT",
+    headers: {
+      Authorization: `Bearer ${token}`
+    },
+    body: JSON.stringify(payload)
+  });
+}
+
+export function rejectEnterprise(token, id, payload = {}) {
+  return requestWithBase(REGULATION_BASE_URL, `/api/regulation/enterprise/${id}/reject`, {
+    method: "PUT",
+    headers: {
+      Authorization: `Bearer ${token}`
+    },
+    body: JSON.stringify(payload)
+  });
+}
+
+export function approveEnterpriseBatch(token, payload = {}) {
+  return requestWithBase(REGULATION_BASE_URL, "/api/regulation/enterprise/approve-batch", {
+    method: "PUT",
+    headers: {
+      Authorization: `Bearer ${token}`
+    },
+    body: JSON.stringify(payload)
+  });
+}
+
+export function rejectEnterpriseBatch(token, payload = {}) {
+  return requestWithBase(REGULATION_BASE_URL, "/api/regulation/enterprise/reject-batch", {
+    method: "PUT",
+    headers: {
+      Authorization: `Bearer ${token}`
+    },
+    body: JSON.stringify(payload)
+  });
+}
+
+export function fetchEnterpriseDetail(token, id) {
+  return requestWithBase(REGULATION_BASE_URL, `/api/regulation/enterprises/${id}`, {
+    method: "GET",
+    headers: {
+      Authorization: `Bearer ${token}`
+    }
+  });
+}
+
+export function createInspectionTask(token, payload) {
+  return requestWithBase(REGULATION_BASE_URL, "/api/regulation/tasks", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`
+    },
+    body: JSON.stringify(payload)
+  });
+}
+
+export function assignInspectionTask(token, id, payload) {
+  return requestWithBase(REGULATION_BASE_URL, `/api/regulation/tasks/${id}/assign`, {
+    method: "PUT",
+    headers: {
+      Authorization: `Bearer ${token}`
+    },
+    body: JSON.stringify(payload)
+  });
+}
+
+export function fetchInspectionTasks(token, params = {}) {
+  const search = new URLSearchParams();
+  if (params.enterpriseName) search.append("enterpriseName", params.enterpriseName);
+  if (params.status) search.append("status", params.status);
+  if (params.page) search.append("page", params.page);
+  if (params.size) search.append("size", params.size);
+  const query = search.toString();
+  return requestWithBase(
+    REGULATION_BASE_URL,
+    `/api/regulation/tasks${query ? `?${query}` : ""}`,
+    {
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${token}`
+      }
+    }
+  );
+}
+
+export function fetchMyInspectionTasks(token, params = {}) {
+  const search = new URLSearchParams();
+  if (params.status) search.append("status", params.status);
+  if (params.page) search.append("page", params.page);
+  if (params.size) search.append("size", params.size);
+  const query = search.toString();
+  return requestWithBase(
+    REGULATION_BASE_URL,
+    `/api/regulation/tasks/my${query ? `?${query}` : ""}`,
+    {
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${token}`
+      }
+    }
+  );
+}
+
+export function startInspectionTask(token, id) {
+  return requestWithBase(REGULATION_BASE_URL, `/api/regulation/tasks/${id}/start`, {
+    method: "PUT",
+    headers: {
+      Authorization: `Bearer ${token}`
+    }
+  });
+}
+
+export function submitInspectionTask(token, id, payload) {
+  return requestWithBase(REGULATION_BASE_URL, `/api/regulation/tasks/${id}/submit`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`
+    },
+    body: JSON.stringify(payload)
   });
 }

@@ -6,7 +6,11 @@ import com.mortal.regulation.entity.AddrRegion;
 import com.mortal.regulation.mapper.AddrRegionMapper;
 import com.mortal.regulation.service.RegionService;
 import com.mortal.regulation.vo.RegionVO;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
@@ -48,6 +52,26 @@ public class RegionServiceImpl implements RegionService {
             .toList();
     }
 
+    @Override
+    public List<RegionVO> getPath(Long id) {
+        if (id == null) {
+            return List.of();
+        }
+        List<RegionVO> path = new ArrayList<>();
+        Set<Long> visited = new HashSet<>();
+        Long current = id;
+        while (current != null && visited.add(current)) {
+            AddrRegion region = addrRegionMapper.selectById(current);
+            if (region == null || isDeleted(region.getDeleted())) {
+                break;
+            }
+            path.add(toVO(region));
+            current = region.getParentId();
+        }
+        Collections.reverse(path);
+        return path;
+    }
+
     private RegionVO toVO(AddrRegion region) {
         RegionVO vo = new RegionVO();
         vo.setId(region.getId());
@@ -55,5 +79,9 @@ public class RegionServiceImpl implements RegionService {
         vo.setName(region.getName());
         vo.setLevel(region.getLevel());
         return vo;
+    }
+
+    private boolean isDeleted(Integer deleted) {
+        return deleted != null && deleted == 1;
     }
 }

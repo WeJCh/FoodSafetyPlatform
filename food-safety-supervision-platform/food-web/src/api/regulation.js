@@ -49,6 +49,16 @@ export function fetchRegulatorProfiles(token, params = {}) {
   );
 }
 
+export function fetchEligibleRegulators(token, regionId) {
+  const query = regionId ? `?regionId=${regionId}` : "";
+  return requestWithBase(REGULATION_BASE_URL, `/api/regulation/regulators/eligible${query}`, {
+    method: "GET",
+    headers: {
+      Authorization: `Bearer ${token}`
+    }
+  });
+}
+
 export function fetchRegulatorProfile(token) {
   return requestWithBase(REGULATION_BASE_URL, "/api/regulation/regulators/me", {
     method: "GET",

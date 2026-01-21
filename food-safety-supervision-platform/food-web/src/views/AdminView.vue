@@ -335,9 +335,13 @@ async function handleCreate() {
   loading.value = true;
   setStatus("");
   try {
-    const regionId = resolveRegulatorRegionId();
+    const regionId = resolveRegulatorRegionIdByRole();
     if (!regionId) {
-      setStatus("请选择管辖区域", "error");
+      if (regulatorForm.roleType === "REGULATOR_ADMIN") {
+        setStatus("区域管理员需选择区/县级辖区", "error");
+      } else {
+        setStatus("执法人员需选择街道级辖区", "error");
+      }
       return;
     }
     const user = await createRegulator(
@@ -417,17 +421,14 @@ async function handleRegulatorCountyChange() {
   await loadRegulatorRegions(countyId, "streets");
 }
 
-function resolveRegulatorRegionId() {
-  if (regulatorRegions.streets.length) {
-    return Number(regulatorRegion.streetId || 0) || null;
-  }
-  if (regulatorRegions.counties.length) {
+function resolveRegulatorRegionIdByRole() {
+  if (regulatorForm.roleType === "REGULATOR_ADMIN") {
     return Number(regulatorRegion.countyId || 0) || null;
   }
-  if (regulatorRegions.cities.length) {
-    return Number(regulatorRegion.cityId || 0) || null;
+  if (regulatorForm.roleType === "REGULATOR_ENFORCER") {
+    return Number(regulatorRegion.streetId || 0) || null;
   }
-  return Number(regulatorRegion.provinceId || 0) || null;
+  return null;
 }
 
 async function loadFilterRegions(parentId, targetKey) {

@@ -314,10 +314,10 @@ import {
   approveEnterpriseBatch,
   assignInspectionTask,
   createInspectionTask,
+  fetchEligibleRegulators,
   fetchEnterprises,
   fetchInspectionTasks,
   fetchPendingEnterprises,
-  fetchRegulatorProfiles,
   fetchRegionPath,
   rejectEnterprise,
   rejectEnterpriseBatch
@@ -549,10 +549,7 @@ async function ensureEnforcers(regionId) {
     return;
   }
   try {
-    const data = await fetchRegulatorProfiles(props.token, {
-      roleType: "REGULATOR_ENFORCER",
-      regionId
-    });
+    const data = await fetchEligibleRegulators(props.token, regionId);
     enforcerMap[regionId] = Array.isArray(data) ? data : [];
   } catch {
     enforcerMap[regionId] = [];

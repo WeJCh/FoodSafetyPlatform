@@ -28,6 +28,8 @@ import org.springframework.util.StringUtils;
 public class RegulatorProfileServiceImpl implements RegulatorProfileService {
 
     private static final Set<String> ROLE_TYPES = Set.of("REGULATOR_ADMIN", "REGULATOR_ENFORCER");
+    private static final int LEVEL_COUNTY = 3;
+    private static final int LEVEL_STREET = 4;
 
     private final FoodRegulatorMapper foodRegulatorMapper;
     private final FoodRegulatorRegionMapper foodRegulatorRegionMapper;
@@ -50,6 +52,7 @@ public class RegulatorProfileServiceImpl implements RegulatorProfileService {
         if (!ROLE_TYPES.contains(roleType)) {
             throw new IllegalArgumentException("invalid regulator role");
         }
+        List<Long> regionIds = validateRegionIds(roleType, dto.getRegionIds());
         FoodRegulator regulator = foodRegulatorMapper.selectOne(new LambdaQueryWrapper<FoodRegulator>()
             .eq(FoodRegulator::getUserId, dto.getUserId())
             .eq(FoodRegulator::getDeleted, 0));
@@ -71,8 +74,8 @@ public class RegulatorProfileServiceImpl implements RegulatorProfileService {
         } else {
             foodRegulatorMapper.updateById(regulator);
         }
-        updateRegions(regulator.getId(), dto.getRegionIds());
-        return toVO(regulator, dto.getRegionIds());
+        updateRegions(regulator.getId(), regionIds);
+        return toVO(regulator, regionIds);
     }
 
     @Override
@@ -111,6 +114,36 @@ public class RegulatorProfileServiceImpl implements RegulatorProfileService {
             }
             List<Long> regulatorIds = foodRegulatorRegionMapper.selectList(new LambdaQueryWrapper<FoodRegulatorRegion>()
                     .in(FoodRegulatorRegion::getRegionId, regionIds)
+                    .eq(FoodRegulatorRegion::getDeleted, 0))
+                .stream()
+                .map(FoodRegulatorRegion::getRegulatorId)
+                .distinct()
+                .toList();
+            if (regulatorIds.isEmpty()) {
+                return List.of();
+            }
+            wrapper.in(FoodRegulator::getId, regulatorIds);
+        }
+        List<FoodRegulator> regulators = foodRegulatorMapper.selectList(wrapper);
+        Map<Long, List<Long>> regionMap = loadRegionMap(regulators);
+        return regulators.stream()
+            .map(regulator -> toVO(regulator, regionMap.getOrDefault(regulator.getId(), List.of())))
+            .toList();
+    }
+
+    @Override
+    public List<RegulatorProfileVO> listEligibleEnforcers(Long regionId) {
+        LambdaQueryWrapper<FoodRegulator> wrapper = new LambdaQueryWrapper<FoodRegulator>()
+            .eq(FoodRegulator::getDeleted, 0)
+            .eq(FoodRegulator::getRoleType, "REGULATOR_ENFORCER")
+            .eq(FoodRegulator::getStatus, 1);
+        if (regionId != null) {
+            List<Long> matchRegionIds = resolveAssignableRegionIds(regionId);
+            if (matchRegionIds.isEmpty()) {
+                return List.of();
+            }
+            List<Long> regulatorIds = foodRegulatorRegionMapper.selectList(new LambdaQueryWrapper<FoodRegulatorRegion>()
+                    .in(FoodRegulatorRegion::getRegionId, matchRegionIds)
                     .eq(FoodRegulatorRegion::getDeleted, 0))
                 .stream()
                 .map(FoodRegulatorRegion::getRegulatorId)
@@ -265,6 +298,41 @@ public class RegulatorProfileServiceImpl implements RegulatorProfileService {
             }
         }
         return result;
+    }
+
+    private List<Long> resolveAssignableRegionIds(Long regionId) {
+        if (regionId == null) {
+            return List.of();
+        }
+        AddrRegion region = addrRegionMapper.selectById(regionId);
+        if (region == null || isDeleted(region.getDeleted())) {
+            return List.of();
+        }
+        Integer level = region.getLevel();
+        if (level != null && level >= LEVEL_STREET) {
+            return List.of(regionId);
+        }
+        return resolveRegionIds(regionId);
+    }
+
+    private List<Long> validateRegionIds(String roleType, List<Long> regionIds) {
+        List<Long> cleaned = sanitizeRegionIds(regionIds);
+        if (cleaned.size() != 1) {
+            throw new IllegalArgumentException("exactly one region required");
+        }
+        Long regionId = cleaned.get(0);
+        AddrRegion region = addrRegionMapper.selectById(regionId);
+        if (region == null || isDeleted(region.getDeleted())) {
+            throw new IllegalArgumentException("region not found");
+        }
+        Integer level = region.getLevel();
+        if ("REGULATOR_ADMIN".equals(roleType) && !Objects.equals(level, LEVEL_COUNTY)) {
+            throw new IllegalArgumentException("admin region must be county level");
+        }
+        if ("REGULATOR_ENFORCER".equals(roleType) && !Objects.equals(level, LEVEL_STREET)) {
+            throw new IllegalArgumentException("enforcer region must be street level");
+        }
+        return cleaned;
     }
 
     private boolean isDeleted(Integer deleted) {

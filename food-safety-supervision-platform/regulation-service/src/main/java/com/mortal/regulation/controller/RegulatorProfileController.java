@@ -80,6 +80,16 @@ public class RegulatorProfileController {
         return ApiResponse.success(regulatorProfileService.list(roleType, regionId));
     }
 
+    @GetMapping("/eligible")
+    public ApiResponse<List<RegulatorProfileVO>> listEligible(@RequestHeader("Authorization") String token,
+                                                              @RequestParam(required = false) Long regionId) {
+        UserIdentity identity = resolveIdentity(token);
+        if (!identity.isRegulator()) {
+            return ApiResponse.failure(403, "regulator only");
+        }
+        return ApiResponse.success(regulatorProfileService.listEligibleEnforcers(regionId));
+    }
+
     @PutMapping("/{id}/status")
     public ApiResponse<RegulatorProfileVO> updateStatus(@RequestHeader("Authorization") String token,
                                                         @PathVariable Long id,

@@ -120,7 +120,7 @@ public class InspectionTaskServiceImpl implements InspectionTaskService {
         if (!ROLE_ENFORCER.equalsIgnoreCase(assignee.getRoleType())) {
             throw new IllegalArgumentException("assignee must be enforcer");
         }
-        if (!coversRegion(assignee.getId(), task.getRegionId())) {
+        if (!isRegulatorWithinRegion(assignee.getId(), task.getRegionId())) {
             throw new IllegalArgumentException("assignee not in task region");
         }
         task.setAssignedTo(assignee.getId());
@@ -382,12 +382,60 @@ public class InspectionTaskServiceImpl implements InspectionTaskService {
         return collectRegionIds(directRegionIds);
     }
 
+    private List<Long> resolveRegulatorDirectRegionIds(Long regulatorId) {
+        if (regulatorId == null) {
+            return List.of();
+        }
+        return foodRegulatorRegionMapper.selectList(new LambdaQueryWrapper<FoodRegulatorRegion>()
+                .eq(FoodRegulatorRegion::getRegulatorId, regulatorId)
+                .eq(FoodRegulatorRegion::getDeleted, 0))
+            .stream()
+            .map(FoodRegulatorRegion::getRegionId)
+            .filter(Objects::nonNull)
+            .distinct()
+            .toList();
+    }
+
     private boolean coversRegion(Long regulatorId, Long regionId) {
         if (regionId == null) {
             return false;
         }
         List<Long> regionIds = resolveRegulatorRegionIds(regulatorId);
         return regionIds.contains(regionId);
+    }
+
+    private boolean isRegulatorWithinRegion(Long regulatorId, Long regionId) {
+        if (regionId == null) {
+            return false;
+        }
+        List<Long> directRegionIds = resolveRegulatorDirectRegionIds(regulatorId);
+        if (directRegionIds.isEmpty()) {
+            return false;
+        }
+        for (Long directId : directRegionIds) {
+            if (isAncestorRegion(regionId, directId)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private boolean isAncestorRegion(Long ancestorId, Long regionId) {
+        if (ancestorId == null || regionId == null) {
+            return false;
+        }
+        Long cursor = regionId;
+        while (cursor != null) {
+            if (ancestorId.equals(cursor)) {
+                return true;
+            }
+            AddrRegion current = addrRegionMapper.selectById(cursor);
+            if (current == null || isDeleted(current.getDeleted())) {
+                break;
+            }
+            cursor = current.getParentId();
+        }
+        return false;
     }
 
     private List<Long> collectRegionIds(List<Long> rootIds) {

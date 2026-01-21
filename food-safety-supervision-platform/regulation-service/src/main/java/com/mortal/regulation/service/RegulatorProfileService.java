@@ -14,6 +14,8 @@ public interface RegulatorProfileService {
 
     List<RegulatorProfileVO> list(String roleType, Long regionId);
 
+    List<RegulatorProfileVO> listEligibleEnforcers(Long regionId);
+
     RegulatorProfileVO updateStatus(Long id, Integer status);
 
     void deleteRegulator(Long id);

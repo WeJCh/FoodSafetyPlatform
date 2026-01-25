@@ -1,14 +1,23 @@
-﻿@import url("https://fonts.googleapis.com/css2?family=Rubik:wght@300;400;600;700&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;500;600;700&family=Noto+Sans+SC:wght@400;500;700&display=swap");
 
 :root {
-  --bg: #f6f1ea;
-  --accent: #ff7a00;
-  --accent-strong: #e25f00;
-  --ink: #1c1b1a;
-  --muted: #6b6158;
+  --bg: #f2f6fb;
+  --bg-strong: #e7eff8;
+  --nav: #0f2d4a;
+  --nav-strong: #123a61;
+  --ink: #0f1d2d;
+  --muted: #5e6f82;
   --card: #ffffff;
-  --stroke: #eadccf;
-  --shadow: 0 20px 60px rgba(28, 27, 26, 0.15);
+  --card-strong: #f7fafc;
+  --stroke: #d7e2ee;
+  --primary: #0d5ea6;
+  --primary-strong: #0a4a84;
+  --accent: #0f8b8d;
+  --success: #1a7f5a;
+  --warning: #d17a00;
+  --danger: #c0392b;
+  --shadow: 0 18px 42px rgba(15, 29, 45, 0.14);
+  --radius: 18px;
 }
 
 * {
@@ -17,27 +26,31 @@
 
 body {
   margin: 0;
-  font-family: "Rubik", "Noto Sans SC", sans-serif;
+  font-family: "Manrope", "Noto Sans SC", sans-serif;
   color: var(--ink);
-  background: radial-gradient(circle at top left, #ffe7cf 0%, #f6f1ea 50%, #efe4d8 100%);
+  background:
+    radial-gradient(circle at 8% 8%, rgba(13, 94, 166, 0.14), transparent 40%),
+    radial-gradient(circle at 85% 20%, rgba(15, 139, 141, 0.12), transparent 45%),
+    radial-gradient(circle at 10% 88%, rgba(13, 94, 166, 0.08), transparent 50%),
+    var(--bg);
   min-height: 100vh;
 }
-
 
 .app-shell {
   min-height: 100vh;
   display: grid;
-  grid-template-columns: 1.2fr 1fr;
+  grid-template-columns: minmax(420px, 1.15fr) minmax(380px, 1fr);
+  gap: 0;
 }
 
 .hero-panel {
-  padding: 80px 70px;
+  padding: 80px 72px;
   display: flex;
   align-items: center;
 }
 
 .hero-content h1 {
-  font-size: 42px;
+  font-size: 44px;
   line-height: 1.1;
   margin: 18px 0 16px;
 }
@@ -45,7 +58,7 @@ body {
 .hero-content p {
   font-size: 18px;
   color: var(--muted);
-  max-width: 440px;
+  max-width: 460px;
 }
 
 .badge {
@@ -53,8 +66,8 @@ body {
   align-items: center;
   padding: 6px 14px;
   border-radius: 999px;
-  background: #1c1b1a;
-  color: #fff5ea;
+  background: var(--nav);
+  color: #f7fbff;
   font-size: 12px;
   text-transform: uppercase;
   letter-spacing: 0.12em;
@@ -78,7 +91,7 @@ body {
 }
 
 .form-panel {
-  padding: 60px 50px;
+  padding: 64px 56px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -86,18 +99,17 @@ body {
 
 .card {
   width: 100%;
-  max-width: 420px;
+  max-width: 460px;
   background: var(--card);
   border: 1px solid var(--stroke);
-  border-radius: 28px;
-  padding: 30px;
+  border-radius: var(--radius);
+  padding: 30px 28px;
   box-shadow: var(--shadow);
 }
 
-
 .tabs {
   display: flex;
-  background: #f7efe6;
+  background: #eff4fa;
   border-radius: 16px;
   padding: 6px;
   gap: 6px;
@@ -116,7 +128,7 @@ body {
 }
 
 .tabs button.active {
-  background: #1c1b1a;
+  background: var(--nav);
   color: #fff;
 }
 
@@ -134,7 +146,7 @@ form {
   border: 1px solid var(--stroke);
   border-radius: 16px;
   padding: 16px;
-  background: #faf6f1;
+  background: var(--card-strong);
   cursor: pointer;
   display: grid;
   gap: 6px;
@@ -147,19 +159,20 @@ form {
 
 .type-card.note {
   cursor: default;
-  background: #f3ebe2;
+  background: #eef3f7;
 }
 
 .admin-shell {
   min-height: 100vh;
   display: grid;
-  grid-template-columns: 240px 1fr;
+  grid-template-columns: 260px 1fr;
+  background: var(--bg);
 }
 
 .admin-sidebar {
-  background: #1c1b1a;
-  color: #fff;
-  padding: 24px;
+  background: linear-gradient(180deg, var(--nav) 0%, #0b2740 100%);
+  color: #f3f7fb;
+  padding: 28px 22px;
   display: flex;
   flex-direction: column;
   gap: 20px;
@@ -167,7 +180,7 @@ form {
 
 .admin-brand {
   font-weight: 700;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
   font-size: 12px;
 }
@@ -179,7 +192,7 @@ form {
 
 .admin-nav button {
   background: transparent;
-  border: 1px solid rgba(255, 255, 255, 0.2);
+  border: 1px solid rgba(243, 247, 251, 0.2);
   color: #fff;
   padding: 10px 12px;
   border-radius: 10px;
@@ -189,13 +202,53 @@ form {
 }
 
 .admin-nav button.active {
-  background: #ff7a00;
-  border-color: #ff7a00;
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #072729;
 }
 
 .admin-main {
   display: grid;
   grid-template-rows: auto 1fr;
+}
+
+.dashboard-topbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 22px 36px 10px;
+  gap: 20px;
+}
+
+.dashboard-title {
+  display: grid;
+  gap: 4px;
+}
+
+.dashboard-title strong {
+  font-size: 20px;
+}
+
+.dashboard-title span {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.user-chip {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--card);
+  border: 1px solid var(--stroke);
+  padding: 8px 14px;
+  border-radius: 999px;
+  font-size: 12px;
+  color: var(--muted);
+  box-shadow: var(--shadow);
+}
+
+.dashboard-content {
+  padding: 0 36px 40px;
 }
 
 .section-title {
@@ -216,7 +269,7 @@ form {
   padding: 16px;
   border-radius: 12px;
   border: 1px dashed var(--stroke);
-  background: #faf6f1;
+  background: var(--card-strong);
 }
 
 .placeholder strong {
@@ -233,7 +286,7 @@ form {
 
 .sub-nav button {
   border: 1px solid var(--stroke);
-  background: #f7efe6;
+  background: var(--card-strong);
   color: var(--ink);
   padding: 8px 12px;
   border-radius: 10px;
@@ -242,8 +295,9 @@ form {
 }
 
 .sub-nav button.active {
-  background: #1c1b1a;
+  background: var(--nav);
   color: #fff;
+  border-color: transparent;
 }
 
 label {
@@ -261,6 +315,7 @@ textarea {
   padding: 10px 12px;
   font-size: 14px;
   font-family: inherit;
+  background: #fff;
 }
 
 .primary {
@@ -268,11 +323,11 @@ textarea {
   padding: 12px 16px;
   border: none;
   border-radius: 14px;
-  background: var(--accent);
+  background: var(--primary);
   color: white;
   font-weight: 600;
   cursor: pointer;
-  box-shadow: 0 12px 24px rgba(255, 122, 0, 0.28);
+  box-shadow: 0 12px 24px rgba(13, 94, 166, 0.28);
 }
 
 .primary:disabled {
@@ -288,13 +343,13 @@ textarea {
 }
 
 .status.success {
-  background: #f1f8ea;
-  color: #2b5c22;
+  background: rgba(26, 127, 90, 0.1);
+  color: var(--success);
 }
 
 .status.error {
-  background: #fff1f1;
-  color: #7c1d1d;
+  background: rgba(192, 57, 43, 0.1);
+  color: var(--danger);
 }
 
 .token-box {
@@ -313,11 +368,17 @@ textarea {
 
 .ghost {
   border: none;
-  background: #f1e6db;
+  background: #e9f1f8;
   border-radius: 10px;
   padding: 6px 10px;
   cursor: pointer;
   font-size: 12px;
+  color: var(--ink);
+}
+
+.admin-sidebar .ghost {
+  background: rgba(243, 247, 251, 0.12);
+  color: #f3f7fb;
 }
 
 @media (max-width: 960px) {
@@ -341,5 +402,15 @@ textarea {
 
   .form-panel {
     padding: 20px 30px 60px;
+  }
+
+  .dashboard-topbar {
+    padding: 18px 24px 10px;
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .dashboard-content {
+    padding: 0 24px 32px;
   }
 }

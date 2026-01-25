@@ -1,8 +1,52 @@
 <template>
-  <div class="app-shell regulator-shell">
+  <div class="admin-shell regulator-shell">
+    <aside class="admin-sidebar">
+      <div class="admin-brand">监管中心</div>
+      <div class="sidebar-meta">
+        <span>账号：{{ regulatorUser.username }}</span>
+        <span>角色：{{ regulatorUser.userType }}</span>
+        <span>职责：区域管理员</span>
+      </div>
+      <nav class="admin-nav">
+        <button :class="{ active: section === 'enterprises' }" @click="section = 'enterprises'">
+          企业管理
+        </button>
+        <button :class="{ active: section === 'approvals' }" @click="section = 'approvals'; loadPending()">
+          备案审核
+        </button>
+        <button :class="{ active: section === 'dispatch' }" @click="handleDispatchEnter">
+          任务派发
+        </button>
+        <button :class="{ active: section === 'complaints' }" @click="section = 'complaints'">
+          投诉流转
+        </button>
+        <button :class="{ active: section === 'rectification' }" @click="section = 'rectification'">
+          检查整改
+        </button>
+        <button :class="{ active: section === 'warning' }" @click="section = 'warning'">
+          风险预警
+        </button>
+        <button :class="{ active: section === 'stats' }" @click="section = 'stats'">
+          数据统计
+        </button>
+      </nav>
+      <button class="ghost sidebar-ghost" type="button" @click="handleLogout">退出登录</button>
+    </aside>
 
-    <div class="form-panel">
-      <div class="card">
+    <div class="admin-main">
+      <div class="dashboard-topbar">
+        <div class="dashboard-title">
+          <strong>区域管理员工作台</strong>
+          <span>备案审核、任务派发与企业监管</span>
+        </div>
+        <div class="user-chip">
+          <span>{{ regulatorUser.username }}</span>
+          <span>区域管理员</span>
+        </div>
+      </div>
+
+      <div class="dashboard-content">
+        <div class="card dashboard-card">
         <div class="section-title">监管人员</div>
         <div class="admin-info">
           <div>账号：{{ regulatorUser.username }}</div>
@@ -297,11 +341,10 @@
           <p>{{ sectionLabel }} 将在后续版本实现。</p>
         </div>
 
-        <button class="ghost" type="button" @click="handleLogout">退出登录</button>
-
         <div class="status" :class="status.type" v-if="status.message">
           {{ status.message }}
         </div>
+      </div>
       </div>
     </div>
   </div>
@@ -331,12 +374,16 @@ const props = defineProps({
   regulatorUser: {
     type: Object,
     required: true
+  },
+  initialSection: {
+    type: String,
+    default: ""
   }
 });
 
 const emit = defineEmits(["logout", "view-enterprise"]);
 
-const section = ref("enterprises");
+const section = ref(props.initialSection || "enterprises");
 
 const filters = reactive({
   enterpriseName: "",
@@ -387,7 +434,9 @@ const sectionLabelMap = {
   approvals: "备案审核",
   dispatch: "任务派发",
   rectification: "整改复核",
-  complaints: "投诉流转"
+  complaints: "投诉流转",
+  warning: "风险预警",
+  stats: "数据统计"
 };
 
 const sectionLabel = computed(() => sectionLabelMap[section.value] || "当前模块");
@@ -709,7 +758,7 @@ function toggleSelectAll(event) {
 }
 
 function handleViewDetail(item) {
-  emit("view-enterprise", item.id);
+  emit("view-enterprise", { id: item.id, fromSection: section.value });
 }
 
 async function load() {
@@ -757,13 +806,42 @@ function formatTime(value) {
 }
 
 onMounted(() => {
+  if (section.value === "approvals") {
+    loadPending();
+    return;
+  }
+  if (section.value === "dispatch") {
+    handleDispatchEnter();
+    return;
+  }
   load();
 });
 </script>
 
 <style scoped>
 .regulator-shell {
-  grid-template-columns: 1fr;
+  grid-template-columns: 260px 1fr;
+}
+
+.dashboard-card {
+  max-width: none;
+  width: 100%;
+  padding: 26px;
+}
+
+.sidebar-meta {
+  display: grid;
+  gap: 6px;
+  font-size: 12px;
+  color: rgba(243, 247, 251, 0.78);
+}
+
+.sidebar-ghost {
+  margin-top: auto;
+}
+
+.regulator-shell .sub-nav {
+  display: none;
 }
 
 .regulator-shell .hero-panel {
@@ -784,19 +862,30 @@ onMounted(() => {
 }
 
 .regulator-shell .form-panel {
-  padding: 20px 80px 70px;
-  align-items: flex-start;
+  display: block;
+  width: 100%;
+  padding: 24px 36px 60px;
+  align-items: stretch;
+  justify-content: flex-start;
 }
 
 .regulator-shell .card {
-  max-width: 980px;
+  max-width: 1280px;
   width: 100%;
+  padding: 28px;
 }
 
 .filter-bar {
   display: grid;
   gap: 12px;
   margin-bottom: 16px;
+  grid-template-columns: repeat(3, minmax(0, 1fr)) auto;
+  align-items: end;
+}
+
+.filter-bar .primary {
+  height: 42px;
+  padding: 0 18px;
 }
 
 .sub-nav {
@@ -810,15 +899,16 @@ onMounted(() => {
   padding: 8px 14px;
   border-radius: 999px;
   border: 1px solid var(--stroke);
-  background: transparent;
+  background: var(--card-strong);
   color: var(--ink);
   cursor: pointer;
 }
 
 .sub-nav button.active {
-  background: #efe2d3;
+  background: var(--nav);
   border-color: transparent;
   font-weight: 600;
+  color: #fff;
 }
 
 .placeholder {
@@ -832,8 +922,8 @@ onMounted(() => {
 .list-table {
   border-radius: 14px;
   border: 1px solid var(--stroke);
-  background: #faf6f1;
-  overflow: hidden;
+  background: var(--card-strong);
+  overflow: auto;
 }
 
 .list-row {
@@ -847,7 +937,7 @@ onMounted(() => {
 
 .list-header {
   font-weight: 600;
-  background: #f1e6db;
+  background: #e9f1f8;
 }
 
 .approvals-header,
@@ -872,7 +962,7 @@ onMounted(() => {
 
 .dispatch-grid {
   display: grid;
-  grid-template-columns: 1fr 2fr;
+  grid-template-columns: minmax(320px, 1fr) minmax(480px, 2fr);
   gap: 20px;
 }
 
@@ -880,14 +970,14 @@ onMounted(() => {
   border: 1px solid var(--stroke);
   border-radius: 14px;
   padding: 14px;
-  background: #fff6ea;
+  background: #eef6fb;
 }
 
 .dispatch-list {
   border-radius: 14px;
   border: 1px solid var(--stroke);
   padding: 14px;
-  background: #faf6f1;
+  background: var(--card-strong);
 }
 
 .dispatch-form-grid {
@@ -959,6 +1049,12 @@ onMounted(() => {
   }
 }
 
+@media (max-width: 1100px) {
+  .filter-bar {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
 .list-empty {
   padding: 16px;
   color: var(--muted);
@@ -989,6 +1085,12 @@ onMounted(() => {
   }
 
   .regulator-shell .hero-highlights {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 960px) {
+  .regulator-shell {
     grid-template-columns: 1fr;
   }
 }

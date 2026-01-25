@@ -20,9 +20,19 @@
     </aside>
 
     <div class="admin-main">
+      <div class="dashboard-topbar">
+        <div class="dashboard-title">
+          <strong>系统管理员工作台</strong>
+          <span>监管人员与账号信息维护</span>
+        </div>
+        <div class="user-chip">
+          <span>{{ adminUser.username }}</span>
+          <span>{{ adminUser.userType }}</span>
+        </div>
+      </div>
 
-      <div class="form-panel">
-        <div class="card">
+      <div class="dashboard-content">
+        <div class="card dashboard-card">
           <div class="section-title">系统管理员</div>
           <div class="admin-info">
             <div>账号：{{ adminUser.username }}</div>
@@ -519,17 +529,24 @@ async function handleToggle(regulator) {
 </script>
 
 <style scoped>
+.dashboard-card {
+  max-width: none;
+  width: 100%;
+  padding: 26px;
+}
+
 .filter-bar {
   display: grid;
   gap: 12px;
   margin-bottom: 16px;
+  grid-template-columns: repeat(5, minmax(0, 1fr)) auto;
 }
 
 .list-table {
   border-radius: 14px;
   border: 1px solid var(--stroke);
-  background: #faf6f1;
-  overflow: hidden;
+  background: var(--card-strong);
+  overflow: auto;
 }
 
 .list-row {
@@ -543,12 +560,18 @@ async function handleToggle(regulator) {
 
 .list-header {
   font-weight: 600;
-  background: #f1e6db;
+  background: #e9f1f8;
 }
 
 .list-empty {
   padding: 16px;
   color: var(--muted);
   font-size: 13px;
+}
+
+@media (max-width: 1100px) {
+  .filter-bar {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 </style>

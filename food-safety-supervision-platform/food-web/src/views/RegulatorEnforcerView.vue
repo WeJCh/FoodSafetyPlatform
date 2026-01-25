@@ -1,8 +1,46 @@
 <template>
-  <div class="app-shell regulator-shell">
+  <div class="admin-shell regulator-shell">
+    <aside class="admin-sidebar">
+      <div class="admin-brand">监管中心</div>
+      <div class="sidebar-meta">
+        <span>账号：{{ regulatorUser.username }}</span>
+        <span>角色：{{ regulatorUser.userType }}</span>
+        <span>职责：执法人员</span>
+      </div>
+      <nav class="admin-nav">
+        <button :class="{ active: section === 'enterprises' }" @click="section = 'enterprises'">
+          企业监管
+        </button>
+        <button :class="{ active: section === 'tasks' }" @click="handleTaskEnter">
+          我的任务
+        </button>
+        <button :class="{ active: section === 'inspections' }" @click="handleInspectionEnter">
+          检查记录
+        </button>
+        <button :class="{ active: section === 'rectification' }" @click="section = 'rectification'">
+          整改跟进
+        </button>
+        <button :class="{ active: section === 'complaints' }" @click="section = 'complaints'">
+          投诉处理
+        </button>
+      </nav>
+      <button class="ghost sidebar-ghost" type="button" @click="handleLogout">退出登录</button>
+    </aside>
 
-    <div class="form-panel">
-      <div class="card">
+    <div class="admin-main">
+      <div class="dashboard-topbar">
+        <div class="dashboard-title">
+          <strong>执法人员工作台</strong>
+          <span>任务执行、检查记录与整改跟进</span>
+        </div>
+        <div class="user-chip">
+          <span>{{ regulatorUser.username }}</span>
+          <span>执法人员</span>
+        </div>
+      </div>
+
+      <div class="dashboard-content">
+        <div class="card dashboard-card">
         <div class="section-title">监管人员</div>
         <div class="admin-info">
           <div>账号：{{ regulatorUser.username }}</div>
@@ -125,6 +163,14 @@
               <span>{{ formatTime(task.deadline) }}</span>
               <div class="action-buttons">
                 <button
+                  class="ghost"
+                  type="button"
+                  :disabled="taskLoading"
+                  @click="openTaskDetail(task)"
+                >
+                  查看详情
+                </button>
+                <button
                   v-if="task.status === 'ASSIGNED'"
                   class="ghost"
                   type="button"
@@ -189,6 +235,136 @@
               </div>
             </form>
           </div>
+
+          <div v-if="detailTask" class="modal-mask" @click.self="closeTaskDetail">
+            <div class="modal-card">
+              <div class="modal-title">任务详情</div>
+              <div class="modal-body">
+                <div class="modal-field">
+                  <span>任务标题</span>
+                  <strong>{{ detailTask.taskTitle || "-" }}</strong>
+                </div>
+                <div class="modal-field">
+                  <span>任务描述</span>
+                  <strong>{{ detailTask.taskDesc || "-" }}</strong>
+                </div>
+              </div>
+              <div class="modal-actions">
+                <button class="ghost" type="button" @click="closeTaskDetail">关闭</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div v-else-if="section === 'inspections'">
+          <div class="section-title">检查记录</div>
+          <form class="filter-bar inspection-filter" @submit.prevent="handleInspectionSearch">
+            <label>
+              企业名称
+              <input v-model.trim="inspectionFilters.enterpriseName" placeholder="输入企业名称" />
+            </label>
+            <label>
+              检查结果
+              <select v-model="inspectionFilters.result">
+                <option value="">全部</option>
+                <option value="PASS">合格</option>
+                <option value="FAIL">不合格</option>
+              </select>
+            </label>
+            <label>
+              起始日期
+              <input v-model="inspectionFilters.startDate" type="date" />
+            </label>
+            <label>
+              截止日期
+              <input v-model="inspectionFilters.endDate" type="date" />
+            </label>
+            <button class="primary" type="submit" :disabled="inspectionLoading">
+              {{ inspectionLoading ? "查询中..." : "查询" }}
+            </button>
+          </form>
+
+          <div class="list-table inspection-table">
+            <div class="list-row list-header inspection-header">
+              <span>企业名称</span>
+              <span>检查日期</span>
+              <span>结果</span>
+              <span>更新时间</span>
+              <span>操作</span>
+            </div>
+            <div v-if="!inspectionRecords.length" class="list-empty">
+              暂无检查记录
+            </div>
+            <div v-for="record in inspectionRecords" :key="record.id" class="list-row inspection-row">
+              <span>{{ record.enterpriseName || "-" }}</span>
+              <span>{{ record.inspectionDate || "-" }}</span>
+              <span>{{ formatInspectionResult(record.result) }}</span>
+              <span>{{ formatTime(record.updateTime) }}</span>
+              <button class="ghost" type="button" @click="openInspectionDetail(record)">
+                查看详情
+              </button>
+            </div>
+          </div>
+
+          <div class="pager">
+            <span>共{{ inspectionTotal }} 条，{{ inspectionPage }}/{{ inspectionPages }} 页</span>
+            <div class="pager-actions">
+              <button
+                class="ghost"
+                type="button"
+                :disabled="inspectionPage <= 1"
+                @click="changeInspectionPage(inspectionPage - 1)"
+              >
+                上一页
+              </button>
+              <button
+                class="ghost"
+                type="button"
+                :disabled="inspectionPage >= inspectionPages"
+                @click="changeInspectionPage(inspectionPage + 1)"
+              >
+                下一页
+              </button>
+            </div>
+          </div>
+
+          <div v-if="inspectionDetail" class="modal-mask" @click.self="closeInspectionDetail">
+            <div class="modal-card">
+              <div class="modal-title">检查记录详情</div>
+              <div class="modal-body">
+                <div class="modal-field">
+                  <span>企业名称</span>
+                  <strong>{{ inspectionDetail.record.enterpriseName || "-" }}</strong>
+                </div>
+                <div class="modal-field">
+                  <span>检查日期</span>
+                  <strong>{{ inspectionDetail.record.inspectionDate || "-" }}</strong>
+                </div>
+                <div class="modal-field">
+                  <span>检查结果</span>
+                  <strong>{{ formatInspectionResult(inspectionDetail.record.result) }}</strong>
+                </div>
+                <div class="modal-field">
+                  <span>问题描述</span>
+                  <strong>{{ inspectionDetail.record.problemDesc || "-" }}</strong>
+                </div>
+                <div class="modal-field">
+                  <span>检查明细</span>
+                  <div class="modal-list">
+                    <div v-if="!inspectionDetail.items.length" class="modal-empty">暂无检查明细</div>
+                    <div v-for="(item, index) in inspectionDetail.items" :key="index" class="modal-item">
+                      <div class="modal-item-name">{{ item.itemName }}</div>
+                      <div class="modal-item-meta">{{ formatInspectionResult(item.itemResult) }}</div>
+                      <div class="modal-item-desc">{{ item.problemDesc || "-" }}</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div class="modal-actions">
+                <button class="ghost" type="button" @click="closeInspectionDetail">关闭</button>
+              </div>
+            </div>
+          </div>
         </div>
 
         <div v-else class="placeholder">
@@ -196,11 +372,10 @@
           <p>{{ sectionLabel }} 将在后续版本实现。</p>
         </div>
 
-        <button class="ghost" type="button" @click="handleLogout">退出登录</button>
-
         <div class="status" :class="status.type" v-if="status.message">
           {{ status.message }}
         </div>
+      </div>
       </div>
     </div>
   </div>
@@ -210,6 +385,8 @@
 import { computed, onMounted, reactive, ref } from "vue";
 import {
   fetchEnterprises,
+  fetchInspectionRecordDetail,
+  fetchMyInspectionRecords,
   fetchMyInspectionTasks,
   startInspectionTask,
   submitInspectionTask
@@ -253,6 +430,20 @@ const taskFilters = reactive({
   status: ""
 });
 const activeTask = ref(null);
+const detailTask = ref(null);
+const inspectionFilters = reactive({
+  enterpriseName: "",
+  result: "",
+  startDate: "",
+  endDate: ""
+});
+const inspectionRecords = ref([]);
+const inspectionLoading = ref(false);
+const inspectionPage = ref(1);
+const inspectionSize = ref(8);
+const inspectionTotal = ref(0);
+const inspectionPages = ref(1);
+const inspectionDetail = ref(null);
 const taskForm = reactive({
   inspectionDate: "",
   result: "PASS",
@@ -274,7 +465,8 @@ function setStatus(message, type = "info") {
 const sectionLabelMap = {
   tasks: "我的任务",
   inspections: "检查记录",
-  rectification: "整改跟进"
+  rectification: "整改跟进",
+  complaints: "投诉处理"
 };
 
 const sectionLabel = computed(() => sectionLabelMap[section.value] || "当前模块");
@@ -304,6 +496,11 @@ const taskPriorityMap = {
   HIGH: "高"
 };
 
+const inspectionResultMap = {
+  PASS: "合格",
+  FAIL: "不合格"
+};
+
 function formatStatus(value) {
   return statusMap[value] || value || "-";
 }
@@ -318,6 +515,10 @@ function formatTaskStatus(value) {
 
 function formatTaskPriority(value) {
   return taskPriorityMap[value] || value || "-";
+}
+
+function formatInspectionResult(value) {
+  return inspectionResultMap[value] || value || "-";
 }
 
 async function load() {
@@ -367,6 +568,42 @@ async function handleTaskSearch() {
   await loadTasks();
 }
 
+async function handleInspectionEnter() {
+  section.value = "inspections";
+  await loadInspections();
+}
+
+async function handleInspectionSearch() {
+  inspectionPage.value = 1;
+  await loadInspections();
+}
+
+async function changeInspectionPage(nextPage) {
+  inspectionPage.value = nextPage;
+  await loadInspections();
+}
+
+async function loadInspections() {
+  inspectionLoading.value = true;
+  setStatus("");
+  try {
+    const data = await fetchMyInspectionRecords(props.token, {
+      ...inspectionFilters,
+      page: inspectionPage.value,
+      size: inspectionSize.value
+    });
+    inspectionRecords.value = data.records || [];
+    inspectionTotal.value = data.total || 0;
+    inspectionPage.value = data.page || 1;
+    inspectionSize.value = data.size || inspectionSize.value;
+    inspectionPages.value = data.pages || 1;
+  } catch (error) {
+    setStatus(error.message || "加载检查记录失败", "error");
+  } finally {
+    inspectionLoading.value = false;
+  }
+}
+
 async function handleStartTask(task) {
   taskLoading.value = true;
   setStatus("");
@@ -397,6 +634,30 @@ function handleSelectTask(task) {
 
 function clearActiveTask() {
   activeTask.value = null;
+}
+
+function openTaskDetail(task) {
+  detailTask.value = task;
+}
+
+function closeTaskDetail() {
+  detailTask.value = null;
+}
+
+async function openInspectionDetail(record) {
+  if (!record?.id) return;
+  inspectionLoading.value = true;
+  try {
+    inspectionDetail.value = await fetchInspectionRecordDetail(props.token, record.id);
+  } catch (error) {
+    setStatus(error.message || "加载检查记录失败", "error");
+  } finally {
+    inspectionLoading.value = false;
+  }
+}
+
+function closeInspectionDetail() {
+  inspectionDetail.value = null;
 }
 
 function addItem() {
@@ -468,7 +729,7 @@ function handleLogout() {
 }
 
 function handleViewDetail(item) {
-  emit("view-enterprise", item.id);
+  emit("view-enterprise", { id: item.id, fromSection: section.value });
 }
 
 function formatTime(value) {
@@ -483,7 +744,28 @@ onMounted(() => {
 
 <style scoped>
 .regulator-shell {
-  grid-template-columns: 1fr;
+  grid-template-columns: 260px 1fr;
+}
+
+.dashboard-card {
+  max-width: none;
+  width: 100%;
+  padding: 26px;
+}
+
+.sidebar-meta {
+  display: grid;
+  gap: 6px;
+  font-size: 12px;
+  color: rgba(243, 247, 251, 0.78);
+}
+
+.sidebar-ghost {
+  margin-top: auto;
+}
+
+.regulator-shell .sub-nav {
+  display: none;
 }
 
 .regulator-shell .hero-panel {
@@ -504,19 +786,40 @@ onMounted(() => {
 }
 
 .regulator-shell .form-panel {
-  padding: 20px 80px 70px;
-  align-items: flex-start;
+  display: block;
+  width: 100%;
+  padding: 24px 36px 60px;
+  align-items: stretch;
+  justify-content: flex-start;
 }
 
 .regulator-shell .card {
-  max-width: 980px;
+  max-width: 1280px;
   width: 100%;
+  padding: 28px;
 }
 
 .filter-bar {
   display: grid;
   gap: 12px;
   margin-bottom: 16px;
+  grid-template-columns: repeat(3, minmax(0, 1fr)) auto;
+  align-items: end;
+}
+
+.inspection-filter {
+  grid-template-columns: repeat(4, minmax(0, 1fr)) auto;
+  align-items: end;
+}
+
+.inspection-filter .primary {
+  height: 42px;
+  padding: 0 18px;
+}
+
+.filter-bar .primary {
+  height: 42px;
+  padding: 0 18px;
 }
 
 .sub-nav {
@@ -530,15 +833,16 @@ onMounted(() => {
   padding: 8px 14px;
   border-radius: 999px;
   border: 1px solid var(--stroke);
-  background: transparent;
+  background: var(--card-strong);
   color: var(--ink);
   cursor: pointer;
 }
 
 .sub-nav button.active {
-  background: #efe2d3;
+  background: var(--nav);
   border-color: transparent;
   font-weight: 600;
+  color: #fff;
 }
 
 .placeholder {
@@ -552,8 +856,8 @@ onMounted(() => {
 .list-table {
   border-radius: 14px;
   border: 1px solid var(--stroke);
-  background: #faf6f1;
-  overflow: hidden;
+  background: var(--card-strong);
+  overflow: auto;
 }
 
 .list-row {
@@ -567,7 +871,7 @@ onMounted(() => {
 
 .list-header {
   font-weight: 600;
-  background: #f1e6db;
+  background: #e9f1f8;
 }
 
 .task-header,
@@ -575,12 +879,17 @@ onMounted(() => {
   grid-template-columns: 1.2fr 1.6fr 0.8fr 0.9fr 1fr 1.2fr;
 }
 
+.inspection-header,
+.inspection-row {
+  grid-template-columns: 1.6fr 1fr 0.8fr 1.2fr 0.8fr;
+}
+
 .task-submit {
   margin-top: 18px;
   padding: 16px;
   border-radius: 14px;
   border: 1px solid var(--stroke);
-  background: #fff6ea;
+  background: #eef6fb;
 }
 
 .section-subtitle {
@@ -620,6 +929,103 @@ onMounted(() => {
   justify-content: flex-end;
 }
 
+.modal-mask {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 29, 45, 0.35);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 40;
+  padding: 20px;
+}
+
+.modal-card {
+  width: min(520px, 92vw);
+  background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+  border-radius: 18px;
+  border: 1px solid var(--stroke);
+  box-shadow: var(--shadow);
+  padding: 22px 24px;
+}
+
+.modal-title {
+  font-weight: 700;
+  font-size: 16px;
+  margin-bottom: 14px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.modal-title::before {
+  content: "";
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+
+.modal-body {
+  display: grid;
+  gap: 14px;
+}
+
+.modal-field span {
+  display: block;
+  font-size: 12px;
+  color: var(--muted);
+  margin-bottom: 6px;
+}
+
+.modal-field strong {
+  font-size: 15px;
+  color: var(--ink);
+  line-height: 1.5;
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px dashed var(--stroke);
+}
+
+.modal-list {
+  display: grid;
+  gap: 10px;
+}
+
+.modal-item {
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid var(--stroke);
+  background: var(--card-strong);
+  display: grid;
+  gap: 4px;
+}
+
+.modal-item-name {
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.modal-item-meta {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.modal-item-desc {
+  font-size: 13px;
+  color: var(--ink);
+}
+
+.modal-empty {
+  font-size: 12px;
+  color: var(--muted);
+}
+
 .list-empty {
   padding: 16px;
   color: var(--muted);
@@ -650,6 +1056,28 @@ onMounted(() => {
   }
 
   .regulator-shell .hero-highlights {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 1100px) {
+  .filter-bar {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .inspection-filter {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 960px) {
+  .regulator-shell {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 820px) {
+  .task-item {
     grid-template-columns: 1fr;
   }
 }

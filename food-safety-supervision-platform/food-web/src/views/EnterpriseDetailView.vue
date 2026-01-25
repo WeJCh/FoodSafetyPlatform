@@ -188,7 +188,7 @@ watch(() => props.enterpriseId, loadDetail);
 }
 
 .status.info {
-  background: #f7efe6;
+  background: var(--card-strong);
   color: var(--muted);
 }
 

@@ -1,31 +1,40 @@
 <template>
-  <div class="app-shell">
-    <div class="hero-panel">
-      <div class="hero-content">
-        <span class="badge">企业备案</span>
-        <h1>企业信息备案与审核状态</h1>
-        <p>
-          企业用户首次登录后，需要完善企业信息并提交审核。审核通过后才能使用其他监管业务功能。
-        </p>
-        <div class="hero-highlights">
-          <div>
-            <strong>填写企业信息</strong>
-            <span>提交后进入待审核状态</span>
-          </div>
-          <div>
-            <strong>等待审核</strong>
-            <span>监管人员完成审批</span>
-          </div>
-          <div>
-            <strong>审核通过</strong>
-            <span>解锁全部业务功能</span>
-          </div>
+  <div class="admin-shell enterprise-shell">
+    <aside class="admin-sidebar">
+      <div class="admin-brand">企业中心</div>
+      <div class="sidebar-meta">
+        <span>账号：{{ enterpriseUser.username }}</span>
+        <span>类型：{{ enterpriseUser.userType }}</span>
+      </div>
+      <nav class="admin-nav">
+        <button :class="{ active: section === 'profile' }" @click="section = 'profile'">
+          企业备案
+        </button>
+        <button :class="{ active: section === 'inspections' }" @click="section = 'inspections'">
+          检查结果
+        </button>
+        <button :class="{ active: section === 'rectification' }" @click="section = 'rectification'">
+          整改任务
+        </button>
+      </nav>
+      <button class="ghost sidebar-ghost" type="button" @click="handleLogout">退出登录</button>
+    </aside>
+
+    <div class="admin-main">
+      <div class="dashboard-topbar">
+        <div class="dashboard-title">
+          <strong>企业用户工作台</strong>
+          <span>备案维护、检查结果与整改跟进</span>
+        </div>
+        <div class="user-chip">
+          <span>{{ enterpriseUser.username }}</span>
+          <span>企业用户</span>
         </div>
       </div>
-    </div>
 
-    <div class="form-panel">
-      <div class="card">
+      <div class="dashboard-content">
+        <div class="card dashboard-card">
+        <div v-if="section === 'profile'">
         <div class="section-title">企业备案</div>
         <div class="admin-info">
           <div>账号：{{ enterpriseUser.username }}</div>
@@ -112,12 +121,18 @@
           <button class="primary" type="submit" :disabled="loading">
             {{ loading ? "提交中..." : submitLabel }}
           </button>
-          <button class="ghost" type="button" @click="handleLogout">退出登录</button>
         </form>
 
         <div class="status" :class="status.type" v-if="status.message">
           {{ status.message }}
         </div>
+      </div>
+
+      <div v-else class="placeholder">
+        <strong>功能占位</strong>
+        <p>{{ sectionLabel }} 将在后续版本实现。</p>
+      </div>
+      </div>
       </div>
     </div>
   </div>
@@ -140,6 +155,7 @@ const props = defineProps({
 
 const emit = defineEmits(["logout"]);
 
+const section = ref("profile");
 const loading = ref(false);
 const profileLoaded = ref(false);
 const status = reactive({ message: "", type: "" });
@@ -171,6 +187,13 @@ const form = reactive({
   principal: "",
   principalPhone: ""
 });
+
+const sectionLabelMap = {
+  inspections: "检查结果",
+  rectification: "整改任务"
+};
+
+const sectionLabel = computed(() => sectionLabelMap[section.value] || "当前模块");
 
 const statusLabel = computed(() => {
   if (!profileLoaded.value) return "未提交";
@@ -320,7 +343,7 @@ onMounted(() => {
   border-radius: 16px;
   padding: 14px 16px;
   margin-bottom: 18px;
-  background: #f7efe6;
+  background: var(--card-strong);
   border: 1px solid var(--stroke);
   color: var(--ink);
   display: grid;
@@ -328,18 +351,18 @@ onMounted(() => {
 }
 
 .status-banner.success {
-  background: #f1f8ea;
-  color: #2b5c22;
+  background: rgba(26, 127, 90, 0.12);
+  color: var(--success);
 }
 
 .status-banner.error {
-  background: #fff1f1;
-  color: #7c1d1d;
+  background: rgba(192, 57, 43, 0.12);
+  color: var(--danger);
 }
 
 .status-banner.pending {
-  background: #fff5e8;
-  color: #8a4b00;
+  background: rgba(209, 122, 0, 0.12);
+  color: var(--warning);
 }
 
 .status-title {
@@ -356,5 +379,36 @@ onMounted(() => {
   font-size: 12px;
   color: var(--muted);
   margin-top: -6px;
+}
+
+.dashboard-card {
+  max-width: none;
+  width: 100%;
+  padding: 26px;
+}
+
+.sidebar-meta {
+  display: grid;
+  gap: 6px;
+  font-size: 12px;
+  color: rgba(243, 247, 251, 0.78);
+}
+
+.sidebar-ghost {
+  margin-top: auto;
+}
+
+.enterprise-shell .admin-info {
+  margin-bottom: 16px;
+}
+
+.enterprise-shell {
+  grid-template-columns: 260px 1fr;
+}
+
+@media (max-width: 960px) {
+  .enterprise-shell {
+    grid-template-columns: 1fr;
+  }
 }
 </style>

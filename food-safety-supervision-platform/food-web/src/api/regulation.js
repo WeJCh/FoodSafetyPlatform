@@ -250,3 +250,33 @@ export function submitInspectionTask(token, id, payload) {
     body: JSON.stringify(payload)
   });
 }
+
+export function fetchMyInspectionRecords(token, params = {}) {
+  const search = new URLSearchParams();
+  if (params.enterpriseName) search.append("enterpriseName", params.enterpriseName);
+  if (params.result) search.append("result", params.result);
+  if (params.startDate) search.append("startDate", params.startDate);
+  if (params.endDate) search.append("endDate", params.endDate);
+  if (params.page) search.append("page", params.page);
+  if (params.size) search.append("size", params.size);
+  const query = search.toString();
+  return requestWithBase(
+    REGULATION_BASE_URL,
+    `/api/regulation/inspections/my${query ? `?${query}` : ""}`,
+    {
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${token}`
+      }
+    }
+  );
+}
+
+export function fetchInspectionRecordDetail(token, id) {
+  return requestWithBase(REGULATION_BASE_URL, `/api/regulation/inspections/${id}`, {
+    method: "GET",
+    headers: {
+      Authorization: `Bearer ${token}`
+    }
+  });
+}

@@ -15,6 +15,7 @@
     v-else-if="view === 'regulator-admin'"
     :regulator-user="regulatorUser"
     :token="regulatorToken"
+    :initial-section="regulatorReturnSection"
     @logout="handleLogout"
     @view-enterprise="handleViewEnterprise"
   />
@@ -58,6 +59,7 @@ const regulatorToken = ref("");
 const regulatorUser = reactive({ username: "", userType: "", roleType: "" });
 const enterpriseDetailId = ref("");
 const returnView = ref("");
+const regulatorReturnSection = ref("");
 
 function handleAdminLogin(payload) {
   adminToken.value = payload.token;
@@ -83,10 +85,12 @@ async function handleRegulatorLogin(payload) {
   view.value = profile?.roleType === "REGULATOR_ADMIN" ? "regulator-admin" : "regulator-enforcer";
 }
 
-function handleViewEnterprise(id) {
-  if (!id) return;
-  enterpriseDetailId.value = id;
+function handleViewEnterprise(payload) {
+  const resolvedId = typeof payload === "object" ? payload?.id : payload;
+  if (!resolvedId) return;
+  enterpriseDetailId.value = resolvedId;
   returnView.value = view.value;
+  regulatorReturnSection.value = payload?.fromSection || "";
   view.value = "enterprise-detail";
 }
 
@@ -109,6 +113,7 @@ function handleLogout() {
   regulatorUser.roleType = "";
   enterpriseDetailId.value = "";
   returnView.value = "";
+  regulatorReturnSection.value = "";
   view.value = "auth";
 }
 </script>

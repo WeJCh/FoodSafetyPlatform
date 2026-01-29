@@ -39,3 +39,15 @@ export function verify(token) {
     }
   });
 }
+
+export function logout(token) {
+  if (!token) {
+    return Promise.resolve({ success: true });
+  }
+  return request("/api/auth/logout", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`
+    }
+  });
+}

@@ -4,6 +4,7 @@ import com.mortal.user.common.ApiResponse;
 import com.mortal.user.dto.LoginDTO;
 import com.mortal.user.service.AuthService;
 import com.mortal.user.service.UserService;
+import com.mortal.user.vo.AuthIntrospectVO;
 import jakarta.validation.Valid;
 import java.util.Map;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -44,5 +45,10 @@ public class AuthController {
     @PostMapping("/verify")
     public ApiResponse<Map<String, Object>> verify(@RequestHeader("Authorization") String token) {
         return ApiResponse.success(Map.of("valid", authService.verifyToken(token)));
+    }
+
+    @PostMapping("/introspect")
+    public ApiResponse<AuthIntrospectVO> introspect(@RequestHeader("Authorization") String token) {
+        return ApiResponse.success(authService.introspect(token));
     }
 }

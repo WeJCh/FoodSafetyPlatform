@@ -20,9 +20,12 @@ import com.mortal.regulation.mapper.FoodRegulatorRegionMapper;
 import com.mortal.regulation.service.EnterpriseProfileService;
 import com.mortal.regulation.vo.BatchActionResult;
 import com.mortal.regulation.vo.EnterpriseProfileVO;
+import com.mortal.regulation.vo.RegionVO;
 import java.time.LocalDateTime;
 import java.util.ArrayDeque;
+import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -93,7 +96,7 @@ public class EnterpriseProfileServiceImpl implements EnterpriseProfileService {
             foodEnterpriseMapper.updateById(enterprise);
         }
 
-        return toVO(enterprise, location.getDetail());
+        return toVO(enterprise, location.getDetail(), resolveRegionPath(enterprise.getRegionId()));
     }
 
     @Override
@@ -102,7 +105,7 @@ public class EnterpriseProfileServiceImpl implements EnterpriseProfileService {
         if (enterprise == null || isDeleted(enterprise.getDeleted())) {
             return null;
         }
-        return toVO(enterprise, resolveAddressDetail(enterprise.getAddressId()));
+        return toVO(enterprise, resolveAddressDetail(enterprise.getAddressId()), resolveRegionPath(enterprise.getRegionId()));
     }
 
     @Override
@@ -111,7 +114,7 @@ public class EnterpriseProfileServiceImpl implements EnterpriseProfileService {
         if (enterprise == null || isDeleted(enterprise.getDeleted())) {
             return null;
         }
-        return toVO(enterprise, resolveAddressDetail(enterprise.getAddressId()));
+        return toVO(enterprise, resolveAddressDetail(enterprise.getAddressId()), resolveRegionPath(enterprise.getRegionId()));
     }
 
     @Override
@@ -161,8 +164,12 @@ public class EnterpriseProfileServiceImpl implements EnterpriseProfileService {
         Page<FoodEnterprise> pageInfo = foodEnterpriseMapper.selectPage(new Page<>(page, size), wrapper);
         List<FoodEnterprise> enterprises = pageInfo.getRecords();
         Map<Long, String> addressMap = loadAddressDetails(enterprises);
+        Map<Long, List<RegionVO>> regionPathMap = loadRegionPaths(enterprises);
         List<EnterpriseProfileVO> records = enterprises.stream()
-            .map(enterprise -> toVO(enterprise, addressMap.get(enterprise.getAddressId())))
+            .map(enterprise -> toVO(
+                enterprise,
+                addressMap.get(enterprise.getAddressId()),
+                regionPathMap.getOrDefault(enterprise.getRegionId(), List.of())))
             .toList();
         return PageResult.of(records, pageInfo.getTotal(), page, size);
     }
@@ -173,8 +180,12 @@ public class EnterpriseProfileServiceImpl implements EnterpriseProfileService {
             .eq(FoodEnterprise::getApprovalStatus, APPROVAL_PENDING)
             .eq(FoodEnterprise::getDeleted, 0));
         Map<Long, String> addressMap = loadAddressDetails(enterprises);
+        Map<Long, List<RegionVO>> regionPathMap = loadRegionPaths(enterprises);
         return enterprises.stream()
-            .map(enterprise -> toVO(enterprise, addressMap.get(enterprise.getAddressId())))
+            .map(enterprise -> toVO(
+                enterprise,
+                addressMap.get(enterprise.getAddressId()),
+                regionPathMap.getOrDefault(enterprise.getRegionId(), List.of())))
             .toList();
     }
 
@@ -189,8 +200,12 @@ public class EnterpriseProfileServiceImpl implements EnterpriseProfileService {
             .eq(FoodEnterprise::getDeleted, 0)
             .in(FoodEnterprise::getRegionId, regionIds));
         Map<Long, String> addressMap = loadAddressDetails(enterprises);
+        Map<Long, List<RegionVO>> regionPathMap = loadRegionPaths(enterprises);
         return enterprises.stream()
-            .map(enterprise -> toVO(enterprise, addressMap.get(enterprise.getAddressId())))
+            .map(enterprise -> toVO(
+                enterprise,
+                addressMap.get(enterprise.getAddressId()),
+                regionPathMap.getOrDefault(enterprise.getRegionId(), List.of())))
             .toList();
     }
 
@@ -198,14 +213,14 @@ public class EnterpriseProfileServiceImpl implements EnterpriseProfileService {
     public EnterpriseProfileVO approve(Long enterpriseId, Long operatorId, EnterpriseApprovalDTO dto) {
         FoodEnterprise enterprise = requireEnterprise(enterpriseId);
         applyApproval(enterprise, APPROVAL_APPROVED, operatorId, dto.getComment(), dto.getRegulatorName());
-        return toVO(enterprise, resolveAddressDetail(enterprise.getAddressId()));
+        return toVO(enterprise, resolveAddressDetail(enterprise.getAddressId()), resolveRegionPath(enterprise.getRegionId()));
     }
 
     @Override
     public EnterpriseProfileVO reject(Long enterpriseId, Long operatorId, EnterpriseApprovalDTO dto) {
         FoodEnterprise enterprise = requireEnterprise(enterpriseId);
         applyApproval(enterprise, APPROVAL_REJECTED, operatorId, dto.getComment(), dto.getRegulatorName());
-        return toVO(enterprise, resolveAddressDetail(enterprise.getAddressId()));
+        return toVO(enterprise, resolveAddressDetail(enterprise.getAddressId()), resolveRegionPath(enterprise.getRegionId()));
     }
 
     @Override
@@ -415,11 +430,60 @@ public class EnterpriseProfileServiceImpl implements EnterpriseProfileService {
             .collect(Collectors.toMap(AddrLocation::getId, AddrLocation::getDetail, (a, b) -> a));
     }
 
+    private Map<Long, List<RegionVO>> loadRegionPaths(List<FoodEnterprise> enterprises) {
+        if (enterprises == null || enterprises.isEmpty()) {
+            return Collections.emptyMap();
+        }
+        // 关键注释：批量预加载行政区路径，避免列表页重复查询
+        List<Long> regionIds = enterprises.stream()
+            .map(FoodEnterprise::getRegionId)
+            .filter(Objects::nonNull)
+            .distinct()
+            .toList();
+        if (regionIds.isEmpty()) {
+            return Collections.emptyMap();
+        }
+        Map<Long, List<RegionVO>> result = new HashMap<>();
+        for (Long regionId : regionIds) {
+            result.put(regionId, resolveRegionPath(regionId));
+        }
+        return result;
+    }
+
+    private List<RegionVO> resolveRegionPath(Long regionId) {
+        if (regionId == null) {
+            return List.of();
+        }
+        // 关键注释：从当前行政区向上追溯，拼出完整省市区街道链路
+        List<RegionVO> path = new ArrayList<>();
+        Set<Long> visited = new LinkedHashSet<>();
+        Long current = regionId;
+        while (current != null && visited.add(current)) {
+            AddrRegion region = addrRegionMapper.selectById(current);
+            if (region == null || isDeleted(region.getDeleted())) {
+                break;
+            }
+            path.add(toRegionVO(region));
+            current = region.getParentId();
+        }
+        Collections.reverse(path);
+        return path;
+    }
+
+    private RegionVO toRegionVO(AddrRegion region) {
+        RegionVO vo = new RegionVO();
+        vo.setId(region.getId());
+        vo.setParentId(region.getParentId());
+        vo.setName(region.getName());
+        vo.setLevel(region.getLevel());
+        return vo;
+    }
+
     private boolean isDeleted(Integer deleted) {
         return deleted != null && deleted == 1;
     }
 
-    private EnterpriseProfileVO toVO(FoodEnterprise enterprise, String addressDetail) {
+    private EnterpriseProfileVO toVO(FoodEnterprise enterprise, String addressDetail, List<RegionVO> regionPath) {
         EnterpriseProfileVO vo = new EnterpriseProfileVO();
         vo.setId(enterprise.getId());
         vo.setUserId(enterprise.getUserId());
@@ -436,9 +500,22 @@ public class EnterpriseProfileServiceImpl implements EnterpriseProfileService {
         vo.setApprovalComment(enterprise.getApprovalComment());
         vo.setApprovedBy(enterprise.getApprovedBy());
         vo.setApprovedTime(enterprise.getApprovedTime());
+        // 关键注释：前端展示需要“路径名称 + 级联回显”，同时返回文本与路径明细
+        vo.setRegionPath(regionPath == null ? List.of() : regionPath);
+        vo.setRegionPathText(buildRegionPathText(regionPath));
         vo.setCreateTime(enterprise.getCreateTime());
         vo.setUpdateTime(enterprise.getUpdateTime());
         return vo;
+    }
+
+    private String buildRegionPathText(List<RegionVO> regionPath) {
+        if (regionPath == null || regionPath.isEmpty()) {
+            return "";
+        }
+        return regionPath.stream()
+            .map(RegionVO::getName)
+            .filter(StringUtils::hasText)
+            .collect(Collectors.joining("/"));
     }
 
     private String normalize(String value) {

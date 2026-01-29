@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div class="admin-shell enterprise-shell">
     <aside class="admin-sidebar">
       <div class="admin-brand">企业中心</div>
@@ -34,105 +34,105 @@
 
       <div class="dashboard-content">
         <div class="card dashboard-card">
-        <div v-if="section === 'profile'">
-        <div class="section-title">企业备案</div>
-        <div class="admin-info">
-          <div>账号：{{ enterpriseUser.username }}</div>
-          <div>类型：{{ enterpriseUser.userType }}</div>
+          <div v-if="section === 'profile'">
+            <div class="section-title">企业备案</div>
+            <div class="admin-info">
+              <div>账号：{{ enterpriseUser.username }}</div>
+              <div>类型：{{ enterpriseUser.userType }}</div>
+            </div>
+
+            <div class="status-banner" :class="statusTone">
+              <div class="status-title">当前审核状态：{{ statusLabel }}</div>
+              <div v-if="profile.approvalComment" class="status-note">
+                审核意见：{{ profile.approvalComment }}
+              </div>
+              <div v-if="profile.approvedTime" class="status-note">
+                审核时间：{{ profile.approvedTime }}
+              </div>
+              <div v-if="!profileLoaded" class="status-note">
+                暂无备案记录，请先提交企业信息。
+              </div>
+            </div>
+
+            <form @submit.prevent="handleSubmit">
+              <label>
+                企业名称
+                <input v-model.trim="form.enterpriseName" required placeholder="请输入企业名称" />
+              </label>
+              <label>
+                许可证编号
+                <input v-model.trim="form.licenseNo" placeholder="请输入许可证编号" />
+              </label>
+              <label>
+                省份
+                <select v-model="regionSelection.provinceId" @change="handleProvinceChange">
+                  <option value="">请选择省</option>
+                  <option v-for="item in regionOptions.provinces" :key="item.id" :value="item.id">
+                    {{ item.name }}
+                  </option>
+                </select>
+              </label>
+              <label>
+                城市
+                <select v-model="regionSelection.cityId" :disabled="!regionSelection.provinceId" @change="handleCityChange">
+                  <option value="">请选择市</option>
+                  <option v-for="item in regionOptions.cities" :key="item.id" :value="item.id">
+                    {{ item.name }}
+                  </option>
+                </select>
+              </label>
+              <label>
+                区县
+                <select
+                  v-model="regionSelection.countyId"
+                  :disabled="!regionSelection.cityId"
+                  @change="handleCountyChange"
+                >
+                  <option value="">请选择区县</option>
+                  <option v-for="item in regionOptions.counties" :key="item.id" :value="item.id">
+                    {{ item.name }}
+                  </option>
+                </select>
+              </label>
+              <label>
+                街道
+                <select v-model="regionSelection.streetId" :disabled="!regionSelection.countyId">
+                  <option value="">请选择街道</option>
+                  <option v-for="item in regionOptions.streets" :key="item.id" :value="item.id">
+                    {{ item.name }}
+                  </option>
+                </select>
+              </label>
+              <div v-if="existingRegionText && !regionSelection.provinceId" class="hint">
+                当前行政区：{{ existingRegionText }}
+              </div>
+              <label>
+                详细地址
+                <input v-model.trim="form.addressDetail" required placeholder="请输入详细地址" />
+              </label>
+              <label>
+                负责人姓名
+                <input v-model.trim="form.principal" placeholder="请输入负责人姓名" />
+              </label>
+              <label>
+                负责人电话
+                <input v-model.trim="form.principalPhone" placeholder="11 位手机号" />
+              </label>
+              <button class="primary" type="submit" :disabled="loading">
+                {{ loading ? "提交中..." : submitLabel }}
+              </button>
+            </form>
+
+            <div class="status" :class="status.type" v-if="status.message">
+              {{ status.message }}
+            </div>
+          </div>
+
+          <div v-else class="placeholder">
+            <strong>功能占位</strong>
+            <p>{{ sectionLabel }} 将在后续版本实现。</p>
+          </div>
         </div>
-
-        <div class="status-banner" :class="statusTone">
-          <div class="status-title">当前审核状态：{{ statusLabel }}</div>
-          <div v-if="profile.approvalComment" class="status-note">
-            审核意见：{{ profile.approvalComment }}
-          </div>
-          <div v-if="profile.approvedTime" class="status-note">
-            审核时间：{{ profile.approvedTime }}
-          </div>
-          <div v-if="!profileLoaded" class="status-note">
-            暂无备案记录，请先提交企业信息。
-          </div>
-        </div>
-
-        <form @submit.prevent="handleSubmit">
-          <label>
-            企业名称
-            <input v-model.trim="form.enterpriseName" required placeholder="请输入企业名称" />
-          </label>
-          <label>
-            许可证编号
-            <input v-model.trim="form.licenseNo" placeholder="请输入许可证编号" />
-          </label>
-          <label>
-            省份
-            <select v-model="regionSelection.provinceId" @change="handleProvinceChange">
-              <option value="">请选择省</option>
-              <option v-for="item in regionOptions.provinces" :key="item.id" :value="item.id">
-                {{ item.name }}
-              </option>
-            </select>
-          </label>
-          <label>
-            城市
-            <select v-model="regionSelection.cityId" :disabled="!regionSelection.provinceId" @change="handleCityChange">
-              <option value="">请选择市</option>
-              <option v-for="item in regionOptions.cities" :key="item.id" :value="item.id">
-                {{ item.name }}
-              </option>
-            </select>
-          </label>
-          <label>
-            区县
-            <select
-              v-model="regionSelection.countyId"
-              :disabled="!regionSelection.cityId"
-              @change="handleCountyChange"
-            >
-              <option value="">请选择区县</option>
-              <option v-for="item in regionOptions.counties" :key="item.id" :value="item.id">
-                {{ item.name }}
-              </option>
-            </select>
-          </label>
-          <label>
-            街道
-            <select v-model="regionSelection.streetId" :disabled="!regionSelection.countyId">
-              <option value="">请选择街道</option>
-              <option v-for="item in regionOptions.streets" :key="item.id" :value="item.id">
-                {{ item.name }}
-              </option>
-            </select>
-          </label>
-          <div v-if="existingRegionId && !regionSelection.provinceId" class="hint">
-            当前区域ID：{{ existingRegionId }}
-          </div>
-          <label>
-            详细地址
-            <input v-model.trim="form.addressDetail" required placeholder="请输入详细地址" />
-          </label>
-          <label>
-            负责人姓名
-            <input v-model.trim="form.principal" placeholder="请输入负责人姓名" />
-          </label>
-          <label>
-            负责人电话
-            <input v-model.trim="form.principalPhone" placeholder="11 位手机号" />
-          </label>
-          <button class="primary" type="submit" :disabled="loading">
-            {{ loading ? "提交中..." : submitLabel }}
-          </button>
-        </form>
-
-        <div class="status" :class="status.type" v-if="status.message">
-          {{ status.message }}
-        </div>
-      </div>
-
-      <div v-else class="placeholder">
-        <strong>功能占位</strong>
-        <p>{{ sectionLabel }} 将在后续版本实现。</p>
-      </div>
-      </div>
       </div>
     </div>
   </div>
@@ -160,6 +160,8 @@ const loading = ref(false);
 const profileLoaded = ref(false);
 const status = reactive({ message: "", type: "" });
 const existingRegionId = ref(null);
+const existingRegionText = ref("");
+const existingRegionPath = ref([]);
 const profile = reactive({
   approvalStatus: "",
   approvalComment: "",
@@ -232,12 +234,19 @@ async function loadProfile() {
     profile.approvalComment = data.approvalComment || "";
     profile.approvedTime = data.approvedTime || "";
     existingRegionId.value = data.regionId || null;
+    existingRegionText.value = data.regionPathText || "";
+    existingRegionPath.value = Array.isArray(data.regionPath) ? data.regionPath : [];
     resetForm(data);
     profileLoaded.value = true;
+    if (existingRegionPath.value.length) {
+      await applyRegionPath(existingRegionPath.value);
+    }
   } catch (error) {
     if (String(error?.message).includes("not found")) {
       profileLoaded.value = false;
       existingRegionId.value = null;
+      existingRegionText.value = "";
+      existingRegionPath.value = [];
       resetForm();
       return;
     }
@@ -258,6 +267,9 @@ async function handleSubmit() {
     profile.approvalStatus = data.approvalStatus || "PENDING";
     profile.approvalComment = data.approvalComment || "";
     profile.approvedTime = data.approvedTime || "";
+    existingRegionId.value = data.regionId || existingRegionId.value;
+    existingRegionText.value = data.regionPathText || existingRegionText.value;
+    existingRegionPath.value = Array.isArray(data.regionPath) ? data.regionPath : existingRegionPath.value;
     profileLoaded.value = true;
     setStatus("提交成功，已进入审核流程。", "success");
   } catch (error) {
@@ -276,6 +288,32 @@ async function loadRegions(parentId, targetKey) {
     regionOptions[targetKey] = await fetchRegions(props.token, parentId);
   } catch (error) {
     setStatus(error.message || "加载行政区失败", "error");
+  }
+}
+
+async function applyRegionPath(path) {
+  if (!path || !path.length) {
+    return;
+  }
+  const province = path[0];
+  regionSelection.provinceId = province?.id ? String(province.id) : "";
+  resetRegion("province");
+  if (province?.id) {
+    await loadRegions(province.id, "cities");
+  }
+  const city = path[1];
+  if (city?.id) {
+    regionSelection.cityId = String(city.id);
+    await loadRegions(city.id, "counties");
+  }
+  const county = path[2];
+  if (county?.id) {
+    regionSelection.countyId = String(county.id);
+    await loadRegions(county.id, "streets");
+  }
+  const street = path[3];
+  if (street?.id) {
+    regionSelection.streetId = String(street.id);
   }
 }
 
@@ -333,8 +371,11 @@ function resolveEnterpriseRegionId() {
 }
 
 onMounted(() => {
-  loadProfile();
-  loadRegions(null, "provinces");
+  const init = async () => {
+    await loadRegions(null, "provinces");
+    await loadProfile();
+  };
+  init();
 });
 </script>
 
@@ -379,23 +420,6 @@ onMounted(() => {
   font-size: 12px;
   color: var(--muted);
   margin-top: -6px;
-}
-
-.dashboard-card {
-  max-width: none;
-  width: 100%;
-  padding: 26px;
-}
-
-.sidebar-meta {
-  display: grid;
-  gap: 6px;
-  font-size: 12px;
-  color: rgba(243, 247, 251, 0.78);
-}
-
-.sidebar-ghost {
-  margin-top: auto;
 }
 
 .enterprise-shell .admin-info {

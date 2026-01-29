@@ -1,0 +1,3 @@
+com\mortal\query\controller\HealthController.class
+com\mortal\query\filter\TraceIdFilter.class
+com\mortal\query\QueryServiceApplication.class

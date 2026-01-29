@@ -1,0 +1,3 @@
+com\mortal\warning\controller\HealthController.class
+com\mortal\warning\filter\TraceIdFilter.class
+com\mortal\warning\WarningServiceApplication.class

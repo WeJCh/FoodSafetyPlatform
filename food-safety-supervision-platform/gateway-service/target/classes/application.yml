@@ -71,3 +71,10 @@ spring:
 
 jwt:
   secret: "foodUserServiceJwtSecretKey123456"
+
+gateway:
+  auth:
+    # Introspect timeout in milliseconds to avoid blocking the gateway when user-service is slow.
+    introspect-timeout-ms: 1500
+    # Fail-open when user-service is unavailable to avoid system-wide 401. Set to false for strict mode.
+    introspect-fail-open: true

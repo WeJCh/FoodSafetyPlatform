@@ -16,7 +16,7 @@
           操作日志
         </button>
       </nav>
-      <button class="ghost" type="button" @click="('logout')">退出管理员页面</button>
+      <button class="ghost" type="button" @click="handleLogout">退出管理员页面</button>
     </aside>
 
     <div class="admin-main">
@@ -136,7 +136,7 @@
 
           <div v-else-if="section === 'regulators' && subSection === 'list'">
             <div class="section-title">监管人员列表</div>
-            <form class="filter-bar" @submit.prevent="handleSearch">
+            <form class="filter-bar filter-bar--five" @submit.prevent="handleSearch">
               <label>
                 角色类型
                 <select v-model="listQuery.roleType">
@@ -257,7 +257,7 @@ const props = defineProps({
   }
 });
 
-defineEmits(["logout"]);
+const emit = defineEmits(["logout"]);
 
 const loading = ref(false);
 const status = reactive({ message: "", type: "" });
@@ -277,6 +277,10 @@ const listQuery = reactive({
   roleType: "",
   regionId: ""
 });
+
+function handleLogout() {
+  emit("logout");
+}
 
 const regulatorRegions = reactive({
   provinces: [],
@@ -529,49 +533,8 @@ async function handleToggle(regulator) {
 </script>
 
 <style scoped>
-.dashboard-card {
-  max-width: none;
-  width: 100%;
-  padding: 26px;
-}
-
-.filter-bar {
-  display: grid;
-  gap: 12px;
-  margin-bottom: 16px;
-  grid-template-columns: repeat(5, minmax(0, 1fr)) auto;
-}
-
-.list-table {
-  border-radius: 14px;
-  border: 1px solid var(--stroke);
-  background: var(--card-strong);
-  overflow: auto;
-}
-
 .list-row {
-  display: grid;
-  grid-template-columns: 1.4fr 1.2fr 1.6fr 0.8fr 0.8fr;
-  gap: 8px;
-  padding: 12px 14px;
-  align-items: center;
-  font-size: 13px;
+  --row-columns: 1.4fr 1.2fr 1.6fr 0.8fr 0.8fr;
 }
 
-.list-header {
-  font-weight: 600;
-  background: #e9f1f8;
-}
-
-.list-empty {
-  padding: 16px;
-  color: var(--muted);
-  font-size: 13px;
-}
-
-@media (max-width: 1100px) {
-  .filter-bar {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-}
 </style>

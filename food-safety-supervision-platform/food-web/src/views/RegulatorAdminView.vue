@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div class="admin-shell regulator-shell">
     <aside class="admin-sidebar">
       <div class="admin-brand">监管中心</div>
@@ -219,7 +219,7 @@
                   任务标题
                   <input v-model.trim="dispatchForm.taskTitle" required placeholder="例：季度检查" />
                 </label>
-                <label>
+                <label class="span-all">
                   任务描述
                   <textarea v-model.trim="dispatchForm.taskDesc" rows="3" placeholder="任务要求说明"></textarea>
                 </label>
@@ -235,7 +235,7 @@
                   截止时间
                   <input v-model="dispatchForm.deadline" type="datetime-local" />
                 </label>
-                <button class="primary" type="submit" :disabled="dispatchLoading">
+                <button class="primary dispatch-submit span-all" type="submit" :disabled="dispatchLoading">
                   {{ dispatchLoading ? "创建中..." : "创建任务" }}
                 </button>
               </form>
@@ -243,7 +243,7 @@
 
             <div class="dispatch-list">
               <div class="section-subtitle">任务列表</div>
-              <form class="filter-bar" @submit.prevent="handleDispatchSearch">
+              <form class="filter-bar filter-bar--triple" @submit.prevent="handleDispatchSearch">
                 <label>
                   企业名称
                   <input v-model.trim="dispatchFilters.enterpriseName" placeholder="输入企业名称" />
@@ -484,7 +484,7 @@ function formatTaskPriority(value) {
 
 function formatRegionName(regionId) {
   if (!regionId) return "-";
-  return regionNameMap[regionId] || `区域 ${regionId}`;
+  return regionNameMap[regionId] || `鍖哄煙 ${regionId}`;
 }
 
 async function ensureRegionName(regionId) {
@@ -495,9 +495,9 @@ async function ensureRegionName(regionId) {
     const path = await fetchRegionPath(props.token, regionId);
     regionNameMap[regionId] = Array.isArray(path) && path.length
       ? path.map((item) => item.name).join("/")
-      : `区域 ${regionId}`;
+      : `鍖哄煙 ${regionId}`;
   } catch {
-    regionNameMap[regionId] = `区域 ${regionId}`;
+    regionNameMap[regionId] = `鍖哄煙 ${regionId}`;
   }
 }
 
@@ -580,7 +580,7 @@ async function handleCreateTask() {
       priority: dispatchForm.priority,
       deadline: normalizeDeadline(dispatchForm.deadline)
     });
-    setStatus("任务已创建。", "success");
+    setStatus("任务已创建", "success");
     dispatchForm.taskTitle = "";
     dispatchForm.taskDesc = "";
     dispatchForm.priority = "MEDIUM";
@@ -624,7 +624,7 @@ async function handleAssignTask(task) {
   setStatus("");
   try {
     await assignInspectionTask(props.token, task.id, { regulatorId });
-    setStatus("任务已派发。", "success");
+    setStatus("任务已派发", "success");
     await loadDispatchTasks();
   } catch (error) {
     setStatus(error.message || "任务派发失败", "error");
@@ -665,7 +665,7 @@ async function handleApprove(item) {
   setStatus("");
   try {
     await approveEnterprise(props.token, item.id, approvalForm);
-    setStatus("已通过企业备案。", "success");
+    setStatus("已通过企业备案", "success");
     await loadPending();
   } catch (error) {
     setStatus(error.message || "审核通过失败", "error");
@@ -683,7 +683,7 @@ async function handleReject(item) {
   setStatus("");
   try {
     await rejectEnterprise(props.token, item.id, approvalForm);
-    setStatus("已驳回企业备案。", "success");
+    setStatus("已驳回企业备案", "success");
     await loadPending();
   } catch (error) {
     setStatus(error.message || "驳回失败", "error");
@@ -709,7 +709,7 @@ async function handleApproveBatch() {
       comment: approvalForm.comment,
       regulatorName: approvalForm.regulatorName
     });
-    setStatus("批量通过成功。", "success");
+    setStatus("批量通过成功", "success");
     await loadPending();
   } catch (error) {
     setStatus(error.message || "批量通过失败", "error");
@@ -735,7 +735,7 @@ async function handleRejectBatch() {
       comment: approvalForm.comment,
       regulatorName: approvalForm.regulatorName
     });
-    setStatus("批量驳回成功。", "success");
+    setStatus("批量驳回成功", "success");
     await loadPending();
   } catch (error) {
     setStatus(error.message || "批量驳回失败", "error");
@@ -823,23 +823,6 @@ onMounted(() => {
   grid-template-columns: 260px 1fr;
 }
 
-.dashboard-card {
-  max-width: none;
-  width: 100%;
-  padding: 26px;
-}
-
-.sidebar-meta {
-  display: grid;
-  gap: 6px;
-  font-size: 12px;
-  color: rgba(243, 247, 251, 0.78);
-}
-
-.sidebar-ghost {
-  margin-top: auto;
-}
-
 .regulator-shell .sub-nav {
   display: none;
 }
@@ -875,19 +858,6 @@ onMounted(() => {
   padding: 28px;
 }
 
-.filter-bar {
-  display: grid;
-  gap: 12px;
-  margin-bottom: 16px;
-  grid-template-columns: repeat(3, minmax(0, 1fr)) auto;
-  align-items: end;
-}
-
-.filter-bar .primary {
-  height: 42px;
-  padding: 0 18px;
-}
-
 .sub-nav {
   display: flex;
   flex-wrap: wrap;
@@ -919,30 +889,13 @@ onMounted(() => {
   font-size: 13px;
 }
 
-.list-table {
-  border-radius: 14px;
-  border: 1px solid var(--stroke);
-  background: var(--card-strong);
-  overflow: auto;
-}
-
 .list-row {
-  display: grid;
-  grid-template-columns: 1.6fr 0.9fr 0.9fr 1fr 1.2fr 0.8fr;
-  gap: 8px;
-  padding: 12px 14px;
-  align-items: center;
-  font-size: 13px;
-}
-
-.list-header {
-  font-weight: 600;
-  background: #e9f1f8;
+  --row-columns: 1.6fr 0.9fr 0.9fr 1fr 1.2fr 0.8fr;
 }
 
 .approvals-header,
 .approvals-row {
-  grid-template-columns: 0.7fr 1.1fr 1.1fr 1.4fr 1.6fr;
+  --row-columns: 0.7fr 1.1fr 1.1fr 1.4fr 1.6fr;
 }
 
 .primary-text {
@@ -954,35 +907,52 @@ onMounted(() => {
   color: var(--muted);
 }
 
-.action-buttons {
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
-}
-
 .dispatch-grid {
   display: grid;
-  grid-template-columns: minmax(320px, 1fr) minmax(480px, 2fr);
-  gap: 20px;
+  grid-template-columns: 1fr;
+  gap: 18px;
+  align-items: start;
 }
 
 .dispatch-form {
   border: 1px solid var(--stroke);
   border-radius: 14px;
-  padding: 14px;
+  padding: 18px 20px;
   background: #eef6fb;
 }
 
 .dispatch-list {
   border-radius: 14px;
   border: 1px solid var(--stroke);
-  padding: 14px;
+  padding: 18px 20px;
   background: var(--card-strong);
 }
 
 .dispatch-form-grid {
   display: grid;
-  gap: 12px;
+  gap: 14px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  align-items: end;
+}
+
+.dispatch-form-grid label {
+  min-width: 0;
+  display: grid;
+  gap: 6px;
+}
+
+.dispatch-form-grid .span-all {
+  grid-column: 1 / -1;
+}
+
+.dispatch-form-grid .span-all textarea {
+  min-height: 96px;
+  resize: vertical;
+}
+
+.dispatch-submit {
+  justify-self: end;
+  min-width: 140px;
 }
 
 .section-subtitle {
@@ -996,25 +966,41 @@ onMounted(() => {
 
 .task-header,
 .task-row {
-  grid-template-columns: 1.2fr 1.4fr 0.7fr 0.9fr 1fr 1fr 1.4fr;
+  /* Use minmax to prevent long task numbers from overflowing into other columns. */
+  grid-template-columns:
+    minmax(200px, 1.6fr)
+    minmax(140px, 1.3fr)
+    minmax(72px, 0.7fr)
+    minmax(88px, 0.8fr)
+    minmax(96px, 0.9fr)
+    minmax(140px, 1.1fr)
+    minmax(200px, 1.6fr);
+}
+
+.task-row > span,
+.task-row > div {
+  min-width: 0;
+}
+
+.task-row > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.task-row > span:first-child {
+  /* Task numbers are long and unbroken; allow wrapping to avoid overlap. */
+  white-space: normal;
+  word-break: break-all;
+  line-height: 1.35;
 }
 
 .approval-toolbar {
-  display: grid;
-  gap: 12px;
-  grid-template-columns: 1fr 2fr auto;
-  align-items: end;
-  margin-bottom: 16px;
+  --approval-columns: 1fr 2fr auto;
 }
 
 .approval-comment input {
   width: 100%;
-}
-
-.approval-actions {
-  display: flex;
-  gap: 10px;
-  justify-content: flex-end;
 }
 
 .checkbox-cell {
@@ -1034,6 +1020,15 @@ onMounted(() => {
     grid-template-columns: 1fr;
   }
 
+  .dispatch-form-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .dispatch-submit {
+    justify-self: stretch;
+    width: 100%;
+  }
+
   .task-header,
   .task-row {
     grid-template-columns: 1fr;
@@ -1041,7 +1036,7 @@ onMounted(() => {
 
   .approvals-header,
   .approvals-row {
-    grid-template-columns: 1fr;
+    --row-columns: 1fr;
   }
 
   .checkbox-cell span {
@@ -1049,30 +1044,10 @@ onMounted(() => {
   }
 }
 
-@media (max-width: 1100px) {
-  .filter-bar {
+@media (max-width: 1200px) {
+  .dispatch-form-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
-}
-
-.list-empty {
-  padding: 16px;
-  color: var(--muted);
-  font-size: 13px;
-}
-
-.pager {
-  margin: 16px 0;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  font-size: 12px;
-  color: var(--muted);
-}
-
-.pager-actions {
-  display: flex;
-  gap: 8px;
 }
 
 @media (max-width: 1024px) {
@@ -1095,3 +1070,6 @@ onMounted(() => {
   }
 }
 </style>
+
+
+

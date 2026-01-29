@@ -1,6 +1,7 @@
 package com.mortal.regulation.vo;
 
 import java.time.LocalDateTime;
+import java.util.List;
 import lombok.Data;
 
 @Data
@@ -21,6 +22,8 @@ public class EnterpriseProfileVO {
     private String approvalComment;
     private Long approvedBy;
     private LocalDateTime approvedTime;
+    private List<RegionVO> regionPath;
+    private String regionPathText;
     private LocalDateTime createTime;
     private LocalDateTime updateTime;
 }

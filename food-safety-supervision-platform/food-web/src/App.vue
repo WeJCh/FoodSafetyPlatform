@@ -49,6 +49,7 @@ import EnterpriseProfileView from "./views/EnterpriseProfileView.vue";
 import RegulatorAdminView from "./views/RegulatorAdminView.vue";
 import RegulatorEnforcerView from "./views/RegulatorEnforcerView.vue";
 import { fetchRegulatorProfile } from "./api/regulation";
+import { logout as logoutRequest } from "./api/auth";
 
 const view = ref("auth");
 const adminToken = ref("");
@@ -100,7 +101,16 @@ function handleBackFromDetail() {
   returnView.value = "";
 }
 
-function handleLogout() {
+async function handleLogout() {
+  const tokens = [adminToken.value, enterpriseToken.value, regulatorToken.value].filter(Boolean);
+  if (tokens.length) {
+    try {
+      await Promise.all(tokens.map((token) => logoutRequest(token)));
+    } catch (error) {
+      // Ignore logout errors to avoid blocking UI reset.
+      console.warn("Logout request failed", error);
+    }
+  }
   adminToken.value = "";
   adminUser.username = "";
   adminUser.userType = "";

@@ -64,7 +64,7 @@
         </div>
 
         <div v-if="section === 'enterprises'">
-          <form class="filter-bar" @submit.prevent="handleSearch">
+          <form class="filter-bar filter-bar--triple" @submit.prevent="handleSearch">
             <label>
               企业名称
               <input v-model.trim="filters.enterpriseName" placeholder="输入企业名称" />
@@ -128,7 +128,7 @@
 
         <div v-else-if="section === 'tasks'">
           <div class="section-title">我的任务</div>
-          <form class="filter-bar" @submit.prevent="handleTaskSearch">
+          <form class="filter-bar filter-bar--compact" @submit.prevent="handleTaskSearch">
             <label>
               任务状态
               <select v-model="taskFilters.status">
@@ -258,7 +258,7 @@
 
         <div v-else-if="section === 'inspections'">
           <div class="section-title">检查记录</div>
-          <form class="filter-bar inspection-filter" @submit.prevent="handleInspectionSearch">
+          <form class="filter-bar filter-bar--quad" @submit.prevent="handleInspectionSearch">
             <label>
               企业名称
               <input v-model.trim="inspectionFilters.enterpriseName" placeholder="输入企业名称" />
@@ -747,23 +747,6 @@ onMounted(() => {
   grid-template-columns: 260px 1fr;
 }
 
-.dashboard-card {
-  max-width: none;
-  width: 100%;
-  padding: 26px;
-}
-
-.sidebar-meta {
-  display: grid;
-  gap: 6px;
-  font-size: 12px;
-  color: rgba(243, 247, 251, 0.78);
-}
-
-.sidebar-ghost {
-  margin-top: auto;
-}
-
 .regulator-shell .sub-nav {
   display: none;
 }
@@ -799,29 +782,6 @@ onMounted(() => {
   padding: 28px;
 }
 
-.filter-bar {
-  display: grid;
-  gap: 12px;
-  margin-bottom: 16px;
-  grid-template-columns: repeat(3, minmax(0, 1fr)) auto;
-  align-items: end;
-}
-
-.inspection-filter {
-  grid-template-columns: repeat(4, minmax(0, 1fr)) auto;
-  align-items: end;
-}
-
-.inspection-filter .primary {
-  height: 42px;
-  padding: 0 18px;
-}
-
-.filter-bar .primary {
-  height: 42px;
-  padding: 0 18px;
-}
-
 .sub-nav {
   display: flex;
   flex-wrap: wrap;
@@ -853,43 +813,18 @@ onMounted(() => {
   font-size: 13px;
 }
 
-.list-table {
-  border-radius: 14px;
-  border: 1px solid var(--stroke);
-  background: var(--card-strong);
-  overflow: auto;
-}
-
 .list-row {
-  display: grid;
-  grid-template-columns: 1.6fr 0.9fr 0.9fr 1fr 1.2fr 0.8fr;
-  gap: 8px;
-  padding: 12px 14px;
-  align-items: center;
-  font-size: 13px;
-}
-
-.list-header {
-  font-weight: 600;
-  background: #e9f1f8;
+  --row-columns: 1.6fr 0.9fr 0.9fr 1fr 1.2fr 0.8fr;
 }
 
 .task-header,
 .task-row {
-  grid-template-columns: 1.2fr 1.6fr 0.8fr 0.9fr 1fr 1.2fr;
+  --row-columns: 1.2fr 1.6fr 0.8fr 0.9fr 1fr 1.2fr;
 }
 
 .inspection-header,
 .inspection-row {
-  grid-template-columns: 1.6fr 1fr 0.8fr 1.2fr 0.8fr;
-}
-
-.task-submit {
-  margin-top: 18px;
-  padding: 16px;
-  border-radius: 14px;
-  border: 1px solid var(--stroke);
-  background: #eef6fb;
+  --row-columns: 1.6fr 1fr 0.8fr 1.2fr 0.8fr;
 }
 
 .section-subtitle {
@@ -929,69 +864,6 @@ onMounted(() => {
   justify-content: flex-end;
 }
 
-.modal-mask {
-  position: fixed;
-  inset: 0;
-  background: rgba(15, 29, 45, 0.35);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 40;
-  padding: 20px;
-}
-
-.modal-card {
-  width: min(520px, 92vw);
-  background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
-  border-radius: 18px;
-  border: 1px solid var(--stroke);
-  box-shadow: var(--shadow);
-  padding: 22px 24px;
-}
-
-.modal-title {
-  font-weight: 700;
-  font-size: 16px;
-  margin-bottom: 14px;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.modal-title::before {
-  content: "";
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  background: var(--accent);
-}
-
-.modal-body {
-  display: grid;
-  gap: 14px;
-}
-
-.modal-field span {
-  display: block;
-  font-size: 12px;
-  color: var(--muted);
-  margin-bottom: 6px;
-}
-
-.modal-field strong {
-  font-size: 15px;
-  color: var(--ink);
-  line-height: 1.5;
-}
-
-.modal-actions {
-  display: flex;
-  justify-content: flex-end;
-  margin-top: 16px;
-  padding-top: 12px;
-  border-top: 1px dashed var(--stroke);
-}
-
 .modal-list {
   display: grid;
   gap: 10px;
@@ -1026,26 +898,6 @@ onMounted(() => {
   color: var(--muted);
 }
 
-.list-empty {
-  padding: 16px;
-  color: var(--muted);
-  font-size: 13px;
-}
-
-.pager {
-  margin: 16px 0;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  font-size: 12px;
-  color: var(--muted);
-}
-
-.pager-actions {
-  display: flex;
-  gap: 8px;
-}
-
 @media (max-width: 1024px) {
   .regulator-shell .hero-panel {
     padding: 36px 40px 24px;
@@ -1057,16 +909,6 @@ onMounted(() => {
 
   .regulator-shell .hero-highlights {
     grid-template-columns: 1fr;
-  }
-}
-
-@media (max-width: 1100px) {
-  .filter-bar {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .inspection-filter {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 

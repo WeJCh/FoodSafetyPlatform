@@ -2,6 +2,7 @@ package com.mortal.user.controller;
 
 import com.mortal.user.common.ApiResponse;
 import com.mortal.user.dto.UserRegisterDTO;
+import com.mortal.user.enums.UserType;
 import com.mortal.user.service.UserService;
 import com.mortal.user.vo.UserVO;
 import jakarta.validation.Valid;
@@ -24,7 +25,7 @@ public class AdminUserController {
 
     @PostMapping("/regulators")
     public ApiResponse<UserVO> createRegulator(@Valid @RequestBody UserRegisterDTO dto) {
-        dto.setUserType("REGULATOR");
+        dto.setUserType(UserType.REGULATOR.code());
         return ApiResponse.success(userService.register(dto));
     }
 

@@ -17,7 +17,7 @@
         <button :class="{ active: section === 'dispatch' }" @click="handleDispatchEnter">
           任务派发
         </button>
-        <button :class="{ active: section === 'complaints' }" @click="section = 'complaints'">
+        <button :class="{ active: section === 'complaints' }" @click="handleComplaintEnter">
           投诉流转
         </button>
         <button :class="{ active: section === 'rectification' }" @click="section = 'rectification'">
@@ -67,7 +67,7 @@
           <button :class="{ active: section === 'rectification' }" @click="section = 'rectification'">
             整改复核
           </button>
-          <button :class="{ active: section === 'complaints' }" @click="section = 'complaints'">
+          <button :class="{ active: section === 'complaints' }" @click="handleComplaintEnter">
             投诉流转
           </button>
         </div>
@@ -336,6 +336,162 @@
           </div>
         </div>
 
+        <div v-else-if="section === 'complaints'">
+          <div class="section-title">投诉流转</div>
+          <form class="filter-bar filter-bar--quad" @submit.prevent="handleComplaintSearch">
+            <label>
+              状态
+              <select v-model="complaintFilters.status">
+                <option value="">全部</option>
+                <option value="SUBMITTED">已提交</option>
+                <option value="PENDING">待受理</option>
+                <option value="ASSIGNED">已派发</option>
+                <option value="PROCESSING">处理中</option>
+                <option value="FEEDBACKED">已反馈</option>
+              </select>
+            </label>
+            <label>
+              企业名称
+              <input v-model.trim="complaintFilters.enterpriseName" placeholder="输入企业名称" />
+            </label>
+            <label>
+              处理人
+              <input v-model.trim="complaintFilters.assignedToName" placeholder="执法人员姓名" />
+            </label>
+            <label>
+              指派人
+              <input v-model.trim="complaintFilters.assignedByName" placeholder="管理员姓名" />
+            </label>
+            <button class="primary" type="submit" :disabled="complaintLoading">
+              {{ complaintLoading ? "查询中..." : "查询" }}
+            </button>
+          </form>
+
+          <div class="list-table complaint-table">
+            <div class="list-row list-header complaint-header">
+              <span>投诉号</span>
+              <span>企业</span>
+              <span>状态</span>
+              <span>指派人</span>
+              <span>处理人</span>
+              <span>更新时间</span>
+              <span>操作</span>
+            </div>
+            <div v-if="!complaintRecords.length" class="list-empty">
+              暂无投诉
+            </div>
+            <div v-for="item in complaintRecords" :key="item.id" class="list-row complaint-row">
+              <span>{{ item.complaintNo }}</span>
+              <span>{{ item.enterpriseName || "-" }}</span>
+              <span>{{ formatComplaintStatus(item.status) }}</span>
+              <span>{{ item.assignedByName || "-" }}</span>
+              <span>{{ item.assignedToName || "-" }}</span>
+              <span>{{ formatTime(item.updateTime) }}</span>
+              <div class="action-buttons">
+                <button class="ghost" type="button" @click="openComplaintDetail(item)">
+                  查看详情
+                </button>
+                <button
+                  v-if="item.status === 'SUBMITTED'"
+                  class="primary"
+                  type="button"
+                  :disabled="complaintLoading"
+                  @click="handleAcceptComplaint(item)"
+                >
+                  受理
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div class="pager">
+            <span>共 {{ complaintTotal }} 条，{{ complaintPage }}/{{ complaintPages }} 页</span>
+            <div class="pager-actions">
+              <button
+                class="ghost"
+                type="button"
+                :disabled="complaintPage <= 1"
+                @click="changeComplaintPage(complaintPage - 1)"
+              >
+                上一页
+              </button>
+              <button
+                class="ghost"
+                type="button"
+                :disabled="complaintPage >= complaintPages"
+                @click="changeComplaintPage(complaintPage + 1)"
+              >
+                下一页
+              </button>
+            </div>
+          </div>
+
+          <div v-if="complaintDetail" class="modal-mask" @click.self="closeComplaintDetail">
+            <div class="modal-card modal-card--wide">
+              <div class="modal-title">投诉详情</div>
+              <div class="modal-body">
+                <div class="modal-field">
+                  <span>投诉号</span>
+                  <strong>{{ complaintDetail.complaint.complaintNo || "-" }}</strong>
+                </div>
+                <div class="modal-field">
+                  <span>状态</span>
+                  <strong>{{ formatComplaintStatus(complaintDetail.complaint.status) }}</strong>
+                </div>
+                <div class="modal-field">
+                  <span>投诉内容</span>
+                  <strong>{{ complaintDetail.complaint.content || "-" }}</strong>
+                </div>
+
+                <div class="modal-field">
+                  <span>企业信息</span>
+                  <div class="modal-list">
+                    <div class="modal-item">
+                      <div class="modal-item-name">{{ complaintDetail.enterprise?.enterpriseName || "-" }}</div>
+                      <div class="modal-item-meta">{{ complaintDetail.enterprise?.addressDetail || "-" }}</div>
+                      <div class="modal-item-desc">
+                        负责人：{{ complaintDetail.enterprise?.principal || "-" }}
+                        {{ complaintDetail.enterprise?.principalPhone || "" }}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="modal-field">
+                  <span>处理记录</span>
+                  <div class="modal-list">
+                    <div v-if="!complaintDetail.handles?.length" class="modal-empty">暂无处理记录</div>
+                    <div v-for="(handle, index) in complaintDetail.handles" :key="index" class="modal-item">
+                      <div class="modal-item-name">{{ handle.handlerName || "-" }}</div>
+                      <div class="modal-item-meta">{{ formatTime(handle.handleTime) }}</div>
+                      <div class="modal-item-desc">{{ handle.handleResult || "-" }}</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div v-if="isComplaintAssignable(complaintDetail.complaint)" class="modal-actions modal-actions--stack">
+                <div class="modal-field">
+                  <span>派发执法人员</span>
+                  <select v-model="complaintAssign.regulatorId">
+                    <option value="">请选择</option>
+                    <option v-for="item in complaintEnforcers" :key="item.id" :value="item.id">
+                      {{ item.name }}
+                    </option>
+                  </select>
+                </div>
+                <button class="primary" type="button" :disabled="complaintLoading" @click="handleAssignComplaint">
+                  确认派发
+                </button>
+                <button class="ghost" type="button" @click="closeComplaintDetail">关闭</button>
+              </div>
+              <div v-else class="modal-actions">
+                <button class="ghost" type="button" @click="closeComplaintDetail">关闭</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
         <div v-else class="placeholder">
           <strong>功能占位</strong>
           <p>{{ sectionLabel }} 将在后续版本实现。</p>
@@ -355,8 +511,12 @@ import { computed, onMounted, reactive, ref } from "vue";
 import {
   approveEnterprise,
   approveEnterpriseBatch,
+  acceptComplaint,
+  assignComplaint,
   assignInspectionTask,
   createInspectionTask,
+  fetchComplaintDetail,
+  fetchComplaints,
   fetchEligibleRegulators,
   fetchEnterprises,
   fetchInspectionTasks,
@@ -424,6 +584,23 @@ const dispatchTotal = ref(0);
 const dispatchPages = ref(1);
 const taskAssignments = reactive({});
 const enforcerMap = reactive({});
+const complaintLoading = ref(false);
+const complaintRecords = ref([]);
+const complaintPage = ref(1);
+const complaintSize = ref(8);
+const complaintTotal = ref(0);
+const complaintPages = ref(1);
+const complaintFilters = reactive({
+  status: "",
+  enterpriseName: "",
+  assignedToName: "",
+  assignedByName: ""
+});
+const complaintDetail = ref(null);
+const complaintAssign = reactive({
+  regulatorId: ""
+});
+const complaintEnforcers = ref([]);
 
 function setStatus(message, type = "info") {
   status.message = message;
@@ -452,6 +629,14 @@ const approvalStatusMap = {
   REJECTED: "已驳回"
 };
 
+const complaintStatusMap = {
+  SUBMITTED: "已提交",
+  PENDING: "待受理",
+  ASSIGNED: "已派发",
+  PROCESSING: "处理中",
+  FEEDBACKED: "已反馈"
+};
+
 const taskStatusMap = {
   CREATED: "待派发",
   ASSIGNED: "已派发",
@@ -472,6 +657,10 @@ function formatStatus(value) {
 
 function formatApprovalStatus(value) {
   return approvalStatusMap[value] || value || "-";
+}
+
+function formatComplaintStatus(value) {
+  return complaintStatusMap[value] || value || "-";
 }
 
 function formatTaskStatus(value) {
@@ -506,8 +695,34 @@ async function handleDispatchEnter() {
   await loadDispatch();
 }
 
+async function handleComplaintEnter() {
+  section.value = "complaints";
+  await loadComplaints();
+}
+
 async function loadDispatch() {
   await Promise.all([loadDispatchEnterprises(), loadDispatchTasks()]);
+}
+
+async function loadComplaints() {
+  complaintLoading.value = true;
+  setStatus("");
+  try {
+    const data = await fetchComplaints(props.token, {
+      ...complaintFilters,
+      page: complaintPage.value,
+      size: complaintSize.value
+    });
+    complaintRecords.value = data.records || [];
+    complaintTotal.value = data.total || 0;
+    complaintPage.value = data.page || 1;
+    complaintSize.value = data.size || complaintSize.value;
+    complaintPages.value = data.pages || 1;
+  } catch (error) {
+    setStatus(error.message || "加载投诉列表失败", "error");
+  } finally {
+    complaintLoading.value = false;
+  }
 }
 
 async function loadDispatchEnterprises() {
@@ -549,6 +764,91 @@ async function loadDispatchTasks() {
   } finally {
     dispatchTaskLoading.value = false;
   }
+}
+
+async function handleComplaintSearch() {
+  complaintPage.value = 1;
+  await loadComplaints();
+}
+
+async function changeComplaintPage(nextPage) {
+  complaintPage.value = nextPage;
+  await loadComplaints();
+}
+
+async function openComplaintDetail(item) {
+  if (!item?.id) return;
+  complaintLoading.value = true;
+  setStatus("");
+  try {
+    complaintDetail.value = await fetchComplaintDetail(props.token, item.id);
+    complaintAssign.regulatorId = "";
+    await loadComplaintEnforcers(complaintDetail.value?.enterprise?.regionId);
+  } catch (error) {
+    setStatus(error.message || "加载投诉详情失败", "error");
+  } finally {
+    complaintLoading.value = false;
+  }
+}
+
+function closeComplaintDetail() {
+  complaintDetail.value = null;
+  complaintEnforcers.value = [];
+  complaintAssign.regulatorId = "";
+}
+
+async function handleAcceptComplaint(item) {
+  if (!item?.id) return;
+  complaintLoading.value = true;
+  setStatus("");
+  try {
+    await acceptComplaint(props.token, item.id);
+    setStatus("投诉已受理", "success");
+    await loadComplaints();
+  } catch (error) {
+    setStatus(error.message || "投诉受理失败", "error");
+  } finally {
+    complaintLoading.value = false;
+  }
+}
+
+async function handleAssignComplaint() {
+  if (!complaintDetail.value?.complaint?.id) return;
+  if (!complaintAssign.regulatorId) {
+    setStatus("请选择执法人员", "error");
+    return;
+  }
+  complaintLoading.value = true;
+  setStatus("");
+  try {
+    await assignComplaint(props.token, complaintDetail.value.complaint.id, {
+      regulatorId: complaintAssign.regulatorId
+    });
+    setStatus("投诉已派发", "success");
+    await openComplaintDetail(complaintDetail.value.complaint);
+    await loadComplaints();
+  } catch (error) {
+    setStatus(error.message || "投诉派发失败", "error");
+  } finally {
+    complaintLoading.value = false;
+  }
+}
+
+async function loadComplaintEnforcers(regionId) {
+  if (!regionId) {
+    complaintEnforcers.value = [];
+    return;
+  }
+  try {
+    const data = await fetchEligibleRegulators(props.token, regionId);
+    complaintEnforcers.value = Array.isArray(data) ? data : [];
+  } catch {
+    complaintEnforcers.value = [];
+  }
+}
+
+function isComplaintAssignable(complaint) {
+  return ["PENDING", "ASSIGNED"].includes(complaint?.status);
 }
 
 async function handleDispatchSearch() {
@@ -1001,6 +1301,21 @@ onMounted(() => {
 
 .approval-comment input {
   width: 100%;
+}
+
+.complaint-header,
+.complaint-row {
+  --row-columns: 1.4fr 1.2fr 0.9fr 0.9fr 0.9fr 1.1fr 1.2fr;
+}
+
+.modal-card--wide {
+  max-width: 760px;
+}
+
+.modal-actions--stack {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 10px;
 }
 
 .checkbox-cell {

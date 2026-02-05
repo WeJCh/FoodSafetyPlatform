@@ -32,7 +32,8 @@ public class AuthController {
             "token", result.getToken(),
             "userId", result.getUserId(),
             "username", result.getUsername(),
-            "userType", result.getUserType()
+            "userType", result.getUserType(),
+            "roles", result.getRoles()
         ));
     }
 

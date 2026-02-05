@@ -1,5 +1,6 @@
 package com.mortal.user.common;
 
+import com.mortal.user.enums.ErrorCode;
 import jakarta.validation.ConstraintViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.validation.BindException;
@@ -14,18 +15,18 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(IllegalArgumentException.class)
     @ResponseStatus(HttpStatus.BAD_REQUEST)
     public ApiResponse<Void> handleIllegalArgument(IllegalArgumentException ex) {
-        return ApiResponse.failure(400, ex.getMessage());
+        return ApiResponse.failure(ErrorCode.BAD_REQUEST.code(), ex.getMessage());
     }
 
     @ExceptionHandler({MethodArgumentNotValidException.class, BindException.class, ConstraintViolationException.class})
     @ResponseStatus(HttpStatus.BAD_REQUEST)
     public ApiResponse<Void> handleValidation(Exception ex) {
-        return ApiResponse.failure(400, "validation failed");
+        return ApiResponse.failure(ErrorCode.VALIDATION_FAILED.code(), ErrorCode.VALIDATION_FAILED.message());
     }
 
     @ExceptionHandler(Exception.class)
     @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)
     public ApiResponse<Void> handleGeneric(Exception ex) {
-        return ApiResponse.failure(500, "internal server error");
+        return ApiResponse.failure(ErrorCode.INTERNAL_ERROR.code(), ErrorCode.INTERNAL_ERROR.message());
     }
 }

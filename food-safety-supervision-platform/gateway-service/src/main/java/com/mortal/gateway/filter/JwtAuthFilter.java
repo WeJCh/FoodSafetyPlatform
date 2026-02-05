@@ -40,8 +40,8 @@ public class JwtAuthFilter implements GlobalFilter, Ordered {
         "/api/users/register",
         "/api/users/register/public",
         "/api/users/register/enterprise",
-        "/api/complaints/public",
-        "/api/complaints/track",
+        "/api/regulation/complaints/public",
+        "/api/regulation/complaints/track",
         "/api/health",
         "/actuator/health"
     );
@@ -55,8 +55,8 @@ public class JwtAuthFilter implements GlobalFilter, Ordered {
         RoleRule.of("/api/regulation/", "REGULATOR_ADMIN", "REGULATOR_ENFORCER"),
         RoleRule.of("/api/query/", "ADMIN", "REGULATOR_ADMIN", "REGULATOR_ENFORCER"),
         RoleRule.of("/api/warning/", "ADMIN", "REGULATOR_ADMIN", "REGULATOR_ENFORCER"),
-        RoleRule.of("/api/complaints/public", "PUBLIC"),
-        RoleRule.of("/api/complaints/track", "PUBLIC")
+        RoleRule.of("/api/regulation/complaints/public", "PUBLIC"),
+        RoleRule.of("/api/regulation/complaints/track", "PUBLIC")
     );
 
     private final WebClient webClient;
@@ -118,6 +118,12 @@ public class JwtAuthFilter implements GlobalFilter, Ordered {
                 if (!isAllowedByRole(path, identity.getRoles())) {
                     return forbidden(exchange);
                 }
+
+                // 关键注释：在网关日志中记录当前用户角色，便于排查权限问题
+                log.info("Gateway auth pass. path={}, userId={}, roles={}",
+                    path,
+                    identity.getUserId(),
+                    joinRoles(identity.getRoles()));
 
                 ServerWebExchange mutatedExchange = exchange.mutate()
                     .request(exchange.getRequest().mutate()

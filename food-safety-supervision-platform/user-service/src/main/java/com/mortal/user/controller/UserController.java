@@ -4,6 +4,7 @@ import com.mortal.user.common.ApiResponse;
 import com.mortal.user.dto.PublicRegisterDTO;
 import com.mortal.user.dto.UserRegisterDTO;
 import com.mortal.user.dto.UserUpdateDTO;
+import com.mortal.user.enums.UserType;
 import com.mortal.user.service.UserService;
 import com.mortal.user.vo.UserVO;
 import jakarta.validation.Valid;
@@ -37,7 +38,7 @@ public class UserController {
         registerDTO.setPassword(dto.getPassword());
         registerDTO.setRealName(dto.getRealName());
         registerDTO.setPhone(dto.getPhone());
-        registerDTO.setUserType("ENTERPRISE");
+        registerDTO.setUserType(UserType.ENTERPRISE.code());
         return ApiResponse.success(userService.register(registerDTO));
     }
 

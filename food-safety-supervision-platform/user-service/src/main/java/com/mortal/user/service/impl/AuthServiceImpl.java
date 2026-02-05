@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.mortal.user.entity.Role;
 import com.mortal.user.entity.User;
 import com.mortal.user.entity.UserRole;
+import com.mortal.user.enums.UserStatus;
 import com.mortal.user.mapper.RoleMapper;
 import com.mortal.user.mapper.UserMapper;
 import com.mortal.user.mapper.UserRoleMapper;
@@ -60,7 +61,7 @@ public class AuthServiceImpl implements AuthService {
             return result;
         }
 
-        boolean enabled = user.getStatus() == null || Objects.equals(user.getStatus(), 1);
+        boolean enabled = user.getStatus() == null || Objects.equals(user.getStatus(), UserStatus.ENABLED.code());
         boolean notDeleted = user.getDeleted() == null || !Objects.equals(user.getDeleted(), 1);
         if (!enabled || !notDeleted) {
             // Return identity details for observability, but mark as invalid.

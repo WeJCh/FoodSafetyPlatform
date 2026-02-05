@@ -1,5 +1,6 @@
 package com.mortal.user.vo;
 
+import java.util.List;
 import lombok.Data;
 
 @Data
@@ -11,4 +12,5 @@ public class UserVO {
     private String phone;
     private String userType;
     private Integer status;
+    private List<String> roles;
 }

@@ -280,3 +280,88 @@ export function fetchInspectionRecordDetail(token, id) {
     }
   });
 }
+
+export function submitPublicComplaint(payload) {
+  return requestWithBase(REGULATION_BASE_URL, "/api/regulation/complaints/public", {
+    method: "POST",
+    body: JSON.stringify(payload)
+  });
+}
+
+export function trackComplaint(complaintNo, contact) {
+  const search = new URLSearchParams();
+  if (complaintNo) search.append("complaintNo", complaintNo);
+  if (contact) search.append("contact", contact);
+  const query = search.toString();
+  return requestWithBase(REGULATION_BASE_URL, `/api/regulation/complaints/track${query ? `?${query}` : ""}`, {
+    method: "GET"
+  });
+}
+
+export function fetchComplaints(token, params = {}) {
+  const search = new URLSearchParams();
+  if (params.status) search.append("status", params.status);
+  if (params.enterpriseName) search.append("enterpriseName", params.enterpriseName);
+  if (params.assignedToName) search.append("assignedToName", params.assignedToName);
+  if (params.assignedByName) search.append("assignedByName", params.assignedByName);
+  if (params.page) search.append("page", params.page);
+  if (params.size) search.append("size", params.size);
+  const query = search.toString();
+  return requestWithBase(
+    REGULATION_BASE_URL,
+    `/api/regulation/complaints${query ? `?${query}` : ""}`,
+    {
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${token}`
+      }
+    }
+  );
+}
+
+export function fetchComplaintDetail(token, id) {
+  return requestWithBase(REGULATION_BASE_URL, `/api/regulation/complaints/${id}`, {
+    method: "GET",
+    headers: {
+      Authorization: `Bearer ${token}`
+    }
+  });
+}
+
+export function acceptComplaint(token, id) {
+  return requestWithBase(REGULATION_BASE_URL, `/api/regulation/complaints/${id}/accept`, {
+    method: "PUT",
+    headers: {
+      Authorization: `Bearer ${token}`
+    }
+  });
+}
+
+export function assignComplaint(token, id, payload) {
+  return requestWithBase(REGULATION_BASE_URL, `/api/regulation/complaints/${id}/assign`, {
+    method: "PUT",
+    headers: {
+      Authorization: `Bearer ${token}`
+    },
+    body: JSON.stringify(payload)
+  });
+}
+
+export function startComplaintProcess(token, id) {
+  return requestWithBase(REGULATION_BASE_URL, `/api/regulation/complaints/${id}/process`, {
+    method: "PUT",
+    headers: {
+      Authorization: `Bearer ${token}`
+    }
+  });
+}
+
+export function handleComplaint(token, id, payload) {
+  return requestWithBase(REGULATION_BASE_URL, `/api/regulation/complaints/${id}/handle`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`
+    },
+    body: JSON.stringify(payload)
+  });
+}

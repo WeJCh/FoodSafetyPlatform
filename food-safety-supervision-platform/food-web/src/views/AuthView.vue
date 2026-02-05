@@ -126,7 +126,7 @@
 import { reactive, ref } from "vue";
 import { login, register, registerEnterprise, verify } from "../api/auth";
 
-const emit = defineEmits(["admin-login", "enterprise-login", "regulator-login"]);
+const emit = defineEmits(["admin-login", "enterprise-login", "regulator-login", "public-login"]);
 
 const view = ref("login");
 const loading = ref(false);
@@ -167,30 +167,77 @@ async function handleLogin() {
   setStatus("");
   try {
     const result = await login(loginForm);
-    if (result.userType === "ADMIN") {
+    const roles = Array.isArray(result.roles) ? result.roles : [];
+    if (roles.includes("ADMIN")) {
       emit("admin-login", {
         token: result.token,
         username: result.username,
-        userType: result.userType
+        userType: result.userType,
+        roles
       });
       setStatus("");
-    } else if (result.userType === "REGULATOR") {
+    } else if (roles.includes("PUBLIC")) {
+      emit("public-login", {
+        token: result.token,
+        username: result.username,
+        userType: result.userType,
+        roles
+      });
+      setStatus("");
+    } else if (roles.includes("REGULATOR_ADMIN") || roles.includes("REGULATOR_ENFORCER")) {
       emit("regulator-login", {
         token: result.token,
         username: result.username,
-        userType: result.userType
+        userType: result.userType,
+        roles
       });
       setStatus("");
-    } else if (result.userType === "ENTERPRISE") {
+    } else if (roles.includes("ENTERPRISE")) {
       emit("enterprise-login", {
         token: result.token,
         username: result.username,
-        userType: result.userType
+        userType: result.userType,
+        roles
       });
       setStatus("");
     } else {
-      token.value = result.token;
-      setStatus("登录成功，令牌已生成。", "success");
+      // 兼容旧数据：当 roles 为空时，回退使用 userType
+      if (result.userType === "ADMIN") {
+        emit("admin-login", {
+          token: result.token,
+          username: result.username,
+          userType: result.userType,
+          roles
+        });
+        setStatus("");
+      } else if (result.userType === "REGULATOR") {
+        emit("regulator-login", {
+          token: result.token,
+          username: result.username,
+          userType: result.userType,
+          roles
+        });
+        setStatus("");
+      } else if (result.userType === "PUBLIC") {
+        emit("public-login", {
+          token: result.token,
+          username: result.username,
+          userType: result.userType,
+          roles
+        });
+        setStatus("");
+      } else if (result.userType === "ENTERPRISE") {
+        emit("enterprise-login", {
+          token: result.token,
+          username: result.username,
+          userType: result.userType,
+          roles
+        });
+        setStatus("");
+      } else {
+        token.value = result.token;
+        setStatus("登录成功，令牌已生成。", "success");
+      }
     }
   } catch (error) {
     setStatus(error.message || "登录失败", "error");

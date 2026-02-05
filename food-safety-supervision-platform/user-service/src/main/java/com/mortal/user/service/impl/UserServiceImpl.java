@@ -10,6 +10,9 @@ import com.mortal.user.dto.UserUpdateDTO;
 import com.mortal.user.entity.Role;
 import com.mortal.user.entity.User;
 import com.mortal.user.entity.UserRole;
+import com.mortal.user.enums.RoleCode;
+import com.mortal.user.enums.UserStatus;
+import com.mortal.user.enums.UserType;
 import com.mortal.user.mapper.RoleMapper;
 import com.mortal.user.mapper.UserMapper;
 import com.mortal.user.mapper.UserRoleMapper;
@@ -18,6 +21,9 @@ import com.mortal.user.util.PasswordEncoderUtil;
 import com.mortal.user.util.TokenUtil;
 import com.mortal.user.vo.UserVO;
 import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Objects;
+import java.util.stream.Collectors;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
@@ -44,13 +50,14 @@ public class UserServiceImpl implements UserService {
         String rawUserType = normalize(dto.getUserType());
         String roleCode = normalize(dto.getRoleCode());
         String userType = rawUserType;
-        if ("REGULATOR_ADMIN".equals(rawUserType) || "REGULATOR_ENFORCER".equals(rawUserType)) {
-            userType = "REGULATOR";
+        if (RoleCode.REGULATOR_ADMIN.code().equals(rawUserType)
+            || RoleCode.REGULATOR_ENFORCER.code().equals(rawUserType)) {
+            userType = UserType.REGULATOR.code();
             if (!StringUtils.hasText(roleCode)) {
                 roleCode = rawUserType;
             }
         }
-        if (!"PUBLIC".equals(userType) && !"ENTERPRISE".equals(userType) && !"REGULATOR".equals(userType)) {
+        if (!UserType.isValid(userType)) {
             throw new IllegalArgumentException("invalid user type");
         }
         User user = createBaseUser(dto.getUsername(), dto.getPassword(), dto.getRealName(), dto.getPhone(), userType);
@@ -65,7 +72,7 @@ public class UserServiceImpl implements UserService {
         registerDTO.setPassword(dto.getPassword());
         registerDTO.setRealName(dto.getRealName());
         registerDTO.setPhone(dto.getPhone());
-        registerDTO.setUserType("PUBLIC");
+        registerDTO.setUserType(UserType.PUBLIC.code());
         return register(registerDTO);
     }
 
@@ -76,22 +83,25 @@ public class UserServiceImpl implements UserService {
         if (user == null) {
             throw new IllegalArgumentException("invalid credentials");
         }
-        if (!"ADMIN".equals(user.getUserType())
+        if (!UserType.ADMIN.code().equals(user.getUserType())
             && !PasswordEncoderUtil.matches(dto.getPassword(), user.getPassword())) {
             throw new IllegalArgumentException("invalid credentials");
         }
-        if (user.getStatus() != null && user.getStatus() == 0) {
+        if (user.getStatus() != null && user.getStatus() == UserStatus.DISABLED.code()) {
             throw new IllegalArgumentException("user disabled");
         }
         if (user.getDeleted() != null && user.getDeleted() == 1) {
             throw new IllegalArgumentException("user deleted");
         }
-        String token = tokenUtil.generateToken(user.getId(), user.getUsername(), user.getUserType());
+        // 关键注释：登录时查询角色并写入 Token，减少网关与服务重复查库
+        List<String> roles = loadRoleCodes(user.getId());
+        String token = tokenUtil.generateToken(user.getId(), user.getUsername(), user.getUserType(), roles);
         LoginResult result = new LoginResult();
         result.setUserId(user.getId());
         result.setUsername(user.getUsername());
         result.setUserType(user.getUserType());
         result.setToken(token);
+        result.setRoles(roles);
         return result;
     }
 
@@ -108,7 +118,10 @@ public class UserServiceImpl implements UserService {
         if (user == null || (user.getDeleted() != null && user.getDeleted() == 1)) {
             return null;
         }
-        return toUserVO(user);
+        UserVO vo = toUserVO(user);
+        // 关键注释：补齐角色信息，供网关/其他服务进行权限判断
+        vo.setRoles(loadRoleCodes(user.getId()));
+        return vo;
     }
 
     @Override
@@ -132,7 +145,7 @@ public class UserServiceImpl implements UserService {
             return;
         }
         user.setDeleted(1);
-        user.setStatus(0);
+        user.setStatus(UserStatus.DISABLED.code());
         user.setUpdateTime(LocalDateTime.now());
         userMapper.updateById(user);
         userRoleMapper.update(null, new LambdaUpdateWrapper<UserRole>()
@@ -157,7 +170,7 @@ public class UserServiceImpl implements UserService {
         if (existing != null) {
             throw new IllegalArgumentException("username already exists");
         }
-        if (!"PUBLIC".equals(userType) && !"ENTERPRISE".equals(userType) && !"REGULATOR".equals(userType)) {
+        if (!UserType.isValid(userType)) {
             throw new IllegalArgumentException("invalid user type");
         }
         User user = new User();
@@ -166,7 +179,7 @@ public class UserServiceImpl implements UserService {
         user.setRealName(realName);
         user.setPhone(phone);
         user.setUserType(userType);
-        user.setStatus(1);
+        user.setStatus(UserStatus.ENABLED.code());
         user.setCreateTime(LocalDateTime.now());
         user.setUpdateTime(LocalDateTime.now());
         user.setDeleted(0);
@@ -186,10 +199,33 @@ public class UserServiceImpl implements UserService {
         userRoleMapper.insert(userRole);
     }
 
+    private List<String> loadRoleCodes(Long userId) {
+        List<Long> roleIds = userRoleMapper.selectList(new LambdaQueryWrapper<UserRole>()
+                .eq(UserRole::getUserId, userId)
+                .eq(UserRole::getDeleted, 0))
+            .stream()
+            .map(UserRole::getRoleId)
+            .filter(Objects::nonNull)
+            .distinct()
+            .toList();
+        if (roleIds.isEmpty()) {
+            return List.of();
+        }
+        return roleMapper.selectBatchIds(roleIds)
+            .stream()
+            .filter(Objects::nonNull)
+            .filter(role -> role.getDeleted() == null || !Objects.equals(role.getDeleted(), 1))
+            .map(Role::getRoleCode)
+            .filter(StringUtils::hasText)
+            .distinct()
+            .collect(Collectors.toList());
+    }
+
     private String resolveRoleCode(String userType, String roleCode) {
-        if ("REGULATOR".equals(userType)) {
-            String resolved = StringUtils.hasText(roleCode) ? roleCode : "REGULATOR_ENFORCER";
-            if (!"REGULATOR_ADMIN".equals(resolved) && !"REGULATOR_ENFORCER".equals(resolved)) {
+        if (UserType.REGULATOR.code().equals(userType)) {
+            String resolved = StringUtils.hasText(roleCode) ? roleCode : RoleCode.REGULATOR_ENFORCER.code();
+            if (!RoleCode.REGULATOR_ADMIN.code().equals(resolved)
+                && !RoleCode.REGULATOR_ENFORCER.code().equals(resolved)) {
                 throw new IllegalArgumentException("invalid regulator role");
             }
             return resolved;

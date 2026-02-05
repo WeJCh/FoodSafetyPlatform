@@ -29,12 +29,12 @@ public class TokenUtil {
         this.secret = secret;
     }
 
-    @Value("${jwt.expiration-minutes}")  // 默认120分钟
+    @Value("${jwt.expiration-minutes}")  // 默认 120 分钟
     public void setExpirationMinutes(long expirationMinutes) {
         this.expirationMinutes = expirationMinutes;
     }
 
-    public String generateToken(Long userId, String username, String userType) {
+    public String generateToken(Long userId, String username, String userType, java.util.List<String> roles) {
         Instant now = Instant.now();
         SecretKey key = Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
 
@@ -42,6 +42,8 @@ public class TokenUtil {
                 .setSubject(String.valueOf(userId))
                 .claim("username", username)
                 .claim("userType", userType)
+                // 关键注释：将角色写入 token，便于网关与下游服务快速判定权限
+                .claim("roles", roles == null ? java.util.List.of() : roles)
                 .setIssuedAt(Date.from(now))
                 .setExpiration(Date.from(now.plus(expirationMinutes, ChronoUnit.MINUTES)))
                 .signWith(key, SignatureAlgorithm.HS256)

@@ -56,7 +56,8 @@ public class JwtAuthFilter implements GlobalFilter, Ordered {
         RoleRule.of("/api/query/", "ADMIN", "REGULATOR_ADMIN", "REGULATOR_ENFORCER"),
         RoleRule.of("/api/warning/", "ADMIN", "REGULATOR_ADMIN", "REGULATOR_ENFORCER"),
         RoleRule.of("/api/regulation/complaints/public", "PUBLIC"),
-        RoleRule.of("/api/regulation/complaints/track", "PUBLIC")
+        RoleRule.of("/api/regulation/complaints/track", "PUBLIC"),
+        RoleRule.of("/api/regulation/public/enterprises", "PUBLIC")
     );
 
     private final WebClient webClient;

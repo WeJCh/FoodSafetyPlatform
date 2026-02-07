@@ -8,7 +8,26 @@
   />
   <PublicHomeView
     v-else-if="view === 'public'"
-    @back="handleBackToAuth"
+    :public-user="publicUser"
+    @logout="handleLogout"
+    @open-complaint="handleOpenPublicComplaint"
+    @open-track="handleOpenPublicTrack"
+  />
+  <PublicComplaintView
+    v-else-if="view === 'public-complaint'"
+    :public-user="publicUser"
+    :public-token="publicToken"
+    @back="handlePublicHome"
+    @logout="handleLogout"
+    @open-track="handleOpenPublicTrack"
+  />
+  <PublicComplaintTrackView
+    v-else-if="view === 'public-track'"
+    :public-user="publicUser"
+    :initial-complaint-no="publicTrackParams.complaintNo"
+    :initial-contact="publicTrackParams.contact"
+    @back="handlePublicHome"
+    @logout="handleLogout"
   />
   <AdminView
     v-else-if="view === 'admin'"
@@ -51,6 +70,8 @@ import AdminView from "./views/AdminView.vue";
 import AuthView from "./views/AuthView.vue";
 import EnterpriseDetailView from "./views/EnterpriseDetailView.vue";
 import EnterpriseProfileView from "./views/EnterpriseProfileView.vue";
+import PublicComplaintTrackView from "./views/PublicComplaintTrackView.vue";
+import PublicComplaintView from "./views/PublicComplaintView.vue";
 import PublicHomeView from "./views/PublicHomeView.vue";
 import RegulatorAdminView from "./views/RegulatorAdminView.vue";
 import RegulatorEnforcerView from "./views/RegulatorEnforcerView.vue";
@@ -64,6 +85,7 @@ const enterpriseToken = ref("");
 const enterpriseUser = reactive({ username: "", userType: "", roles: [] });
 const publicToken = ref("");
 const publicUser = reactive({ username: "", userType: "", roles: [] });
+const publicTrackParams = reactive({ complaintNo: "", contact: "" });
 const regulatorToken = ref("");
 const regulatorUser = reactive({ username: "", userType: "", roleType: "", roles: [] });
 const enterpriseDetailId = ref("");
@@ -92,6 +114,20 @@ function handlePublicLogin(payload) {
   publicUser.userType = payload.userType;
   publicUser.roles = Array.isArray(payload.roles) ? payload.roles : [];
   view.value = "public";
+}
+
+function handlePublicHome() {
+  view.value = "public";
+}
+
+function handleOpenPublicComplaint() {
+  view.value = "public-complaint";
+}
+
+function handleOpenPublicTrack(payload = {}) {
+  publicTrackParams.complaintNo = payload.complaintNo || "";
+  publicTrackParams.contact = payload.contact || "";
+  view.value = "public-track";
 }
 
 async function handleRegulatorLogin(payload) {
@@ -126,10 +162,6 @@ function handleViewEnterprise(payload) {
   view.value = "enterprise-detail";
 }
 
-function handleBackToAuth() {
-  view.value = "auth";
-}
-
 function handleBackFromDetail() {
   view.value = returnView.value || "regulator-admin";
   enterpriseDetailId.value = "";
@@ -137,7 +169,7 @@ function handleBackFromDetail() {
 }
 
 async function handleLogout() {
-  const tokens = [adminToken.value, enterpriseToken.value, regulatorToken.value].filter(Boolean);
+  const tokens = [adminToken.value, enterpriseToken.value, publicToken.value, regulatorToken.value].filter(Boolean);
   if (tokens.length) {
     try {
       await Promise.all(tokens.map((token) => logoutRequest(token)));
@@ -158,6 +190,8 @@ async function handleLogout() {
   publicUser.username = "";
   publicUser.userType = "";
   publicUser.roles = [];
+  publicTrackParams.complaintNo = "";
+  publicTrackParams.contact = "";
   regulatorToken.value = "";
   regulatorUser.username = "";
   regulatorUser.userType = "";

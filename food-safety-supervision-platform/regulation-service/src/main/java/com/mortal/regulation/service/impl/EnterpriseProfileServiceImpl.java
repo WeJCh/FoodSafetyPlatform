@@ -20,6 +20,7 @@ import com.mortal.regulation.mapper.FoodRegulatorRegionMapper;
 import com.mortal.regulation.service.EnterpriseProfileService;
 import com.mortal.regulation.vo.BatchActionResult;
 import com.mortal.regulation.vo.EnterpriseProfileVO;
+import com.mortal.regulation.vo.PublicEnterpriseVO;
 import com.mortal.regulation.vo.RegionVO;
 import java.time.LocalDateTime;
 import java.util.ArrayDeque;
@@ -138,6 +139,26 @@ public class EnterpriseProfileServiceImpl implements EnterpriseProfileService {
             return PageResult.of(List.of(), 0, page, size);
         }
         return listByRegionIds(enterpriseName, status, approvalStatus, page, size, regionIds);
+    }
+
+    @Override
+    public PageResult<PublicEnterpriseVO> listPublic(String enterpriseName, int page, int size) {
+        int safeSize = Math.max(1, Math.min(size, 50));
+        int safePage = Math.max(1, page);
+        var wrapper = new LambdaQueryWrapper<FoodEnterprise>()
+            .eq(FoodEnterprise::getDeleted, 0)
+            .eq(FoodEnterprise::getApprovalStatus, APPROVAL_APPROVED);
+        if (StringUtils.hasText(enterpriseName)) {
+            wrapper.like(FoodEnterprise::getEnterpriseName, enterpriseName.trim());
+        }
+        wrapper.orderByAsc(FoodEnterprise::getEnterpriseName);
+        Page<FoodEnterprise> pageInfo = foodEnterpriseMapper.selectPage(new Page<>(safePage, safeSize), wrapper);
+        List<FoodEnterprise> enterprises = pageInfo.getRecords();
+        Map<Long, List<RegionVO>> regionPathMap = loadRegionPaths(enterprises);
+        List<PublicEnterpriseVO> records = enterprises.stream()
+            .map(enterprise -> toPublicVO(enterprise, regionPathMap.get(enterprise.getRegionId())))
+            .toList();
+        return PageResult.of(records, pageInfo.getTotal(), safePage, safeSize);
     }
 
     private PageResult<EnterpriseProfileVO> listByRegionIds(String enterpriseName,
@@ -516,6 +537,20 @@ public class EnterpriseProfileServiceImpl implements EnterpriseProfileService {
             .map(RegionVO::getName)
             .filter(StringUtils::hasText)
             .collect(Collectors.joining("/"));
+    }
+    /**
+     * 转换为公共企业信息VO
+     * @param enterprise 企业
+     * @param regionPath 行政区路径
+     * @return 公共企业信息VO
+     */
+    private PublicEnterpriseVO toPublicVO(FoodEnterprise enterprise, List<RegionVO> regionPath) {
+        PublicEnterpriseVO vo = new PublicEnterpriseVO();
+        vo.setId(enterprise.getId());
+        vo.setEnterpriseName(enterprise.getEnterpriseName());
+        vo.setRegionId(enterprise.getRegionId());
+        vo.setRegionPathText(buildRegionPathText(regionPath));
+        return vo;
     }
 
     private String normalize(String value) {

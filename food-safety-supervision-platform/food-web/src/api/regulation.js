@@ -98,6 +98,24 @@ export function fetchEnterprises(token, params = {}) {
   );
 }
 
+export function fetchPublicEnterprises(token, params = {}) {
+  const search = new URLSearchParams();
+  if (params.enterpriseName) search.append("enterpriseName", params.enterpriseName);
+  if (params.page) search.append("page", params.page);
+  if (params.size) search.append("size", params.size);
+  const query = search.toString();
+  return requestWithBase(
+    REGULATION_BASE_URL,
+    `/api/regulation/public/enterprises${query ? `?${query}` : ""}`,
+    {
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${token}`
+      }
+    }
+  );
+}
+
 export function fetchRegions(token, parentId = null) {
   const query = parentId === null ? "" : `?parentId=${parentId}`;
   return requestWithBase(REGULATION_BASE_URL, `/api/regulation/regions${query}`, {

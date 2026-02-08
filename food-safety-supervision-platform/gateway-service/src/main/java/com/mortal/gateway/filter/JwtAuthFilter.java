@@ -9,6 +9,7 @@ import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.stream.Collectors;
@@ -48,6 +49,7 @@ public class JwtAuthFilter implements GlobalFilter, Ordered {
 
     private static final List<RoleRule> ROLE_RULES = List.of(
         RoleRule.of("/api/admin/", "ADMIN"),
+        RoleRule.of("/api/regulation/public/", "PUBLIC"),
         // 关键注释：企业备案/查看属于企业用户能力，需要在网关放行 ENTERPRISE
         RoleRule.of("/api/regulation/enterprise/", "ENTERPRISE", "REGULATOR_ADMIN", "REGULATOR_ENFORCER"),
         // 关键注释：行政区联动查询需对企业用户开放，用于备案表单的省市区街道选择
@@ -56,8 +58,7 @@ public class JwtAuthFilter implements GlobalFilter, Ordered {
         RoleRule.of("/api/query/", "ADMIN", "REGULATOR_ADMIN", "REGULATOR_ENFORCER"),
         RoleRule.of("/api/warning/", "ADMIN", "REGULATOR_ADMIN", "REGULATOR_ENFORCER"),
         RoleRule.of("/api/regulation/complaints/public", "PUBLIC"),
-        RoleRule.of("/api/regulation/complaints/track", "PUBLIC"),
-        RoleRule.of("/api/regulation/public/enterprises", "PUBLIC")
+        RoleRule.of("/api/regulation/complaints/track", "PUBLIC")
     );
 
     private final WebClient webClient;
@@ -116,7 +117,8 @@ public class JwtAuthFilter implements GlobalFilter, Ordered {
                     return unauthorized(exchange);
                 }
 
-                if (!isAllowedByRole(path, identity.getRoles())) {
+                // 关键注释：根据用户类型和角色判断是否允许访问
+                if (!isAllowedByRole(path, identity.getRoles(), identity.getUserType())) {
                     return forbidden(exchange);
                 }
 
@@ -232,13 +234,31 @@ public class JwtAuthFilter implements GlobalFilter, Ordered {
         );
     }
 
-    private boolean isAllowedByRole(String path, List<String> roles) {
+    private boolean isAllowedByRole(String path, List<String> roles, String userType) {
+        List<String> effectiveRoles = enrichRoles(roles, userType);
         for (RoleRule rule : ROLE_RULES) {
             if (path.startsWith(rule.pathPrefix())) {
-                return rule.matches(roles);
+                return rule.matches(effectiveRoles);
             }
         }
         return true;
+    }
+
+    /**
+     * 关键注释：根据用户类型和角色判断是否允许访问
+     * @param roles 用户角色
+     * @param userType 用户类型
+     * @return 增强后的角色列表
+     */
+    private List<String> enrichRoles(List<String> roles, String userType) {
+        List<String> result = new ArrayList<>();
+        if (roles != null && !roles.isEmpty()) {
+            result.addAll(roles);
+        }
+        if (StringUtils.hasText(userType) && !result.contains(userType)) {
+            result.add(userType);
+        }
+        return result;
     }
 
     private Mono<Void> forbidden(ServerWebExchange exchange) {

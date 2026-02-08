@@ -16,6 +16,7 @@ public interface EnterpriseProfileService {
     EnterpriseProfileVO getProfile(Long userId);
 
     EnterpriseProfileVO getById(Long enterpriseId);
+
     /**
      * 获取企业列表
      * @param enterpriseName 企业名称
@@ -30,6 +31,7 @@ public interface EnterpriseProfileService {
                                          String approvalStatus,
                                          int page,
                                          int size);
+
     /**
      * 获取监管者视角的企业列表
      * @param userId 监管者ID
@@ -52,7 +54,7 @@ public interface EnterpriseProfileService {
      * @param enterpriseName 企业名称
      * @param page 页码
      * @param size 每页大小
-     * @return 企业列表
+     * @return 公共企业列表
      */
     PageResult<PublicEnterpriseVO> listPublic(String enterpriseName, int page, int size);
 
@@ -61,10 +63,13 @@ public interface EnterpriseProfileService {
      * @return 企业列表
      */
     List<EnterpriseProfileVO> listPending();
+
     /**
      * 获取监管者视角的待审核企业列表
      * @param userId 监管者ID
      * @return 企业列表
+     */
+    List<EnterpriseProfileVO> listPendingForRegulator(Long userId);
 
     /**
      * 审核企业
@@ -74,7 +79,7 @@ public interface EnterpriseProfileService {
      * @return 企业信息VO
      */
     EnterpriseProfileVO approve(Long enterpriseId, Long operatorId, EnterpriseApprovalDTO dto);
-    List<EnterpriseProfileVO> listPendingForRegulator(Long userId);
+
     /**
      * 拒绝企业
      * @param enterpriseId 企业ID
@@ -83,6 +88,7 @@ public interface EnterpriseProfileService {
      * @return 企业信息VO
      */
     EnterpriseProfileVO reject(Long enterpriseId, Long operatorId, EnterpriseApprovalDTO dto);
+
     /**
      * 批量审核企业
      * @param operatorId 操作员ID
@@ -90,6 +96,7 @@ public interface EnterpriseProfileService {
      * @return 批量审核结果
      */
     BatchActionResult approveBatch(Long operatorId, EnterpriseApprovalBatchDTO dto);
+
     /**
      * 批量拒绝企业
      * @param operatorId 操作员ID
@@ -97,25 +104,16 @@ public interface EnterpriseProfileService {
      * @return 批量拒绝结果
      */
     BatchActionResult rejectBatch(Long operatorId, EnterpriseApprovalBatchDTO dto);
+
     /**
      * 删除企业
      * @param enterpriseId 企业ID
      */
     void deleteEnterprise(Long enterpriseId);
+
     /**
      * 删除企业
      * @param userId 用户ID
      */
-    void deleteEnterpriseByUserId(Long userId);
-    EnterpriseProfileVO approve(Long enterpriseId, Long operatorId, EnterpriseApprovalDTO dto);
-
-    EnterpriseProfileVO reject(Long enterpriseId, Long operatorId, EnterpriseApprovalDTO dto);
-
-    BatchActionResult approveBatch(Long operatorId, EnterpriseApprovalBatchDTO dto);
-
-    BatchActionResult rejectBatch(Long operatorId, EnterpriseApprovalBatchDTO dto);
-
-    void deleteEnterprise(Long enterpriseId);
-
     void deleteEnterpriseByUserId(Long userId);
 }

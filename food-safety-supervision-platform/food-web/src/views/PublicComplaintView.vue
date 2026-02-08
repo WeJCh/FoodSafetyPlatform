@@ -52,7 +52,9 @@
                 @mousedown.prevent="selectEnterprise(item)"
               >
                 <div class="combo-title">{{ item.enterpriseName }}</div>
-                <div class="combo-meta" v-if="item.regionPathText">{{ item.regionPathText }}</div>
+                <div class="combo-meta" v-if="item.regionPathText || item.addressDetail">
+                  {{ [item.regionPathText, item.addressDetail].filter(Boolean).join(" · ") }}
+                </div>
               </button>
               <div class="combo-empty" v-if="!enterpriseLoading && !enterpriseOptions.length">
                 暂无匹配企业
@@ -72,11 +74,19 @@
         <div class="form-row">
           <label>
             所在区域
-            <input v-model.trim="form.region" placeholder="例：浙江省/杭州市/西湖区" />
+            <input
+              v-model.trim="form.region"
+              placeholder="例：浙江省/杭州市/西湖区"
+              @input="markRegionEdited"
+            />
           </label>
           <label>
             详细地址
-            <input v-model.trim="form.addressDetail" placeholder="街道、门牌号" />
+            <input
+              v-model.trim="form.addressDetail"
+              placeholder="街道、门牌号"
+              @input="markAddressEdited"
+            />
           </label>
         </div>
         <label>
@@ -187,6 +197,8 @@ const enterpriseDropdownOpen = ref(false);
 const enterprisePage = ref(1);
 const enterpriseSize = 10;
 const enterpriseHasMore = ref(false);
+const regionEdited = ref(false);
+const addressEdited = ref(false);
 let enterpriseSearchTimer = null;
 
 function setStatus(message, type = "info") {
@@ -280,6 +292,12 @@ function selectEnterprise(item) {
   form.enterpriseId = String(item.id || "");
   form.enterpriseName = item.enterpriseName || "";
   enterpriseQuery.value = form.enterpriseName;
+  if (!regionEdited.value) {
+    form.region = item.regionPathText || "";
+  }
+  if (!addressEdited.value) {
+    form.addressDetail = item.addressDetail || "";
+  }
   enterpriseDropdownOpen.value = false;
 }
 
@@ -368,7 +386,17 @@ function resetForm() {
   form.contact = "";
   form.anonymous = false;
   previews.value = [];
+  regionEdited.value = false;
+  addressEdited.value = false;
   setStatus("");
+}
+
+function markRegionEdited() {
+  regionEdited.value = true;
+}
+
+function markAddressEdited() {
+  addressEdited.value = true;
 }
 
 onMounted(() => {

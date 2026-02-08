@@ -12,4 +12,5 @@ public class PublicEnterpriseVO {
     private String enterpriseName;
     private Long regionId;
     private String regionPathText;
+    private String addressDetail;
 }

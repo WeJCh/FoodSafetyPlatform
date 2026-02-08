@@ -155,8 +155,12 @@ public class EnterpriseProfileServiceImpl implements EnterpriseProfileService {
         Page<FoodEnterprise> pageInfo = foodEnterpriseMapper.selectPage(new Page<>(safePage, safeSize), wrapper);
         List<FoodEnterprise> enterprises = pageInfo.getRecords();
         Map<Long, List<RegionVO>> regionPathMap = loadRegionPaths(enterprises);
+        Map<Long, String> addressMap = loadAddressDetails(enterprises);
         List<PublicEnterpriseVO> records = enterprises.stream()
-            .map(enterprise -> toPublicVO(enterprise, regionPathMap.get(enterprise.getRegionId())))
+            .map(enterprise -> toPublicVO(
+                enterprise,
+                regionPathMap.get(enterprise.getRegionId()),
+                addressMap.get(enterprise.getAddressId())))
             .toList();
         return PageResult.of(records, pageInfo.getTotal(), safePage, safeSize);
     }
@@ -544,12 +548,15 @@ public class EnterpriseProfileServiceImpl implements EnterpriseProfileService {
      * @param regionPath 行政区路径
      * @return 公共企业信息VO
      */
-    private PublicEnterpriseVO toPublicVO(FoodEnterprise enterprise, List<RegionVO> regionPath) {
+    private PublicEnterpriseVO toPublicVO(FoodEnterprise enterprise,
+                                          List<RegionVO> regionPath,
+                                          String addressDetail) {
         PublicEnterpriseVO vo = new PublicEnterpriseVO();
         vo.setId(enterprise.getId());
         vo.setEnterpriseName(enterprise.getEnterpriseName());
         vo.setRegionId(enterprise.getRegionId());
         vo.setRegionPathText(buildRegionPathText(regionPath));
+        vo.setAddressDetail(addressDetail);
         return vo;
     }
 

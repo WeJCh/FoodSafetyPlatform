@@ -49,6 +49,7 @@ public class JwtAuthFilter implements GlobalFilter, Ordered {
 
     private static final List<RoleRule> ROLE_RULES = List.of(
         RoleRule.of("/api/admin/", "ADMIN"),
+        RoleRule.of("/api/files/", "PUBLIC"),
         RoleRule.of("/api/regulation/public/", "PUBLIC"),
         // 关键注释：企业备案/查看属于企业用户能力，需要在网关放行 ENTERPRISE
         RoleRule.of("/api/regulation/enterprise/", "ENTERPRISE", "REGULATOR_ADMIN", "REGULATOR_ENFORCER"),

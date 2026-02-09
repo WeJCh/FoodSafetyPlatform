@@ -106,13 +106,28 @@
         <div class="upload-panel">
           <div>
             <strong>现场图片</strong>
-            <span>演示版本仅预览，不上传后端</span>
+            <span>图片将上传至 MinIO，用于投诉核查</span>
           </div>
           <input type="file" multiple accept="image/*" @change="handleFileChange" />
-          <div class="preview-grid" v-if="previews.length">
-            <div v-for="(src, index) in previews" :key="src" class="preview-item">
-              <img :src="src" alt="预览" />
-              <button type="button" class="ghost" @click="removeImage(index)">移除</button>
+          <div class="preview-grid" v-if="uploadItems.length">
+            <div v-for="item in uploadItems" :key="item.id" class="preview-item">
+              <img :src="item.previewUrl" alt="预览" />
+              <div class="upload-meta" :class="{ error: item.error }">
+                <span v-if="item.uploading">上传中...</span>
+                <span v-else-if="item.error">上传失败</span>
+                <span v-else>已上传</span>
+              </div>
+              <div class="preview-actions">
+                <button
+                  v-if="item.error"
+                  type="button"
+                  class="ghost"
+                  @click="retryUpload(item)"
+                >
+                  重试
+                </button>
+                <button type="button" class="ghost" @click="removeImage(item.id)">移除</button>
+              </div>
             </div>
           </div>
         </div>
@@ -158,8 +173,8 @@
 </template>
 
 <script setup>
-import { onMounted, reactive, ref, watch } from "vue";
-import { fetchPublicEnterprises, submitPublicComplaint } from "../api/regulation";
+import { computed, onMounted, reactive, ref, watch } from "vue";
+import { fetchPublicEnterprises, presignUpload, submitPublicComplaint } from "../api/regulation";
 
 const props = defineProps({
   publicUser: {
@@ -186,7 +201,11 @@ const form = reactive({
   anonymous: false
 });
 
-const previews = ref([]);
+const MAX_IMAGE_COUNT = 5;
+const MAX_FILE_SIZE = 5 * 1024 * 1024;
+const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp"];
+
+const uploadItems = ref([]);
 const loading = ref(false);
 const success = ref(null);
 const status = reactive({ message: "", type: "" });
@@ -200,6 +219,7 @@ const enterpriseHasMore = ref(false);
 const regionEdited = ref(false);
 const addressEdited = ref(false);
 let enterpriseSearchTimer = null;
+const isUploading = computed(() => uploadItems.value.some((item) => item.uploading));
 
 function setStatus(message, type = "info") {
   status.message = message;
@@ -302,12 +322,94 @@ function selectEnterprise(item) {
 }
 
 function handleFileChange(event) {
+  if (!props.publicToken) {
+    setStatus("请先登录后再上传图片", "error");
+    return;
+  }
   const files = Array.from(event.target.files || []);
-  previews.value = files.map((file) => URL.createObjectURL(file));
+  if (!files.length) return;
+  const remaining = MAX_IMAGE_COUNT - uploadItems.value.length;
+  if (remaining <= 0) {
+    setStatus(`最多上传 ${MAX_IMAGE_COUNT} 张图片`, "error");
+    return;
+  }
+  files.slice(0, remaining).forEach((file) => {
+    const error = validateFile(file);
+    if (error) {
+      setStatus(error, "error");
+      return;
+    }
+    const item = createUploadItem(file);
+    uploadItems.value = [...uploadItems.value, item];
+    uploadFile(item);
+  });
+  event.target.value = "";
 }
 
-function removeImage(index) {
-  previews.value.splice(index, 1);
+function removeImage(id) {
+  const target = uploadItems.value.find((item) => item.id === id);
+  if (target?.previewUrl) {
+    URL.revokeObjectURL(target.previewUrl);
+  }
+  uploadItems.value = uploadItems.value.filter((item) => item.id !== id);
+}
+
+function retryUpload(item) {
+  if (!item || !item.file) return;
+  item.error = "";
+  item.uploading = true;
+  uploadFile(item);
+}
+
+function validateFile(file) {
+  if (!ALLOWED_TYPES.includes(file.type)) {
+    return "仅支持 JPG/PNG/WebP 图片";
+  }
+  if (file.size > MAX_FILE_SIZE) {
+    return "单张图片不能超过 5MB";
+  }
+  return "";
+}
+
+function createUploadItem(file) {
+  return {
+    id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
+    name: file.name,
+    file,
+    previewUrl: URL.createObjectURL(file),
+    fileUrl: "",
+    objectKey: "",
+    uploading: true,
+    error: ""
+  };
+}
+
+async function uploadFile(item) {
+  // 中文注释：先获取预签名地址，再由前端直传 MinIO
+  try {
+    const payload = {
+      filename: item.name,
+      contentType: item.file.type || "application/octet-stream",
+      size: item.file.size
+    };
+    const presign = await presignUpload(props.publicToken, payload);
+    const response = await fetch(presign.uploadUrl, {
+      method: "PUT",
+      headers: {
+        "Content-Type": payload.contentType
+      },
+      body: item.file
+    });
+    if (!response.ok) {
+      throw new Error(`上传失败 (${response.status})`);
+    }
+    item.fileUrl = presign.fileUrl;
+    item.objectKey = presign.objectKey;
+    item.uploading = false;
+  } catch (error) {
+    item.error = error.message || "上传失败";
+    item.uploading = false;
+  }
 }
 
 function formatStatus(value) {
@@ -339,15 +441,27 @@ async function handleSubmit() {
     setStatus("请填写联系方式或选择匿名投诉", "error");
     return;
   }
+  if (isUploading.value) {
+    setStatus("图片上传中，请稍后提交", "error");
+    return;
+  }
+  if (uploadItems.value.some((item) => item.error)) {
+    setStatus("存在上传失败的图片，请处理后再提交", "error");
+    return;
+  }
   loading.value = true;
   setStatus("");
   try {
+    const imageUrls = uploadItems.value
+      .map((item) => item.fileUrl)
+      .filter(Boolean);
     const payload = {
       enterpriseId,
       complaintType: form.complaintType || undefined,
       content: form.content,
       contact: form.anonymous ? undefined : form.contact,
-      complainantName: form.anonymous ? undefined : form.complainantName
+      complainantName: form.anonymous ? undefined : form.complainantName,
+      imageUrls: imageUrls.length ? imageUrls : undefined
     };
     success.value = await submitPublicComplaint(payload);
     setStatus("投诉提交成功", "success");
@@ -385,7 +499,12 @@ function resetForm() {
   form.complainantName = "";
   form.contact = "";
   form.anonymous = false;
-  previews.value = [];
+  uploadItems.value.forEach((item) => {
+    if (item.previewUrl) {
+      URL.revokeObjectURL(item.previewUrl);
+    }
+  });
+  uploadItems.value = [];
   regionEdited.value = false;
   addressEdited.value = false;
   setStatus("");
@@ -597,6 +716,20 @@ watch(
   height: 90px;
   object-fit: cover;
   border-radius: 8px;
+}
+
+.upload-meta {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.upload-meta.error {
+  color: #d9534f;
+}
+
+.preview-actions {
+  display: flex;
+  gap: 6px;
 }
 
 .anonymous-row {

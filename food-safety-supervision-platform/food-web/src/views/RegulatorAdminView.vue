@@ -47,12 +47,6 @@
 
       <div class="dashboard-content">
         <div class="card dashboard-card">
-        <div class="section-title">监管人员</div>
-        <div class="admin-info">
-          <div>账号：{{ regulatorUser.username }}</div>
-          <div>角色：{{ regulatorUser.userType }}</div>
-          <div>职责：区域管理员</div>
-        </div>
 
         <div class="sub-nav">
           <button :class="{ active: section === 'enterprises' }" @click="section = 'enterprises'">
@@ -73,6 +67,7 @@
         </div>
 
         <div v-if="section === 'enterprises'">
+          <div class="section-title">企业管理</div>
           <form class="filter-bar" @submit.prevent="handleSearch">
             <label>
               企业名称
@@ -442,6 +437,21 @@
                   <span>投诉内容</span>
                   <strong>{{ complaintDetail.complaint.content || "-" }}</strong>
                 </div>
+                <div class="modal-field">
+                  <span>现场图片</span>
+                  <div class="modal-gallery" v-if="complaintDetail.complaint?.imageUrls?.length">
+                    <button
+                      v-for="(url, index) in complaintDetail.complaint.imageUrls"
+                      :key="`${url}-${index}`"
+                      class="modal-image"
+                      type="button"
+                      @click="openImagePreview(complaintDetail.complaint.imageUrls, index)"
+                    >
+                      <img :src="url" alt="现场图片" />
+                    </button>
+                  </div>
+                  <div v-else class="modal-empty">未上传现场图片</div>
+                </div>
 
                 <div class="modal-field">
                   <span>企业信息</span>
@@ -501,6 +511,26 @@
           {{ status.message }}
         </div>
       </div>
+      </div>
+    </div>
+    <div v-if="currentImagePreviewUrl" class="image-preview-mask" @click.self="closeImagePreview">
+      <div class="image-preview-card">
+        <img :src="currentImagePreviewUrl" alt="现场图片大图" />
+        <div class="image-preview-actions">
+          <button class="ghost" type="button" :disabled="imagePreviewIndex <= 0" @click="showPrevImage">
+            上一张
+          </button>
+          <span class="image-preview-count">{{ imagePreviewIndex + 1 }}/{{ imagePreviewUrls.length }}</span>
+          <button
+            class="ghost"
+            type="button"
+            :disabled="imagePreviewIndex >= imagePreviewUrls.length - 1"
+            @click="showNextImage"
+          >
+            下一张
+          </button>
+          <button class="ghost" type="button" @click="closeImagePreview">关闭</button>
+        </div>
       </div>
     </div>
   </div>
@@ -601,6 +631,11 @@ const complaintAssign = reactive({
   regulatorId: ""
 });
 const complaintEnforcers = ref([]);
+const imagePreviewUrls = ref([]);
+const imagePreviewIndex = ref(0);
+const currentImagePreviewUrl = computed(
+  () => imagePreviewUrls.value[imagePreviewIndex.value] || ""
+);
 
 function setStatus(message, type = "info") {
   status.message = message;
@@ -795,6 +830,29 @@ function closeComplaintDetail() {
   complaintDetail.value = null;
   complaintEnforcers.value = [];
   complaintAssign.regulatorId = "";
+  imagePreviewUrls.value = [];
+  imagePreviewIndex.value = 0;
+}
+
+function openImagePreview(urls, index) {
+  if (!Array.isArray(urls) || !urls.length) return;
+  imagePreviewUrls.value = urls;
+  imagePreviewIndex.value = Math.min(Math.max(index || 0, 0), urls.length - 1);
+}
+
+function closeImagePreview() {
+  imagePreviewUrls.value = [];
+  imagePreviewIndex.value = 0;
+}
+
+function showPrevImage() {
+  if (imagePreviewIndex.value <= 0) return;
+  imagePreviewIndex.value -= 1;
+}
+
+function showNextImage() {
+  if (imagePreviewIndex.value >= imagePreviewUrls.value.length - 1) return;
+  imagePreviewIndex.value += 1;
 }
 
 async function handleAcceptComplaint(item) {
@@ -1316,6 +1374,72 @@ onMounted(() => {
   flex-direction: column;
   align-items: stretch;
   gap: 10px;
+}
+
+.modal-gallery {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 10px;
+  margin-top: 6px;
+}
+
+.modal-image {
+  display: block;
+  border-radius: 10px;
+  overflow: hidden;
+  border: 1px solid var(--stroke);
+  background: #f6f9ff;
+  padding: 0;
+  cursor: pointer;
+}
+
+.modal-image img {
+  width: 100%;
+  height: 96px;
+  object-fit: cover;
+  display: block;
+}
+
+.image-preview-mask {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.55);
+  display: grid;
+  place-items: center;
+  z-index: 9999;
+}
+
+.image-preview-card {
+  background: #fff;
+  border-radius: 16px;
+  padding: 16px;
+  max-width: min(900px, 92vw);
+  max-height: 88vh;
+  display: grid;
+  gap: 12px;
+  box-shadow: 0 24px 60px rgba(15, 23, 42, 0.25);
+}
+
+.image-preview-card img {
+  width: 100%;
+  height: auto;
+  max-height: 70vh;
+  object-fit: contain;
+  border-radius: 12px;
+  background: #f6f9ff;
+}
+
+.image-preview-actions {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.image-preview-count {
+  font-size: 12px;
+  color: var(--muted);
 }
 
 .checkbox-cell {

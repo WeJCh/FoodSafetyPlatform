@@ -36,10 +36,6 @@
         <div class="card dashboard-card">
           <div v-if="section === 'profile'">
             <div class="section-title">企业备案</div>
-            <div class="admin-info">
-              <div>账号：{{ enterpriseUser.username }}</div>
-              <div>类型：{{ enterpriseUser.userType }}</div>
-            </div>
 
             <div class="status-banner" :class="statusTone">
               <div class="status-title">当前审核状态：{{ statusLabel }}</div>

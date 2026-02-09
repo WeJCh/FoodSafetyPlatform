@@ -3,6 +3,7 @@ package com.mortal.regulation.dto;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
+import java.util.List;
 import lombok.Data;
 
 /**
@@ -26,4 +27,7 @@ public class ComplaintSubmitDTO {
     @NotBlank
     @Size(max = 2000)
     private String content;
+
+    @Size(max = 5)
+    private List<String> imageUrls;
 }

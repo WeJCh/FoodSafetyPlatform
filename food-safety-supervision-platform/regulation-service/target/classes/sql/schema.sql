@@ -183,3 +183,5 @@ CREATE TABLE IF NOT EXISTS enterprise_key_reason (
   operator_id BIGINT COMMENT '操作人ID',
   create_time DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间'
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='重点监管原因记录';
+
+ALTER TABLE complaint ADD COLUMN image_urls TEXT NULL COMMENT '现场图片URL(JSON)';

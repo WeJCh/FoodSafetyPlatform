@@ -116,6 +116,28 @@ export function fetchPublicEnterprises(token, params = {}) {
   );
 }
 
+/**
+ * 生成上传预签名地址
+ * @param token 令牌
+ * @param payload 请求体
+ * @returns 请求结果
+ */
+export function presignUpload(token, payload) {
+  return requestWithBase(REGULATION_BASE_URL, "/api/files/presign", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`
+    },
+    body: JSON.stringify(payload)
+  });
+}
+
+/**
+ * 获取行政区划列表
+ * @param token 令牌
+ * @param parentId 父级ID
+ * @returns 请求结果
+ */
 export function fetchRegions(token, parentId = null) {
   const query = parentId === null ? "" : `?parentId=${parentId}`;
   return requestWithBase(REGULATION_BASE_URL, `/api/regulation/regions${query}`, {
@@ -126,6 +148,12 @@ export function fetchRegions(token, parentId = null) {
   });
 }
 
+/**
+ * 获取行政区划路径
+ * @param token 令牌
+ * @param id 行政区划ID
+ * @returns 请求结果
+ */
 export function fetchRegionPath(token, id) {
   return requestWithBase(REGULATION_BASE_URL, `/api/regulation/regions/${id}/path`, {
     method: "GET",
@@ -135,6 +163,11 @@ export function fetchRegionPath(token, id) {
   });
 }
 
+/**
+ * 获取待审批企业列表
+ * @param token 令牌
+ * @returns 请求结果
+ */
 export function fetchPendingEnterprises(token) {
   return requestWithBase(REGULATION_BASE_URL, "/api/regulation/enterprise/pending", {
     method: "GET",
@@ -144,6 +177,13 @@ export function fetchPendingEnterprises(token) {
   });
 }
 
+/**
+ * 审批企业
+ * @param token 令牌
+ * @param id 企业ID
+ * @param payload 请求体
+ * @returns 请求结果
+ */
 export function approveEnterprise(token, id, payload = {}) {
   return requestWithBase(REGULATION_BASE_URL, `/api/regulation/enterprise/${id}/approve`, {
     method: "PUT",
@@ -154,6 +194,13 @@ export function approveEnterprise(token, id, payload = {}) {
   });
 }
 
+/**
+ * 拒绝企业
+ * @param token 令牌
+ * @param id 企业ID
+ * @param payload 请求体
+ * @returns 请求结果
+ */
 export function rejectEnterprise(token, id, payload = {}) {
   return requestWithBase(REGULATION_BASE_URL, `/api/regulation/enterprise/${id}/reject`, {
     method: "PUT",
@@ -164,6 +211,12 @@ export function rejectEnterprise(token, id, payload = {}) {
   });
 }
 
+/**
+ * 批量审批企业
+ * @param token 令牌
+ * @param payload 请求体
+ * @returns 请求结果
+ */
 export function approveEnterpriseBatch(token, payload = {}) {
   return requestWithBase(REGULATION_BASE_URL, "/api/regulation/enterprise/approve-batch", {
     method: "PUT",
@@ -174,6 +227,12 @@ export function approveEnterpriseBatch(token, payload = {}) {
   });
 }
 
+/**
+ * 批量拒绝企业
+ * @param token 令牌
+ * @param payload 请求体
+ * @returns 请求结果
+ */
 export function rejectEnterpriseBatch(token, payload = {}) {
   return requestWithBase(REGULATION_BASE_URL, "/api/regulation/enterprise/reject-batch", {
     method: "PUT",
@@ -184,6 +243,12 @@ export function rejectEnterpriseBatch(token, payload = {}) {
   });
 }
 
+/**
+ * 获取企业详情
+ * @param token 令牌
+ * @param id 企业ID
+ * @returns 请求结果
+ */
 export function fetchEnterpriseDetail(token, id) {
   return requestWithBase(REGULATION_BASE_URL, `/api/regulation/enterprises/${id}`, {
     method: "GET",

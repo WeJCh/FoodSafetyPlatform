@@ -2,6 +2,7 @@ package com.mortal.regulation.vo;
 
 import com.mortal.regulation.common.enums.ComplaintStatus;
 import java.time.LocalDateTime;
+import java.util.List;
 import lombok.Data;
 
 /**
@@ -34,6 +35,10 @@ public class ComplaintVO {
      * 投诉内容
      */
     private String content;
+    /**
+     * 现场图片地址列表
+     */
+    private List<String> imageUrls;
     /**
      * 投诉状态
      */

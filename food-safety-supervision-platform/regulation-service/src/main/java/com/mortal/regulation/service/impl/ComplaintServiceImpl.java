@@ -2,6 +2,8 @@ package com.mortal.regulation.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.mortal.regulation.common.PageResult;
 import com.mortal.regulation.common.enums.ComplaintStatus;
 import com.mortal.regulation.common.enums.TaskSourceType;
@@ -49,6 +51,7 @@ public class ComplaintServiceImpl implements ComplaintService {
 
     private static final String ROLE_ADMIN = "REGULATOR_ADMIN";
     private static final String ROLE_ENFORCER = "REGULATOR_ENFORCER";
+    private static final int MAX_IMAGE_COUNT = 5;
 
     private final ComplaintMapper complaintMapper;
     private final ComplaintHandleMapper complaintHandleMapper;
@@ -57,6 +60,7 @@ public class ComplaintServiceImpl implements ComplaintService {
     private final FoodRegulatorRegionMapper foodRegulatorRegionMapper;
     private final AddrRegionMapper addrRegionMapper;
     private final EnterpriseProfileService enterpriseProfileService;
+    private final ObjectMapper objectMapper;
     
     public ComplaintServiceImpl(ComplaintMapper complaintMapper,
                                 ComplaintHandleMapper complaintHandleMapper,
@@ -64,7 +68,8 @@ public class ComplaintServiceImpl implements ComplaintService {
                                 FoodRegulatorMapper foodRegulatorMapper,
                                 FoodRegulatorRegionMapper foodRegulatorRegionMapper,
                                 AddrRegionMapper addrRegionMapper,
-                                EnterpriseProfileService enterpriseProfileService) {
+                                EnterpriseProfileService enterpriseProfileService,
+                                ObjectMapper objectMapper) {
         this.complaintMapper = complaintMapper;
         this.complaintHandleMapper = complaintHandleMapper;
         this.foodEnterpriseMapper = foodEnterpriseMapper;
@@ -72,6 +77,7 @@ public class ComplaintServiceImpl implements ComplaintService {
         this.foodRegulatorRegionMapper = foodRegulatorRegionMapper;
         this.addrRegionMapper = addrRegionMapper;
         this.enterpriseProfileService = enterpriseProfileService;
+        this.objectMapper = objectMapper;
     }
 
     /**
@@ -89,6 +95,7 @@ public class ComplaintServiceImpl implements ComplaintService {
         complaint.setEnterpriseId(enterprise.getId());
         complaint.setComplaintType(trim(dto.getComplaintType()));
         complaint.setContent(dto.getContent().trim());
+        complaint.setImageUrls(serializeImageUrls(dto.getImageUrls()));
         complaint.setStatus(ComplaintStatus.SUBMITTED);
         complaint.setSourceType(TaskSourceType.MANUAL);
         complaint.setCreateTime(LocalDateTime.now());
@@ -423,6 +430,7 @@ public class ComplaintServiceImpl implements ComplaintService {
         vo.setEnterpriseName(enterpriseNames.get(complaint.getEnterpriseId()));
         vo.setComplaintType(complaint.getComplaintType());
         vo.setContent(complaint.getContent());
+        vo.setImageUrls(parseImageUrls(complaint.getImageUrls()));
         vo.setStatus(complaint.getStatus());
         vo.setAssignedTo(complaint.getAssignedTo());
         vo.setAssignedToName(regulatorNames.get(complaint.getAssignedTo()));
@@ -685,6 +693,42 @@ public class ComplaintServiceImpl implements ComplaintService {
      */
     private String trim(String value) {
         return StringUtils.hasText(value) ? value.trim() : null;
+    }
+
+    /**
+     * 中文注释：将图片地址列表序列化为 JSON，便于存库。
+     */
+    private String serializeImageUrls(List<String> imageUrls) {
+        if (imageUrls == null || imageUrls.isEmpty()) {
+            return null;
+        }
+        List<String> normalized = imageUrls.stream()
+            .filter(StringUtils::hasText)
+            .map(String::trim)
+            .limit(MAX_IMAGE_COUNT)
+            .toList();
+        if (normalized.isEmpty()) {
+            return null;
+        }
+        try {
+            return objectMapper.writeValueAsString(normalized);
+        } catch (Exception ex) {
+            return null;
+        }
+    }
+
+    /**
+     * 中文注释：将存库的 JSON 字段还原为前端需要的图片地址列表。
+     */
+    private List<String> parseImageUrls(String value) {
+        if (!StringUtils.hasText(value)) {
+            return List.of();
+        }
+        try {
+            return objectMapper.readValue(value, new TypeReference<List<String>>() {});
+        } catch (Exception ex) {
+            return List.of();
+        }
     }
     /**
      * 是否删除

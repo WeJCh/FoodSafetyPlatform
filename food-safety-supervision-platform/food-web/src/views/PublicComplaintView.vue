@@ -415,7 +415,7 @@ async function uploadFile(item) {
 function formatStatus(value) {
   const map = {
     SUBMITTED: "已提交",
-    PENDING: "待受理",
+    PENDING: "已受理",
     ASSIGNED: "已派发",
     PROCESSING: "处理中",
     FEEDBACKED: "已反馈"

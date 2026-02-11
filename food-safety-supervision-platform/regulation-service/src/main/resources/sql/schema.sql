@@ -151,12 +151,17 @@ CREATE TABLE IF NOT EXISTS complaint (
   enterprise_id BIGINT NOT NULL COMMENT '企业ID',
   complaint_type VARCHAR(50) COMMENT '投诉类型',
   content TEXT NOT NULL COMMENT '投诉内容',
+  image_urls TEXT COMMENT '现场图片URL(JSON)',
   status VARCHAR(20) DEFAULT 'SUBMITTED' COMMENT 'SUBMITTED / PENDING / ASSIGNED / PROCESSING / FEEDBACKED',
   source_type VARCHAR(20) COMMENT 'ROUTINE / COMPLAINT / WARNING / MANUAL',
   source_id BIGINT COMMENT '来源ID',
   assigned_to BIGINT COMMENT '指派处理人',
   assigned_by BIGINT COMMENT '指派人',
   assigned_time DATETIME COMMENT '指派时间',
+  accepted_by BIGINT COMMENT '受理人',
+  accepted_time DATETIME COMMENT '受理时间',
+  processed_by BIGINT COMMENT '处理完成人',
+  processed_time DATETIME COMMENT '处理完成时间',
   create_time DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
   update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
   deleted TINYINT DEFAULT 0 COMMENT '逻辑删除 1-已删 0-未删'
@@ -185,3 +190,7 @@ CREATE TABLE IF NOT EXISTS enterprise_key_reason (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='重点监管原因记录';
 
 ALTER TABLE complaint ADD COLUMN image_urls TEXT NULL COMMENT '现场图片URL(JSON)';
+ALTER TABLE complaint ADD COLUMN accepted_by BIGINT NULL COMMENT '受理人';
+ALTER TABLE complaint ADD COLUMN accepted_time DATETIME NULL COMMENT '受理时间';
+ALTER TABLE complaint ADD COLUMN processed_by BIGINT NULL COMMENT '处理完成人';
+ALTER TABLE complaint ADD COLUMN processed_time DATETIME NULL COMMENT '处理完成时间';

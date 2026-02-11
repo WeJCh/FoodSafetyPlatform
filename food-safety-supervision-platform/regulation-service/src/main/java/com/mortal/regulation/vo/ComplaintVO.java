@@ -40,6 +40,18 @@ public class ComplaintVO {
      */
     private List<String> imageUrls;
     /**
+     * 受理人ID
+     */
+    private Long acceptedBy;
+    /**
+     * 受理人姓名
+     */
+    private String acceptedByName;
+    /**
+     * 受理时间
+     */
+    private LocalDateTime acceptedTime;
+    /**
      * 投诉状态
      */
     private ComplaintStatus status;
@@ -54,6 +66,18 @@ public class ComplaintVO {
      */
     private String assignedByName;
     private LocalDateTime assignedTime;
+    /**
+     * 处理完成人ID
+     */
+    private Long processedBy;
+    /**
+     * 处理完成人姓名
+     */
+    private String processedByName;
+    /**
+     * 处理完成时间
+     */
+    private LocalDateTime processedTime;
     private LocalDateTime createTime;
     private LocalDateTime updateTime;
 }

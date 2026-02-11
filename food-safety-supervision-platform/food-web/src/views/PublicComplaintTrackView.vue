@@ -92,7 +92,7 @@ const status = reactive({ message: "", type: "" });
 
 const steps = [
   { key: "SUBMITTED", label: "已提交" },
-  { key: "PENDING", label: "待受理" },
+  { key: "PENDING", label: "已受理" },
   { key: "ASSIGNED", label: "已派发" },
   { key: "PROCESSING", label: "处理中" },
   { key: "FEEDBACKED", label: "已反馈" }
@@ -111,7 +111,7 @@ function setStatus(message, type = "info") {
 function formatStatus(value) {
   const map = {
     SUBMITTED: "已提交",
-    PENDING: "待受理",
+    PENDING: "已受理",
     ASSIGNED: "已派发",
     PROCESSING: "处理中",
     FEEDBACKED: "已反馈"

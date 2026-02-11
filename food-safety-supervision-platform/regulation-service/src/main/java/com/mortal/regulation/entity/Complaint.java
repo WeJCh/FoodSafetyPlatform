@@ -32,6 +32,10 @@ public class Complaint {
     private Long assignedTo;
     private Long assignedBy;
     private LocalDateTime assignedTime;
+    private Long acceptedBy;
+    private LocalDateTime acceptedTime;
+    private Long processedBy;
+    private LocalDateTime processedTime;
     private LocalDateTime createTime;
     private LocalDateTime updateTime;
     private Integer deleted;

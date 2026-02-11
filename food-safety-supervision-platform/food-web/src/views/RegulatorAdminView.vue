@@ -339,7 +339,7 @@
               <select v-model="complaintFilters.status">
                 <option value="">全部</option>
                 <option value="SUBMITTED">已提交</option>
-                <option value="PENDING">待受理</option>
+                <option value="PENDING">已受理</option>
                 <option value="ASSIGNED">已派发</option>
                 <option value="PROCESSING">处理中</option>
                 <option value="FEEDBACKED">已反馈</option>
@@ -383,7 +383,7 @@
               <span>{{ item.assignedToName || "-" }}</span>
               <span>{{ formatTime(item.updateTime) }}</span>
               <div class="action-buttons">
-                <button class="ghost" type="button" @click="openComplaintDetail(item)">
+                <button class="ghost" type="button" @click="handleViewComplaint(item)">
                   查看详情
                 </button>
                 <button
@@ -421,85 +421,6 @@
             </div>
           </div>
 
-          <div v-if="complaintDetail" class="modal-mask" @click.self="closeComplaintDetail">
-            <div class="modal-card modal-card--wide">
-              <div class="modal-title">投诉详情</div>
-              <div class="modal-body">
-                <div class="modal-field">
-                  <span>投诉号</span>
-                  <strong>{{ complaintDetail.complaint.complaintNo || "-" }}</strong>
-                </div>
-                <div class="modal-field">
-                  <span>状态</span>
-                  <strong>{{ formatComplaintStatus(complaintDetail.complaint.status) }}</strong>
-                </div>
-                <div class="modal-field">
-                  <span>投诉内容</span>
-                  <strong>{{ complaintDetail.complaint.content || "-" }}</strong>
-                </div>
-                <div class="modal-field">
-                  <span>现场图片</span>
-                  <div class="modal-gallery" v-if="complaintDetail.complaint?.imageUrls?.length">
-                    <button
-                      v-for="(url, index) in complaintDetail.complaint.imageUrls"
-                      :key="`${url}-${index}`"
-                      class="modal-image"
-                      type="button"
-                      @click="openImagePreview(complaintDetail.complaint.imageUrls, index)"
-                    >
-                      <img :src="url" alt="现场图片" />
-                    </button>
-                  </div>
-                  <div v-else class="modal-empty">未上传现场图片</div>
-                </div>
-
-                <div class="modal-field">
-                  <span>企业信息</span>
-                  <div class="modal-list">
-                    <div class="modal-item">
-                      <div class="modal-item-name">{{ complaintDetail.enterprise?.enterpriseName || "-" }}</div>
-                      <div class="modal-item-meta">{{ complaintDetail.enterprise?.addressDetail || "-" }}</div>
-                      <div class="modal-item-desc">
-                        负责人：{{ complaintDetail.enterprise?.principal || "-" }}
-                        {{ complaintDetail.enterprise?.principalPhone || "" }}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                <div class="modal-field">
-                  <span>处理记录</span>
-                  <div class="modal-list">
-                    <div v-if="!complaintDetail.handles?.length" class="modal-empty">暂无处理记录</div>
-                    <div v-for="(handle, index) in complaintDetail.handles" :key="index" class="modal-item">
-                      <div class="modal-item-name">{{ handle.handlerName || "-" }}</div>
-                      <div class="modal-item-meta">{{ formatTime(handle.handleTime) }}</div>
-                      <div class="modal-item-desc">{{ handle.handleResult || "-" }}</div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <div v-if="isComplaintAssignable(complaintDetail.complaint)" class="modal-actions modal-actions--stack">
-                <div class="modal-field">
-                  <span>派发执法人员</span>
-                  <select v-model="complaintAssign.regulatorId">
-                    <option value="">请选择</option>
-                    <option v-for="item in complaintEnforcers" :key="item.id" :value="item.id">
-                      {{ item.name }}
-                    </option>
-                  </select>
-                </div>
-                <button class="primary" type="button" :disabled="complaintLoading" @click="handleAssignComplaint">
-                  确认派发
-                </button>
-                <button class="ghost" type="button" @click="closeComplaintDetail">关闭</button>
-              </div>
-              <div v-else class="modal-actions">
-                <button class="ghost" type="button" @click="closeComplaintDetail">关闭</button>
-              </div>
-            </div>
-          </div>
         </div>
 
         <div v-else class="placeholder">
@@ -513,26 +434,6 @@
       </div>
       </div>
     </div>
-    <div v-if="currentImagePreviewUrl" class="image-preview-mask" @click.self="closeImagePreview">
-      <div class="image-preview-card">
-        <img :src="currentImagePreviewUrl" alt="现场图片大图" />
-        <div class="image-preview-actions">
-          <button class="ghost" type="button" :disabled="imagePreviewIndex <= 0" @click="showPrevImage">
-            上一张
-          </button>
-          <span class="image-preview-count">{{ imagePreviewIndex + 1 }}/{{ imagePreviewUrls.length }}</span>
-          <button
-            class="ghost"
-            type="button"
-            :disabled="imagePreviewIndex >= imagePreviewUrls.length - 1"
-            @click="showNextImage"
-          >
-            下一张
-          </button>
-          <button class="ghost" type="button" @click="closeImagePreview">关闭</button>
-        </div>
-      </div>
-    </div>
   </div>
 </template>
 
@@ -542,10 +443,8 @@ import {
   approveEnterprise,
   approveEnterpriseBatch,
   acceptComplaint,
-  assignComplaint,
   assignInspectionTask,
   createInspectionTask,
-  fetchComplaintDetail,
   fetchComplaints,
   fetchEligibleRegulators,
   fetchEnterprises,
@@ -571,7 +470,7 @@ const props = defineProps({
   }
 });
 
-const emit = defineEmits(["logout", "view-enterprise"]);
+const emit = defineEmits(["logout", "view-enterprise", "view-complaint"]);
 
 const section = ref(props.initialSection || "enterprises");
 
@@ -626,16 +525,6 @@ const complaintFilters = reactive({
   assignedToName: "",
   assignedByName: ""
 });
-const complaintDetail = ref(null);
-const complaintAssign = reactive({
-  regulatorId: ""
-});
-const complaintEnforcers = ref([]);
-const imagePreviewUrls = ref([]);
-const imagePreviewIndex = ref(0);
-const currentImagePreviewUrl = computed(
-  () => imagePreviewUrls.value[imagePreviewIndex.value] || ""
-);
 
 function setStatus(message, type = "info") {
   status.message = message;
@@ -666,7 +555,7 @@ const approvalStatusMap = {
 
 const complaintStatusMap = {
   SUBMITTED: "已提交",
-  PENDING: "待受理",
+  PENDING: "已受理",
   ASSIGNED: "已派发",
   PROCESSING: "处理中",
   FEEDBACKED: "已反馈"
@@ -811,48 +700,9 @@ async function changeComplaintPage(nextPage) {
   await loadComplaints();
 }
 
-async function openComplaintDetail(item) {
+function handleViewComplaint(item) {
   if (!item?.id) return;
-  complaintLoading.value = true;
-  setStatus("");
-  try {
-    complaintDetail.value = await fetchComplaintDetail(props.token, item.id);
-    complaintAssign.regulatorId = "";
-    await loadComplaintEnforcers(complaintDetail.value?.enterprise?.regionId);
-  } catch (error) {
-    setStatus(error.message || "加载投诉详情失败", "error");
-  } finally {
-    complaintLoading.value = false;
-  }
-}
-
-function closeComplaintDetail() {
-  complaintDetail.value = null;
-  complaintEnforcers.value = [];
-  complaintAssign.regulatorId = "";
-  imagePreviewUrls.value = [];
-  imagePreviewIndex.value = 0;
-}
-
-function openImagePreview(urls, index) {
-  if (!Array.isArray(urls) || !urls.length) return;
-  imagePreviewUrls.value = urls;
-  imagePreviewIndex.value = Math.min(Math.max(index || 0, 0), urls.length - 1);
-}
-
-function closeImagePreview() {
-  imagePreviewUrls.value = [];
-  imagePreviewIndex.value = 0;
-}
-
-function showPrevImage() {
-  if (imagePreviewIndex.value <= 0) return;
-  imagePreviewIndex.value -= 1;
-}
-
-function showNextImage() {
-  if (imagePreviewIndex.value >= imagePreviewUrls.value.length - 1) return;
-  imagePreviewIndex.value += 1;
+  emit("view-complaint", { id: item.id, fromSection: section.value });
 }
 
 async function handleAcceptComplaint(item) {
@@ -868,45 +718,6 @@ async function handleAcceptComplaint(item) {
   } finally {
     complaintLoading.value = false;
   }
-}
-
-async function handleAssignComplaint() {
-  if (!complaintDetail.value?.complaint?.id) return;
-  if (!complaintAssign.regulatorId) {
-    setStatus("请选择执法人员", "error");
-    return;
-  }
-  complaintLoading.value = true;
-  setStatus("");
-  try {
-    await assignComplaint(props.token, complaintDetail.value.complaint.id, {
-      regulatorId: complaintAssign.regulatorId
-    });
-    setStatus("投诉已派发", "success");
-    await openComplaintDetail(complaintDetail.value.complaint);
-    await loadComplaints();
-  } catch (error) {
-    setStatus(error.message || "投诉派发失败", "error");
-  } finally {
-    complaintLoading.value = false;
-  }
-}
-
-async function loadComplaintEnforcers(regionId) {
-  if (!regionId) {
-    complaintEnforcers.value = [];
-    return;
-  }
-  try {
-    const data = await fetchEligibleRegulators(props.token, regionId);
-    complaintEnforcers.value = Array.isArray(data) ? data : [];
-  } catch {
-    complaintEnforcers.value = [];
-  }
-}
-
-function isComplaintAssignable(complaint) {
-  return ["PENDING", "ASSIGNED"].includes(complaint?.status);
 }
 
 async function handleDispatchSearch() {
@@ -1172,6 +983,10 @@ onMounted(() => {
     handleDispatchEnter();
     return;
   }
+  if (section.value === "complaints") {
+    handleComplaintEnter();
+    return;
+  }
   load();
 });
 </script>
@@ -1364,82 +1179,6 @@ onMounted(() => {
 .complaint-header,
 .complaint-row {
   --row-columns: 1.4fr 1.2fr 0.9fr 0.9fr 0.9fr 1.1fr 1.2fr;
-}
-
-.modal-card--wide {
-  max-width: 760px;
-}
-
-.modal-actions--stack {
-  flex-direction: column;
-  align-items: stretch;
-  gap: 10px;
-}
-
-.modal-gallery {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
-  gap: 10px;
-  margin-top: 6px;
-}
-
-.modal-image {
-  display: block;
-  border-radius: 10px;
-  overflow: hidden;
-  border: 1px solid var(--stroke);
-  background: #f6f9ff;
-  padding: 0;
-  cursor: pointer;
-}
-
-.modal-image img {
-  width: 100%;
-  height: 96px;
-  object-fit: cover;
-  display: block;
-}
-
-.image-preview-mask {
-  position: fixed;
-  inset: 0;
-  background: rgba(15, 23, 42, 0.55);
-  display: grid;
-  place-items: center;
-  z-index: 9999;
-}
-
-.image-preview-card {
-  background: #fff;
-  border-radius: 16px;
-  padding: 16px;
-  max-width: min(900px, 92vw);
-  max-height: 88vh;
-  display: grid;
-  gap: 12px;
-  box-shadow: 0 24px 60px rgba(15, 23, 42, 0.25);
-}
-
-.image-preview-card img {
-  width: 100%;
-  height: auto;
-  max-height: 70vh;
-  object-fit: contain;
-  border-radius: 12px;
-  background: #f6f9ff;
-}
-
-.image-preview-actions {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 10px;
-  flex-wrap: wrap;
-}
-
-.image-preview-count {
-  font-size: 12px;
-  color: var(--muted);
 }
 
 .checkbox-cell {

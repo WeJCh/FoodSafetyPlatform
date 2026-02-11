@@ -42,13 +42,28 @@
     :initial-section="regulatorReturnSection"
     @logout="handleLogout"
     @view-enterprise="handleViewEnterprise"
+    @view-complaint="handleViewComplaint"
+  />
+  <RegulatorAdminComplaintDetailView
+    v-else-if="view === 'regulator-admin-complaint'"
+    :token="regulatorToken"
+    :complaint-id="complaintDetailId"
+    @back="handleBackFromComplaint"
   />
   <RegulatorEnforcerView
     v-else-if="view === 'regulator-enforcer'"
     :regulator-user="regulatorUser"
     :token="regulatorToken"
+    :initial-section="regulatorReturnSection"
     @logout="handleLogout"
     @view-enterprise="handleViewEnterprise"
+    @view-complaint="handleViewComplaint"
+  />
+  <RegulatorEnforcerComplaintDetailView
+    v-else-if="view === 'regulator-enforcer-complaint'"
+    :token="regulatorToken"
+    :complaint-id="complaintDetailId"
+    @back="handleBackFromComplaint"
   />
   <EnterpriseDetailView
     v-else-if="view === 'enterprise-detail'"
@@ -74,7 +89,9 @@ import PublicComplaintTrackView from "./views/PublicComplaintTrackView.vue";
 import PublicComplaintView from "./views/PublicComplaintView.vue";
 import PublicHomeView from "./views/PublicHomeView.vue";
 import RegulatorAdminView from "./views/RegulatorAdminView.vue";
+import RegulatorAdminComplaintDetailView from "./views/RegulatorAdminComplaintDetailView.vue";
 import RegulatorEnforcerView from "./views/RegulatorEnforcerView.vue";
+import RegulatorEnforcerComplaintDetailView from "./views/RegulatorEnforcerComplaintDetailView.vue";
 import { fetchRegulatorProfile } from "./api/regulation";
 import { logout as logoutRequest } from "./api/auth";
 
@@ -89,7 +106,9 @@ const publicTrackParams = reactive({ complaintNo: "", contact: "" });
 const regulatorToken = ref("");
 const regulatorUser = reactive({ username: "", userType: "", roleType: "", roles: [] });
 const enterpriseDetailId = ref("");
+const complaintDetailId = ref("");
 const returnView = ref("");
+const complaintReturnView = ref("");
 const regulatorReturnSection = ref("");
 
 function handleAdminLogin(payload) {
@@ -162,10 +181,27 @@ function handleViewEnterprise(payload) {
   view.value = "enterprise-detail";
 }
 
+function handleViewComplaint(payload) {
+  const resolvedId = typeof payload === "object" ? payload?.id : payload;
+  if (!resolvedId) return;
+  complaintDetailId.value = resolvedId;
+  complaintReturnView.value = view.value;
+  regulatorReturnSection.value = payload?.fromSection || "complaints";
+  view.value = view.value === "regulator-admin"
+    ? "regulator-admin-complaint"
+    : "regulator-enforcer-complaint";
+}
+
 function handleBackFromDetail() {
   view.value = returnView.value || "regulator-admin";
   enterpriseDetailId.value = "";
   returnView.value = "";
+}
+
+function handleBackFromComplaint() {
+  view.value = complaintReturnView.value || "regulator-admin";
+  complaintDetailId.value = "";
+  complaintReturnView.value = "";
 }
 
 async function handleLogout() {
@@ -198,7 +234,9 @@ async function handleLogout() {
   regulatorUser.roleType = "";
   regulatorUser.roles = [];
   enterpriseDetailId.value = "";
+  complaintDetailId.value = "";
   returnView.value = "";
+  complaintReturnView.value = "";
   regulatorReturnSection.value = "";
   view.value = "auth";
 }

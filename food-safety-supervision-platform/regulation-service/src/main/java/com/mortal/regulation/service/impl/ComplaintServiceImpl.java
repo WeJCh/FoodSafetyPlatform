@@ -248,6 +248,9 @@ public class ComplaintServiceImpl implements ComplaintService {
         Complaint complaint = requireComplaint(complaintId);
         // 关键校验：状态流转
         transitionComplaint(complaint, ComplaintStatus.PENDING);
+        // 中文注释：记录受理人和受理时间，便于后续追溯
+        complaint.setAcceptedBy(regulator.getId());
+        complaint.setAcceptedTime(LocalDateTime.now());
         complaint.setUpdateTime(LocalDateTime.now());
         complaintMapper.updateById(complaint);
         return toVOWithNames(complaint);
@@ -341,6 +344,9 @@ public class ComplaintServiceImpl implements ComplaintService {
         handle.setDeleted(0);
         complaintHandleMapper.insert(handle);
         transitionComplaint(complaint, ComplaintStatus.FEEDBACKED);
+        // 中文注释：记录处理完成信息，避免仅从处理记录反推
+        complaint.setProcessedBy(regulator.getId());
+        complaint.setProcessedTime(LocalDateTime.now());
         complaint.setUpdateTime(LocalDateTime.now());
         complaintMapper.updateById(complaint);
         return toVOWithNames(complaint);
@@ -431,12 +437,18 @@ public class ComplaintServiceImpl implements ComplaintService {
         vo.setComplaintType(complaint.getComplaintType());
         vo.setContent(complaint.getContent());
         vo.setImageUrls(parseImageUrls(complaint.getImageUrls()));
+        vo.setAcceptedBy(complaint.getAcceptedBy());
+        vo.setAcceptedByName(regulatorNames.get(complaint.getAcceptedBy()));
+        vo.setAcceptedTime(complaint.getAcceptedTime());
         vo.setStatus(complaint.getStatus());
         vo.setAssignedTo(complaint.getAssignedTo());
         vo.setAssignedToName(regulatorNames.get(complaint.getAssignedTo()));
         vo.setAssignedBy(complaint.getAssignedBy());
         vo.setAssignedByName(regulatorNames.get(complaint.getAssignedBy()));
         vo.setAssignedTime(complaint.getAssignedTime());
+        vo.setProcessedBy(complaint.getProcessedBy());
+        vo.setProcessedByName(regulatorNames.get(complaint.getProcessedBy()));
+        vo.setProcessedTime(complaint.getProcessedTime());
         vo.setCreateTime(complaint.getCreateTime());
         vo.setUpdateTime(complaint.getUpdateTime());
         return vo;
@@ -668,6 +680,12 @@ public class ComplaintServiceImpl implements ComplaintService {
             }
             if (complaint.getAssignedBy() != null) {
                 regulatorIds.add(complaint.getAssignedBy());
+            }
+            if (complaint.getAcceptedBy() != null) {
+                regulatorIds.add(complaint.getAcceptedBy());
+            }
+            if (complaint.getProcessedBy() != null) {
+                regulatorIds.add(complaint.getProcessedBy());
             }
         }
         if (regulatorIds.isEmpty()) {

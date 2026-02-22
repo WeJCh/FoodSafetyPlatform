@@ -24,7 +24,7 @@
         <p>面向社会公众的一站式食品安全服务入口，确保投诉可追踪、信息可查证、处理可反馈。</p>
         <div class="hero-actions">
           <button class="primary" type="button" @click="$emit('open-complaint')">我要投诉</button>
-          <button class="ghost" type="button" @click="$emit('open-track')">投诉进度查询</button>
+          <button class="ghost" type="button" @click="$emit('open-track')">我的投诉</button>
         </div>
         <div class="hero-tips">
           <div>
@@ -46,7 +46,7 @@
           <h3>投诉流程</h3>
           <ol>
             <li>填写投诉信息并提交</li>
-            <li>保存投诉编号</li>
+            <li>提交后在“我的投诉”查看进度</li>
             <li>随时查询处理进度</li>
           </ol>
           <button class="primary" type="button" @click="$emit('open-complaint')">立即提交</button>

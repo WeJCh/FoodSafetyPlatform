@@ -41,8 +41,6 @@ public class JwtAuthFilter implements GlobalFilter, Ordered {
         "/api/users/register",
         "/api/users/register/public",
         "/api/users/register/enterprise",
-        "/api/regulation/complaints/public",
-        "/api/regulation/complaints/track",
         "/api/health",
         "/actuator/health"
     );
@@ -51,15 +49,15 @@ public class JwtAuthFilter implements GlobalFilter, Ordered {
         RoleRule.of("/api/admin/", "ADMIN"),
         RoleRule.of("/api/files/", "PUBLIC"),
         RoleRule.of("/api/regulation/public/", "PUBLIC"),
-        // 关键注释：企业备案/查看属于企业用户能力，需要在网关放行 ENTERPRISE
+        RoleRule.of("/api/regulation/complaints/public", "PUBLIC"),
+        RoleRule.of("/api/regulation/complaints/my", "PUBLIC"),
+        // 关键注释：企业备案查看属于企业用户能力，需要在网关放行 ENTERPRISE
         RoleRule.of("/api/regulation/enterprise/", "ENTERPRISE", "REGULATOR_ADMIN", "REGULATOR_ENFORCER"),
         // 关键注释：行政区联动查询需对企业用户开放，用于备案表单的省市区街道选择
         RoleRule.of("/api/regulation/regions", "ENTERPRISE", "REGULATOR_ADMIN", "REGULATOR_ENFORCER"),
         RoleRule.of("/api/regulation/", "REGULATOR_ADMIN", "REGULATOR_ENFORCER"),
         RoleRule.of("/api/query/", "ADMIN", "REGULATOR_ADMIN", "REGULATOR_ENFORCER"),
-        RoleRule.of("/api/warning/", "ADMIN", "REGULATOR_ADMIN", "REGULATOR_ENFORCER"),
-        RoleRule.of("/api/regulation/complaints/public", "PUBLIC"),
-        RoleRule.of("/api/regulation/complaints/track", "PUBLIC")
+        RoleRule.of("/api/warning/", "ADMIN", "REGULATOR_ADMIN", "REGULATOR_ENFORCER")
     );
 
     private final WebClient webClient;
@@ -89,6 +87,12 @@ public class JwtAuthFilter implements GlobalFilter, Ordered {
         this.introspectTimeoutMs = introspectTimeoutMs;
     }
 
+    /**
+     * 过滤
+     * @param exchange 交换机
+     * @param chain 链
+     * @return 空
+     */
     @Override
     public Mono<Void> filter(ServerWebExchange exchange, GatewayFilterChain chain) {
         String path = exchange.getRequest().getURI().getPath();
@@ -118,12 +122,10 @@ public class JwtAuthFilter implements GlobalFilter, Ordered {
                     return unauthorized(exchange);
                 }
 
-                // 关键注释：根据用户类型和角色判断是否允许访问
                 if (!isAllowedByRole(path, identity.getRoles(), identity.getUserType())) {
                     return forbidden(exchange);
                 }
 
-                // 关键注释：在网关日志中记录当前用户角色，便于排查权限问题
                 log.info("Gateway auth pass. path={}, userId={}, roles={}",
                     path,
                     identity.getUserId(),
@@ -150,14 +152,29 @@ public class JwtAuthFilter implements GlobalFilter, Ordered {
         return -100;
     }
 
+    /**
+     * 是否预检
+     * @param exchange 交换机
+     * @return 是否预检
+     */
     private boolean isPreflight(ServerWebExchange exchange) {
         return HttpMethod.OPTIONS.equals(exchange.getRequest().getMethod());
     }
 
+    /**
+     * 是否白名单
+     * @param path 路径
+     * @return 是否白名单
+     */
     private boolean isWhitelisted(String path) {
         return WHITELIST.stream().anyMatch(path::startsWith);
     }
 
+    /**
+     * 提取令牌
+     * @param headers 头
+     * @return 令牌
+     */
     private String extractToken(HttpHeaders headers) {
         String header = headers.getFirst(HttpHeaders.AUTHORIZATION);
         if (!StringUtils.hasText(header)) {
@@ -169,6 +186,11 @@ public class JwtAuthFilter implements GlobalFilter, Ordered {
         return header;
     }
 
+    /**
+     * 是否有效签名
+     * @param token 令牌
+     * @return 是否有效
+     */
     private boolean isValidSignature(String token) {
         if (!StringUtils.hasText(token) || !StringUtils.hasText(secret)) {
             return false;
@@ -185,6 +207,11 @@ public class JwtAuthFilter implements GlobalFilter, Ordered {
         }
     }
 
+    /**
+     *  introspect
+     * @param token 令牌
+     * @return 身份
+     */
     private Mono<AuthIntrospectVO> introspect(String token) {
         return webClient.post()
             .uri("http://user-service/api/auth/introspect")
@@ -202,6 +229,11 @@ public class JwtAuthFilter implements GlobalFilter, Ordered {
             });
     }
 
+    /**
+     * 是否激活身份
+     * @param identity 身份
+     * @return 是否激活
+     */
     private boolean isActiveIdentity(AuthIntrospectVO identity) {
         if (identity == null || !identity.isValid() || identity.getUserId() == null) {
             return false;
@@ -211,6 +243,11 @@ public class JwtAuthFilter implements GlobalFilter, Ordered {
         return enabled && notDeleted;
     }
 
+    /**
+     * 拼接角色
+     * @param roles 角色
+     * @return 拼接后的角色
+     */
     private String joinRoles(List<String> roles) {
         if (roles == null || roles.isEmpty()) {
             return "";
@@ -220,13 +257,22 @@ public class JwtAuthFilter implements GlobalFilter, Ordered {
             .collect(Collectors.joining(","));
     }
 
+    /**
+     * 默认字符串
+     * @param value 值
+     * @return 默认字符串
+     */
     private String defaultString(String value) {
         return StringUtils.hasText(value) ? value : "";
     }
 
+    /**
+     * 未授权
+     * @param exchange 交换机
+     * @return 未授权
+     */
     private Mono<Void> unauthorized(ServerWebExchange exchange) {
-        // 关键注释：统一网关错误返回结构，便于前端统一处理与日志追踪
-        return responseUtil.writeJson(
+            return responseUtil.writeJson(
             exchange,
             HttpStatus.UNAUTHORIZED,
             401,
@@ -235,6 +281,13 @@ public class JwtAuthFilter implements GlobalFilter, Ordered {
         );
     }
 
+    /**
+     * 是否允许访问
+     * @param path 路径
+     * @param roles 用户角色
+     * @param userType 用户类型
+     * @return 是否允许访问
+     */
     private boolean isAllowedByRole(String path, List<String> roles, String userType) {
         List<String> effectiveRoles = enrichRoles(roles, userType);
         for (RoleRule rule : ROLE_RULES) {
@@ -246,10 +299,10 @@ public class JwtAuthFilter implements GlobalFilter, Ordered {
     }
 
     /**
-     * 关键注释：根据用户类型和角色判断是否允许访问
+     * 补充角色
      * @param roles 用户角色
      * @param userType 用户类型
-     * @return 增强后的角色列表
+     * @return 补充后的角色
      */
     private List<String> enrichRoles(List<String> roles, String userType) {
         List<String> result = new ArrayList<>();
@@ -261,9 +314,12 @@ public class JwtAuthFilter implements GlobalFilter, Ordered {
         }
         return result;
     }
-
+    /**
+     * 禁止访问
+     * @param exchange 交换机
+     * @return 禁止访问
+     */
     private Mono<Void> forbidden(ServerWebExchange exchange) {
-        // 关键注释：无权限访问时返回统一结构，避免前端解析分支
         return responseUtil.writeJson(
             exchange,
             HttpStatus.FORBIDDEN,
@@ -273,17 +329,32 @@ public class JwtAuthFilter implements GlobalFilter, Ordered {
         );
     }
 
+    /**
+     * 获取追踪ID
+     * @param exchange 交换机
+     * @return 追踪ID
+     */
     private String getTraceId(ServerWebExchange exchange) {
         String traceId = exchange.getRequest().getHeaders().getFirst(TraceIdFilter.TRACE_ID_HEADER);
         return traceId == null ? "" : traceId;
     }
 
+    /**
+     * 角色规则
+     * @param pathPrefix 路径前缀
+     * @param roles 角色
+     */
     private record RoleRule(String pathPrefix, List<String> roles) {
 
         static RoleRule of(String pathPrefix, String... roles) {
             return new RoleRule(pathPrefix, List.of(roles));
         }
 
+        /**
+         * 匹配角色
+         * @param userRoles 用户角色
+         * @return 是否匹配
+         */
         boolean matches(List<String> userRoles) {
             if (userRoles == null || userRoles.isEmpty()) {
                 return false;

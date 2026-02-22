@@ -8,11 +8,12 @@ import java.util.Map;
 public final class StatusTransitionValidator {
 
     private static final Map<ComplaintStatus, EnumSet<ComplaintStatus>> COMPLAINT_FLOW = Map.of(
-        ComplaintStatus.SUBMITTED, EnumSet.of(ComplaintStatus.PENDING),
-        ComplaintStatus.PENDING, EnumSet.of(ComplaintStatus.ASSIGNED),
-        ComplaintStatus.ASSIGNED, EnumSet.of(ComplaintStatus.ASSIGNED, ComplaintStatus.PROCESSING),
-        ComplaintStatus.PROCESSING, EnumSet.of(ComplaintStatus.FEEDBACKED),
-        ComplaintStatus.FEEDBACKED, EnumSet.noneOf(ComplaintStatus.class)
+        ComplaintStatus.SUBMITTED, EnumSet.of(ComplaintStatus.PENDING, ComplaintStatus.REJECTED),
+        ComplaintStatus.PENDING, EnumSet.of(ComplaintStatus.ASSIGNED, ComplaintStatus.REJECTED),
+        ComplaintStatus.ASSIGNED, EnumSet.of(ComplaintStatus.ASSIGNED, ComplaintStatus.PROCESSING, ComplaintStatus.REJECTED),
+        ComplaintStatus.PROCESSING, EnumSet.of(ComplaintStatus.FEEDBACKED, ComplaintStatus.ASSIGNED),
+        ComplaintStatus.FEEDBACKED, EnumSet.noneOf(ComplaintStatus.class),
+        ComplaintStatus.REJECTED, EnumSet.noneOf(ComplaintStatus.class)
     );
 
     private static final Map<RectificationStatus, EnumSet<RectificationStatus>> RECTIFICATION_FLOW = Map.of(

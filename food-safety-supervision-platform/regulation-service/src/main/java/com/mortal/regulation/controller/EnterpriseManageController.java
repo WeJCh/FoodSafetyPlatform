@@ -12,6 +12,9 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+/**
+ * 企业管理控制器
+ */
 @RestController
 @RequestMapping("/api/regulation/enterprises")
 public class EnterpriseManageController {
@@ -25,6 +28,16 @@ public class EnterpriseManageController {
         this.jwtUserResolver = jwtUserResolver;
     }
 
+    /**
+     * 获取企业列表
+     * @param token 令牌
+     * @param enterpriseName 企业名称
+     * @param status 企业状态
+     * @param approvalStatus 审核状态
+     * @param page 页码
+     * @param size 每页大小
+     * @return 企业列表
+     */
     @GetMapping
     public ApiResponse<PageResult<EnterpriseProfileVO>> list(@RequestHeader("Authorization") String token,
                                                              @RequestParam(required = false) String enterpriseName,
@@ -44,6 +57,12 @@ public class EnterpriseManageController {
         );
     }
 
+    /**
+     * 获取企业详情
+     * @param token 令牌
+     * @param id 企业ID
+     * @return 企业详情
+     */
     @GetMapping("/{id}")
     public ApiResponse<EnterpriseProfileVO> detail(@RequestHeader("Authorization") String token,
                                                    @PathVariable Long id) {
@@ -58,6 +77,11 @@ public class EnterpriseManageController {
         return ApiResponse.success(enterprise);
     }
 
+    /**
+     * 获取当前企业信息
+     * @param token 令牌
+     * @return 企业信息
+     */
     @GetMapping("/me")
     public ApiResponse<EnterpriseProfileVO> me(@RequestHeader("Authorization") String token) {
         UserIdentity identity = resolveIdentity(token);
@@ -71,6 +95,11 @@ public class EnterpriseManageController {
         return ApiResponse.success(enterprise);
     }
 
+    /**
+     * 解析用户身份
+     * @param token 令牌
+     * @return 用户身份
+     */
     private UserIdentity resolveIdentity(String token) {
         Long userId = jwtUserResolver.resolveUserId(token);
         String userType = jwtUserResolver.resolveUserType(token);

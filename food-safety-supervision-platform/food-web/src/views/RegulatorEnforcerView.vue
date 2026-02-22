@@ -263,6 +263,15 @@
                 <span>{{ formatTime(item.updateTime) }}</span>
                 <div class="action-buttons">
                   <button class="ghost" type="button" @click="handleViewComplaint(item)">查看详情</button>
+                  <button
+                    v-if="item.status === 'ASSIGNED'"
+                    class="primary"
+                    type="button"
+                    :disabled="complaintLoading"
+                    @click="handleStartComplaint(item)"
+                  >
+                    开始处理
+                  </button>
                 </div>
               </div>
             </div>
@@ -298,6 +307,7 @@ import {
   fetchMyInspectionRecords,
   fetchMyInspectionTasks,
   startInspectionTask,
+  startComplaintProcess,
   submitInspectionTask
 } from "../api/regulation";
 
@@ -372,7 +382,14 @@ const approvalStatusMap = { PENDING: "待审核", APPROVED: "已通过", REJECTE
 const taskStatusMap = { CREATED: "待派发", ASSIGNED: "待执行", IN_PROGRESS: "执行中", COMPLETED: "已完成", CLOSED: "已关闭" };
 const taskPriorityMap = { LOW: "低", MEDIUM: "中", HIGH: "高" };
 const inspectionResultMap = { PASS: "合格", FAIL: "不合格" };
-const complaintStatusMap = { SUBMITTED: "已提交", PENDING: "已受理", ASSIGNED: "已派发", PROCESSING: "处理中", FEEDBACKED: "已反馈" };
+const complaintStatusMap = {
+  SUBMITTED: "已提交",
+  PENDING: "已受理",
+  ASSIGNED: "已派发",
+  PROCESSING: "处理中",
+  FEEDBACKED: "已反馈",
+  REJECTED: "已驳回"
+};
 
 function formatStatus(value) { return statusMap[value] || value || "-"; }
 function formatApprovalStatus(value) { return approvalStatusMap[value] || value || "-"; }
@@ -454,6 +471,21 @@ async function loadComplaints() {
 
 async function handleComplaintSearch() { complaintPage.value = 1; await loadComplaints(); }
 async function changeComplaintPage(nextPage) { complaintPage.value = nextPage; await loadComplaints(); }
+
+async function handleStartComplaint(item) {
+  if (!item?.id) return;
+  complaintLoading.value = true;
+  setStatus("", "info");
+  try {
+    await startComplaintProcess(props.token, item.id);
+    setStatus("已开始处理投诉", "success");
+    await loadComplaints();
+  } catch (error) {
+    setStatus(error.message || "开始处理失败", "error");
+  } finally {
+    complaintLoading.value = false;
+  }
+}
 
 function handleViewComplaint(item) {
   if (!item?.id) return;
@@ -558,6 +590,8 @@ onMounted(() => {
 .task-header, .task-row { --row-columns: 1.2fr 1.6fr 0.8fr 0.9fr 1fr 1.2fr; }
 .inspection-header, .inspection-row { --row-columns: 1.6fr 1fr 0.8fr 1.2fr 0.8fr; }
 .complaint-header, .complaint-row { --row-columns: 1.4fr 1.4fr 0.9fr 0.9fr 1.1fr 1.2fr; }
+.action-buttons { display: flex; align-items: center; gap: 8px; }
+.action-buttons button { height: 32px; padding: 0 14px; min-width: 88px; white-space: nowrap; }
 .section-subtitle { font-weight: 600; margin-bottom: 8px; }
 .task-meta { display: flex; gap: 12px; flex-wrap: wrap; font-size: 12px; color: var(--muted); margin-bottom: 12px; }
 .task-form { display: grid; gap: 12px; }

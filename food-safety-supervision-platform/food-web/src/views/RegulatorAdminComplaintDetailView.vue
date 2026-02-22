@@ -140,6 +140,15 @@
                   </button>
                 </div>
                 <div v-else class="status info">当前状态不可派发</div>
+                <div v-if="canReject" class="dispatch-actions">
+                  <label>
+                    驳回原因
+                    <textarea v-model.trim="rejectForm.reason" rows="3" placeholder="请输入驳回原因"></textarea>
+                  </label>
+                  <button class="ghost" type="button" :disabled="loadingAction" @click="handleReject">
+                    驳回投诉
+                  </button>
+                </div>
               </div>
             </div>
           </div>
@@ -180,7 +189,8 @@ import {
   acceptComplaint,
   assignComplaint,
   fetchComplaintDetail,
-  fetchEligibleRegulators
+  fetchEligibleRegulators,
+  rejectComplaint
 } from "../api/regulation";
 
 const props = defineProps({
@@ -202,6 +212,7 @@ const detail = ref(null);
 const status = reactive({ message: "", type: "" });
 const enforcers = ref([]);
 const assignForm = reactive({ regulatorId: "" });
+const rejectForm = reactive({ reason: "" });
 const contentExpanded = ref(false);
 const imagePreviewUrls = ref([]);
 const imagePreviewIndex = ref(0);
@@ -225,14 +236,16 @@ const shouldClampComplaintContent = computed(() => {
 });
 
 const canAccept = computed(() => complaint.value?.status === "SUBMITTED");
-const canAssign = computed(() => ["PENDING", "ASSIGNED"].includes(complaint.value?.status || ""));
+const canAssign = computed(() => ["PENDING", "ASSIGNED", "PROCESSING"].includes(complaint.value?.status || ""));
+const canReject = computed(() => ["SUBMITTED", "PENDING"].includes(complaint.value?.status || ""));
 
 const complaintStatusMap = {
   SUBMITTED: "已提交",
   PENDING: "已受理",
   ASSIGNED: "已派发",
   PROCESSING: "处理中",
-  FEEDBACKED: "已反馈"
+  FEEDBACKED: "已反馈",
+  REJECTED: "已驳回"
 };
 
 async function loadDetail() {
@@ -245,6 +258,7 @@ async function loadDetail() {
   try {
     detail.value = await fetchComplaintDetail(props.token, props.complaintId);
     assignForm.regulatorId = "";
+    rejectForm.reason = "";
     contentExpanded.value = false;
     await loadEnforcers(detail.value?.enterprise?.regionId);
   } catch (error) {
@@ -296,6 +310,25 @@ async function handleAssign() {
     await loadDetail();
   } catch (error) {
     setStatus(error.message || "派发失败", "error");
+  } finally {
+    loadingAction.value = false;
+  }
+}
+
+async function handleReject() {
+  if (!complaint.value?.id) return;
+  if (!rejectForm.reason.trim()) {
+    setStatus("请填写驳回原因", "error");
+    return;
+  }
+  loadingAction.value = true;
+  setStatus("");
+  try {
+    await rejectComplaint(props.token, complaint.value.id, { reason: rejectForm.reason });
+    setStatus("投诉已驳回", "success");
+    await loadDetail();
+  } catch (error) {
+    setStatus(error.message || "驳回失败", "error");
   } finally {
     loadingAction.value = false;
   }

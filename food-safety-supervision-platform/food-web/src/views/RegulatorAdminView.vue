@@ -343,6 +343,7 @@
                 <option value="ASSIGNED">已派发</option>
                 <option value="PROCESSING">处理中</option>
                 <option value="FEEDBACKED">已反馈</option>
+                <option value="REJECTED">已驳回</option>
               </select>
             </label>
             <label>
@@ -558,7 +559,8 @@ const complaintStatusMap = {
   PENDING: "已受理",
   ASSIGNED: "已派发",
   PROCESSING: "处理中",
-  FEEDBACKED: "已反馈"
+  FEEDBACKED: "已反馈",
+  REJECTED: "已驳回"
 };
 
 const taskStatusMap = {

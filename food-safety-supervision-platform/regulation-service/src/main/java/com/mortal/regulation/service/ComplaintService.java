@@ -4,6 +4,7 @@ import com.mortal.regulation.common.PageResult;
 import com.mortal.regulation.dto.ComplaintAssignDTO;
 import com.mortal.regulation.dto.ComplaintHandleDTO;
 import com.mortal.regulation.dto.ComplaintSubmitDTO;
+import com.mortal.regulation.dto.ComplaintRejectDTO;
 import com.mortal.regulation.vo.ComplaintDetailVO;
 import com.mortal.regulation.vo.ComplaintTrackVO;
 import com.mortal.regulation.vo.ComplaintVO;
@@ -14,15 +15,8 @@ public interface ComplaintService {
      * @param dto 投诉提交DTO
      * @return 投诉跟踪VO
      */
-    ComplaintTrackVO submitPublic(ComplaintSubmitDTO dto);
+    ComplaintTrackVO submitPublic(Long submitterUserId, ComplaintSubmitDTO dto);
 
-    /**
-     * 跟踪投诉
-     * @param complaintNo 投诉编号
-     * @param contact 联系方式
-     * @return 投诉跟踪VO
-     */
-    ComplaintTrackVO track(String complaintNo, String contact);
 
     /**
      * 查询投诉列表
@@ -42,6 +36,16 @@ public interface ComplaintService {
                                  String assignedByName,
                                  int page,
                                  int size);
+
+    /**
+     * 查询当前公众用户的投诉列表
+     * @param submitterUserId 提交用户ID
+     * @param status 状态
+     * @param page 页码
+     * @param size 每页条数
+     * @return 投诉列表
+     */
+    PageResult<ComplaintVO> listMyPublic(Long submitterUserId, String status, int page, int size);
 
     ComplaintDetailVO getDetail(Long operatorUserId, Long complaintId);
 
@@ -78,4 +82,13 @@ public interface ComplaintService {
      * @return 投诉VO
      */
     ComplaintVO handle(Long operatorUserId, Long complaintId, ComplaintHandleDTO dto);
+
+    /**
+     * 驳回投诉
+     * @param operatorUserId 操作员用户ID
+     * @param complaintId 投诉ID
+     * @param dto 驳回原因
+     * @return 投诉VO
+     */
+    ComplaintVO reject(Long operatorUserId, Long complaintId, ComplaintRejectDTO dto);
 }

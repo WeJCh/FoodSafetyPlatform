@@ -21,6 +21,7 @@ public class Complaint {
     private String complaintNo;
     private String complainantName;
     private String contact;
+    private Long submitterUserId;
     private Long enterpriseId;
     private String complaintType;
     private String content;
@@ -36,6 +37,8 @@ public class Complaint {
     private LocalDateTime acceptedTime;
     private Long processedBy;
     private LocalDateTime processedTime;
+    private Long rejectedBy;
+    private LocalDateTime rejectedTime;
     private LocalDateTime createTime;
     private LocalDateTime updateTime;
     private Integer deleted;

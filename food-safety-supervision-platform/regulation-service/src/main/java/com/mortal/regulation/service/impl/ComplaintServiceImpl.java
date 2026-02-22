@@ -10,6 +10,7 @@ import com.mortal.regulation.common.enums.TaskSourceType;
 import com.mortal.regulation.dto.ComplaintAssignDTO;
 import com.mortal.regulation.dto.ComplaintHandleDTO;
 import com.mortal.regulation.dto.ComplaintSubmitDTO;
+import com.mortal.regulation.dto.ComplaintRejectDTO;
 import com.mortal.regulation.entity.AddrRegion;
 import com.mortal.regulation.entity.Complaint;
 import com.mortal.regulation.entity.ComplaintHandle;
@@ -43,9 +44,6 @@ import java.util.stream.Collectors;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
-/**
- * 投诉服务实现
- */
 @Service
 public class ComplaintServiceImpl implements ComplaintService {
 
@@ -80,18 +78,14 @@ public class ComplaintServiceImpl implements ComplaintService {
         this.objectMapper = objectMapper;
     }
 
-    /**
-     * 提交投诉
-     * @param dto 投诉提交DTO
-     * @return 投诉跟踪VO
-     */
     @Override
-    public ComplaintTrackVO submitPublic(ComplaintSubmitDTO dto) {
+    public ComplaintTrackVO submitPublic(Long submitterUserId, ComplaintSubmitDTO dto) {
         FoodEnterprise enterprise = requireEnterprise(dto.getEnterpriseId());
         Complaint complaint = new Complaint();
         complaint.setComplaintNo(generateComplaintNo());
         complaint.setComplainantName(trim(dto.getComplainantName()));
         complaint.setContact(trim(dto.getContact()));
+        complaint.setSubmitterUserId(submitterUserId);
         complaint.setEnterpriseId(enterprise.getId());
         complaint.setComplaintType(trim(dto.getComplaintType()));
         complaint.setContent(dto.getContent().trim());
@@ -106,31 +100,36 @@ public class ComplaintServiceImpl implements ComplaintService {
     }
 
     /**
-     * 跟踪投诉
-     * @param complaintNo 投诉编号
-     * @param contact 联系方式
-     * @return 投诉跟踪VO
+     * 闂佽崵濮惧▍锝夊窗閺囥垺鐓傛繝濠傜墕缁狀噣鏌￠崶椋庣？婵?
+     * @param complaintNo 闂備胶顢婇崺鏍哄┑瀣剨闁哄啫鍊荤壕浠嬫煛瀹擃喖鍟埢?
+     * @param contact 闂備浇澹堟ご绋款潖婵犳碍鐒鹃柟缁㈠枛濡﹢鏌ｉ悢绋款棆缁绢厸鍋?
+     * @return 闂備胶顢婇崺鏍哄┑瀣剨闁哄啫鍊瑰畷澶愭煟閺傛鐓奸柛銈呯崏O
      */
     @Override
-    public ComplaintTrackVO track(String complaintNo, String contact) {
-        // 关键校验：投诉编号不能为空
-        if (!StringUtils.hasText(complaintNo)) {
-            throw new IllegalArgumentException("complaintNo required");
+    public PageResult<ComplaintVO> listMyPublic(Long submitterUserId, String status, int page, int size) {
+        if (submitterUserId == null) {
+            throw new IllegalArgumentException("unauthorized");
         }
-        // 关键校验：查询投诉
-        Complaint complaint = complaintMapper.selectOne(new LambdaQueryWrapper<Complaint>()
-            .eq(Complaint::getComplaintNo, complaintNo.trim())
-            .eq(Complaint::getDeleted, 0));
-        // 关键校验：投诉不存在
-        if (complaint == null) {
-            throw new IllegalArgumentException("complaint not found");
+        LambdaQueryWrapper<Complaint> wrapper = new LambdaQueryWrapper<Complaint>()
+            .eq(Complaint::getDeleted, 0)
+            .eq(Complaint::getSubmitterUserId, submitterUserId);
+        if (StringUtils.hasText(status)) {
+            wrapper.eq(Complaint::getStatus, normalize(status));
         }
-        // 关键校验：匿名查询仅允许通过联系方式进行核验
-        if (StringUtils.hasText(complaint.getContact())
-            && !Objects.equals(normalize(contact), normalize(complaint.getContact()))) {
-            throw new IllegalArgumentException("complaint not found");
-        }
-        return toTrackVO(complaint);
+        wrapper.orderByDesc(Complaint::getUpdateTime);
+        Page<Complaint> pageInfo = complaintMapper.selectPage(new Page<>(page, size), wrapper);
+        List<Complaint> complaints = pageInfo.getRecords();
+        Map<Long, String> enterpriseNames = loadEnterpriseNames(complaints);
+        Map<Long, String> regulatorNames = loadRegulatorNames(complaints);
+        Map<Long, String> handleResults = loadHandleResults(complaints);
+        List<ComplaintVO> records = complaints.stream()
+            .map(complaint -> {
+                ComplaintVO vo = toVO(complaint, enterpriseNames, regulatorNames);
+                vo.setHandleResult(handleResults.get(complaint.getId()));
+                return vo;
+            })
+            .toList();
+        return PageResult.of(records, pageInfo.getTotal(), page, size);
     }
     
     /**
@@ -143,7 +142,7 @@ public class ComplaintServiceImpl implements ComplaintService {
      * @param page 页码
      * @param size 每页条数
      * @return 投诉列表
-     */
+     */ 
     @Override
     public PageResult<ComplaintVO> list(Long operatorUserId,
                                         String status,
@@ -153,20 +152,20 @@ public class ComplaintServiceImpl implements ComplaintService {
                                         int page,
                                         int size) {
         FoodRegulator regulator = requireRegulator(operatorUserId);
-        // 关键校验：查询条件
+        // 过滤已删除的投诉
         LambdaQueryWrapper<Complaint> wrapper = new LambdaQueryWrapper<Complaint>()
             .eq(Complaint::getDeleted, 0);
-        // 关键校验：状态
+        // 过滤状态
         if (StringUtils.hasText(status)) {
             wrapper.eq(Complaint::getStatus, normalize(status));
         }
-        // 关键校验：执法人员仅能查看分配给自己的投诉
+        // 过滤监管员角色
         if (ROLE_ENFORCER.equalsIgnoreCase(regulator.getRoleType())) {
             wrapper.eq(Complaint::getAssignedTo, regulator.getId());
         }
-        // 关键校验：企业名称
+            // 过滤企业名称
         List<Long> enterpriseIds = resolveEnterpriseIdsByName(enterpriseName);
-        // 关键校验：只能访问辖区内企业投诉
+        // 过滤监管员管辖的企业ID
         List<Long> scopeEnterpriseIds = resolveEnterpriseIdsByRegion(regulator);
         if (scopeEnterpriseIds.isEmpty()) {
             return PageResult.of(List.of(), 0, page, size);
@@ -182,7 +181,7 @@ public class ComplaintServiceImpl implements ComplaintService {
         if (enterpriseIds != null) {
             wrapper.in(Complaint::getEnterpriseId, enterpriseIds);
         }
-        // 关键校验：被指派去处理投诉的执行人姓名
+        // 过滤被指派去处理投诉的执行人ID
         List<Long> assignedToIds = resolveRegulatorIdsByName(assignedToName);
         if (StringUtils.hasText(assignedToName) && assignedToIds.isEmpty()) {
             return PageResult.of(List.of(), 0, page, size);
@@ -190,7 +189,7 @@ public class ComplaintServiceImpl implements ComplaintService {
         if (assignedToIds != null) {
             wrapper.in(Complaint::getAssignedTo, assignedToIds);
         }
-        // 关键校验：指派监管员名称
+        // 过滤指派监管员ID
         List<Long> assignedByIds = resolveRegulatorIdsByName(assignedByName);
         if (StringUtils.hasText(assignedByName) && assignedByIds.isEmpty()) {
             return PageResult.of(List.of(), 0, page, size);
@@ -198,17 +197,22 @@ public class ComplaintServiceImpl implements ComplaintService {
         if (assignedByIds != null) {
             wrapper.in(Complaint::getAssignedBy, assignedByIds);
         }
-        // 关键校验：排序
+        // 排序
         wrapper.orderByDesc(Complaint::getUpdateTime);
         Page<Complaint> pageInfo = complaintMapper.selectPage(new Page<>(page, size), wrapper);
-        // 关键校验：转换为VO
+        // 获取投诉列表
         List<Complaint> complaints = pageInfo.getRecords();
         Map<Long, String> enterpriseNames = loadEnterpriseNames(complaints);
         Map<Long, String> regulatorNames = loadRegulatorNames(complaints);
+        Map<Long, String> handleResults = loadHandleResults(complaints);
         List<ComplaintVO> records = complaints.stream()
-            .map(complaint -> toVO(complaint, enterpriseNames, regulatorNames))
+            .map(complaint -> {
+                ComplaintVO vo = toVO(complaint, enterpriseNames, regulatorNames);
+                vo.setHandleResult(handleResults.get(complaint.getId()));
+                return vo;
+            })
             .toList();
-        // 关键校验：返回结果
+            // 返回分页结果
         return PageResult.of(records, pageInfo.getTotal(), page, size);
     }
     /**
@@ -221,11 +225,11 @@ public class ComplaintServiceImpl implements ComplaintService {
     public ComplaintDetailVO getDetail(Long operatorUserId, Long complaintId) {
         FoodRegulator regulator = requireRegulator(operatorUserId);
         Complaint complaint = requireComplaint(complaintId);
-        // 关键校验：只能访问辖区内企业投诉
+        // 验证投诉是否在监管员管辖区域内
         if (!isComplaintInRegion(regulator, complaint.getEnterpriseId())) {
             throw new IllegalArgumentException("complaint not in regulator region");
         }
-        // 关键校验：监管员角色必须是执行员
+        // 验证监管员角色
         if (ROLE_ENFORCER.equalsIgnoreCase(regulator.getRoleType())) {
             if (!Objects.equals(complaint.getAssignedTo(), regulator.getId())) {
                 throw new IllegalArgumentException("complaint not assigned to you");
@@ -233,22 +237,20 @@ public class ComplaintServiceImpl implements ComplaintService {
         }
         ComplaintDetailVO detail = new ComplaintDetailVO();
         detail.setComplaint(toVOWithNames(complaint));
-        // 关键展示：投诉详情返回企业信息
+        // 获取企业信息
         EnterpriseProfileVO enterprise = enterpriseProfileService.getById(complaint.getEnterpriseId());
         detail.setEnterprise(enterprise);
-        // 关键展示：投诉处理记录明细
+        // 获取处理记录
         detail.setHandles(loadHandleDetails(complaint.getId()));
         return detail;
     }
 
+    @Override
     public ComplaintVO accept(Long operatorUserId, Long complaintId) {
         FoodRegulator regulator = requireRegulator(operatorUserId);
         requireRole(regulator, ROLE_ADMIN);
-        // 关键校验：查询投诉
         Complaint complaint = requireComplaint(complaintId);
-        // 关键校验：状态流转
         transitionComplaint(complaint, ComplaintStatus.PENDING);
-        // 中文注释：记录受理人和受理时间，便于后续追溯
         complaint.setAcceptedBy(regulator.getId());
         complaint.setAcceptedTime(LocalDateTime.now());
         complaint.setUpdateTime(LocalDateTime.now());
@@ -256,30 +258,20 @@ public class ComplaintServiceImpl implements ComplaintService {
         return toVOWithNames(complaint);
     }
 
-    /**
-     * 指派投诉
-     * @param operatorUserId 操作员用户ID
-     * @param complaintId 投诉ID
-     * @param dto 投诉指派DTO
-     * @return 投诉VO
-     */
     @Override
     public ComplaintVO assign(Long operatorUserId, Long complaintId, ComplaintAssignDTO dto) {
         FoodRegulator regulator = requireRegulator(operatorUserId);
-        // 关键校验：监管员角色必须是管理员
         requireRole(regulator, ROLE_ADMIN);
         Complaint complaint = requireComplaint(complaintId);
-        // 关键校验：投诉状态必须是待指派或已指派
         if (!ComplaintStatus.PENDING.equals(complaint.getStatus())
-            && !ComplaintStatus.ASSIGNED.equals(complaint.getStatus())) {
+            && !ComplaintStatus.ASSIGNED.equals(complaint.getStatus())
+            && !ComplaintStatus.PROCESSING.equals(complaint.getStatus())) {
             throw new IllegalArgumentException("complaint not ready for assignment");
         }
-        // 关键校验：查询指派监管员
         FoodRegulator assignee = foodRegulatorMapper.selectById(dto.getRegulatorId());
         if (assignee == null || isDeleted(assignee.getDeleted())) {
             throw new IllegalArgumentException("assignee not found");
         }
-        // 关键校验：指派监管员必须是执行员
         if (!ROLE_ENFORCER.equalsIgnoreCase(assignee.getRoleType())) {
             throw new IllegalArgumentException("assignee must be enforcer");
         }
@@ -291,78 +283,90 @@ public class ComplaintServiceImpl implements ComplaintService {
         complaintMapper.updateById(complaint);
         return toVOWithNames(complaint);
     }
-    /**
-     * 开始处理投诉
-     * @param operatorUserId 操作员用户ID
-     * @param complaintId 投诉ID
-     * @return 投诉VO
-     */
+
     @Override
     public ComplaintVO startProcess(Long operatorUserId, Long complaintId) {
         FoodRegulator regulator = requireRegulator(operatorUserId);
-        // 关键校验：监管员角色必须是执行员
         requireRole(regulator, ROLE_ENFORCER);
         Complaint complaint = requireComplaint(complaintId);
-        // 关键校验：投诉必须指派给当前监管员
         if (!Objects.equals(complaint.getAssignedTo(), regulator.getId())) {
             throw new IllegalArgumentException("complaint not assigned to you");
         }
-        // 关键校验：状态流转
         transitionComplaint(complaint, ComplaintStatus.PROCESSING);
         complaint.setUpdateTime(LocalDateTime.now());
         complaintMapper.updateById(complaint);
         return toVOWithNames(complaint);
     }
-    /**
-     * 处理投诉
-     * @param operatorUserId 操作员用户ID
-     * @param complaintId 投诉ID
-     * @param dto 投诉处理DTO
-     * @return 投诉VO
-     */
+
     @Override
     public ComplaintVO handle(Long operatorUserId, Long complaintId, ComplaintHandleDTO dto) {
         FoodRegulator regulator = requireRegulator(operatorUserId);
-        // 关键校验：监管员角色必须是执行员
         requireRole(regulator, ROLE_ENFORCER);
         Complaint complaint = requireComplaint(complaintId);
-        // 关键校验：投诉必须指派给当前监管员
         if (!Objects.equals(complaint.getAssignedTo(), regulator.getId())) {
             throw new IllegalArgumentException("complaint not assigned to you");
         }
-        // 关键校验：投诉状态必须是处理中
         if (!ComplaintStatus.PROCESSING.equals(complaint.getStatus())) {
             throw new IllegalArgumentException("complaint not in processing");
         }
-        ComplaintHandle handle = new ComplaintHandle();
-        handle.setComplaintId(complaint.getId());
-        handle.setHandlerId(regulator.getId());
-        handle.setHandleResult(dto.getHandleResult().trim());
-        handle.setHandleTime(LocalDateTime.now());
-        handle.setCreateTime(LocalDateTime.now());
-        handle.setUpdateTime(LocalDateTime.now());
-        handle.setDeleted(0);
-        complaintHandleMapper.insert(handle);
+        saveSingleHandle(complaint.getId(), regulator.getId(), dto.getHandleResult().trim());
         transitionComplaint(complaint, ComplaintStatus.FEEDBACKED);
-        // 中文注释：记录处理完成信息，避免仅从处理记录反推
         complaint.setProcessedBy(regulator.getId());
         complaint.setProcessedTime(LocalDateTime.now());
         complaint.setUpdateTime(LocalDateTime.now());
         complaintMapper.updateById(complaint);
         return toVOWithNames(complaint);
     }
-    /**
-     * 状态流转
-     * @param complaint 投诉
-     * @param target 目标状态
-     */
+
+    @Override
+    public ComplaintVO reject(Long operatorUserId, Long complaintId, ComplaintRejectDTO dto) {
+        FoodRegulator regulator = requireRegulator(operatorUserId);
+        requireRole(regulator, ROLE_ADMIN);
+        Complaint complaint = requireComplaint(complaintId);
+        if (!isComplaintInRegion(regulator, complaint.getEnterpriseId())) {
+            throw new IllegalArgumentException("complaint not in regulator region");
+        }
+        transitionComplaint(complaint, ComplaintStatus.REJECTED);
+        saveSingleHandle(complaint.getId(), regulator.getId(), dto.getReason().trim());
+        complaint.setRejectedBy(regulator.getId());
+        complaint.setRejectedTime(LocalDateTime.now());
+        complaint.setUpdateTime(LocalDateTime.now());
+        complaintMapper.updateById(complaint);
+        return toVOWithNames(complaint);
+    }
+
+    private void saveSingleHandle(Long complaintId, Long handlerId, String result) {
+        LocalDateTime now = LocalDateTime.now();
+        ComplaintHandle existing = complaintHandleMapper.selectOne(new LambdaQueryWrapper<ComplaintHandle>()
+            .eq(ComplaintHandle::getComplaintId, complaintId)
+            .eq(ComplaintHandle::getDeleted, 0)
+            .last("limit 1"));
+        if (existing == null) {
+            ComplaintHandle handle = new ComplaintHandle();
+            handle.setComplaintId(complaintId);
+            handle.setHandlerId(handlerId);
+            handle.setHandleResult(result);
+            handle.setHandleTime(now);
+            handle.setCreateTime(now);
+            handle.setUpdateTime(now);
+            handle.setDeleted(0);
+            complaintHandleMapper.insert(handle);
+            return;
+        }
+        existing.setHandlerId(handlerId);
+        existing.setHandleResult(result);
+        existing.setHandleTime(now);
+        existing.setUpdateTime(now);
+        complaintHandleMapper.updateById(existing);
+    }
+
     private void transitionComplaint(Complaint complaint, ComplaintStatus target) {
-        // 关键校验：统一通过状态机校验，防止非法跳转
+        // 验证投诉状态流转
         StatusTransitionValidator.validateComplaintTransition(complaint.getStatus(), target);
         complaint.setStatus(target);
     }
     /**
-     * 查询投诉
+     * 验证投诉
      * @param id 投诉ID
      * @return 投诉
      */
@@ -374,7 +378,7 @@ public class ComplaintServiceImpl implements ComplaintService {
         return complaint;
     }
     /**
-     * 查询企业
+     * 验证企业
      * @param id 企业ID
      * @return 企业
      */
@@ -386,7 +390,7 @@ public class ComplaintServiceImpl implements ComplaintService {
         return enterprise;
     }
     /**
-     * 查询监管员
+     * 验证监管员
      * @param userId 用户ID
      * @return 监管员
      */
@@ -406,7 +410,7 @@ public class ComplaintServiceImpl implements ComplaintService {
         return regulator;
     }
     /**
-     * 查询角色
+     * 验证监管员角色
      * @param regulator 监管员
      * @param roleType 角色类型
      */
@@ -418,12 +422,15 @@ public class ComplaintServiceImpl implements ComplaintService {
     /**
      * 转换为VO
      * @param complaint 投诉
-     * @return 投诉VO
+     * @return VO
      */
     private ComplaintVO toVOWithNames(Complaint complaint) {
         Map<Long, String> enterpriseNames = loadEnterpriseNames(List.of(complaint));
         Map<Long, String> regulatorNames = loadRegulatorNames(List.of(complaint));
-        return toVO(complaint, enterpriseNames, regulatorNames);
+        Map<Long, String> handleResults = loadHandleResults(List.of(complaint));
+        ComplaintVO vo = toVO(complaint, enterpriseNames, regulatorNames);
+        vo.setHandleResult(handleResults.get(complaint.getId()));
+        return vo;
     }
 
     private ComplaintVO toVO(Complaint complaint,
@@ -449,14 +456,17 @@ public class ComplaintServiceImpl implements ComplaintService {
         vo.setProcessedBy(complaint.getProcessedBy());
         vo.setProcessedByName(regulatorNames.get(complaint.getProcessedBy()));
         vo.setProcessedTime(complaint.getProcessedTime());
+        vo.setRejectedBy(complaint.getRejectedBy());
+        vo.setRejectedByName(regulatorNames.get(complaint.getRejectedBy()));
+        vo.setRejectedTime(complaint.getRejectedTime());
         vo.setCreateTime(complaint.getCreateTime());
         vo.setUpdateTime(complaint.getUpdateTime());
         return vo;
     }
     /**
-     * 转换为跟踪VO
+     * 转换为VO
      * @param complaint 投诉
-     * @return 跟踪VO
+     * @return VO
      */
     private ComplaintTrackVO toTrackVO(Complaint complaint) {
         ComplaintTrackVO vo = new ComplaintTrackVO();
@@ -477,10 +487,35 @@ public class ComplaintServiceImpl implements ComplaintService {
     }
 
     /**
-     * 加载投诉处理记录
+     * 加载处理记录
      * @param complaintId 投诉ID
-     * @return 投诉处理记录
+     * @return 处理记录列表
      */
+    private Map<Long, String> loadHandleResults(List<Complaint> complaints) {
+        if (complaints == null || complaints.isEmpty()) {
+            return Collections.emptyMap();
+        }
+        Set<Long> complaintIds = complaints.stream()
+            .map(Complaint::getId)
+            .filter(Objects::nonNull)
+            .collect(Collectors.toCollection(LinkedHashSet::new));
+        if (complaintIds.isEmpty()) {
+            return Collections.emptyMap();
+        }
+        List<ComplaintHandle> handles = complaintHandleMapper.selectList(new LambdaQueryWrapper<ComplaintHandle>()
+            .in(ComplaintHandle::getComplaintId, complaintIds)
+            .eq(ComplaintHandle::getDeleted, 0)
+            .orderByDesc(ComplaintHandle::getHandleTime));
+        if (handles.isEmpty()) {
+            return Collections.emptyMap();
+        }
+        Map<Long, String> result = new java.util.HashMap<>();
+        for (ComplaintHandle handle : handles) {
+            result.putIfAbsent(handle.getComplaintId(), handle.getHandleResult());
+        }
+        return result;
+    }
+
     private List<ComplaintHandleVO> loadHandleDetails(Long complaintId) {
         if (complaintId == null) {
             return List.of();
@@ -513,7 +548,7 @@ public class ComplaintServiceImpl implements ComplaintService {
     }
 
     /**
-     * 查询企业ID
+     * 解析企业ID列表
      * @param enterpriseName 企业名称
      * @return 企业ID列表
      */
@@ -535,7 +570,7 @@ public class ComplaintServiceImpl implements ComplaintService {
     }
 
     /**
-     * 查询监管员ID
+     * 解析监管员ID列表
      * @param regulatorName 监管员名称
      * @return 监管员ID列表
      */
@@ -557,9 +592,9 @@ public class ComplaintServiceImpl implements ComplaintService {
     }
 
     /**
-     * 查询辖区内企业ID
+     * 解析企业ID列表
      * @param regulator 监管员
-     * @return 辖区内企业ID列表
+     * @return 企业ID列表
      */
     private List<Long> resolveEnterpriseIdsByRegion(FoodRegulator regulator) {
         if (regulator == null || regulator.getId() == null) {
@@ -582,10 +617,10 @@ public class ComplaintServiceImpl implements ComplaintService {
             .toList();
     }
     /**
-     * 查询投诉是否在辖区内
+     * 判断投诉是否在监管员管辖区域内
      * @param regulator 监管员
      * @param enterpriseId 企业ID
-     * @return 是否在辖区内
+     * @return 是否在管辖区域内
      */
     private boolean isComplaintInRegion(FoodRegulator regulator, Long enterpriseId) {
         if (regulator == null || enterpriseId == null) {
@@ -595,9 +630,9 @@ public class ComplaintServiceImpl implements ComplaintService {
         return enterpriseIds.contains(enterpriseId);
     }
     /**
-     * 查询监管员辖区ID
+     * 解析监管员区域ID
      * @param regulatorId 监管员ID
-     * @return 监管员辖区ID列表
+     * @return 区域ID列表
      */
     private List<Long> resolveRegulatorRegionIds(Long regulatorId) {
         if (regulatorId == null) {
@@ -618,9 +653,9 @@ public class ComplaintServiceImpl implements ComplaintService {
     }
 
     /**
-     * 收集辖区ID
-     * @param rootIds 根ID列表
-     * @return 辖区ID列表
+     * 收集区域ID
+     * @param rootIds 根区域ID列表
+     * @return 区域ID列表
      */
     private List<Long> collectRegionIds(List<Long> rootIds) {
         Set<Long> result = new LinkedHashSet<>();
@@ -687,6 +722,9 @@ public class ComplaintServiceImpl implements ComplaintService {
             if (complaint.getProcessedBy() != null) {
                 regulatorIds.add(complaint.getProcessedBy());
             }
+            if (complaint.getRejectedBy() != null) {
+                regulatorIds.add(complaint.getRejectedBy());
+            }
         }
         if (regulatorIds.isEmpty()) {
             return Collections.emptyMap();
@@ -696,25 +734,19 @@ public class ComplaintServiceImpl implements ComplaintService {
             .filter(regulator -> !isDeleted(regulator.getDeleted()))
             .collect(Collectors.toMap(FoodRegulator::getId, FoodRegulator::getName, (a, b) -> a));
     }
-    /**
-     * 标准化
-     * @param value 值
-     * @return 标准化值
-     */
+    
     private String normalize(String value) {
         return StringUtils.hasText(value) ? value.trim().toUpperCase() : null;
     }
-    /**
-     * 修剪
-     * @param value 值
-     * @return 修剪值
-     */
+    
     private String trim(String value) {
         return StringUtils.hasText(value) ? value.trim() : null;
     }
 
     /**
-     * 中文注释：将图片地址列表序列化为 JSON，便于存库。
+     * 序列化图片URL
+     * @param imageUrls 图片URL列表
+     * @return 序列化后的图片URL
      */
     private String serializeImageUrls(List<String> imageUrls) {
         if (imageUrls == null || imageUrls.isEmpty()) {
@@ -736,7 +768,9 @@ public class ComplaintServiceImpl implements ComplaintService {
     }
 
     /**
-     * 中文注释：将存库的 JSON 字段还原为前端需要的图片地址列表。
+     * 解析图片URL
+     * @param value 图片URL
+     * @return 图片URL列表
      */
     private List<String> parseImageUrls(String value) {
         if (!StringUtils.hasText(value)) {
@@ -750,7 +784,7 @@ public class ComplaintServiceImpl implements ComplaintService {
     }
     /**
      * 是否删除
-     * @param deleted 删除状态
+     * @param deleted 删除
      * @return 是否删除
      */
     private boolean isDeleted(Integer deleted) {

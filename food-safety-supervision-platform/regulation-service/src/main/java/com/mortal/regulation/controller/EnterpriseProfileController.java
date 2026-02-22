@@ -20,6 +20,9 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.bind.annotation.DeleteMapping;
 
+/**
+ * 企业Profile控制器
+ */
 @RestController
 @RequestMapping("/api/regulation/enterprise")
 public class EnterpriseProfileController {
@@ -33,6 +36,12 @@ public class EnterpriseProfileController {
         this.jwtUserResolver = jwtUserResolver;
     }
 
+    /**
+     * 提交企业Profile
+     * @param token 令牌
+     * @param dto 企业ProfileDTO
+     * @return 企业ProfileVO
+     */
     @PostMapping("/profile")
     public ApiResponse<EnterpriseProfileVO> submitProfile(@RequestHeader("Authorization") String token,
                                                           @Valid @RequestBody EnterpriseProfileDTO dto) {
@@ -43,6 +52,11 @@ public class EnterpriseProfileController {
         return ApiResponse.success(enterpriseProfileService.submitProfile(identity.userId(), dto));
     }
 
+    /**
+     * 获取企业Profile
+     * @param token 令牌
+     * @return 企业ProfileVO
+     */
     @GetMapping("/profile")
     public ApiResponse<EnterpriseProfileVO> getProfile(@RequestHeader("Authorization") String token) {
         UserIdentity identity = resolveIdentity(token);
@@ -56,6 +70,11 @@ public class EnterpriseProfileController {
         return ApiResponse.success(profile);
     }
 
+    /**
+     * 获取待审核企业列表
+     * @param token 令牌
+     * @return 企业ProfileVO列表
+     */
     @GetMapping("/pending")
     public ApiResponse<List<EnterpriseProfileVO>> listPending(@RequestHeader("Authorization") String token) {
         UserIdentity identity = resolveIdentity(token);
@@ -68,6 +87,13 @@ public class EnterpriseProfileController {
         return ApiResponse.success(enterpriseProfileService.listPendingForRegulator(identity.userId()));
     }
 
+    /**
+     * 审核企业
+     * @param token 令牌
+     * @param id 企业ID
+     * @param dto 企业审核DTO
+     * @return 企业ProfileVO
+     */
     @PutMapping("/{id}/approve")
     public ApiResponse<EnterpriseProfileVO> approve(@RequestHeader("Authorization") String token,
                                                     @PathVariable Long id,
@@ -79,6 +105,13 @@ public class EnterpriseProfileController {
         return ApiResponse.success(enterpriseProfileService.approve(id, identity.userId(), dto));
     }
 
+    /**
+     * 驳回企业
+     * @param token 令牌
+     * @param id 企业ID
+     * @param dto 企业驳回DTO
+     * @return 企业ProfileVO
+     */
     @PutMapping("/{id}/reject")
     public ApiResponse<EnterpriseProfileVO> reject(@RequestHeader("Authorization") String token,
                                                    @PathVariable Long id,
@@ -90,6 +123,12 @@ public class EnterpriseProfileController {
         return ApiResponse.success(enterpriseProfileService.reject(id, identity.userId(), dto));
     }
 
+    /**
+     * 批量审核企业
+     * @param token 令牌
+     * @param dto 企业审核DTO
+     * @return 批量审核结果
+     */
     @PutMapping("/approve-batch")
     public ApiResponse<BatchActionResult> approveBatch(@RequestHeader("Authorization") String token,
                                                        @Valid @RequestBody EnterpriseApprovalBatchDTO dto) {
@@ -100,6 +139,12 @@ public class EnterpriseProfileController {
         return ApiResponse.success(enterpriseProfileService.approveBatch(identity.userId(), dto));
     }
 
+    /**
+     * 批量驳回企业
+     * @param token 令牌
+     * @param dto 企业驳回DTO
+     * @return 批量驳回结果
+     */
     @PutMapping("/reject-batch")
     public ApiResponse<BatchActionResult> rejectBatch(@RequestHeader("Authorization") String token,
                                                       @Valid @RequestBody EnterpriseApprovalBatchDTO dto) {
@@ -110,6 +155,12 @@ public class EnterpriseProfileController {
         return ApiResponse.success(enterpriseProfileService.rejectBatch(identity.userId(), dto));
     }
 
+    /**
+     * 删除企业
+     * @param token 令牌
+     * @param id 企业ID
+     * @return 空
+     */
     @DeleteMapping("/{id}")
     public ApiResponse<Void> deleteEnterprise(@RequestHeader("Authorization") String token,
                                               @PathVariable Long id) {
@@ -121,6 +172,11 @@ public class EnterpriseProfileController {
         return ApiResponse.success(null);
     }
 
+    /**
+     * 删除当前企业
+     * @param token 令牌
+     * @return 空
+     */
     @DeleteMapping("/profile")
     public ApiResponse<Void> deleteMyEnterprise(@RequestHeader("Authorization") String token) {
         UserIdentity identity = resolveIdentity(token);
@@ -131,6 +187,11 @@ public class EnterpriseProfileController {
         return ApiResponse.success(null);
     }
 
+    /**
+     * 解析用户身份
+     * @param token 令牌
+     * @return 用户身份
+     */
     private UserIdentity resolveIdentity(String token) {
         Long userId = jwtUserResolver.resolveUserId(token);
         String userType = jwtUserResolver.resolveUserType(token);

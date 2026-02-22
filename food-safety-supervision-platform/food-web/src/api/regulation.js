@@ -364,21 +364,32 @@ export function fetchInspectionRecordDetail(token, id) {
   });
 }
 
-export function submitPublicComplaint(payload) {
+export function submitPublicComplaint(token, payload) {
   return requestWithBase(REGULATION_BASE_URL, "/api/regulation/complaints/public", {
     method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`
+    },
     body: JSON.stringify(payload)
   });
 }
 
-export function trackComplaint(complaintNo, contact) {
+export function fetchMyComplaints(token, params = {}) {
   const search = new URLSearchParams();
-  if (complaintNo) search.append("complaintNo", complaintNo);
-  if (contact) search.append("contact", contact);
+  if (params.status) search.append("status", params.status);
+  if (params.page) search.append("page", params.page);
+  if (params.size) search.append("size", params.size);
   const query = search.toString();
-  return requestWithBase(REGULATION_BASE_URL, `/api/regulation/complaints/track${query ? `?${query}` : ""}`, {
-    method: "GET"
-  });
+  return requestWithBase(
+    REGULATION_BASE_URL,
+    `/api/regulation/complaints/my${query ? `?${query}` : ""}`,
+    {
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${token}`
+      }
+    }
+  );
 }
 
 export function fetchComplaints(token, params = {}) {
@@ -442,6 +453,16 @@ export function startComplaintProcess(token, id) {
 export function handleComplaint(token, id, payload) {
   return requestWithBase(REGULATION_BASE_URL, `/api/regulation/complaints/${id}/handle`, {
     method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`
+    },
+    body: JSON.stringify(payload)
+  });
+}
+
+export function rejectComplaint(token, id, payload) {
+  return requestWithBase(REGULATION_BASE_URL, `/api/regulation/complaints/${id}/reject`, {
+    method: "PUT",
     headers: {
       Authorization: `Bearer ${token}`
     },

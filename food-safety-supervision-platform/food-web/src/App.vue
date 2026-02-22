@@ -24,8 +24,7 @@
   <PublicComplaintTrackView
     v-else-if="view === 'public-track'"
     :public-user="publicUser"
-    :initial-complaint-no="publicTrackParams.complaintNo"
-    :initial-contact="publicTrackParams.contact"
+    :public-token="publicToken"
     @back="handlePublicHome"
     @logout="handleLogout"
   />
@@ -102,7 +101,6 @@ const enterpriseToken = ref("");
 const enterpriseUser = reactive({ username: "", userType: "", roles: [] });
 const publicToken = ref("");
 const publicUser = reactive({ username: "", userType: "", roles: [] });
-const publicTrackParams = reactive({ complaintNo: "", contact: "" });
 const regulatorToken = ref("");
 const regulatorUser = reactive({ username: "", userType: "", roleType: "", roles: [] });
 const enterpriseDetailId = ref("");
@@ -143,9 +141,7 @@ function handleOpenPublicComplaint() {
   view.value = "public-complaint";
 }
 
-function handleOpenPublicTrack(payload = {}) {
-  publicTrackParams.complaintNo = payload.complaintNo || "";
-  publicTrackParams.contact = payload.contact || "";
+function handleOpenPublicTrack() {
   view.value = "public-track";
 }
 
@@ -226,8 +222,6 @@ async function handleLogout() {
   publicUser.username = "";
   publicUser.userType = "";
   publicUser.roles = [];
-  publicTrackParams.complaintNo = "";
-  publicTrackParams.contact = "";
   regulatorToken.value = "";
   regulatorUser.username = "";
   regulatorUser.userType = "";

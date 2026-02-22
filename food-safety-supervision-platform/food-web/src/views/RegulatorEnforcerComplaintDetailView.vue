@@ -194,7 +194,8 @@ const complaintStatusMap = {
   PENDING: "已受理",
   ASSIGNED: "已派发",
   PROCESSING: "处理中",
-  FEEDBACKED: "已反馈"
+  FEEDBACKED: "已反馈",
+  REJECTED: "已驳回"
 };
 
 async function loadDetail() {

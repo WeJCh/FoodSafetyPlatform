@@ -148,6 +148,7 @@ CREATE TABLE IF NOT EXISTS complaint (
   complaint_no VARCHAR(40) COMMENT '投诉单号',
   complainant_name VARCHAR(50) COMMENT '投诉人姓名',
   contact VARCHAR(50) COMMENT '联系方式',
+  submitter_user_id BIGINT COMMENT '提交用户ID',
   enterprise_id BIGINT NOT NULL COMMENT '企业ID',
   complaint_type VARCHAR(50) COMMENT '投诉类型',
   content TEXT NOT NULL COMMENT '投诉内容',
@@ -162,6 +163,8 @@ CREATE TABLE IF NOT EXISTS complaint (
   accepted_time DATETIME COMMENT '受理时间',
   processed_by BIGINT COMMENT '处理完成人',
   processed_time DATETIME COMMENT '处理完成时间',
+  rejected_by BIGINT COMMENT '驳回人',
+  rejected_time DATETIME COMMENT '驳回时间',
   create_time DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
   update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
   deleted TINYINT DEFAULT 0 COMMENT '逻辑删除 1-已删 0-未删'
@@ -175,7 +178,8 @@ CREATE TABLE IF NOT EXISTS complaint_handle (
   handle_time DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '处理时间',
   create_time DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
   update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
-  deleted TINYINT DEFAULT 0 COMMENT '逻辑删除 1-已删 0-未删'
+  deleted TINYINT DEFAULT 0 COMMENT '逻辑删除 1-已删 0-未删',
+  UNIQUE KEY uk_complaint_handle (complaint_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='投诉处理记录表';
 
 CREATE TABLE IF NOT EXISTS enterprise_key_reason (
@@ -194,3 +198,7 @@ ALTER TABLE complaint ADD COLUMN accepted_by BIGINT NULL COMMENT '受理人';
 ALTER TABLE complaint ADD COLUMN accepted_time DATETIME NULL COMMENT '受理时间';
 ALTER TABLE complaint ADD COLUMN processed_by BIGINT NULL COMMENT '处理完成人';
 ALTER TABLE complaint ADD COLUMN processed_time DATETIME NULL COMMENT '处理完成时间';
+ALTER TABLE complaint ADD COLUMN submitter_user_id BIGINT NULL COMMENT '提交用户ID';
+ALTER TABLE complaint ADD COLUMN rejected_by BIGINT NULL COMMENT '驳回人';
+ALTER TABLE complaint ADD COLUMN rejected_time DATETIME NULL COMMENT '驳回时间';
+ALTER TABLE complaint_handle ADD UNIQUE KEY uk_complaint_handle (complaint_id);

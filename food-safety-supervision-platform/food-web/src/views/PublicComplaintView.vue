@@ -19,7 +19,7 @@
       <ul>
         <li>请如实填写投诉内容，恶意虚假投诉将承担相应法律责任。</li>
         <li>平台严格保护个人隐私，支持匿名投诉。</li>
-        <li>投诉提交后将生成编号，请妥善保存用于查询进度。</li>
+        <li>投诉提交后将生成编号，可在“我的投诉”中查看进度。</li>
       </ul>
     </section>
 
@@ -144,7 +144,7 @@
           </label>
           <label>
             联系方式（手机号）
-            <input v-model.trim="form.contact" placeholder="用于联系与查询" />
+            <input v-model.trim="form.contact" placeholder="可选填写" />
           </label>
         </div>
         <button class="primary" type="submit" :disabled="loading">
@@ -155,7 +155,7 @@
 
     <section class="success-card" v-else>
       <h3>投诉已提交</h3>
-      <p>您的投诉已受理，请保存投诉编号用于查询进度。</p>
+      <p>您的投诉已受理，可在“我的投诉”中查看处理进度。</p>
       <div class="code-box">
         <span>投诉编号</span>
         <strong>{{ success.complaintNo }}</strong>
@@ -163,7 +163,7 @@
       </div>
       <div class="status-line">当前状态：{{ formatStatus(success.status) }}</div>
       <div class="actions">
-        <button class="primary" type="button" @click="goTrack">去查询进度</button>
+        <button class="primary" type="button" @click="goTrack">查看我的投诉</button>
         <button class="ghost" type="button" @click="resetForm">继续提交</button>
       </div>
     </section>
@@ -418,7 +418,8 @@ function formatStatus(value) {
     PENDING: "已受理",
     ASSIGNED: "已派发",
     PROCESSING: "处理中",
-    FEEDBACKED: "已反馈"
+    FEEDBACKED: "已反馈",
+    REJECTED: "已驳回（无效投诉）"
   };
   return map[value] || value || "-";
 }
@@ -463,7 +464,7 @@ async function handleSubmit() {
       complainantName: form.anonymous ? undefined : form.complainantName,
       imageUrls: imageUrls.length ? imageUrls : undefined
     };
-    success.value = await submitPublicComplaint(payload);
+    success.value = await submitPublicComplaint(props.publicToken, payload);
     setStatus("投诉提交成功", "success");
   } catch (error) {
     setStatus(error.message || "投诉提交失败", "error");
@@ -483,9 +484,7 @@ async function copyComplaintNo() {
 }
 
 function goTrack() {
-  if (!success.value?.complaintNo) return;
-  const contact = form.anonymous ? "" : form.contact;
-  emit("open-track", { complaintNo: success.value.complaintNo, contact });
+  emit("open-track");
 }
 
 function resetForm() {

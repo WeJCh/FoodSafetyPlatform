@@ -78,6 +78,19 @@ public class ComplaintVO {
      * 处理完成时间
      */
     private LocalDateTime processedTime;
+    /**
+     * 驳回人ID
+     */
+    private Long rejectedBy;
+    /**
+     * 驳回人姓名
+     */
+    private String rejectedByName;
+    /**
+     * 驳回时间
+     */
+    private LocalDateTime rejectedTime;
+    private String handleResult;
     private LocalDateTime createTime;
     private LocalDateTime updateTime;
 }

@@ -4,6 +4,7 @@ import com.mortal.regulation.common.ApiResponse;
 import com.mortal.regulation.common.PageResult;
 import com.mortal.regulation.dto.ComplaintAssignDTO;
 import com.mortal.regulation.dto.ComplaintHandleDTO;
+import com.mortal.regulation.dto.ComplaintRejectDTO;
 import com.mortal.regulation.dto.ComplaintSubmitDTO;
 import com.mortal.regulation.service.ComplaintService;
 import com.mortal.regulation.util.JwtUserResolver;
@@ -41,19 +42,33 @@ public class ComplaintController {
      * @return 投诉跟踪VO
      */
     @PostMapping("/public")
-    public ApiResponse<ComplaintTrackVO> submitPublic(@Valid @RequestBody ComplaintSubmitDTO dto) {
-        return ApiResponse.success(complaintService.submitPublic(dto));
+    public ApiResponse<ComplaintTrackVO> submitPublic(@RequestHeader("Authorization") String token,
+                                                      @Valid @RequestBody ComplaintSubmitDTO dto) {
+        UserIdentity identity = resolveIdentity(token);
+        if (!identity.isPublicUser()) {
+            return ApiResponse.failure(403, "public user only");
+        }
+        return ApiResponse.success(complaintService.submitPublic(identity.userId(), dto));
     }
+
     /**
-     * 跟踪投诉
-     * @param complaintNo 投诉编号
-     * @param contact 联系方式
-     * @return 投诉跟踪VO
+     * 公众用户查询本人投诉列表
+     * @param token 令牌
+     * @param status 状态
+     * @param page 页码
+     * @param size 每页条数
+     * @return 投诉列表
      */
-    @GetMapping("/track")
-    public ApiResponse<ComplaintTrackVO> track(@RequestParam String complaintNo,
-                                               @RequestParam(required = false) String contact) {
-        return ApiResponse.success(complaintService.track(complaintNo, contact));
+    @GetMapping("/my")
+    public ApiResponse<PageResult<ComplaintVO>> my(@RequestHeader("Authorization") String token,
+                                                   @RequestParam(required = false) String status,
+                                                   @RequestParam(defaultValue = "1") int page,
+                                                   @RequestParam(defaultValue = "10") int size) {
+        UserIdentity identity = resolveIdentity(token);
+        if (!identity.isPublicUser()) {
+            return ApiResponse.failure(403, "public user only");
+        }
+        return ApiResponse.success(complaintService.listMyPublic(identity.userId(), status, page, size));
     }
     
     /**
@@ -166,6 +181,24 @@ public class ComplaintController {
         }
         return ApiResponse.success(complaintService.handle(identity.userId(), id, dto));
     }
+
+    /**
+     * 驳回投诉
+     * @param token 令牌
+     * @param id 投诉ID
+     * @param dto 驳回原因
+     * @return 投诉VO
+     */
+    @PutMapping("/{id}/reject")
+    public ApiResponse<ComplaintVO> reject(@RequestHeader("Authorization") String token,
+                                           @PathVariable Long id,
+                                           @Valid @RequestBody ComplaintRejectDTO dto) {
+        UserIdentity identity = resolveIdentity(token);
+        if (!identity.isRegulator()) {
+            return ApiResponse.failure(403, "regulator only");
+        }
+        return ApiResponse.success(complaintService.reject(identity.userId(), id, dto));
+    }
     /**
      * 解析用户身份
      * @param token 令牌
@@ -188,6 +221,10 @@ public class ComplaintController {
 
         boolean isRegulator() {
             return "REGULATOR".equals(userType) || "ADMIN".equals(userType);
+        }
+
+        boolean isPublicUser() {
+            return "PUBLIC".equals(userType);
         }
     }
 }

@@ -28,6 +28,7 @@ import com.mortal.regulation.service.EnterpriseProfileService;
 import com.mortal.regulation.service.StatusTransitionValidator;
 import com.mortal.regulation.vo.ComplaintDetailVO;
 import com.mortal.regulation.vo.ComplaintHandleVO;
+import com.mortal.regulation.vo.ComplaintListVO;
 import com.mortal.regulation.vo.ComplaintTrackVO;
 import com.mortal.regulation.vo.ComplaintVO;
 import com.mortal.regulation.vo.EnterpriseProfileVO;
@@ -106,7 +107,7 @@ public class ComplaintServiceImpl implements ComplaintService {
      * @return 闂備胶顢婇崺鏍哄┑瀣剨闁哄啫鍊瑰畷澶愭煟閺傛鐓奸柛銈呯崏O
      */
     @Override
-    public PageResult<ComplaintVO> listMyPublic(Long submitterUserId, String status, int page, int size) {
+    public PageResult<ComplaintListVO> listMyPublic(Long submitterUserId, String status, int page, int size) {
         if (submitterUserId == null) {
             throw new IllegalArgumentException("unauthorized");
         }
@@ -120,17 +121,24 @@ public class ComplaintServiceImpl implements ComplaintService {
         Page<Complaint> pageInfo = complaintMapper.selectPage(new Page<>(page, size), wrapper);
         List<Complaint> complaints = pageInfo.getRecords();
         Map<Long, String> enterpriseNames = loadEnterpriseNames(complaints);
-        Map<Long, String> regulatorNames = loadRegulatorNames(complaints);
-        Map<Long, String> handleResults = loadHandleResults(complaints);
-        List<ComplaintVO> records = complaints.stream()
-            .map(complaint -> {
-                ComplaintVO vo = toVO(complaint, enterpriseNames, regulatorNames);
-                vo.setHandleResult(handleResults.get(complaint.getId()));
-                return vo;
-            })
+        List<ComplaintListVO> records = complaints.stream()
+            .map(complaint -> toListVO(complaint, enterpriseNames))
             .toList();
         return PageResult.of(records, pageInfo.getTotal(), page, size);
     }
+
+    @Override
+    public ComplaintVO getMyPublicDetail(Long submitterUserId, Long complaintId) {
+        if (submitterUserId == null) {
+            throw new IllegalArgumentException("unauthorized");
+        }
+        Complaint complaint = requireComplaint(complaintId);
+        if (!Objects.equals(complaint.getSubmitterUserId(), submitterUserId)) {
+            throw new IllegalArgumentException("complaint not found");
+        }
+        return toVOWithNames(complaint);
+    }
+
     
     /**
      * 查询投诉列表
@@ -430,6 +438,18 @@ public class ComplaintServiceImpl implements ComplaintService {
         Map<Long, String> handleResults = loadHandleResults(List.of(complaint));
         ComplaintVO vo = toVO(complaint, enterpriseNames, regulatorNames);
         vo.setHandleResult(handleResults.get(complaint.getId()));
+        return vo;
+    }
+
+    private ComplaintListVO toListVO(Complaint complaint, Map<Long, String> enterpriseNames) {
+        ComplaintListVO vo = new ComplaintListVO();
+        vo.setId(complaint.getId());
+        vo.setComplaintNo(complaint.getComplaintNo());
+        vo.setEnterpriseId(complaint.getEnterpriseId());
+        vo.setEnterpriseName(enterpriseNames.get(complaint.getEnterpriseId()));
+        vo.setStatus(complaint.getStatus());
+        vo.setCreateTime(complaint.getCreateTime());
+        vo.setUpdateTime(complaint.getUpdateTime());
         return vo;
     }
 

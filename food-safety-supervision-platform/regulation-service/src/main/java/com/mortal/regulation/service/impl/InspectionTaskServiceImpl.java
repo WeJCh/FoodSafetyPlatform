@@ -35,6 +35,7 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 @Service
@@ -203,6 +204,7 @@ public class InspectionTaskServiceImpl implements InspectionTaskService {
     }
 
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public InspectionTaskVO submitTask(Long userId, Long taskId, InspectionSubmitDTO dto) {
         FoodRegulator regulator = requireRegulator(userId);
         requireRole(regulator, ROLE_ENFORCER);
@@ -245,6 +247,23 @@ public class InspectionTaskServiceImpl implements InspectionTaskService {
 
         task.setStatus(STATUS_COMPLETED);
         task.setCompletedTime(LocalDateTime.now());
+        task.setUpdateTime(LocalDateTime.now());
+        inspectionTaskMapper.updateById(task);
+        return toVO(task, loadEnterpriseNames(List.of(task)), loadRegulatorNames(List.of(task)));
+    }
+
+    @Override
+    public InspectionTaskVO closeTask(Long userId, Long taskId) {
+        FoodRegulator regulator = requireRegulator(userId);
+        requireRole(regulator, ROLE_ADMIN);
+        InspectionTask task = requireTask(taskId);
+        if (!coversRegion(regulator.getId(), task.getRegionId())) {
+            throw new IllegalArgumentException("task not in regulator region");
+        }
+        if (!STATUS_COMPLETED.equals(task.getStatus())) {
+            throw new IllegalArgumentException("task not completed");
+        }
+        task.setStatus(STATUS_CLOSED);
         task.setUpdateTime(LocalDateTime.now());
         inspectionTaskMapper.updateById(task);
         return toVO(task, loadEnterpriseNames(List.of(task)), loadRegulatorNames(List.of(task)));

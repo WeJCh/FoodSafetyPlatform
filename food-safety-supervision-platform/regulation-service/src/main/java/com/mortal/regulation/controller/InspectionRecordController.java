@@ -49,6 +49,27 @@ public class InspectionRecordController {
         );
     }
 
+    @GetMapping
+    public ApiResponse<PageResult<InspectionRecordVO>> list(@RequestHeader("Authorization") String token,
+                                                            @RequestParam(required = false) String enterpriseName,
+                                                            @RequestParam(required = false) String result,
+                                                            @RequestParam(required = false)
+                                                            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
+                                                            LocalDate startDate,
+                                                            @RequestParam(required = false)
+                                                            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
+                                                            LocalDate endDate,
+                                                            @RequestParam(defaultValue = "1") int page,
+                                                            @RequestParam(defaultValue = "10") int size) {
+        UserIdentity identity = resolveIdentity(token);
+        if (!identity.isRegulator()) {
+            return ApiResponse.failure(403, "regulator only");
+        }
+        return ApiResponse.success(
+            inspectionRecordService.listForAdmin(identity.userId(), enterpriseName, result, startDate, endDate, page, size)
+        );
+    }
+
     @GetMapping("/{id}")
     public ApiResponse<InspectionRecordDetailVO> detail(@RequestHeader("Authorization") String token,
                                                         @PathVariable Long id) {

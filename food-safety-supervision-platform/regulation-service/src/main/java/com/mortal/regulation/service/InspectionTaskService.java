@@ -26,4 +26,6 @@ public interface InspectionTaskService {
     InspectionTaskVO startTask(Long userId, Long taskId);
 
     InspectionTaskVO submitTask(Long userId, Long taskId, InspectionSubmitDTO dto);
+
+    InspectionTaskVO closeTask(Long userId, Long taskId);
 }

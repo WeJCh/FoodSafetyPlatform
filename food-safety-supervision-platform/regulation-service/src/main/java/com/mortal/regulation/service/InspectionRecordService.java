@@ -15,5 +15,13 @@ public interface InspectionRecordService {
                                           int page,
                                           int size);
 
+    PageResult<InspectionRecordVO> listForAdmin(Long userId,
+                                                String enterpriseName,
+                                                String result,
+                                                LocalDate startDate,
+                                                LocalDate endDate,
+                                                int page,
+                                                int size);
+
     InspectionRecordDetailVO getDetail(Long userId, Long recordId);
 }

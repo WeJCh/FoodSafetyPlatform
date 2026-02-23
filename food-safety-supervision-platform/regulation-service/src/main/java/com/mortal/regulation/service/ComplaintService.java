@@ -6,6 +6,7 @@ import com.mortal.regulation.dto.ComplaintHandleDTO;
 import com.mortal.regulation.dto.ComplaintSubmitDTO;
 import com.mortal.regulation.dto.ComplaintRejectDTO;
 import com.mortal.regulation.vo.ComplaintDetailVO;
+import com.mortal.regulation.vo.ComplaintListVO;
 import com.mortal.regulation.vo.ComplaintTrackVO;
 import com.mortal.regulation.vo.ComplaintVO;
 
@@ -45,7 +46,9 @@ public interface ComplaintService {
      * @param size 每页条数
      * @return 投诉列表
      */
-    PageResult<ComplaintVO> listMyPublic(Long submitterUserId, String status, int page, int size);
+    PageResult<ComplaintListVO> listMyPublic(Long submitterUserId, String status, int page, int size);
+
+    ComplaintVO getMyPublicDetail(Long submitterUserId, Long complaintId);
 
     ComplaintDetailVO getDetail(Long operatorUserId, Long complaintId);
 

@@ -9,6 +9,7 @@ import com.mortal.regulation.dto.ComplaintSubmitDTO;
 import com.mortal.regulation.service.ComplaintService;
 import com.mortal.regulation.util.JwtUserResolver;
 import com.mortal.regulation.vo.ComplaintDetailVO;
+import com.mortal.regulation.vo.ComplaintListVO;
 import com.mortal.regulation.vo.ComplaintTrackVO;
 import com.mortal.regulation.vo.ComplaintVO;
 import jakarta.validation.Valid;
@@ -60,15 +61,25 @@ public class ComplaintController {
      * @return 投诉列表
      */
     @GetMapping("/my")
-    public ApiResponse<PageResult<ComplaintVO>> my(@RequestHeader("Authorization") String token,
-                                                   @RequestParam(required = false) String status,
-                                                   @RequestParam(defaultValue = "1") int page,
-                                                   @RequestParam(defaultValue = "10") int size) {
+    public ApiResponse<PageResult<ComplaintListVO>> my(@RequestHeader("Authorization") String token,
+                                                       @RequestParam(required = false) String status,
+                                                       @RequestParam(defaultValue = "1") int page,
+                                                       @RequestParam(defaultValue = "10") int size) {
         UserIdentity identity = resolveIdentity(token);
         if (!identity.isPublicUser()) {
             return ApiResponse.failure(403, "public user only");
         }
         return ApiResponse.success(complaintService.listMyPublic(identity.userId(), status, page, size));
+    }
+
+    @GetMapping("/my/{id}")
+    public ApiResponse<ComplaintVO> myDetail(@RequestHeader("Authorization") String token,
+                                             @PathVariable Long id) {
+        UserIdentity identity = resolveIdentity(token);
+        if (!identity.isPublicUser()) {
+            return ApiResponse.failure(403, "public user only");
+        }
+        return ApiResponse.success(complaintService.getMyPublicDetail(identity.userId(), id));
     }
     
     /**

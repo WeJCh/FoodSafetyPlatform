@@ -94,6 +94,7 @@
                   <option value="ASSIGNED">待执行</option>
                   <option value="IN_PROGRESS">执行中</option>
                   <option value="COMPLETED">已完成</option>
+                  <option value="CLOSED">已归档</option>
                 </select>
               </label>
               <button class="primary" type="submit" :disabled="taskLoading">{{ taskLoading ? "查询中..." : "查询" }}</button>
@@ -164,8 +165,21 @@
               <div class="modal-card">
                 <div class="modal-title">任务详情</div>
                 <div class="modal-body">
+                  <div class="modal-field"><span>任务编号</span><strong>{{ detailTask.taskNo || "-" }}</strong></div>
+                  <div class="modal-field"><span>企业名称</span><strong>{{ detailTask.enterpriseName || "-" }}</strong></div>
                   <div class="modal-field"><span>任务标题</span><strong>{{ detailTask.taskTitle || "-" }}</strong></div>
-                  <div class="modal-field"><span>任务描述</span><strong>{{ detailTask.taskDesc || "-" }}</strong></div>
+                  <div v-if="detailTask.taskDesc" class="modal-field">
+                    <span>任务描述</span><strong>{{ detailTask.taskDesc }}</strong>
+                  </div>
+                  <div class="modal-field"><span>状态</span><strong>{{ formatTaskStatus(detailTask.status) }}</strong></div>
+                  <div class="modal-field"><span>优先级</span><strong>{{ formatTaskPriority(detailTask.priority) }}</strong></div>
+                  <div class="modal-field"><span>截止时间</span><strong>{{ formatTime(detailTask.deadline) }}</strong></div>
+                  <div v-if="detailTask.startedTime" class="modal-field">
+                    <span>开始时间</span><strong>{{ formatTime(detailTask.startedTime) }}</strong>
+                  </div>
+                  <div v-if="detailTask.completedTime" class="modal-field">
+                    <span>完成时间</span><strong>{{ formatTime(detailTask.completedTime) }}</strong>
+                  </div>
                 </div>
                 <div class="modal-actions"><button class="ghost" type="button" @click="closeTaskDetail">关闭</button></div>
               </div>
@@ -379,7 +393,7 @@ const sectionLabel = computed(() => sectionLabelMap[section.value] || "当前模
 
 const statusMap = { NORMAL: "正常", KEY: "重点监管" };
 const approvalStatusMap = { PENDING: "待审核", APPROVED: "已通过", REJECTED: "已驳回" };
-const taskStatusMap = { CREATED: "待派发", ASSIGNED: "待执行", IN_PROGRESS: "执行中", COMPLETED: "已完成", CLOSED: "已关闭" };
+const taskStatusMap = { CREATED: "待派发", ASSIGNED: "待执行", IN_PROGRESS: "执行中", COMPLETED: "已完成", CLOSED: "已归档" };
 const taskPriorityMap = { LOW: "低", MEDIUM: "中", HIGH: "高" };
 const inspectionResultMap = { PASS: "合格", FAIL: "不合格" };
 const complaintStatusMap = {

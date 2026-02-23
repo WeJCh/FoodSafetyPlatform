@@ -20,8 +20,8 @@
         <button :class="{ active: section === 'complaints' }" @click="handleComplaintEnter">
           投诉流转
         </button>
-        <button :class="{ active: section === 'rectification' }" @click="section = 'rectification'">
-          检查整改
+        <button :class="{ active: section === 'inspections' }" @click="handleInspectionEnter">
+          检查记录
         </button>
         <button :class="{ active: section === 'warning' }" @click="section = 'warning'">
           风险预警
@@ -58,8 +58,8 @@
           <button :class="{ active: section === 'dispatch' }" @click="handleDispatchEnter">
             任务派发
           </button>
-          <button :class="{ active: section === 'rectification' }" @click="section = 'rectification'">
-            整改复核
+          <button :class="{ active: section === 'inspections' }" @click="handleInspectionEnter">
+            检查记录
           </button>
           <button :class="{ active: section === 'complaints' }" @click="handleComplaintEnter">
             投诉流转
@@ -251,6 +251,7 @@
                     <option value="ASSIGNED">已派发</option>
                     <option value="IN_PROGRESS">执行中</option>
                     <option value="COMPLETED">已完成</option>
+                    <option value="CLOSED">已归档</option>
                   </select>
                 </label>
                 <button class="primary" type="submit" :disabled="dispatchTaskLoading">
@@ -279,6 +280,9 @@
                   <span>{{ task.assignedToName || "-" }}</span>
                   <span>{{ formatTime(task.deadline) }}</span>
                   <div class="action-buttons">
+                    <button class="ghost" type="button" @click="openTaskDetail(task)">
+                      查看详情
+                    </button>
                     <select
                       v-if="isTaskAssignable(task)"
                       v-model="taskAssignments[task.id]"
@@ -301,6 +305,15 @@
                       @click="handleAssignTask(task)"
                     >
                       派发
+                    </button>
+                    <button
+                      v-if="isTaskClosable(task)"
+                      class="ghost"
+                      type="button"
+                      :disabled="dispatchTaskLoading"
+                      @click="handleCloseTask(task)"
+                    >
+                      归档
                     </button>
                   </div>
                 </div>
@@ -326,6 +339,136 @@
                     下一页
                   </button>
                 </div>
+              </div>
+
+              <div v-if="detailTask" class="modal-mask" @click.self="closeTaskDetail">
+                <div class="modal-card">
+                  <div class="modal-title">任务详情</div>
+                  <div class="modal-body">
+                    <div class="modal-field"><span>任务编号</span><strong>{{ detailTask.taskNo || "-" }}</strong></div>
+                    <div class="modal-field"><span>企业名称</span><strong>{{ detailTask.enterpriseName || "-" }}</strong></div>
+                    <div class="modal-field"><span>任务标题</span><strong>{{ detailTask.taskTitle || "-" }}</strong></div>
+                    <div v-if="detailTask.taskDesc" class="modal-field">
+                      <span>任务描述</span><strong>{{ detailTask.taskDesc }}</strong>
+                    </div>
+                    <div class="modal-field"><span>状态</span><strong>{{ formatTaskStatus(detailTask.status) }}</strong></div>
+                    <div class="modal-field"><span>优先级</span><strong>{{ formatTaskPriority(detailTask.priority) }}</strong></div>
+                    <div class="modal-field"><span>执行人</span><strong>{{ detailTask.assignedToName || "-" }}</strong></div>
+                    <div class="modal-field"><span>截止时间</span><strong>{{ formatTime(detailTask.deadline) }}</strong></div>
+                  </div>
+                  <div class="modal-actions">
+                    <button class="ghost" type="button" @click="closeTaskDetail">关闭</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div v-else-if="section === 'inspections'">
+          <div class="section-title">检查记录</div>
+          <form class="filter-bar filter-bar--quad" @submit.prevent="handleInspectionSearch">
+            <label>
+              企业名称
+              <input v-model.trim="inspectionFilters.enterpriseName" placeholder="输入企业名称" />
+            </label>
+            <label>
+              检查结果
+              <select v-model="inspectionFilters.result">
+                <option value="">全部</option>
+                <option value="PASS">合格</option>
+                <option value="FAIL">不合格</option>
+              </select>
+            </label>
+            <label>
+              起始日期
+              <input v-model="inspectionFilters.startDate" type="date" />
+            </label>
+            <label>
+              截止日期
+              <input v-model="inspectionFilters.endDate" type="date" />
+            </label>
+            <button class="primary" type="submit" :disabled="inspectionLoading">
+              {{ inspectionLoading ? "查询中..." : "查询" }}
+            </button>
+          </form>
+
+          <div class="list-table inspection-table">
+            <div class="list-row list-header inspection-header">
+              <span>企业名称</span>
+              <span>检查日期</span>
+              <span>结果</span>
+              <span>更新时间</span>
+              <span>操作</span>
+            </div>
+            <div v-if="!inspectionRecords.length" class="list-empty">
+              暂无检查记录
+            </div>
+            <div v-for="record in inspectionRecords" :key="record.id" class="list-row inspection-row">
+              <span>{{ record.enterpriseName || "-" }}</span>
+              <span>{{ record.inspectionDate || "-" }}</span>
+              <span>{{ formatInspectionResult(record.result) }}</span>
+              <span>{{ formatTime(record.updateTime) }}</span>
+              <button class="ghost" type="button" @click="openInspectionDetail(record)">查看详情</button>
+            </div>
+          </div>
+
+          <div class="pager">
+            <span>共 {{ inspectionTotal }} 条，{{ inspectionPage }}/{{ inspectionPages }} 页</span>
+            <div class="pager-actions">
+              <button
+                class="ghost"
+                type="button"
+                :disabled="inspectionPage <= 1"
+                @click="changeInspectionPage(inspectionPage - 1)"
+              >
+                上一页
+              </button>
+              <button
+                class="ghost"
+                type="button"
+                :disabled="inspectionPage >= inspectionPages"
+                @click="changeInspectionPage(inspectionPage + 1)"
+              >
+                下一页
+              </button>
+            </div>
+          </div>
+
+          <div v-if="inspectionDetail" class="modal-mask" @click.self="closeInspectionDetail">
+            <div class="modal-card">
+              <div class="modal-title">检查记录详情</div>
+              <div class="modal-body">
+                <div class="modal-field">
+                  <span>企业名称</span>
+                  <strong>{{ inspectionDetail.record.enterpriseName || "-" }}</strong>
+                </div>
+                <div class="modal-field">
+                  <span>检查日期</span>
+                  <strong>{{ inspectionDetail.record.inspectionDate || "-" }}</strong>
+                </div>
+                <div class="modal-field">
+                  <span>检查结果</span>
+                  <strong>{{ formatInspectionResult(inspectionDetail.record.result) }}</strong>
+                </div>
+                <div class="modal-field">
+                  <span>问题描述</span>
+                  <strong>{{ inspectionDetail.record.problemDesc || "-" }}</strong>
+                </div>
+                <div class="modal-field">
+                  <span>检查明细</span>
+                  <div class="modal-list">
+                    <div v-if="!inspectionDetail.items || !inspectionDetail.items.length" class="modal-empty">暂无检查明细</div>
+                    <div v-for="(item, index) in inspectionDetail.items || []" :key="index" class="modal-item">
+                      <div class="modal-item-name">{{ item.itemName || "-" }}</div>
+                      <div class="modal-item-meta">{{ formatInspectionResult(item.itemResult) }}</div>
+                      <div class="modal-item-desc">{{ item.problemDesc || "-" }}</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div class="modal-actions">
+                <button class="ghost" type="button" @click="closeInspectionDetail">关闭</button>
               </div>
             </div>
           </div>
@@ -445,10 +588,13 @@ import {
   approveEnterpriseBatch,
   acceptComplaint,
   assignInspectionTask,
+  closeInspectionTask,
   createInspectionTask,
   fetchComplaints,
   fetchEligibleRegulators,
   fetchEnterprises,
+  fetchInspectionRecordDetail,
+  fetchInspectionRecords,
   fetchInspectionTasks,
   fetchPendingEnterprises,
   fetchRegionPath,
@@ -514,6 +660,20 @@ const dispatchTotal = ref(0);
 const dispatchPages = ref(1);
 const taskAssignments = reactive({});
 const enforcerMap = reactive({});
+const detailTask = ref(null);
+const inspectionFilters = reactive({
+  enterpriseName: "",
+  result: "",
+  startDate: "",
+  endDate: ""
+});
+const inspectionRecords = ref([]);
+const inspectionLoading = ref(false);
+const inspectionPage = ref(1);
+const inspectionSize = ref(8);
+const inspectionTotal = ref(0);
+const inspectionPages = ref(1);
+const inspectionDetail = ref(null);
 const complaintLoading = ref(false);
 const complaintRecords = ref([]);
 const complaintPage = ref(1);
@@ -535,7 +695,7 @@ function setStatus(message, type = "info") {
 const sectionLabelMap = {
   approvals: "备案审核",
   dispatch: "任务派发",
-  rectification: "整改复核",
+  inspections: "检查记录",
   complaints: "投诉流转",
   warning: "风险预警",
   stats: "数据统计"
@@ -568,13 +728,18 @@ const taskStatusMap = {
   ASSIGNED: "已派发",
   IN_PROGRESS: "执行中",
   COMPLETED: "已完成",
-  CLOSED: "已关闭"
+  CLOSED: "已归档"
 };
 
 const taskPriorityMap = {
   LOW: "低",
   MEDIUM: "中",
   HIGH: "高"
+};
+
+const inspectionResultMap = {
+  PASS: "合格",
+  FAIL: "不合格"
 };
 
 function formatStatus(value) {
@@ -595,6 +760,10 @@ function formatTaskStatus(value) {
 
 function formatTaskPriority(value) {
   return taskPriorityMap[value] || value || "-";
+}
+
+function formatInspectionResult(value) {
+  return inspectionResultMap[value] || value || "-";
 }
 
 function formatRegionName(regionId) {
@@ -619,6 +788,11 @@ async function ensureRegionName(regionId) {
 async function handleDispatchEnter() {
   section.value = "dispatch";
   await loadDispatch();
+}
+
+async function handleInspectionEnter() {
+  section.value = "inspections";
+  await loadInspections();
 }
 
 async function handleComplaintEnter() {
@@ -692,6 +866,27 @@ async function loadDispatchTasks() {
   }
 }
 
+async function loadInspections() {
+  inspectionLoading.value = true;
+  setStatus("");
+  try {
+    const data = await fetchInspectionRecords(props.token, {
+      ...inspectionFilters,
+      page: inspectionPage.value,
+      size: inspectionSize.value
+    });
+    inspectionRecords.value = data.records || [];
+    inspectionTotal.value = data.total || 0;
+    inspectionPage.value = data.page || 1;
+    inspectionSize.value = data.size || inspectionSize.value;
+    inspectionPages.value = data.pages || 1;
+  } catch (error) {
+    setStatus(error.message || "加载检查记录失败", "error");
+  } finally {
+    inspectionLoading.value = false;
+  }
+}
+
 async function handleComplaintSearch() {
   complaintPage.value = 1;
   await loadComplaints();
@@ -700,6 +895,16 @@ async function handleComplaintSearch() {
 async function changeComplaintPage(nextPage) {
   complaintPage.value = nextPage;
   await loadComplaints();
+}
+
+async function handleInspectionSearch() {
+  inspectionPage.value = 1;
+  await loadInspections();
+}
+
+async function changeInspectionPage(nextPage) {
+  inspectionPage.value = nextPage;
+  await loadInspections();
 }
 
 function handleViewComplaint(item) {
@@ -785,6 +990,25 @@ function isTaskAssignable(task) {
   return ["CREATED", "ASSIGNED"].includes(task.status);
 }
 
+function isTaskClosable(task) {
+  return task.status === "COMPLETED";
+}
+
+async function handleCloseTask(task) {
+  if (!task?.id) return;
+  dispatchTaskLoading.value = true;
+  setStatus("", "info");
+  try {
+    await closeInspectionTask(props.token, task.id);
+    setStatus("任务已归档", "success");
+    await loadDispatchTasks();
+  } catch (error) {
+    setStatus(error.message || "关闭任务失败", "error");
+  } finally {
+    dispatchTaskLoading.value = false;
+  }
+}
+
 async function handleAssignTask(task) {
   const regulatorId = taskAssignments[task.id];
   if (!regulatorId) {
@@ -802,6 +1026,30 @@ async function handleAssignTask(task) {
   } finally {
     dispatchTaskLoading.value = false;
   }
+}
+
+function openTaskDetail(task) {
+  detailTask.value = task;
+}
+
+function closeTaskDetail() {
+  detailTask.value = null;
+}
+
+async function openInspectionDetail(record) {
+  if (!record?.id) return;
+  inspectionLoading.value = true;
+  try {
+    inspectionDetail.value = await fetchInspectionRecordDetail(props.token, record.id);
+  } catch (error) {
+    setStatus(error.message || "加载检查记录失败", "error");
+  } finally {
+    inspectionLoading.value = false;
+  }
+}
+
+function closeInspectionDetail() {
+  inspectionDetail.value = null;
 }
 
 function normalizeDeadline(value) {
@@ -983,6 +1231,10 @@ onMounted(() => {
   }
   if (section.value === "dispatch") {
     handleDispatchEnter();
+    return;
+  }
+  if (section.value === "inspections") {
+    handleInspectionEnter();
     return;
   }
   if (section.value === "complaints") {
@@ -1181,6 +1433,45 @@ onMounted(() => {
 .complaint-header,
 .complaint-row {
   --row-columns: 1.4fr 1.2fr 0.9fr 0.9fr 0.9fr 1.1fr 1.2fr;
+}
+
+.inspection-header,
+.inspection-row {
+  --row-columns: 1.6fr 1fr 0.8fr 1.2fr 0.8fr;
+}
+
+.modal-list {
+  display: grid;
+  gap: 10px;
+}
+
+.modal-item {
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid var(--stroke);
+  background: var(--card-strong);
+  display: grid;
+  gap: 4px;
+}
+
+.modal-item-name {
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.modal-item-meta {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.modal-item-desc {
+  font-size: 13px;
+  color: var(--ink);
+}
+
+.modal-empty {
+  font-size: 12px;
+  color: var(--muted);
 }
 
 .checkbox-cell {

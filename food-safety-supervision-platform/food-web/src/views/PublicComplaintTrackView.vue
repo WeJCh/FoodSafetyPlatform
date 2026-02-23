@@ -72,46 +72,49 @@
       </div>
     </section>
 
-    <div v-if="detailOpen && selected" class="modal-mask" @click.self="closeDetail">
+    <div v-if="detailOpen" class="modal-mask" @click.self="closeDetail">
       <div class="modal-card">
-        <div class="modal-header">
-          <strong>投诉详情</strong>
-          <span class="status-pill">{{ formatStatus(selected.status) }}</span>
-        </div>
-        <div class="detail-grid">
-          <div>
-            <span>投诉编号</span>
-            <strong>{{ selected.complaintNo || "-" }}</strong>
+        <div v-if="detailLoading" class="modal-loading">加载中...</div>
+        <template v-else-if="selected">
+          <div class="modal-header">
+            <strong>投诉详情</strong>
+            <span class="status-pill">{{ formatStatus(selected.status) }}</span>
           </div>
-          <div>
-            <span>企业名称</span>
-            <strong>{{ selected.enterpriseName || "-" }}</strong>
+          <div class="detail-grid">
+            <div>
+              <span>投诉编号</span>
+              <strong>{{ selected.complaintNo || "-" }}</strong>
+            </div>
+            <div>
+              <span>企业名称</span>
+              <strong>{{ selected.enterpriseName || "-" }}</strong>
+            </div>
+            <div>
+              <span>投诉类型</span>
+              <strong>{{ selected.complaintType || "-" }}</strong>
+            </div>
+            <div>
+              <span>提交时间</span>
+              <strong>{{ formatTime(selected.createTime) }}</strong>
+            </div>
           </div>
-          <div>
-            <span>投诉类型</span>
-            <strong>{{ selected.complaintType || "-" }}</strong>
+          <div class="detail-content">
+            <span>投诉内容</span>
+            <p>{{ selected.content || "-" }}</p>
           </div>
-          <div>
-            <span>提交时间</span>
-            <strong>{{ formatTime(selected.createTime) }}</strong>
+          <div v-if="selected.status === 'FEEDBACKED'" class="result-tip">
+            <p>处理结果：{{ selected.handleResult || "暂无处理结果" }}</p>
           </div>
-        </div>
-        <div class="detail-content">
-          <span>投诉内容</span>
-          <p>{{ selected.content || "-" }}</p>
-        </div>
-        <div v-if="selected.status === 'FEEDBACKED'" class="result-tip">
-          <p>处理结果：{{ selected.handleResult || "暂无处理结果" }}</p>
-        </div>
-        <div v-if="selected.status === 'REJECTED'" class="rejected-tip">
-          <p>该投诉已驳回。</p>
-          <p v-if="selected.handleResult">驳回原因：{{ selected.handleResult }}</p>
-          <p v-else>可能原因：信息不完整或不属于食品安全投诉。</p>
-          <p>如需继续反馈，请补充材料后重新提交，或联系监管部门咨询。</p>
-        </div>
-        <div class="modal-actions">
-          <button class="ghost" type="button" @click="closeDetail">关闭</button>
-        </div>
+          <div v-if="selected.status === 'REJECTED'" class="rejected-tip">
+            <p>该投诉已驳回。</p>
+            <p v-if="selected.handleResult">驳回原因：{{ selected.handleResult }}</p>
+            <p v-else>可能原因：信息不完整或不属于食品安全投诉。</p>
+            <p>如需继续反馈，请补充材料后重新提交，或联系监管部门咨询。</p>
+          </div>
+          <div class="modal-actions">
+            <button class="ghost" type="button" @click="closeDetail">关闭</button>
+          </div>
+        </template>
       </div>
     </div>
 
@@ -121,7 +124,7 @@
 
 <script setup>
 import { onMounted, reactive, ref } from "vue";
-import { fetchMyComplaints } from "../api/regulation";
+import { fetchMyComplaintDetail, fetchMyComplaints } from "../api/regulation";
 
 const props = defineProps({
   publicUser: {
@@ -145,6 +148,7 @@ const total = ref(0);
 const pages = ref(1);
 const selected = ref(null);
 const detailOpen = ref(false);
+const detailLoading = ref(false);
 const status = reactive({ message: "", type: "" });
 
 function setStatus(message, type = "info") {
@@ -169,9 +173,21 @@ function formatTime(value) {
   return String(value).replace("T", " ").slice(0, 16);
 }
 
-function selectComplaint(item) {
-  selected.value = item;
+async function selectComplaint(item) {
+  if (!item?.id) return;
   detailOpen.value = true;
+  detailLoading.value = true;
+  setStatus("");
+  try {
+    const data = await fetchMyComplaintDetail(props.publicToken, item.id);
+    selected.value = data;
+  } catch (error) {
+    selected.value = null;
+    detailOpen.value = false;
+    setStatus(error.message || "加载投诉详情失败", "error");
+  } finally {
+    detailLoading.value = false;
+  }
 }
 
 function closeDetail() {
@@ -192,7 +208,7 @@ async function loadComplaints() {
     page.value = data.page || 1;
     size.value = data.size || size.value;
     pages.value = data.pages || 1;
-    selected.value = records.value[0] || null;
+    selected.value = null;
     detailOpen.value = false;
   } catch (error) {
     records.value = [];
@@ -454,6 +470,13 @@ onMounted(loadComplaints);
   box-shadow: 0 24px 60px rgba(15, 23, 42, 0.25);
   display: grid;
   gap: 12px;
+}
+
+.modal-loading {
+  padding: 24px 12px;
+  text-align: center;
+  color: var(--muted);
+  font-size: 13px;
 }
 
 .modal-header {

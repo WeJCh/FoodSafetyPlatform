@@ -102,6 +102,16 @@ public class InspectionTaskController {
         return ApiResponse.success(inspectionTaskService.submitTask(identity.userId(), id, dto));
     }
 
+    @PutMapping("/{id}/close")
+    public ApiResponse<InspectionTaskVO> close(@RequestHeader("Authorization") String token,
+                                               @PathVariable Long id) {
+        UserIdentity identity = resolveIdentity(token);
+        if (!identity.isRegulator()) {
+            return ApiResponse.failure(403, "regulator only");
+        }
+        return ApiResponse.success(inspectionTaskService.closeTask(identity.userId(), id));
+    }
+
     private UserIdentity resolveIdentity(String token) {
         Long userId = jwtUserResolver.resolveUserId(token);
         String userType = jwtUserResolver.resolveUserType(token);

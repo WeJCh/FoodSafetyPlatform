@@ -334,6 +334,15 @@ export function submitInspectionTask(token, id, payload) {
   });
 }
 
+export function closeInspectionTask(token, id) {
+  return requestWithBase(REGULATION_BASE_URL, `/api/regulation/tasks/${id}/close`, {
+    method: "PUT",
+    headers: {
+      Authorization: `Bearer ${token}`
+    }
+  });
+}
+
 export function fetchMyInspectionRecords(token, params = {}) {
   const search = new URLSearchParams();
   if (params.enterpriseName) search.append("enterpriseName", params.enterpriseName);
@@ -346,6 +355,27 @@ export function fetchMyInspectionRecords(token, params = {}) {
   return requestWithBase(
     REGULATION_BASE_URL,
     `/api/regulation/inspections/my${query ? `?${query}` : ""}`,
+    {
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${token}`
+      }
+    }
+  );
+}
+
+export function fetchInspectionRecords(token, params = {}) {
+  const search = new URLSearchParams();
+  if (params.enterpriseName) search.append("enterpriseName", params.enterpriseName);
+  if (params.result) search.append("result", params.result);
+  if (params.startDate) search.append("startDate", params.startDate);
+  if (params.endDate) search.append("endDate", params.endDate);
+  if (params.page) search.append("page", params.page);
+  if (params.size) search.append("size", params.size);
+  const query = search.toString();
+  return requestWithBase(
+    REGULATION_BASE_URL,
+    `/api/regulation/inspections${query ? `?${query}` : ""}`,
     {
       method: "GET",
       headers: {
@@ -383,6 +413,19 @@ export function fetchMyComplaints(token, params = {}) {
   return requestWithBase(
     REGULATION_BASE_URL,
     `/api/regulation/complaints/my${query ? `?${query}` : ""}`,
+    {
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${token}`
+      }
+    }
+  );
+}
+
+export function fetchMyComplaintDetail(token, id) {
+  return requestWithBase(
+    REGULATION_BASE_URL,
+    `/api/regulation/complaints/my/${id}`,
     {
       method: "GET",
       headers: {

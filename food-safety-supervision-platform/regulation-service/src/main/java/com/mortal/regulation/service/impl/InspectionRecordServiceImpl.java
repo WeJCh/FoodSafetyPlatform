@@ -95,6 +95,43 @@ public class InspectionRecordServiceImpl implements InspectionRecordService {
     }
 
     @Override
+    public PageResult<InspectionRecordVO> listForAdmin(Long userId,
+                                                       String enterpriseName,
+                                                       String result,
+                                                       LocalDate startDate,
+                                                       LocalDate endDate,
+                                                       int page,
+                                                       int size) {
+        FoodRegulator regulator = requireRegulator(userId);
+        requireRole(regulator, ROLE_ADMIN);
+        List<Long> regionIds = resolveRegulatorRegionIds(regulator.getId());
+        if (regionIds.isEmpty()) {
+            return PageResult.of(List.of(), 0, page, size);
+        }
+        List<Long> enterpriseIds = resolveEnterpriseIds(regionIds, enterpriseName);
+        if (enterpriseIds.isEmpty()) {
+            return PageResult.of(List.of(), 0, page, size);
+        }
+        LambdaQueryWrapper<InspectionRecord> wrapper = new LambdaQueryWrapper<InspectionRecord>()
+            .eq(InspectionRecord::getDeleted, 0)
+            .in(InspectionRecord::getEnterpriseId, enterpriseIds);
+        if (StringUtils.hasText(result)) {
+            wrapper.eq(InspectionRecord::getResult, normalize(result));
+        }
+        if (startDate != null) {
+            wrapper.ge(InspectionRecord::getInspectionDate, startDate);
+        }
+        if (endDate != null) {
+            wrapper.le(InspectionRecord::getInspectionDate, endDate);
+        }
+        wrapper.orderByDesc(InspectionRecord::getUpdateTime);
+        Page<InspectionRecord> pageInfo = inspectionRecordMapper.selectPage(new Page<>(page, size), wrapper);
+        List<InspectionRecord> records = pageInfo.getRecords();
+        List<InspectionRecordVO> vos = toVOs(records);
+        return PageResult.of(vos, pageInfo.getTotal(), page, size);
+    }
+
+    @Override
     public InspectionRecordDetailVO getDetail(Long userId, Long recordId) {
         FoodRegulator regulator = requireRegulator(userId);
         InspectionRecord record = requireRecord(recordId);
@@ -217,6 +254,27 @@ public class InspectionRecordServiceImpl implements InspectionRecordService {
         List<FoodEnterprise> enterprises = foodEnterpriseMapper.selectList(new LambdaQueryWrapper<FoodEnterprise>()
             .eq(FoodEnterprise::getDeleted, 0)
             .like(FoodEnterprise::getEnterpriseName, enterpriseName.trim()));
+        if (enterprises.isEmpty()) {
+            return List.of();
+        }
+        return enterprises.stream()
+            .map(FoodEnterprise::getId)
+            .filter(Objects::nonNull)
+            .distinct()
+            .toList();
+    }
+
+    private List<Long> resolveEnterpriseIds(List<Long> regionIds, String enterpriseName) {
+        if (regionIds == null || regionIds.isEmpty()) {
+            return List.of();
+        }
+        LambdaQueryWrapper<FoodEnterprise> wrapper = new LambdaQueryWrapper<FoodEnterprise>()
+            .eq(FoodEnterprise::getDeleted, 0)
+            .in(FoodEnterprise::getRegionId, regionIds);
+        if (StringUtils.hasText(enterpriseName)) {
+            wrapper.like(FoodEnterprise::getEnterpriseName, enterpriseName.trim());
+        }
+        List<FoodEnterprise> enterprises = foodEnterpriseMapper.selectList(wrapper);
         if (enterprises.isEmpty()) {
             return List.of();
         }

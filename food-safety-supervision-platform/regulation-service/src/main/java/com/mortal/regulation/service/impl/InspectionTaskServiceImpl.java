@@ -22,6 +22,7 @@ import com.mortal.regulation.mapper.InspectionItemMapper;
 import com.mortal.regulation.mapper.InspectionRecordMapper;
 import com.mortal.regulation.mapper.InspectionTaskMapper;
 import com.mortal.regulation.service.InspectionTaskService;
+import com.mortal.regulation.service.RectificationService;
 import com.mortal.regulation.vo.InspectionTaskVO;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -59,6 +60,7 @@ public class InspectionTaskServiceImpl implements InspectionTaskService {
     private final FoodRegulatorMapper foodRegulatorMapper;
     private final FoodRegulatorRegionMapper foodRegulatorRegionMapper;
     private final AddrRegionMapper addrRegionMapper;
+    private final RectificationService rectificationService;
 
     public InspectionTaskServiceImpl(InspectionTaskMapper inspectionTaskMapper,
                                      InspectionRecordMapper inspectionRecordMapper,
@@ -66,7 +68,8 @@ public class InspectionTaskServiceImpl implements InspectionTaskService {
                                      FoodEnterpriseMapper foodEnterpriseMapper,
                                      FoodRegulatorMapper foodRegulatorMapper,
                                      FoodRegulatorRegionMapper foodRegulatorRegionMapper,
-                                     AddrRegionMapper addrRegionMapper) {
+                                     AddrRegionMapper addrRegionMapper,
+                                     RectificationService rectificationService) {
         this.inspectionTaskMapper = inspectionTaskMapper;
         this.inspectionRecordMapper = inspectionRecordMapper;
         this.inspectionItemMapper = inspectionItemMapper;
@@ -74,6 +77,7 @@ public class InspectionTaskServiceImpl implements InspectionTaskService {
         this.foodRegulatorMapper = foodRegulatorMapper;
         this.foodRegulatorRegionMapper = foodRegulatorRegionMapper;
         this.addrRegionMapper = addrRegionMapper;
+        this.rectificationService = rectificationService;
     }
 
     @Override
@@ -81,6 +85,7 @@ public class InspectionTaskServiceImpl implements InspectionTaskService {
         FoodRegulator regulator = requireRegulator(userId);
         requireRole(regulator, ROLE_ADMIN);
         FoodEnterprise enterprise = requireEnterprise(dto.getEnterpriseId());
+        validateCreateDeadline(dto.getDeadline());
         if (!"APPROVED".equalsIgnoreCase(enterprise.getApprovalStatus())) {
             throw new IllegalArgumentException("enterprise not approved");
         }
@@ -109,6 +114,7 @@ public class InspectionTaskServiceImpl implements InspectionTaskService {
         FoodRegulator operator = requireRegulator(userId);
         requireRole(operator, ROLE_ADMIN);
         InspectionTask task = requireTask(taskId);
+        ensureTaskNotExpired(task, "assign");
         if (STATUS_IN_PROGRESS.equals(task.getStatus())
             || STATUS_COMPLETED.equals(task.getStatus())
             || STATUS_CLOSED.equals(task.getStatus())) {
@@ -190,6 +196,7 @@ public class InspectionTaskServiceImpl implements InspectionTaskService {
         FoodRegulator regulator = requireRegulator(userId);
         requireRole(regulator, ROLE_ENFORCER);
         InspectionTask task = requireTask(taskId);
+        ensureTaskNotExpired(task, "start");
         if (!Objects.equals(task.getAssignedTo(), regulator.getId())) {
             throw new IllegalArgumentException("task not assigned to you");
         }
@@ -228,9 +235,10 @@ public class InspectionTaskServiceImpl implements InspectionTaskService {
         inspectionRecordMapper.insert(record);
 
         List<InspectionItemDTO> items = dto.getItems();
+        int insertedItemCount = 0;
         if (items != null && !items.isEmpty()) {
             for (InspectionItemDTO itemDTO : items) {
-                if (!StringUtils.hasText(itemDTO.getItemName())) {
+                if (itemDTO == null || !StringUtils.hasText(itemDTO.getItemName())) {
                     continue;
                 }
                 InspectionItem item = new InspectionItem();
@@ -242,7 +250,20 @@ public class InspectionTaskServiceImpl implements InspectionTaskService {
                 item.setUpdateTime(LocalDateTime.now());
                 item.setDeleted(0);
                 inspectionItemMapper.insert(item);
+                insertedItemCount++;
             }
+        }
+        if (insertedItemCount <= 0) {
+            throw new IllegalArgumentException("at least one inspection item required");
+        }
+
+        if (needRectification(record.getResult(), items)) {
+            // 检查结论或任一检查项不合格时，自动创建整改任务（同一检查记录幂等）。
+            rectificationService.createFromInspection(
+                record.getId(),
+                task.getEnterpriseId(),
+                buildRectificationDesc(dto, items)
+            );
         }
 
         task.setStatus(STATUS_COMPLETED);
@@ -501,6 +522,25 @@ public class InspectionTaskServiceImpl implements InspectionTaskService {
         return PRIORITY_MEDIUM;
     }
 
+    private void validateCreateDeadline(LocalDateTime deadline) {
+        if (deadline == null) {
+            throw new IllegalArgumentException("deadline required");
+        }
+        if (!deadline.isAfter(LocalDateTime.now())) {
+            throw new IllegalArgumentException("deadline must be future");
+        }
+    }
+
+    private void ensureTaskNotExpired(InspectionTask task, String action) {
+        if (task == null) {
+            throw new IllegalArgumentException("task not found");
+        }
+        LocalDateTime deadline = task.getDeadline();
+        if (deadline != null && !deadline.isAfter(LocalDateTime.now())) {
+            throw new IllegalArgumentException("task deadline exceeded, cannot " + action);
+        }
+    }
+
     private String generateTaskNo() {
         String time = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMddHHmmss"));
         int random = (int) (Math.random() * 9000) + 1000;
@@ -509,6 +549,48 @@ public class InspectionTaskServiceImpl implements InspectionTaskService {
 
     private String normalize(String value) {
         return StringUtils.hasText(value) ? value.trim().toUpperCase() : null;
+    }
+
+    private boolean needRectification(String recordResult, List<InspectionItemDTO> items) {
+        if ("FAIL".equals(recordResult)) {
+            return true;
+        }
+        if (items == null || items.isEmpty()) {
+            return false;
+        }
+        for (InspectionItemDTO item : items) {
+            if (item == null) {
+                continue;
+            }
+            if ("FAIL".equals(normalize(item.getItemResult()))) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private String buildRectificationDesc(InspectionSubmitDTO dto, List<InspectionItemDTO> items) {
+        StringBuilder builder = new StringBuilder("请针对本次检查不合格项完成整改并提交整改说明。");
+        if (StringUtils.hasText(dto.getProblemDesc())) {
+            builder.append("\n问题概述：").append(dto.getProblemDesc().trim());
+        }
+        if (items != null && !items.isEmpty()) {
+            String failedItems = items.stream()
+                .filter(Objects::nonNull)
+                .filter(item -> "FAIL".equals(normalize(item.getItemResult())))
+                .map(item -> {
+                    String itemName = StringUtils.hasText(item.getItemName()) ? item.getItemName().trim() : "未命名检查项";
+                    if (StringUtils.hasText(item.getProblemDesc())) {
+                        return itemName + "（" + item.getProblemDesc().trim() + "）";
+                    }
+                    return itemName;
+                })
+                .collect(Collectors.joining("、"));
+            if (StringUtils.hasText(failedItems)) {
+                builder.append("\n不合格项：").append(failedItems);
+            }
+        }
+        return builder.toString();
     }
 
     private boolean isDeleted(Integer deleted) {

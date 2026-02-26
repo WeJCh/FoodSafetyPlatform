@@ -23,6 +23,9 @@
         <button :class="{ active: section === 'inspections' }" @click="handleInspectionEnter">
           检查记录
         </button>
+        <button :class="{ active: section === 'rectification' }" @click="handleRectificationEnter">
+          整改复核
+        </button>
         <button :class="{ active: section === 'warning' }" @click="section = 'warning'">
           风险预警
         </button>
@@ -60,6 +63,9 @@
           </button>
           <button :class="{ active: section === 'inspections' }" @click="handleInspectionEnter">
             检查记录
+          </button>
+          <button :class="{ active: section === 'rectification' }" @click="handleRectificationEnter">
+            整改复核
           </button>
           <button :class="{ active: section === 'complaints' }" @click="handleComplaintEnter">
             投诉流转
@@ -228,7 +234,7 @@
                 </label>
                 <label>
                   截止时间
-                  <input v-model="dispatchForm.deadline" type="datetime-local" />
+                  <input v-model="dispatchForm.deadline" type="datetime-local" required />
                 </label>
                 <button class="primary dispatch-submit span-all" type="submit" :disabled="dispatchLoading">
                   {{ dispatchLoading ? "创建中..." : "创建任务" }}
@@ -286,7 +292,7 @@
                     <select
                       v-if="isTaskAssignable(task)"
                       v-model="taskAssignments[task.id]"
-                      :disabled="dispatchTaskLoading"
+                      :disabled="dispatchTaskLoading || isTaskDeadlineExceeded(task.deadline)"
                     >
                       <option value="">选择执法人员</option>
                       <option
@@ -301,11 +307,17 @@
                       v-if="isTaskAssignable(task)"
                       class="ghost"
                       type="button"
-                      :disabled="dispatchTaskLoading"
+                      :disabled="dispatchTaskLoading || isTaskDeadlineExceeded(task.deadline)"
                       @click="handleAssignTask(task)"
                     >
                       派发
                     </button>
+                    <span
+                      v-if="isTaskAssignable(task) && isTaskDeadlineExceeded(task.deadline)"
+                      class="secondary-text"
+                    >
+                      已超期，不可派发
+                    </span>
                     <button
                       v-if="isTaskClosable(task)"
                       class="ghost"
@@ -342,19 +354,61 @@
               </div>
 
               <div v-if="detailTask" class="modal-mask" @click.self="closeTaskDetail">
-                <div class="modal-card">
+                <div class="modal-card task-detail-modal">
                   <div class="modal-title">任务详情</div>
-                  <div class="modal-body">
-                    <div class="modal-field"><span>任务编号</span><strong>{{ detailTask.taskNo || "-" }}</strong></div>
-                    <div class="modal-field"><span>企业名称</span><strong>{{ detailTask.enterpriseName || "-" }}</strong></div>
-                    <div class="modal-field"><span>任务标题</span><strong>{{ detailTask.taskTitle || "-" }}</strong></div>
-                    <div v-if="detailTask.taskDesc" class="modal-field">
-                      <span>任务描述</span><strong>{{ detailTask.taskDesc }}</strong>
-                    </div>
-                    <div class="modal-field"><span>状态</span><strong>{{ formatTaskStatus(detailTask.status) }}</strong></div>
-                    <div class="modal-field"><span>优先级</span><strong>{{ formatTaskPriority(detailTask.priority) }}</strong></div>
-                    <div class="modal-field"><span>执行人</span><strong>{{ detailTask.assignedToName || "-" }}</strong></div>
-                    <div class="modal-field"><span>截止时间</span><strong>{{ formatTime(detailTask.deadline) }}</strong></div>
+                  <div class="task-detail-header">
+                    <span class="task-chip task-chip--status">{{ formatTaskStatus(detailTask.status) }}</span>
+                    <span class="task-chip task-chip--priority">{{ formatTaskPriority(detailTask.priority) }}</span>
+                    <span class="task-chip">{{ detailTask.taskNo || "-" }}</span>
+                  </div>
+                  <div class="task-detail-grid">
+                    <section class="task-detail-section">
+                      <div class="task-detail-section-title">企业信息</div>
+                      <div v-if="detailTaskLoading" class="task-detail-loading">加载企业信息中...</div>
+                      <div v-else class="task-detail-fields">
+                        <div class="task-detail-field">
+                          <span>企业名称</span>
+                          <strong>{{ detailTaskEnterprise?.enterpriseName || detailTask.enterpriseName || "-" }}</strong>
+                        </div>
+                        <div class="task-detail-field">
+                          <span>负责人姓名</span>
+                          <strong>{{ detailTaskEnterprise?.principal || "-" }}</strong>
+                        </div>
+                        <div class="task-detail-field">
+                          <span>所属区域</span>
+                          <strong>{{ detailTaskRegionName || "-" }}</strong>
+                        </div>
+                        <div class="task-detail-field task-detail-field--full">
+                          <span>详细地址</span>
+                          <strong>{{ detailTaskEnterprise?.addressDetail || "-" }}</strong>
+                        </div>
+                      </div>
+                    </section>
+                    <section class="task-detail-section">
+                      <div class="task-detail-section-title">任务信息</div>
+                      <div class="task-detail-fields">
+                        <div class="task-detail-field">
+                          <span>任务标题</span>
+                          <strong>{{ detailTask.taskTitle || "-" }}</strong>
+                        </div>
+                        <div class="task-detail-field">
+                          <span>当前执行人</span>
+                          <strong>{{ detailTask.assignedToName || "-" }}</strong>
+                        </div>
+                        <div class="task-detail-field">
+                          <span>截止时间</span>
+                          <strong>{{ formatTime(detailTask.deadline) }}</strong>
+                        </div>
+                        <div class="task-detail-field">
+                          <span>派发时间</span>
+                          <strong>{{ formatTime(detailTask.assignedTime) }}</strong>
+                        </div>
+                        <div class="task-detail-field task-detail-field--full">
+                          <span>任务描述</span>
+                          <strong>{{ detailTask.taskDesc || "暂无任务描述" }}</strong>
+                        </div>
+                      </div>
+                    </section>
                   </div>
                   <div class="modal-actions">
                     <button class="ghost" type="button" @click="closeTaskDetail">关闭</button>
@@ -474,6 +528,100 @@
           </div>
         </div>
 
+        <div v-else-if="section === 'rectification'">
+          <div class="section-title">整改复核</div>
+          <form class="filter-bar filter-bar--triple" @submit.prevent="handleRectificationSearch">
+            <label>
+              状态
+              <select v-model="rectificationFilters.status">
+                <option value="">全部</option>
+                <option value="ONGOING">整改中</option>
+                <option value="SUBMITTED">待复核</option>
+                <option value="REWORK">打回重做</option>
+                <option value="CONFIRMED">已确认</option>
+              </select>
+            </label>
+            <label>
+              企业名称
+              <input v-model.trim="rectificationFilters.enterpriseName" placeholder="输入企业名称" />
+            </label>
+            <button class="primary" type="submit" :disabled="rectificationLoading">
+              {{ rectificationLoading ? "查询中..." : "查询" }}
+            </button>
+          </form>
+
+          <div class="list-table">
+            <div class="list-row list-header rectification-header">
+              <span>企业</span>
+              <span>整改要求</span>
+              <span>状态</span>
+              <span>进展说明</span>
+              <span>更新时间</span>
+              <span>操作</span>
+            </div>
+            <div v-if="!rectificationRecords.length" class="list-empty">
+              暂无整改任务
+            </div>
+            <div v-for="item in rectificationRecords" :key="item.id" class="list-row rectification-row">
+              <span>{{ item.enterpriseName || "-" }}</span>
+              <div class="rectification-text" :title="item.rectificationDesc || '-'">
+                {{ item.rectificationDesc || "-" }}
+              </div>
+              <span>{{ formatRectificationStatus(item.status) }}</span>
+              <div class="rectification-text" :title="item.progress || '-'">
+                {{ item.progress || "-" }}
+              </div>
+              <span>{{ formatTime(item.updateTime) }}</span>
+              <div class="action-buttons">
+                <button class="ghost" type="button" @click="openRectificationDetail(item)">
+                  查看详情
+                </button>
+                <button
+                  v-if="item.status === 'SUBMITTED'"
+                  class="primary"
+                  type="button"
+                  :disabled="rectificationLoading"
+                  @click="handleReviewRectification(item, { action: 'CONFIRM' })"
+                >
+                  快速通过
+                </button>
+                <span v-else class="secondary-text">无需操作</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="pager">
+            <span>共 {{ rectificationTotal }} 条，{{ rectificationPage }}/{{ rectificationPages }} 页</span>
+            <div class="pager-actions">
+              <button
+                class="ghost"
+                type="button"
+                :disabled="rectificationPage <= 1"
+                @click="changeRectificationPage(rectificationPage - 1)"
+              >
+                上一页
+              </button>
+              <button
+                class="ghost"
+                type="button"
+                :disabled="rectificationPage >= rectificationPages"
+                @click="changeRectificationPage(rectificationPage + 1)"
+              >
+                下一页
+              </button>
+            </div>
+          </div>
+
+          <RectificationDetailModal
+            :visible="rectificationDetailVisible"
+            :detail="rectificationDetail"
+            :reviewable="Boolean(rectificationDetail && rectificationDetail.status === 'SUBMITTED')"
+            :reviewing="rectificationLoading"
+            @close="closeRectificationDetail"
+            @review="handleReviewRectification"
+          />
+        </div>
+
         <div v-else-if="section === 'complaints'">
           <div class="section-title">投诉流转</div>
           <form class="filter-bar filter-bar--quad" @submit.prevent="handleComplaintSearch">
@@ -591,16 +739,20 @@ import {
   closeInspectionTask,
   createInspectionTask,
   fetchComplaints,
+  fetchEnterpriseDetail,
   fetchEligibleRegulators,
   fetchEnterprises,
   fetchInspectionRecordDetail,
   fetchInspectionRecords,
   fetchInspectionTasks,
   fetchPendingEnterprises,
+  fetchRectifications,
   fetchRegionPath,
+  reviewRectification,
   rejectEnterprise,
   rejectEnterpriseBatch
 } from "../api/regulation";
+import RectificationDetailModal from "../components/RectificationDetailModal.vue";
 
 const props = defineProps({
   token: {
@@ -661,6 +813,9 @@ const dispatchPages = ref(1);
 const taskAssignments = reactive({});
 const enforcerMap = reactive({});
 const detailTask = ref(null);
+const detailTaskEnterprise = ref(null);
+const detailTaskRegionName = ref("-");
+const detailTaskLoading = ref(false);
 const inspectionFilters = reactive({
   enterpriseName: "",
   result: "",
@@ -686,6 +841,18 @@ const complaintFilters = reactive({
   assignedToName: "",
   assignedByName: ""
 });
+const rectificationLoading = ref(false);
+const rectificationRecords = ref([]);
+const rectificationPage = ref(1);
+const rectificationSize = ref(8);
+const rectificationTotal = ref(0);
+const rectificationPages = ref(1);
+const rectificationFilters = reactive({
+  status: "",
+  enterpriseName: ""
+});
+const rectificationDetailVisible = ref(false);
+const rectificationDetail = ref(null);
 
 function setStatus(message, type = "info") {
   status.message = message;
@@ -696,6 +863,7 @@ const sectionLabelMap = {
   approvals: "备案审核",
   dispatch: "任务派发",
   inspections: "检查记录",
+  rectification: "整改复核",
   complaints: "投诉流转",
   warning: "风险预警",
   stats: "数据统计"
@@ -741,6 +909,12 @@ const inspectionResultMap = {
   PASS: "合格",
   FAIL: "不合格"
 };
+const rectificationStatusMap = {
+  ONGOING: "整改中",
+  SUBMITTED: "待复核",
+  REWORK: "打回重做",
+  CONFIRMED: "已确认"
+};
 
 function formatStatus(value) {
   return statusMap[value] || value || "-";
@@ -764,6 +938,10 @@ function formatTaskPriority(value) {
 
 function formatInspectionResult(value) {
   return inspectionResultMap[value] || value || "-";
+}
+
+function formatRectificationStatus(value) {
+  return rectificationStatusMap[value] || value || "-";
 }
 
 function formatRegionName(regionId) {
@@ -798,6 +976,11 @@ async function handleInspectionEnter() {
 async function handleComplaintEnter() {
   section.value = "complaints";
   await loadComplaints();
+}
+
+async function handleRectificationEnter() {
+  section.value = "rectification";
+  await loadRectifications();
 }
 
 async function loadDispatch() {
@@ -887,6 +1070,34 @@ async function loadInspections() {
   }
 }
 
+async function loadRectifications() {
+  rectificationLoading.value = true;
+  setStatus("");
+  try {
+    const data = await fetchRectifications(props.token, {
+      ...rectificationFilters,
+      page: rectificationPage.value,
+      size: rectificationSize.value
+    });
+    rectificationRecords.value = data.records || [];
+    rectificationTotal.value = data.total || 0;
+    rectificationPage.value = data.page || 1;
+    rectificationSize.value = data.size || rectificationSize.value;
+    rectificationPages.value = data.pages || 1;
+    // 列表刷新后同步详情弹窗数据，保证时间线节点最新。
+    if (rectificationDetailVisible.value && rectificationDetail.value?.id) {
+      const latest = rectificationRecords.value.find((item) => item.id === rectificationDetail.value.id);
+      if (latest) {
+        rectificationDetail.value = latest;
+      }
+    }
+  } catch (error) {
+    setStatus(error.message || "加载整改任务失败", "error");
+  } finally {
+    rectificationLoading.value = false;
+  }
+}
+
 async function handleComplaintSearch() {
   complaintPage.value = 1;
   await loadComplaints();
@@ -905,6 +1116,51 @@ async function handleInspectionSearch() {
 async function changeInspectionPage(nextPage) {
   inspectionPage.value = nextPage;
   await loadInspections();
+}
+
+async function handleRectificationSearch() {
+  rectificationPage.value = 1;
+  await loadRectifications();
+}
+
+async function changeRectificationPage(nextPage) {
+  rectificationPage.value = nextPage;
+  await loadRectifications();
+}
+
+async function handleReviewRectification(target, payload) {
+  const item = target?.id ? target : rectificationDetail.value;
+  if (!item?.id) return;
+  const reviewPayload = payload || target || {};
+  if (!reviewPayload.action) {
+    setStatus("缺少复核动作", "error");
+    return;
+  }
+  rectificationLoading.value = true;
+  setStatus("");
+  try {
+    await reviewRectification(props.token, item.id, reviewPayload);
+    setStatus(reviewPayload.action === "REWORK" ? "整改任务已打回重做" : "整改任务已确认复核", "success");
+    await loadRectifications();
+    if (rectificationDetailVisible.value && rectificationDetail.value?.id === item.id) {
+      closeRectificationDetail();
+    }
+  } catch (error) {
+    setStatus(error.message || "整改复核失败", "error");
+  } finally {
+    rectificationLoading.value = false;
+  }
+}
+
+function openRectificationDetail(item) {
+  if (!item) return;
+  rectificationDetail.value = item;
+  rectificationDetailVisible.value = true;
+}
+
+function closeRectificationDetail() {
+  rectificationDetailVisible.value = false;
+  rectificationDetail.value = null;
 }
 
 function handleViewComplaint(item) {
@@ -944,6 +1200,10 @@ async function handleCreateTask() {
   }
   if (!dispatchForm.taskTitle.trim()) {
     setStatus("请填写任务标题", "error");
+    return;
+  }
+  if (!dispatchForm.deadline) {
+    setStatus("请填写截止时间", "error");
     return;
   }
   dispatchLoading.value = true;
@@ -990,6 +1250,13 @@ function isTaskAssignable(task) {
   return ["CREATED", "ASSIGNED"].includes(task.status);
 }
 
+function isTaskDeadlineExceeded(deadline) {
+  if (!deadline) return false;
+  const deadlineMs = new Date(deadline).getTime();
+  if (Number.isNaN(deadlineMs)) return false;
+  return deadlineMs <= Date.now();
+}
+
 function isTaskClosable(task) {
   return task.status === "COMPLETED";
 }
@@ -1010,6 +1277,10 @@ async function handleCloseTask(task) {
 }
 
 async function handleAssignTask(task) {
+  if (isTaskDeadlineExceeded(task?.deadline)) {
+    setStatus("任务已超期，无法派发", "error");
+    return;
+  }
   const regulatorId = taskAssignments[task.id];
   if (!regulatorId) {
     setStatus("请选择执法人员后再派发", "error");
@@ -1028,12 +1299,35 @@ async function handleAssignTask(task) {
   }
 }
 
-function openTaskDetail(task) {
+async function openTaskDetail(task) {
+  if (!task) return;
   detailTask.value = task;
+  detailTaskEnterprise.value = null;
+  detailTaskRegionName.value = "-";
+  if (!task.enterpriseId) return;
+
+  detailTaskLoading.value = true;
+  try {
+    const enterprise = await fetchEnterpriseDetail(props.token, task.enterpriseId);
+    detailTaskEnterprise.value = enterprise || null;
+    if (enterprise?.regionId) {
+      const path = await fetchRegionPath(props.token, enterprise.regionId).catch(() => []);
+      detailTaskRegionName.value = Array.isArray(path) && path.length
+        ? path.map((item) => item.name).join("/")
+        : "-";
+    }
+  } catch (error) {
+    setStatus(error.message || "加载企业信息失败", "error");
+  } finally {
+    detailTaskLoading.value = false;
+  }
 }
 
 function closeTaskDetail() {
   detailTask.value = null;
+  detailTaskEnterprise.value = null;
+  detailTaskRegionName.value = "-";
+  detailTaskLoading.value = false;
 }
 
 async function openInspectionDetail(record) {
@@ -1235,6 +1529,10 @@ onMounted(() => {
   }
   if (section.value === "inspections") {
     handleInspectionEnter();
+    return;
+  }
+  if (section.value === "rectification") {
+    handleRectificationEnter();
     return;
   }
   if (section.value === "complaints") {
@@ -1440,6 +1738,100 @@ onMounted(() => {
   --row-columns: 1.6fr 1fr 0.8fr 1.2fr 0.8fr;
 }
 
+.rectification-header,
+.rectification-row {
+  --row-columns: 1.1fr 1.6fr 0.8fr 1.4fr 1fr 0.8fr;
+}
+
+.rectification-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.task-detail-modal {
+  width: min(760px, 94vw);
+}
+
+.task-detail-header {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.task-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--stroke);
+  background: var(--card-strong);
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.task-chip--status {
+  border-color: rgba(27, 99, 177, 0.25);
+  background: rgba(27, 99, 177, 0.1);
+  color: var(--nav);
+}
+
+.task-chip--priority {
+  border-color: rgba(0, 132, 91, 0.2);
+  background: rgba(0, 132, 91, 0.1);
+  color: #0f6c53;
+}
+
+.task-detail-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.task-detail-section {
+  border: 1px solid var(--stroke);
+  border-radius: 12px;
+  background: var(--card-strong);
+  padding: 12px;
+}
+
+.task-detail-section-title {
+  font-size: 13px;
+  font-weight: 700;
+  margin-bottom: 8px;
+}
+
+.task-detail-loading {
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.task-detail-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.task-detail-field span {
+  display: block;
+  font-size: 12px;
+  color: var(--muted);
+  margin-bottom: 4px;
+}
+
+.task-detail-field strong {
+  display: block;
+  font-size: 14px;
+  color: var(--ink);
+  line-height: 1.45;
+  word-break: break-word;
+}
+
+.task-detail-field--full {
+  grid-column: 1 / -1;
+}
+
 .modal-list {
   display: grid;
   gap: 10px;
@@ -1502,6 +1894,14 @@ onMounted(() => {
 
   .task-header,
   .task-row {
+    grid-template-columns: 1fr;
+  }
+
+  .task-detail-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .task-detail-fields {
     grid-template-columns: 1fr;
   }
 

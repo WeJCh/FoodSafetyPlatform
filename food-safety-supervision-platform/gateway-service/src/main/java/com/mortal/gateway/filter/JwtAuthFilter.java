@@ -51,9 +51,11 @@ public class JwtAuthFilter implements GlobalFilter, Ordered {
         RoleRule.of("/api/regulation/public/", "PUBLIC"),
         RoleRule.of("/api/regulation/complaints/public", "PUBLIC"),
         RoleRule.of("/api/regulation/complaints/my", "PUBLIC"),
-        // 关键注释：企业备案查看属于企业用户能力，需要在网关放行 ENTERPRISE
+        // Enterprise rectification endpoints for enterprise users.
+        RoleRule.of("/api/regulation/rectifications/my", "ENTERPRISE"),
+        // Enterprise profile and filing endpoints.
         RoleRule.of("/api/regulation/enterprise/", "ENTERPRISE", "REGULATOR_ADMIN", "REGULATOR_ENFORCER"),
-        // 关键注释：行政区联动查询需对企业用户开放，用于备案表单的省市区街道选择
+        // Region tree query for enterprise filing forms and regulators.
         RoleRule.of("/api/regulation/regions", "ENTERPRISE", "REGULATOR_ADMIN", "REGULATOR_ENFORCER"),
         RoleRule.of("/api/regulation/", "REGULATOR_ADMIN", "REGULATOR_ENFORCER"),
         RoleRule.of("/api/query/", "ADMIN", "REGULATOR_ADMIN", "REGULATOR_ENFORCER"),
@@ -88,11 +90,7 @@ public class JwtAuthFilter implements GlobalFilter, Ordered {
     }
 
     /**
-     * 过滤
-     * @param exchange 交换机
-     * @param chain 链
-     * @return 空
-     */
+     * 鏉╁洦鎶?     * @param exchange 娴溿倖宕查張?     * @param chain 闁?     * @return 缁?     */
     @Override
     public Mono<Void> filter(ServerWebExchange exchange, GatewayFilterChain chain) {
         String path = exchange.getRequest().getURI().getPath();
@@ -153,28 +151,22 @@ public class JwtAuthFilter implements GlobalFilter, Ordered {
     }
 
     /**
-     * 是否预检
-     * @param exchange 交换机
-     * @return 是否预检
+     * 閺勵垰鎯佹０鍕梾
+     * @param exchange 娴溿倖宕查張?     * @return 閺勵垰鎯佹０鍕梾
      */
     private boolean isPreflight(ServerWebExchange exchange) {
         return HttpMethod.OPTIONS.equals(exchange.getRequest().getMethod());
     }
 
     /**
-     * 是否白名单
-     * @param path 路径
-     * @return 是否白名单
-     */
+     * 閺勵垰鎯侀惂钘夋倳閸?     * @param path 鐠侯垰绶?     * @return 閺勵垰鎯侀惂钘夋倳閸?     */
     private boolean isWhitelisted(String path) {
         return WHITELIST.stream().anyMatch(path::startsWith);
     }
 
     /**
-     * 提取令牌
-     * @param headers 头
-     * @return 令牌
-     */
+     * 閹绘劕褰囨禒銈囧
+     * @param headers 婢?     * @return 娴犮倗澧?     */
     private String extractToken(HttpHeaders headers) {
         String header = headers.getFirst(HttpHeaders.AUTHORIZATION);
         if (!StringUtils.hasText(header)) {
@@ -187,9 +179,7 @@ public class JwtAuthFilter implements GlobalFilter, Ordered {
     }
 
     /**
-     * 是否有效签名
-     * @param token 令牌
-     * @return 是否有效
+     * 閺勵垰鎯侀張澶嬫櫏缁涙儳鎮?     * @param token 娴犮倗澧?     * @return 閺勵垰鎯侀張澶嬫櫏
      */
     private boolean isValidSignature(String token) {
         if (!StringUtils.hasText(token) || !StringUtils.hasText(secret)) {
@@ -209,9 +199,7 @@ public class JwtAuthFilter implements GlobalFilter, Ordered {
 
     /**
      *  introspect
-     * @param token 令牌
-     * @return 身份
-     */
+     * @param token 娴犮倗澧?     * @return 闊偂鍞?     */
     private Mono<AuthIntrospectVO> introspect(String token) {
         return webClient.post()
             .uri("http://user-service/api/auth/introspect")
@@ -230,10 +218,7 @@ public class JwtAuthFilter implements GlobalFilter, Ordered {
     }
 
     /**
-     * 是否激活身份
-     * @param identity 身份
-     * @return 是否激活
-     */
+     * 閺勵垰鎯佸┑鈧ú鏄忛煩娴?     * @param identity 闊偂鍞?     * @return 閺勵垰鎯佸┑鈧ú?     */
     private boolean isActiveIdentity(AuthIntrospectVO identity) {
         if (identity == null || !identity.isValid() || identity.getUserId() == null) {
             return false;
@@ -244,10 +229,8 @@ public class JwtAuthFilter implements GlobalFilter, Ordered {
     }
 
     /**
-     * 拼接角色
-     * @param roles 角色
-     * @return 拼接后的角色
-     */
+     * 閹峰吋甯寸憴鎺曞
+     * @param roles 鐟欐帟澹?     * @return 閹峰吋甯撮崥搴ｆ畱鐟欐帟澹?     */
     private String joinRoles(List<String> roles) {
         if (roles == null || roles.isEmpty()) {
             return "";
@@ -258,19 +241,13 @@ public class JwtAuthFilter implements GlobalFilter, Ordered {
     }
 
     /**
-     * 默认字符串
-     * @param value 值
-     * @return 默认字符串
-     */
+     * 姒涙顓荤€涙顑佹稉?     * @param value 閸?     * @return 姒涙顓荤€涙顑佹稉?     */
     private String defaultString(String value) {
         return StringUtils.hasText(value) ? value : "";
     }
 
     /**
-     * 未授权
-     * @param exchange 交换机
-     * @return 未授权
-     */
+     * 閺堫亝宸块弶?     * @param exchange 娴溿倖宕查張?     * @return 閺堫亝宸块弶?     */
     private Mono<Void> unauthorized(ServerWebExchange exchange) {
             return responseUtil.writeJson(
             exchange,
@@ -282,12 +259,8 @@ public class JwtAuthFilter implements GlobalFilter, Ordered {
     }
 
     /**
-     * 是否允许访问
-     * @param path 路径
-     * @param roles 用户角色
-     * @param userType 用户类型
-     * @return 是否允许访问
-     */
+     * 閺勵垰鎯侀崗浣筋啅鐠佸潡妫?     * @param path 鐠侯垰绶?     * @param roles 閻劍鍩涚憴鎺曞
+     * @param userType 閻劍鍩涚猾璇茬€?     * @return 閺勵垰鎯侀崗浣筋啅鐠佸潡妫?     */
     private boolean isAllowedByRole(String path, List<String> roles, String userType) {
         List<String> effectiveRoles = enrichRoles(roles, userType);
         for (RoleRule rule : ROLE_RULES) {
@@ -299,11 +272,9 @@ public class JwtAuthFilter implements GlobalFilter, Ordered {
     }
 
     /**
-     * 补充角色
-     * @param roles 用户角色
-     * @param userType 用户类型
-     * @return 补充后的角色
-     */
+     * 鐞涖儱鍘栫憴鎺曞
+     * @param roles 閻劍鍩涚憴鎺曞
+     * @param userType 閻劍鍩涚猾璇茬€?     * @return 鐞涖儱鍘栭崥搴ｆ畱鐟欐帟澹?     */
     private List<String> enrichRoles(List<String> roles, String userType) {
         List<String> result = new ArrayList<>();
         if (roles != null && !roles.isEmpty()) {
@@ -315,9 +286,8 @@ public class JwtAuthFilter implements GlobalFilter, Ordered {
         return result;
     }
     /**
-     * 禁止访问
-     * @param exchange 交换机
-     * @return 禁止访问
+     * 缁備焦顒涚拋鍧楁６
+     * @param exchange 娴溿倖宕查張?     * @return 缁備焦顒涚拋鍧楁６
      */
     private Mono<Void> forbidden(ServerWebExchange exchange) {
         return responseUtil.writeJson(
@@ -330,9 +300,8 @@ public class JwtAuthFilter implements GlobalFilter, Ordered {
     }
 
     /**
-     * 获取追踪ID
-     * @param exchange 交换机
-     * @return 追踪ID
+     * 閼惧嘲褰囨潻鍊熼嚋ID
+     * @param exchange 娴溿倖宕查張?     * @return 鏉╁€熼嚋ID
      */
     private String getTraceId(ServerWebExchange exchange) {
         String traceId = exchange.getRequest().getHeaders().getFirst(TraceIdFilter.TRACE_ID_HEADER);
@@ -340,10 +309,9 @@ public class JwtAuthFilter implements GlobalFilter, Ordered {
     }
 
     /**
-     * 角色规则
-     * @param pathPrefix 路径前缀
-     * @param roles 角色
-     */
+     * 鐟欐帟澹婄憴鍕灟
+     * @param pathPrefix 鐠侯垰绶為崜宥囩磻
+     * @param roles 鐟欐帟澹?     */
     private record RoleRule(String pathPrefix, List<String> roles) {
 
         static RoleRule of(String pathPrefix, String... roles) {
@@ -351,9 +319,9 @@ public class JwtAuthFilter implements GlobalFilter, Ordered {
         }
 
         /**
-         * 匹配角色
-         * @param userRoles 用户角色
-         * @return 是否匹配
+         * 閸栧綊鍘ょ憴鎺曞
+         * @param userRoles 閻劍鍩涚憴鎺曞
+         * @return 閺勵垰鎯侀崠褰掑帳
          */
         boolean matches(List<String> userRoles) {
             if (userRoles == null || userRoles.isEmpty()) {

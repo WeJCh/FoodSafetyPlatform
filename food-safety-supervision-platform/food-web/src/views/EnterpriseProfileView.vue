@@ -13,7 +13,7 @@
         <button :class="{ active: section === 'inspections' }" @click="section = 'inspections'">
           检查结果
         </button>
-        <button :class="{ active: section === 'rectification' }" @click="section = 'rectification'">
+        <button :class="{ active: section === 'rectification' }" @click="handleRectificationEnter">
           整改任务
         </button>
       </nav>
@@ -124,6 +124,97 @@
             </div>
           </div>
 
+          <div v-else-if="section === 'rectification'">
+            <div class="section-title">整改任务</div>
+            <form class="filter-bar filter-bar--triple" @submit.prevent="handleRectificationSearch">
+              <label>
+                状态
+                <select v-model="rectificationFilters.status">
+                  <option value="">全部</option>
+                  <option value="ONGOING">整改中</option>
+                  <option value="SUBMITTED">待复核</option>
+                  <option value="REWORK">打回重做</option>
+                  <option value="CONFIRMED">已确认</option>
+                </select>
+              </label>
+              <button class="primary" type="submit" :disabled="rectificationLoading">
+                {{ rectificationLoading ? "查询中..." : "查询" }}
+              </button>
+            </form>
+
+            <div class="list-table">
+              <div class="list-row list-header rectification-header">
+                <span>整改任务</span>
+                <span>状态</span>
+                <span>更新时间</span>
+                <span>操作</span>
+              </div>
+              <div v-if="!rectificationRecords.length" class="list-empty">
+                暂无整改任务
+              </div>
+              <div v-for="item in rectificationRecords" :key="item.id" class="list-row rectification-row">
+                <div class="rectification-desc" :title="item.rectificationDesc || '-'">
+                  {{ item.rectificationDesc || "-" }}
+                </div>
+                <span>{{ formatRectificationStatus(item.status) }}</span>
+                <span>{{ formatTime(item.updateTime) }}</span>
+                <div class="rectification-action">
+                  <button class="ghost" type="button" @click="openRectificationDetail(item)">
+                    查看详情
+                  </button>
+                  <template v-if="item.status === 'ONGOING' || item.status === 'REWORK'">
+                    <div class="rectification-submit-inline">
+                      <input
+                        v-model.trim="rectificationDrafts[item.id]"
+                        placeholder="请输入整改进展说明"
+                        :disabled="rectificationLoading"
+                      />
+                      <button
+                        class="primary"
+                        type="button"
+                        :disabled="rectificationLoading"
+                        @click="handleSubmitRectification(item)"
+                      >
+                        提交整改
+                      </button>
+                    </div>
+                  </template>
+                  <span v-else class="secondary-text">无需操作</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="pager">
+              <span>共 {{ rectificationTotal }} 条，{{ rectificationPage }}/{{ rectificationPages }} 页</span>
+              <div class="pager-actions">
+                <button
+                  class="ghost"
+                  type="button"
+                  :disabled="rectificationPage <= 1"
+                  @click="changeRectificationPage(rectificationPage - 1)"
+                >
+                  上一页
+                </button>
+                <button
+                  class="ghost"
+                  type="button"
+                  :disabled="rectificationPage >= rectificationPages"
+                  @click="changeRectificationPage(rectificationPage + 1)"
+                >
+                  下一页
+                </button>
+              </div>
+            </div>
+
+            <RectificationDetailModal
+              :visible="rectificationDetailVisible"
+              :detail="rectificationDetail"
+              :reviewable="false"
+              :reviewing="false"
+              @close="closeRectificationDetail"
+            />
+          </div>
+
           <div v-else class="placeholder">
             <strong>功能占位</strong>
             <p>{{ sectionLabel }} 将在后续版本实现。</p>
@@ -136,7 +227,14 @@
 
 <script setup>
 import { computed, onMounted, reactive, ref } from "vue";
-import { fetchEnterpriseProfile, fetchRegions, submitEnterpriseProfile } from "../api/regulation";
+import {
+  fetchEnterpriseProfile,
+  fetchMyRectifications,
+  fetchRegions,
+  submitEnterpriseProfile,
+  submitMyRectification
+} from "../api/regulation";
+import RectificationDetailModal from "../components/RectificationDetailModal.vue";
 
 const props = defineProps({
   token: {
@@ -185,6 +283,18 @@ const form = reactive({
   principal: "",
   principalPhone: ""
 });
+const rectificationLoading = ref(false);
+const rectificationRecords = ref([]);
+const rectificationPage = ref(1);
+const rectificationSize = ref(8);
+const rectificationTotal = ref(0);
+const rectificationPages = ref(1);
+const rectificationFilters = reactive({
+  status: ""
+});
+const rectificationDrafts = reactive({});
+const rectificationDetailVisible = ref(false);
+const rectificationDetail = ref(null);
 
 const sectionLabelMap = {
   inspections: "检查结果",
@@ -192,6 +302,12 @@ const sectionLabelMap = {
 };
 
 const sectionLabel = computed(() => sectionLabelMap[section.value] || "当前模块");
+const rectificationStatusMap = {
+  ONGOING: "整改中",
+  SUBMITTED: "待复核",
+  REWORK: "打回重做",
+  CONFIRMED: "已确认"
+};
 
 const statusLabel = computed(() => {
   if (!profileLoaded.value) return "未提交";
@@ -277,6 +393,90 @@ async function handleSubmit() {
 
 function handleLogout() {
   emit("logout");
+}
+
+function formatRectificationStatus(value) {
+  return rectificationStatusMap[value] || value || "-";
+}
+
+function formatTime(value) {
+  if (!value) return "-";
+  return String(value).replace("T", " ").slice(0, 16);
+}
+
+async function handleRectificationEnter() {
+  section.value = "rectification";
+  await loadRectifications();
+}
+
+async function loadRectifications() {
+  rectificationLoading.value = true;
+  setStatus("");
+  try {
+    const data = await fetchMyRectifications(props.token, {
+      ...rectificationFilters,
+      page: rectificationPage.value,
+      size: rectificationSize.value
+    });
+    rectificationRecords.value = data.records || [];
+    rectificationTotal.value = data.total || 0;
+    rectificationPage.value = data.page || 1;
+    rectificationSize.value = data.size || rectificationSize.value;
+    rectificationPages.value = data.pages || 1;
+    // 弹窗打开时，同步刷新当前详情，确保时间线与状态实时一致。
+    if (rectificationDetailVisible.value && rectificationDetail.value?.id) {
+      const latest = rectificationRecords.value.find((item) => item.id === rectificationDetail.value.id);
+      if (latest) {
+        rectificationDetail.value = latest;
+      }
+    }
+  } catch (error) {
+    setStatus(error.message || "加载整改任务失败", "error");
+  } finally {
+    rectificationLoading.value = false;
+  }
+}
+
+async function handleRectificationSearch() {
+  rectificationPage.value = 1;
+  await loadRectifications();
+}
+
+async function changeRectificationPage(nextPage) {
+  rectificationPage.value = nextPage;
+  await loadRectifications();
+}
+
+async function handleSubmitRectification(item) {
+  if (!item?.id) return;
+  const progress = String(rectificationDrafts[item.id] || "").trim();
+  if (!progress) {
+    setStatus("请先填写整改进展说明", "error");
+    return;
+  }
+  rectificationLoading.value = true;
+  setStatus("");
+  try {
+    await submitMyRectification(props.token, item.id, { progress });
+    setStatus("整改进展提交成功，等待监管复核", "success");
+    rectificationDrafts[item.id] = "";
+    await loadRectifications();
+  } catch (error) {
+    setStatus(error.message || "整改提交失败", "error");
+  } finally {
+    rectificationLoading.value = false;
+  }
+}
+
+function openRectificationDetail(item) {
+  if (!item) return;
+  rectificationDetail.value = item;
+  rectificationDetailVisible.value = true;
+}
+
+function closeRectificationDetail() {
+  rectificationDetailVisible.value = false;
+  rectificationDetail.value = null;
 }
 
 async function loadRegions(parentId, targetKey) {
@@ -422,11 +622,54 @@ onMounted(() => {
   margin-bottom: 16px;
 }
 
+.rectification-header,
+.rectification-row {
+  --row-columns: 2fr 0.8fr 1fr 2fr;
+}
+
+.rectification-desc {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rectification-action {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: stretch;
+}
+
+.rectification-submit-inline {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 8px;
+  align-items: center;
+}
+
+.rectification-submit-inline .primary {
+  min-width: 100px;
+  margin-top: 0;
+}
+
 .enterprise-shell {
   grid-template-columns: 260px 1fr;
 }
 
 @media (max-width: 960px) {
+  .rectification-header,
+  .rectification-row {
+    --row-columns: 1fr;
+  }
+
+  .rectification-action {
+    align-items: stretch;
+  }
+
+  .rectification-submit-inline {
+    grid-template-columns: 1fr;
+  }
+
   .enterprise-shell {
     grid-template-columns: 1fr;
   }

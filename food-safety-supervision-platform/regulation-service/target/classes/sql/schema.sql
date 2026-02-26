@@ -8,6 +8,7 @@ USE food_regulation_db;
 -- 按照依赖顺序删除表（先删除有外键约束的子表，再删除父表）
 DROP TABLE IF EXISTS complaint_handle;
 DROP TABLE IF EXISTS complaint;
+DROP TABLE IF EXISTS rectification_action_log;
 DROP TABLE IF EXISTS rectification_task;
 DROP TABLE IF EXISTS enterprise_key_reason;
 DROP TABLE IF EXISTS inspection_item;
@@ -133,8 +134,8 @@ CREATE TABLE IF NOT EXISTS rectification_task (
   inspection_id BIGINT NOT NULL COMMENT '检查记录ID',
   enterprise_id BIGINT NOT NULL COMMENT '企业ID',
   rectification_desc TEXT COMMENT '整改要求',
-  progress VARCHAR(100) COMMENT '整改进度',
-  status VARCHAR(20) DEFAULT 'ONGOING' COMMENT 'ONGOING / SUBMITTED / CONFIRMED',
+  progress VARCHAR(1000) COMMENT '整改进度',
+  status VARCHAR(20) DEFAULT 'ONGOING' COMMENT 'ONGOING / SUBMITTED / REWORK / CONFIRMED',
   finish_time DATETIME COMMENT '完成时间',
   confirmed_by BIGINT COMMENT '复核人ID',
   confirmed_time DATETIME COMMENT '复核时间',
@@ -142,6 +143,19 @@ CREATE TABLE IF NOT EXISTS rectification_task (
   update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
   deleted TINYINT DEFAULT 0 COMMENT '逻辑删除 1-已删 0-未删'
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='整改任务表';
+
+CREATE TABLE IF NOT EXISTS rectification_action_log (
+  id BIGINT PRIMARY KEY AUTO_INCREMENT,
+  rectification_id BIGINT NOT NULL COMMENT '整改任务ID',
+  action_type VARCHAR(30) NOT NULL COMMENT 'SYSTEM_CREATE / ENTERPRISE_SUBMIT / REVIEW_CONFIRM / REVIEW_REWORK',
+  operator_id BIGINT COMMENT '操作人ID',
+  action_comment VARCHAR(1000) COMMENT '操作说明',
+  attachment_urls TEXT COMMENT '附件URL(JSON)',
+  create_time DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '操作时间',
+  deleted TINYINT DEFAULT 0 COMMENT '逻辑删除 1-已删 0-未删',
+  KEY idx_rectification_log_task (rectification_id),
+  KEY idx_rectification_log_time (create_time)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='整改动作日志表';
 
 CREATE TABLE IF NOT EXISTS complaint (
   id BIGINT PRIMARY KEY AUTO_INCREMENT,
@@ -202,3 +216,5 @@ ALTER TABLE complaint ADD COLUMN submitter_user_id BIGINT NULL COMMENT '提交�
 ALTER TABLE complaint ADD COLUMN rejected_by BIGINT NULL COMMENT '驳回人';
 ALTER TABLE complaint ADD COLUMN rejected_time DATETIME NULL COMMENT '驳回时间';
 ALTER TABLE complaint_handle ADD UNIQUE KEY uk_complaint_handle (complaint_id);
+ALTER TABLE rectification_task MODIFY COLUMN progress VARCHAR(1000) COMMENT '整改进度';
+ALTER TABLE rectification_task ADD UNIQUE KEY uk_rectification_inspection (inspection_id);

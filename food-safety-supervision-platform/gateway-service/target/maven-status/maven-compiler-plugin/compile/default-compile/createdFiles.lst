@@ -1,8 +1,0 @@
-com\mortal\gateway\filter\JwtAuthFilter$1.class
-com\mortal\gateway\filter\JwtAuthFilter$RoleRule.class
-com\mortal\gateway\vo\AuthIntrospectVO.class
-com\mortal\gateway\config\SentinelGatewayBlockHandler$JsonBlockRequestHandler.class
-com\mortal\gateway\common\ApiResponse.class
-com\mortal\gateway\config\SentinelGatewayConfig.class
-com\mortal\gateway\config\SentinelGatewayBlockHandler.class
-com\mortal\gateway\config\WebClientConfig.class

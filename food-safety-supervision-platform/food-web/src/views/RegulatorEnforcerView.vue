@@ -162,24 +162,53 @@
             </div>
 
             <div v-if="detailTask" class="modal-mask" @click.self="closeTaskDetail">
-              <div class="modal-card">
+              <div class="modal-card task-detail-modal">
                 <div class="modal-title">任务详情</div>
-                <div class="modal-body">
-                  <div class="modal-field"><span>任务编号</span><strong>{{ detailTask.taskNo || "-" }}</strong></div>
-                  <div class="modal-field"><span>企业名称</span><strong>{{ detailTask.enterpriseName || "-" }}</strong></div>
-                  <div class="modal-field"><span>任务标题</span><strong>{{ detailTask.taskTitle || "-" }}</strong></div>
-                  <div v-if="detailTask.taskDesc" class="modal-field">
-                    <span>任务描述</span><strong>{{ detailTask.taskDesc }}</strong>
-                  </div>
-                  <div class="modal-field"><span>状态</span><strong>{{ formatTaskStatus(detailTask.status) }}</strong></div>
-                  <div class="modal-field"><span>优先级</span><strong>{{ formatTaskPriority(detailTask.priority) }}</strong></div>
-                  <div class="modal-field"><span>截止时间</span><strong>{{ formatTime(detailTask.deadline) }}</strong></div>
-                  <div v-if="detailTask.startedTime" class="modal-field">
-                    <span>开始时间</span><strong>{{ formatTime(detailTask.startedTime) }}</strong>
-                  </div>
-                  <div v-if="detailTask.completedTime" class="modal-field">
-                    <span>完成时间</span><strong>{{ formatTime(detailTask.completedTime) }}</strong>
-                  </div>
+                <div class="task-detail-header">
+                  <span class="task-chip task-chip--status">{{ formatTaskStatus(detailTask.status) }}</span>
+                  <span class="task-chip task-chip--priority">{{ formatTaskPriority(detailTask.priority) }}</span>
+                  <span class="task-chip">{{ detailTask.taskNo || "-" }}</span>
+                </div>
+                <div class="task-detail-grid">
+                  <section class="task-detail-section">
+                    <div class="task-detail-section-title">企业信息</div>
+                    <div v-if="detailTaskLoading" class="task-detail-loading">加载企业信息中...</div>
+                    <div v-else class="task-detail-fields">
+                      <div class="task-detail-field">
+                        <span>企业名称</span>
+                        <strong>{{ detailTaskEnterprise?.enterpriseName || detailTask.enterpriseName || "-" }}</strong>
+                      </div>
+                      <div class="task-detail-field">
+                        <span>负责人姓名</span>
+                        <strong>{{ detailTaskEnterprise?.principal || "-" }}</strong>
+                      </div>
+                      <div class="task-detail-field">
+                        <span>所属区域</span>
+                        <strong>{{ detailTaskRegionName || "-" }}</strong>
+                      </div>
+                      <div class="task-detail-field task-detail-field--full">
+                        <span>详细地址</span>
+                        <strong>{{ detailTaskEnterprise?.addressDetail || "-" }}</strong>
+                      </div>
+                    </div>
+                  </section>
+                  <section class="task-detail-section">
+                    <div class="task-detail-section-title">任务信息</div>
+                    <div class="task-detail-fields">
+                      <div class="task-detail-field">
+                        <span>任务标题</span>
+                        <strong>{{ detailTask.taskTitle || "-" }}</strong>
+                      </div>
+                      <div class="task-detail-field task-detail-field--full">
+                        <span>任务描述</span>
+                        <strong>{{ detailTask.taskDesc || "暂无任务描述" }}</strong>
+                      </div>
+                      <div class="task-detail-field">
+                        <span>截止时间</span>
+                        <strong>{{ formatTime(detailTask.deadline) }}</strong>
+                      </div>
+                    </div>
+                  </section>
                 </div>
                 <div class="modal-actions"><button class="ghost" type="button" @click="closeTaskDetail">关闭</button></div>
               </div>
@@ -315,11 +344,13 @@
 <script setup>
 import { computed, onMounted, reactive, ref } from "vue";
 import {
+  fetchEnterpriseDetail,
   fetchEnterprises,
   fetchComplaints,
   fetchInspectionRecordDetail,
   fetchMyInspectionRecords,
   fetchMyInspectionTasks,
+  fetchRegionPath,
   startInspectionTask,
   startComplaintProcess,
   submitInspectionTask
@@ -352,6 +383,9 @@ const taskPages = ref(1);
 const taskFilters = reactive({ status: "" });
 const activeTask = ref(null);
 const detailTask = ref(null);
+const detailTaskEnterprise = ref(null);
+const detailTaskRegionName = ref("-");
+const detailTaskLoading = ref(false);
 
 const inspectionFilters = reactive({ enterpriseName: "", result: "", startDate: "", endDate: "" });
 const inspectionRecords = ref([]);
@@ -528,8 +562,36 @@ function handleSelectTask(task) {
 }
 
 function clearActiveTask() { activeTask.value = null; }
-function openTaskDetail(task) { detailTask.value = task; }
-function closeTaskDetail() { detailTask.value = null; }
+async function openTaskDetail(task) {
+  if (!task) return;
+  detailTask.value = task;
+  detailTaskEnterprise.value = null;
+  detailTaskRegionName.value = "-";
+  if (!task.enterpriseId) return;
+
+  detailTaskLoading.value = true;
+  try {
+    const enterprise = await fetchEnterpriseDetail(props.token, task.enterpriseId);
+    detailTaskEnterprise.value = enterprise || null;
+    if (enterprise?.regionId) {
+      const path = await fetchRegionPath(props.token, enterprise.regionId).catch(() => []);
+      detailTaskRegionName.value = Array.isArray(path) && path.length
+        ? path.map((item) => item.name).join("/")
+        : "-";
+    }
+  } catch (error) {
+    setStatus(error.message || "加载企业信息失败", "error");
+  } finally {
+    detailTaskLoading.value = false;
+  }
+}
+
+function closeTaskDetail() {
+  detailTask.value = null;
+  detailTaskEnterprise.value = null;
+  detailTaskRegionName.value = "-";
+  detailTaskLoading.value = false;
+}
 
 async function openInspectionDetail(record) {
   if (!record?.id) return;
@@ -612,6 +674,67 @@ onMounted(() => {
 .task-items { display: grid; gap: 10px; }
 .task-item { display: grid; grid-template-columns: 1.4fr 0.8fr 1.2fr auto; gap: 8px; align-items: center; }
 .task-actions { display: flex; gap: 10px; justify-content: flex-end; }
+.task-detail-modal { width: min(760px, 94vw); }
+.task-detail-header { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
+.task-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--stroke);
+  background: var(--card-strong);
+  font-size: 12px;
+  color: var(--muted);
+}
+.task-chip--status {
+  border-color: rgba(27, 99, 177, 0.25);
+  background: rgba(27, 99, 177, 0.1);
+  color: var(--nav);
+}
+.task-chip--priority {
+  border-color: rgba(0, 132, 91, 0.2);
+  background: rgba(0, 132, 91, 0.1);
+  color: #0f6c53;
+}
+.task-detail-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+.task-detail-section {
+  border: 1px solid var(--stroke);
+  border-radius: 12px;
+  background: var(--card-strong);
+  padding: 12px;
+}
+.task-detail-section-title {
+  font-size: 13px;
+  font-weight: 700;
+  margin-bottom: 8px;
+}
+.task-detail-loading {
+  font-size: 13px;
+  color: var(--muted);
+}
+.task-detail-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+.task-detail-field span {
+  display: block;
+  font-size: 12px;
+  color: var(--muted);
+  margin-bottom: 4px;
+}
+.task-detail-field strong {
+  display: block;
+  font-size: 14px;
+  color: var(--ink);
+  line-height: 1.45;
+  word-break: break-word;
+}
+.task-detail-field--full { grid-column: 1 / -1; }
 .modal-list { display: grid; gap: 10px; }
 .modal-item { padding: 10px 12px; border-radius: 12px; border: 1px solid var(--stroke); background: var(--card-strong); display: grid; gap: 4px; }
 .modal-item-name { font-weight: 600; font-size: 14px; }
@@ -620,5 +743,9 @@ onMounted(() => {
 .modal-empty { font-size: 12px; color: var(--muted); }
 @media (max-width: 1024px) { .regulator-shell .hero-panel { padding: 36px 40px 24px; } .regulator-shell .form-panel { padding: 10px 40px 60px; } .regulator-shell .hero-highlights { grid-template-columns: 1fr; } }
 @media (max-width: 960px) { .regulator-shell { grid-template-columns: 1fr; } }
-@media (max-width: 820px) { .task-item { grid-template-columns: 1fr; } }
+@media (max-width: 820px) {
+  .task-item { grid-template-columns: 1fr; }
+  .task-detail-grid { grid-template-columns: 1fr; }
+  .task-detail-fields { grid-template-columns: 1fr; }
+}
 </style>

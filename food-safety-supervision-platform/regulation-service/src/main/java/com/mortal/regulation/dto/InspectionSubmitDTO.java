@@ -3,6 +3,7 @@ package com.mortal.regulation.dto;
 import com.fasterxml.jackson.annotation.JsonFormat;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import java.time.LocalDate;
@@ -23,6 +24,7 @@ public class InspectionSubmitDTO {
     @Size(max = 1000)
     private String problemDesc;
 
+    @NotEmpty(message = "at least one inspection item required")
     @Valid
     private List<InspectionItemDTO> items;
 }

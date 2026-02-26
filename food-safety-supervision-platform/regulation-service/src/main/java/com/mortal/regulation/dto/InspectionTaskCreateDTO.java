@@ -1,6 +1,7 @@
 package com.mortal.regulation.dto;
 
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Future;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import java.time.LocalDateTime;
@@ -23,6 +24,8 @@ public class InspectionTaskCreateDTO {
     @Size(max = 10)
     private String priority;
 
+    @NotNull(message = "deadline required")
+    @Future(message = "deadline must be future")
     @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss")
     private LocalDateTime deadline;
 }

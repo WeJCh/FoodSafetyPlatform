@@ -343,6 +343,67 @@ export function closeInspectionTask(token, id) {
   });
 }
 
+export function fetchMyRectifications(token, params = {}) {
+  const search = new URLSearchParams();
+  if (params.status) search.append("status", params.status);
+  if (params.page) search.append("page", params.page);
+  if (params.size) search.append("size", params.size);
+  const query = search.toString();
+  return requestWithBase(
+    REGULATION_BASE_URL,
+    `/api/regulation/rectifications/my${query ? `?${query}` : ""}`,
+    {
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${token}`
+      }
+    }
+  );
+}
+
+export function submitMyRectification(token, id, payload) {
+  return requestWithBase(REGULATION_BASE_URL, `/api/regulation/rectifications/my/${id}/submit`, {
+    method: "PUT",
+    headers: {
+      Authorization: `Bearer ${token}`
+    },
+    body: JSON.stringify(payload)
+  });
+}
+
+export function fetchRectifications(token, params = {}) {
+  const search = new URLSearchParams();
+  if (params.status) search.append("status", params.status);
+  if (params.enterpriseName) search.append("enterpriseName", params.enterpriseName);
+  if (params.page) search.append("page", params.page);
+  if (params.size) search.append("size", params.size);
+  const query = search.toString();
+  return requestWithBase(
+    REGULATION_BASE_URL,
+    `/api/regulation/rectifications${query ? `?${query}` : ""}`,
+    {
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${token}`
+      }
+    }
+  );
+}
+
+export function reviewRectification(token, id, payload) {
+  return requestWithBase(REGULATION_BASE_URL, `/api/regulation/rectifications/${id}/review`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`
+    },
+    body: JSON.stringify(payload)
+  });
+}
+
+export function confirmRectification(token, id) {
+  return reviewRectification(token, id, { action: "CONFIRM" });
+}
+
 export function fetchMyInspectionRecords(token, params = {}) {
   const search = new URLSearchParams();
   if (params.enterpriseName) search.append("enterpriseName", params.enterpriseName);

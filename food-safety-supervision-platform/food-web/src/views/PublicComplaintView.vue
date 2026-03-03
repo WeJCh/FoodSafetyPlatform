@@ -390,7 +390,8 @@ async function uploadFile(item) {
     const payload = {
       filename: item.name,
       contentType: item.file.type || "application/octet-stream",
-      size: item.file.size
+      size: item.file.size,
+      bizType: "COMPLAINT"
     };
     const presign = await presignUpload(props.publicToken, payload);
     const response = await fetch(presign.uploadUrl, {

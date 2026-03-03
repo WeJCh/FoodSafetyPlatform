@@ -61,6 +61,7 @@ D:\JAVA\FoodSafetyPlatform\food-safety-supervision-platform\regulation-service\s
 D:\JAVA\FoodSafetyPlatform\food-safety-supervision-platform\regulation-service\src\main\java\com\mortal\regulation\service\ComplaintService.java
 D:\JAVA\FoodSafetyPlatform\food-safety-supervision-platform\regulation-service\src\main\java\com\mortal\regulation\mapper\ComplaintMapper.java
 D:\JAVA\FoodSafetyPlatform\food-safety-supervision-platform\regulation-service\src\main\java\com\mortal\regulation\service\impl\RegionServiceImpl.java
+D:\JAVA\FoodSafetyPlatform\food-safety-supervision-platform\regulation-service\src\main\java\com\mortal\regulation\common\enums\FileBizType.java
 D:\JAVA\FoodSafetyPlatform\food-safety-supervision-platform\regulation-service\src\main\java\com\mortal\regulation\config\MybatisPlusConfig.java
 D:\JAVA\FoodSafetyPlatform\food-safety-supervision-platform\regulation-service\src\main\java\com\mortal\regulation\dto\InspectionItemDTO.java
 D:\JAVA\FoodSafetyPlatform\food-safety-supervision-platform\regulation-service\src\main\java\com\mortal\regulation\service\impl\InspectionRecordServiceImpl.java
@@ -96,5 +97,6 @@ D:\JAVA\FoodSafetyPlatform\food-safety-supervision-platform\regulation-service\s
 D:\JAVA\FoodSafetyPlatform\food-safety-supervision-platform\regulation-service\src\main\java\com\mortal\regulation\entity\FoodRegulatorRegion.java
 D:\JAVA\FoodSafetyPlatform\food-safety-supervision-platform\regulation-service\src\main\java\com\mortal\regulation\vo\RegionVO.java
 D:\JAVA\FoodSafetyPlatform\food-safety-supervision-platform\regulation-service\src\main\java\com\mortal\regulation\common\GlobalExceptionHandler.java
+D:\JAVA\FoodSafetyPlatform\food-safety-supervision-platform\regulation-service\src\main\java\com\mortal\regulation\vo\RectificationActionLogVO.java
 D:\JAVA\FoodSafetyPlatform\food-safety-supervision-platform\regulation-service\src\main\java\com\mortal\regulation\mapper\AddrLocationMapper.java
 D:\JAVA\FoodSafetyPlatform\food-safety-supervision-platform\regulation-service\src\main\java\com\mortal\regulation\service\EnterpriseProfileService.java

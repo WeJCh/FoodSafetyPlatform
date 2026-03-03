@@ -404,6 +404,24 @@ export function confirmRectification(token, id) {
   return reviewRectification(token, id, { action: "CONFIRM" });
 }
 
+export function fetchRectificationDetail(token, id) {
+  return requestWithBase(REGULATION_BASE_URL, `/api/regulation/rectifications/${id}`, {
+    method: "GET",
+    headers: {
+      Authorization: `Bearer ${token}`
+    }
+  });
+}
+
+export function fetchRectificationActions(token, id) {
+  return requestWithBase(REGULATION_BASE_URL, `/api/regulation/rectifications/${id}/actions`, {
+    method: "GET",
+    headers: {
+      Authorization: `Bearer ${token}`
+    }
+  });
+}
+
 export function fetchMyInspectionRecords(token, params = {}) {
   const search = new URLSearchParams();
   if (params.enterpriseName) search.append("enterpriseName", params.enterpriseName);

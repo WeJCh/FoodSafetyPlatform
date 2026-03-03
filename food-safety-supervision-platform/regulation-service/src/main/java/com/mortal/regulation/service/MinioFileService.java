@@ -1,12 +1,13 @@
 package com.mortal.regulation.service;
 
+import com.mortal.regulation.common.enums.FileBizType;
 import com.mortal.regulation.config.MinioProperties;
 import com.mortal.regulation.dto.FilePresignRequest;
 import com.mortal.regulation.vo.FilePresignVO;
 import io.minio.BucketExistsArgs;
+import io.minio.GetPresignedObjectUrlArgs;
 import io.minio.MakeBucketArgs;
 import io.minio.MinioClient;
-import io.minio.GetPresignedObjectUrlArgs;
 import io.minio.http.Method;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
@@ -17,7 +18,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
 /**
- * Minio文件服务
+ * MinIO file service.
  */
 @Service
 public class MinioFileService {
@@ -39,12 +40,12 @@ public class MinioFileService {
     }
 
     /**
-     * 生成上传预签名 URL，上传由前端直连 MinIO 完成，服务端只返回地址。
+     * Generate presigned upload URL and public URL.
      */
     public FilePresignVO presignUpload(Long userId, FilePresignRequest request) {
-        validateRequest(request);
+        FileBizType bizType = validateRequest(request);
         ensureBucket();
-        String objectKey = buildObjectKey(userId, request.getFilename());
+        String objectKey = buildObjectKey(userId, request.getFilename(), bizType);
         String uploadUrl = buildUploadUrl(objectKey);
         String fileUrl = buildFileUrl(objectKey);
 
@@ -55,7 +56,7 @@ public class MinioFileService {
         return vo;
     }
 
-    private void validateRequest(FilePresignRequest request) {
+    private FileBizType validateRequest(FilePresignRequest request) {
         if (request.getSize() == null || request.getSize() <= 0) {
             throw new IllegalArgumentException("file size required");
         }
@@ -68,17 +69,17 @@ public class MinioFileService {
         if (!ALLOWED_CONTENT_TYPES.contains(contentType)) {
             throw new IllegalArgumentException("invalid content type");
         }
+        return FileBizType.fromValue(request.getBizType());
     }
 
     /**
-     * 确保桶存在
+     * Ensure bucket exists.
      */
     private void ensureBucket() {
         try {
             String bucket = properties.getBucket();
             boolean exists = minioClient.bucketExists(BucketExistsArgs.builder().bucket(bucket).build());
             if (!exists) {
-                // 中文注释：若桶不存在则自动创建，便于本地原型快速跑通。
                 minioClient.makeBucket(MakeBucketArgs.builder().bucket(bucket).build());
             }
         } catch (Exception ex) {
@@ -87,18 +88,18 @@ public class MinioFileService {
     }
 
     /**
-     * 构建对象键
+     * Build object key by business type.
      */
-    private String buildObjectKey(Long userId, String filename) {
+    private String buildObjectKey(Long userId, String filename, FileBizType bizType) {
         String datePath = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyy/MM/dd"));
         String safeName = sanitizeFilename(filename);
         String userSegment = userId == null ? "public" : String.valueOf(userId);
         String uuid = UUID.randomUUID().toString().replace("-", "");
-        return String.format("complaints/%s/%s/%s_%s", datePath, userSegment, uuid, safeName);
+        return String.format("%s/%s/%s/%s_%s", bizType.prefix(), datePath, userSegment, uuid, safeName);
     }
 
     /**
-     * 构建上传URL
+     * Build upload URL.
      */
     private String buildUploadUrl(String objectKey) {
         try {
@@ -114,7 +115,7 @@ public class MinioFileService {
     }
 
     /**
-     * 构建文件URL
+     * Build final file URL.
      */
     private String buildFileUrl(String objectKey) {
         String base = StringUtils.hasText(properties.getPublicEndpoint())
@@ -124,9 +125,6 @@ public class MinioFileService {
         return String.format("%s/%s/%s", trimmed, properties.getBucket(), objectKey);
     }
 
-    /**
-     *  文件名安全处理
-     */
     private String sanitizeFilename(String filename) {
         if (!StringUtils.hasText(filename)) {
             return "file";

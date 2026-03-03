@@ -18,4 +18,10 @@ public class FilePresignRequest {
 
     @NotNull
     private Long size;
+
+    /**
+     * 业务类型：COMPLAINT / RECTIFICATION / INSPECTION
+     */
+    @NotBlank
+    private String bizType;
 }

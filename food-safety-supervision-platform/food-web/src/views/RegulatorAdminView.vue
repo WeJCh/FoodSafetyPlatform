@@ -615,6 +615,9 @@
           <RectificationDetailModal
             :visible="rectificationDetailVisible"
             :detail="rectificationDetail"
+            :action-logs="rectificationActionLogs"
+            :detail-loading="rectificationDetailLoading"
+            :highlight-latest-submit="true"
             :reviewable="Boolean(rectificationDetail && rectificationDetail.status === 'SUBMITTED')"
             :reviewing="rectificationLoading"
             @close="closeRectificationDetail"
@@ -746,6 +749,8 @@ import {
   fetchInspectionRecords,
   fetchInspectionTasks,
   fetchPendingEnterprises,
+  fetchRectificationActions,
+  fetchRectificationDetail,
   fetchRectifications,
   fetchRegionPath,
   reviewRectification,
@@ -853,6 +858,8 @@ const rectificationFilters = reactive({
 });
 const rectificationDetailVisible = ref(false);
 const rectificationDetail = ref(null);
+const rectificationActionLogs = ref([]);
+const rectificationDetailLoading = ref(false);
 
 function setStatus(message, type = "info") {
   status.message = message;
@@ -1084,17 +1091,37 @@ async function loadRectifications() {
     rectificationPage.value = data.page || 1;
     rectificationSize.value = data.size || rectificationSize.value;
     rectificationPages.value = data.pages || 1;
-    // 列表刷新后同步详情弹窗数据，保证时间线节点最新。
+    // 列表刷新后同步详情弹窗数据，保证动作时间线最新。
     if (rectificationDetailVisible.value && rectificationDetail.value?.id) {
-      const latest = rectificationRecords.value.find((item) => item.id === rectificationDetail.value.id);
-      if (latest) {
-        rectificationDetail.value = latest;
-      }
+      await loadRectificationDetail(rectificationDetail.value.id, true);
     }
   } catch (error) {
     setStatus(error.message || "加载整改任务失败", "error");
   } finally {
     rectificationLoading.value = false;
+  }
+}
+
+async function loadRectificationDetail(id, silent = false) {
+  if (!id) return;
+  if (!silent) {
+    rectificationDetailLoading.value = true;
+  }
+  try {
+    const [detail, actions] = await Promise.all([
+      fetchRectificationDetail(props.token, id),
+      fetchRectificationActions(props.token, id)
+    ]);
+    rectificationDetail.value = detail || rectificationDetail.value;
+    rectificationActionLogs.value = Array.isArray(actions) ? actions : [];
+  } catch (error) {
+    if (!silent) {
+      setStatus(error.message || "加载整改详情失败", "error");
+    }
+  } finally {
+    if (!silent) {
+      rectificationDetailLoading.value = false;
+    }
   }
 }
 
@@ -1152,15 +1179,20 @@ async function handleReviewRectification(target, payload) {
   }
 }
 
-function openRectificationDetail(item) {
+async function openRectificationDetail(item) {
   if (!item) return;
+  rectificationDetailLoading.value = true;
   rectificationDetail.value = item;
+  rectificationActionLogs.value = [];
   rectificationDetailVisible.value = true;
+  await loadRectificationDetail(item.id);
 }
 
 function closeRectificationDetail() {
   rectificationDetailVisible.value = false;
   rectificationDetail.value = null;
+  rectificationActionLogs.value = [];
+  rectificationDetailLoading.value = false;
 }
 
 function handleViewComplaint(item) {

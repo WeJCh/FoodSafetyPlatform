@@ -156,7 +156,17 @@
                 <div class="rectification-desc" :title="item.rectificationDesc || '-'">
                   {{ item.rectificationDesc || "-" }}
                 </div>
-                <span>{{ formatRectificationStatus(item.status) }}</span>
+                <div class="rectification-status-cell">
+                  <span>{{ formatRectificationStatus(item.status) }}</span>
+                  <button
+                    v-if="rectificationHasReworkMap[item.id]"
+                    class="rework-flag"
+                    type="button"
+                    @click="openLatestReworkDetail(item)"
+                  >
+                    有打回意见
+                  </button>
+                </div>
                 <span>{{ formatTime(item.updateTime) }}</span>
                 <div class="rectification-action">
                   <button class="ghost" type="button" @click="openRectificationDetail(item)">
@@ -169,14 +179,56 @@
                         placeholder="请输入整改进展说明"
                         :disabled="rectificationLoading"
                       />
+                      <label class="ghost rectification-upload-trigger">
+                        上传凭证
+                        <input
+                          type="file"
+                          accept="image/*"
+                          multiple
+                          :disabled="rectificationLoading || isRectificationUploading(item.id)"
+                          @change="handleRectificationFileChange(item.id, $event)"
+                        />
+                      </label>
                       <button
                         class="primary"
                         type="button"
-                        :disabled="rectificationLoading"
+                        :disabled="rectificationLoading || isRectificationUploading(item.id)"
                         @click="handleSubmitRectification(item)"
                       >
                         提交整改
                       </button>
+                    </div>
+                    <div
+                      v-if="getRectificationUploadItems(item.id).length"
+                      class="rectification-upload-list"
+                    >
+                      <div
+                        v-for="upload in getRectificationUploadItems(item.id)"
+                        :key="upload.id"
+                        class="rectification-upload-item"
+                      >
+                        <img :src="upload.previewUrl" :alt="upload.name" />
+                        <div class="rectification-upload-meta" :class="{ error: upload.error }">
+                          <span v-if="upload.uploading">上传中...</span>
+                          <span v-else-if="upload.error">{{ upload.error }}</span>
+                          <span v-else>已上传</span>
+                          <button
+                            v-if="upload.error"
+                            class="ghost"
+                            type="button"
+                            @click="retryRectificationUpload(item.id, upload.id)"
+                          >
+                            重试
+                          </button>
+                          <button
+                            class="ghost"
+                            type="button"
+                            @click="removeRectificationUpload(item.id, upload.id)"
+                          >
+                            删除
+                          </button>
+                        </div>
+                      </div>
                     </div>
                   </template>
                   <span v-else class="secondary-text">无需操作</span>
@@ -209,6 +261,10 @@
             <RectificationDetailModal
               :visible="rectificationDetailVisible"
               :detail="rectificationDetail"
+              :action-logs="rectificationActionLogs"
+              :detail-loading="rectificationDetailLoading"
+              :highlight-latest-rework="true"
+              :focus-action-type="rectificationFocusActionType"
               :reviewable="false"
               :reviewing="false"
               @close="closeRectificationDetail"
@@ -226,10 +282,13 @@
 </template>
 
 <script setup>
-import { computed, onMounted, reactive, ref } from "vue";
+import { computed, onBeforeUnmount, onMounted, reactive, ref } from "vue";
 import {
   fetchEnterpriseProfile,
   fetchMyRectifications,
+  presignUpload,
+  fetchRectificationActions,
+  fetchRectificationDetail,
   fetchRegions,
   submitEnterpriseProfile,
   submitMyRectification
@@ -295,6 +354,15 @@ const rectificationFilters = reactive({
 const rectificationDrafts = reactive({});
 const rectificationDetailVisible = ref(false);
 const rectificationDetail = ref(null);
+const rectificationActionLogs = ref([]);
+const rectificationDetailLoading = ref(false);
+const rectificationHasReworkMap = reactive({});
+const rectificationFocusActionType = ref("");
+const rectificationUploadItems = reactive({});
+
+const RECTIFICATION_ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp"];
+const RECTIFICATION_MAX_FILE_SIZE = 5 * 1024 * 1024;
+const RECTIFICATION_MAX_FILE_COUNT = 6;
 
 const sectionLabelMap = {
   inspections: "检查结果",
@@ -404,6 +472,162 @@ function formatTime(value) {
   return String(value).replace("T", " ").slice(0, 16);
 }
 
+function ensureRectificationUploadBucket(taskId) {
+  if (!taskId) return;
+  if (!Array.isArray(rectificationUploadItems[taskId])) {
+    rectificationUploadItems[taskId] = [];
+  }
+}
+
+function getRectificationUploadItems(taskId) {
+  return Array.isArray(rectificationUploadItems[taskId]) ? rectificationUploadItems[taskId] : [];
+}
+
+function isRectificationUploading(taskId) {
+  return getRectificationUploadItems(taskId).some((item) => item.uploading);
+}
+
+function validateRectificationFile(file) {
+  if (!RECTIFICATION_ALLOWED_TYPES.includes(file.type)) {
+    return "仅支持 JPG/PNG/WebP 图片";
+  }
+  if (file.size > RECTIFICATION_MAX_FILE_SIZE) {
+    return "单张图片不能超过 5MB";
+  }
+  return "";
+}
+
+function createRectificationUploadItem(file) {
+  return {
+    id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
+    name: file.name,
+    file,
+    previewUrl: URL.createObjectURL(file),
+    fileUrl: "",
+    uploading: true,
+    error: ""
+  };
+}
+
+async function handleRectificationFileChange(taskId, event) {
+  if (!taskId) return;
+  const files = Array.from(event?.target?.files || []);
+  if (!files.length) return;
+  ensureRectificationUploadBucket(taskId);
+  const currentItems = getRectificationUploadItems(taskId);
+  const remaining = RECTIFICATION_MAX_FILE_COUNT - currentItems.length;
+  if (remaining <= 0) {
+    setStatus(`最多上传 ${RECTIFICATION_MAX_FILE_COUNT} 张图片`, "error");
+    event.target.value = "";
+    return;
+  }
+  const selectedFiles = files.slice(0, remaining);
+  selectedFiles.forEach((file) => {
+    const error = validateRectificationFile(file);
+    if (error) {
+      setStatus(error, "error");
+      return;
+    }
+    const uploadItem = createRectificationUploadItem(file);
+    rectificationUploadItems[taskId] = [...getRectificationUploadItems(taskId), uploadItem];
+    uploadRectificationFile(taskId, uploadItem);
+  });
+  event.target.value = "";
+}
+
+function removeRectificationUpload(taskId, uploadId) {
+  const target = getRectificationUploadItems(taskId).find((item) => item.id === uploadId);
+  if (target?.previewUrl) {
+    URL.revokeObjectURL(target.previewUrl);
+  }
+  rectificationUploadItems[taskId] = getRectificationUploadItems(taskId).filter((item) => item.id !== uploadId);
+}
+
+function retryRectificationUpload(taskId, uploadId) {
+  const target = getRectificationUploadItems(taskId).find((item) => item.id === uploadId);
+  if (!target || !target.file) return;
+  target.error = "";
+  target.uploading = true;
+  uploadRectificationFile(taskId, target);
+}
+
+async function uploadRectificationFile(taskId, uploadItem) {
+  try {
+    const payload = {
+      filename: uploadItem.name,
+      contentType: uploadItem.file.type || "application/octet-stream",
+      size: uploadItem.file.size,
+      bizType: "RECTIFICATION"
+    };
+    const presign = await presignUpload(props.token, payload);
+    const response = await fetch(presign.uploadUrl, {
+      method: "PUT",
+      headers: {
+        "Content-Type": payload.contentType
+      },
+      body: uploadItem.file
+    });
+    if (!response.ok) {
+      throw new Error(`上传失败 (${response.status})`);
+    }
+    uploadItem.fileUrl = presign.fileUrl;
+    uploadItem.uploading = false;
+    uploadItem.error = "";
+    rectificationUploadItems[taskId] = [...getRectificationUploadItems(taskId)];
+  } catch (error) {
+    uploadItem.uploading = false;
+    uploadItem.error = error.message || "上传失败";
+    rectificationUploadItems[taskId] = [...getRectificationUploadItems(taskId)];
+  }
+}
+
+function getRectificationAttachmentUrls(taskId) {
+  return getRectificationUploadItems(taskId)
+    .map((item) => item.fileUrl)
+    .filter(Boolean);
+}
+
+function clearRectificationUploadBucket(taskId) {
+  getRectificationUploadItems(taskId).forEach((item) => {
+    if (item.previewUrl) {
+      URL.revokeObjectURL(item.previewUrl);
+    }
+  });
+  delete rectificationUploadItems[taskId];
+}
+
+function clearAllRectificationUploadBuckets() {
+  Object.keys(rectificationUploadItems).forEach((key) => {
+    clearRectificationUploadBucket(key);
+  });
+}
+
+function resetRectificationReworkFlags() {
+  Object.keys(rectificationHasReworkMap).forEach((key) => {
+    delete rectificationHasReworkMap[key];
+  });
+}
+
+async function loadRectificationReworkFlags(records) {
+  resetRectificationReworkFlags();
+  if (!Array.isArray(records) || !records.length) {
+    return;
+  }
+  await Promise.all(
+    records.map(async (item) => {
+      if (!item?.id) return;
+      try {
+        const actions = await fetchRectificationActions(props.token, item.id);
+        rectificationHasReworkMap[item.id] = Array.isArray(actions)
+          && actions.some((log) => String(log?.actionType || "").toUpperCase() === "REVIEW_REWORK");
+      } catch {
+        // 拉取失败时降级为仅根据当前状态判断，避免阻断列表渲染。
+        rectificationHasReworkMap[item.id] = item.status === "REWORK";
+      }
+    })
+  );
+}
+
 async function handleRectificationEnter() {
   section.value = "rectification";
   await loadRectifications();
@@ -423,17 +647,38 @@ async function loadRectifications() {
     rectificationPage.value = data.page || 1;
     rectificationSize.value = data.size || rectificationSize.value;
     rectificationPages.value = data.pages || 1;
-    // 弹窗打开时，同步刷新当前详情，确保时间线与状态实时一致。
+    await loadRectificationReworkFlags(rectificationRecords.value);
+    // 弹窗打开时，同步刷新当前详情，确保动作时间线实时一致。
     if (rectificationDetailVisible.value && rectificationDetail.value?.id) {
-      const latest = rectificationRecords.value.find((item) => item.id === rectificationDetail.value.id);
-      if (latest) {
-        rectificationDetail.value = latest;
-      }
+      await loadRectificationDetail(rectificationDetail.value.id, true);
     }
   } catch (error) {
     setStatus(error.message || "加载整改任务失败", "error");
   } finally {
     rectificationLoading.value = false;
+  }
+}
+
+async function loadRectificationDetail(id, silent = false) {
+  if (!id) return;
+  if (!silent) {
+    rectificationDetailLoading.value = true;
+  }
+  try {
+    const [detail, actions] = await Promise.all([
+      fetchRectificationDetail(props.token, id),
+      fetchRectificationActions(props.token, id)
+    ]);
+    rectificationDetail.value = detail || rectificationDetail.value;
+    rectificationActionLogs.value = Array.isArray(actions) ? actions : [];
+  } catch (error) {
+    if (!silent) {
+      setStatus(error.message || "加载整改详情失败", "error");
+    }
+  } finally {
+    if (!silent) {
+      rectificationDetailLoading.value = false;
+    }
   }
 }
 
@@ -454,12 +699,26 @@ async function handleSubmitRectification(item) {
     setStatus("请先填写整改进展说明", "error");
     return;
   }
+  const uploadItems = getRectificationUploadItems(item.id);
+  if (uploadItems.some((upload) => upload.uploading)) {
+    setStatus("整改凭证上传中，请稍后提交", "error");
+    return;
+  }
+  if (uploadItems.some((upload) => upload.error)) {
+    setStatus("存在上传失败的整改凭证，请处理后再提交", "error");
+    return;
+  }
+  const attachmentUrls = getRectificationAttachmentUrls(item.id);
   rectificationLoading.value = true;
   setStatus("");
   try {
-    await submitMyRectification(props.token, item.id, { progress });
+    await submitMyRectification(props.token, item.id, {
+      progress,
+      attachmentUrls: attachmentUrls.length ? attachmentUrls : undefined
+    });
     setStatus("整改进展提交成功，等待监管复核", "success");
     rectificationDrafts[item.id] = "";
+    clearRectificationUploadBucket(item.id);
     await loadRectifications();
   } catch (error) {
     setStatus(error.message || "整改提交失败", "error");
@@ -468,15 +727,26 @@ async function handleSubmitRectification(item) {
   }
 }
 
-function openRectificationDetail(item) {
+async function openRectificationDetail(item, focusActionType = "") {
   if (!item) return;
+  rectificationDetailLoading.value = true;
   rectificationDetail.value = item;
+  rectificationActionLogs.value = [];
+  rectificationFocusActionType.value = focusActionType;
   rectificationDetailVisible.value = true;
+  await loadRectificationDetail(item.id);
+}
+
+function openLatestReworkDetail(item) {
+  openRectificationDetail(item, "REVIEW_REWORK");
 }
 
 function closeRectificationDetail() {
   rectificationDetailVisible.value = false;
   rectificationDetail.value = null;
+  rectificationActionLogs.value = [];
+  rectificationDetailLoading.value = false;
+  rectificationFocusActionType.value = "";
 }
 
 async function loadRegions(parentId, targetKey) {
@@ -566,6 +836,10 @@ function resolveEnterpriseRegionId() {
   return Number(regionSelection.provinceId || 0) || existingRegionId.value || null;
 }
 
+onBeforeUnmount(() => {
+  clearAllRectificationUploadBuckets();
+});
+
 onMounted(() => {
   const init = async () => {
     await loadRegions(null, "provinces");
@@ -633,6 +907,29 @@ onMounted(() => {
   white-space: nowrap;
 }
 
+.rectification-status-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.rework-flag {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  border: 1px solid rgba(204, 122, 0, 0.3);
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  color: #8a4f00;
+  background: rgba(204, 122, 0, 0.14);
+  cursor: pointer;
+}
+
+.rework-flag:hover {
+  background: rgba(204, 122, 0, 0.22);
+}
+
 .rectification-action {
   display: flex;
   flex-direction: column;
@@ -642,7 +939,7 @@ onMounted(() => {
 
 .rectification-submit-inline {
   display: grid;
-  grid-template-columns: 1fr auto;
+  grid-template-columns: 1fr auto auto;
   gap: 8px;
   align-items: center;
 }
@@ -650,6 +947,59 @@ onMounted(() => {
 .rectification-submit-inline .primary {
   min-width: 100px;
   margin-top: 0;
+}
+
+.rectification-upload-trigger {
+  position: relative;
+  overflow: hidden;
+  cursor: pointer;
+}
+
+.rectification-upload-trigger input {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.rectification-upload-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
+  gap: 8px;
+}
+
+.rectification-upload-item {
+  border: 1px solid var(--stroke);
+  border-radius: 10px;
+  padding: 6px;
+  background: var(--card-strong);
+}
+
+.rectification-upload-item img {
+  width: 100%;
+  height: 72px;
+  object-fit: cover;
+  border-radius: 6px;
+  display: block;
+}
+
+.rectification-upload-meta {
+  margin-top: 6px;
+  display: grid;
+  gap: 4px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.rectification-upload-meta.error {
+  color: var(--danger);
+}
+
+.rectification-upload-meta .ghost {
+  padding: 3px 8px;
+  min-height: 24px;
+  border-radius: 8px;
+  width: 100%;
 }
 
 .enterprise-shell {

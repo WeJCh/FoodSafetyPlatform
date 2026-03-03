@@ -53,6 +53,8 @@ public class JwtAuthFilter implements GlobalFilter, Ordered {
         RoleRule.of("/api/regulation/complaints/my", "PUBLIC"),
         // Enterprise rectification endpoints for enterprise users.
         RoleRule.of("/api/regulation/rectifications/my", "ENTERPRISE"),
+        // Shared rectification detail/action endpoints for enterprise and regulators.
+        RoleRule.of("/api/regulation/rectifications/", "ENTERPRISE", "REGULATOR_ADMIN", "REGULATOR_ENFORCER"),
         // Enterprise profile and filing endpoints.
         RoleRule.of("/api/regulation/enterprise/", "ENTERPRISE", "REGULATOR_ADMIN", "REGULATOR_ENFORCER"),
         // Region tree query for enterprise filing forms and regulators.

@@ -2,6 +2,7 @@ package com.mortal.regulation.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.mortal.regulation.common.PageResult;
@@ -24,10 +25,12 @@ import com.mortal.regulation.mapper.RectificationTaskMapper;
 import com.mortal.regulation.service.RectificationService;
 import com.mortal.regulation.service.StatusTransitionValidator;
 import com.mortal.regulation.vo.RectificationTaskVO;
+import com.mortal.regulation.vo.RectificationActionLogVO;
 import java.time.LocalDateTime;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -135,7 +138,7 @@ public class RectificationServiceImpl implements RectificationService {
         task.setFinishTime(LocalDateTime.now());
         task.setUpdateTime(LocalDateTime.now());
         rectificationTaskMapper.updateById(task);
-        saveActionLog(task.getId(), ACTION_ENTERPRISE_SUBMIT, enterpriseUserId, progress, null);
+        saveActionLog(task.getId(), ACTION_ENTERPRISE_SUBMIT, enterpriseUserId, progress, dto.getAttachmentUrls());
         return toVOWithNames(task);
     }
 
@@ -203,11 +206,65 @@ public class RectificationServiceImpl implements RectificationService {
         return toVOWithNames(task);
     }
 
+    /**
+     * 获取整改任务详情
+     * @param operatorUserId 操作员用户ID
+     * @param userType 操作员用户类型
+     * @param rectificationId 整改任务ID
+     * @return 整改任务详情
+     */
+    @Override
+    public RectificationTaskVO getDetail(Long operatorUserId, String userType, Long rectificationId) {
+        RectificationTask task = resolveVisibleTask(operatorUserId, userType, rectificationId);
+        return toVOWithNames(task);
+    }
+
+    /**
+     * 获取整改任务操作日志
+     * @param operatorUserId 操作员用户ID
+     * @param userType 操作员用户类型
+     * @param rectificationId 整改任务ID
+     * @return 整改任务操作日志
+     */
+    @Override
+    public List<RectificationActionLogVO> listActions(Long operatorUserId, String userType, Long rectificationId) {
+        RectificationTask task = resolveVisibleTask(operatorUserId, userType, rectificationId);
+        List<RectificationActionLog> logs = rectificationActionLogMapper.selectList(new LambdaQueryWrapper<RectificationActionLog>()
+            .eq(RectificationActionLog::getRectificationId, task.getId())
+            .eq(RectificationActionLog::getDeleted, 0)
+            .orderByAsc(RectificationActionLog::getCreateTime, RectificationActionLog::getId));
+        if (logs.isEmpty()) {
+            return List.of();
+        }
+        Map<Long, String> operatorNames = loadActionOperatorNames(logs);
+        return logs.stream().map(log -> toActionLogVO(log, operatorNames)).toList();
+    }
+
     private String normalizeRectificationDesc(String value) {
         if (!StringUtils.hasText(value)) {
             return DEFAULT_RECTIFICATION_DESC;
         }
         return value.trim();
+    }
+
+    private RectificationTask resolveVisibleTask(Long operatorUserId, String userType, Long rectificationId) {
+        RectificationTask task = requireTask(rectificationId);
+        if ("ENTERPRISE".equalsIgnoreCase(userType)) {
+            FoodEnterprise enterprise = requireEnterpriseByUserId(operatorUserId);
+            if (!Objects.equals(task.getEnterpriseId(), enterprise.getId())) {
+                throw new IllegalArgumentException("rectification not found");
+            }
+            return task;
+        }
+        if ("REGULATOR".equalsIgnoreCase(userType) || "ADMIN".equalsIgnoreCase(userType)) {
+            FoodRegulator regulator = requireRegulator(operatorUserId);
+            FoodEnterprise enterprise = requireEnterprise(task.getEnterpriseId());
+            if (!coversRegion(regulator.getId(), enterprise.getRegionId())) {
+                throw new IllegalArgumentException("rectification not in regulator region");
+            }
+            return task;
+        }
+        throw new IllegalArgumentException("unauthorized");
     }
 
     private RectificationTask requireTask(Long rectificationId) {
@@ -296,6 +353,44 @@ public class RectificationServiceImpl implements RectificationService {
         return vo;
     }
 
+    private RectificationActionLogVO toActionLogVO(RectificationActionLog log, Map<Long, String> operatorNames) {
+        RectificationActionLogVO vo = new RectificationActionLogVO();
+        vo.setId(log.getId());
+        vo.setRectificationId(log.getRectificationId());
+        vo.setActionType(log.getActionType());
+        vo.setActionName(resolveActionName(log.getActionType()));
+        vo.setOperatorId(log.getOperatorId());
+        vo.setOperatorName(operatorNames.get(log.getOperatorId()));
+        vo.setActionComment(log.getActionComment());
+        vo.setAttachmentUrls(parseAttachmentUrls(log.getAttachmentUrls()));
+        vo.setCreateTime(log.getCreateTime());
+        return vo;
+    }
+
+    private Map<Long, String> loadActionOperatorNames(List<RectificationActionLog> logs) {
+        Set<Long> userIds = logs.stream()
+            .map(RectificationActionLog::getOperatorId)
+            .filter(Objects::nonNull)
+            .collect(Collectors.toCollection(LinkedHashSet::new));
+        if (userIds.isEmpty()) {
+            return Collections.emptyMap();
+        }
+        Map<Long, String> names = new HashMap<>();
+        List<FoodRegulator> regulators = foodRegulatorMapper.selectList(new LambdaQueryWrapper<FoodRegulator>()
+            .eq(FoodRegulator::getDeleted, 0)
+            .in(FoodRegulator::getUserId, userIds));
+        for (FoodRegulator regulator : regulators) {
+            names.put(regulator.getUserId(), regulator.getName());
+        }
+        List<FoodEnterprise> enterprises = foodEnterpriseMapper.selectList(new LambdaQueryWrapper<FoodEnterprise>()
+            .eq(FoodEnterprise::getDeleted, 0)
+            .in(FoodEnterprise::getUserId, userIds));
+        for (FoodEnterprise enterprise : enterprises) {
+            names.putIfAbsent(enterprise.getUserId(), enterprise.getEnterpriseName());
+        }
+        return names;
+    }
+
     private Map<Long, String> loadEnterpriseNames(List<RectificationTask> tasks) {
         List<Long> enterpriseIds = tasks.stream()
             .map(RectificationTask::getEnterpriseId)
@@ -350,6 +445,35 @@ public class RectificationServiceImpl implements RectificationService {
             return null;
         }
         return value.trim();
+    }
+
+    private List<String> parseAttachmentUrls(String value) {
+        if (!StringUtils.hasText(value)) {
+            return List.of();
+        }
+        try {
+            List<String> urls = objectMapper.readValue(value, new TypeReference<List<String>>() {
+            });
+            if (urls == null || urls.isEmpty()) {
+                return List.of();
+            }
+            return urls.stream().filter(StringUtils::hasText).map(String::trim).toList();
+        } catch (JsonProcessingException ex) {
+            return List.of();
+        }
+    }
+
+    private String resolveActionName(String actionType) {
+        if (!StringUtils.hasText(actionType)) {
+            return "未知动作";
+        }
+        return switch (actionType.trim().toUpperCase()) {
+            case ACTION_SYSTEM_CREATE -> "系统创建整改任务";
+            case ACTION_ENTERPRISE_SUBMIT -> "企业提交整改";
+            case ACTION_REVIEW_CONFIRM -> "监管复核通过";
+            case ACTION_REVIEW_REWORK -> "监管打回重做";
+            default -> actionType;
+        };
     }
 
     private String serializeAttachmentUrls(List<String> attachmentUrls) {

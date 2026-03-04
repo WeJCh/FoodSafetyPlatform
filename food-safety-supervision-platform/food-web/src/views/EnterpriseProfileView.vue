@@ -146,6 +146,7 @@
               <div class="list-row list-header rectification-header">
                 <span>整改任务</span>
                 <span>状态</span>
+                <span>整改时限</span>
                 <span>更新时间</span>
                 <span>操作</span>
               </div>
@@ -167,6 +168,9 @@
                     有打回意见
                   </button>
                 </div>
+                <span :class="['rectification-sla', `rectification-sla--${rectificationSlaClass(item)}`]">
+                  {{ formatRectificationSla(item) }}
+                </span>
                 <span>{{ formatTime(item.updateTime) }}</span>
                 <div class="rectification-action">
                   <button class="ghost" type="button" @click="openRectificationDetail(item)">
@@ -470,6 +474,42 @@ function formatRectificationStatus(value) {
 function formatTime(value) {
   if (!value) return "-";
   return String(value).replace("T", " ").slice(0, 16);
+}
+
+function formatDurationMinutes(minutes) {
+  const total = Math.max(0, Number(minutes) || 0);
+  const days = Math.floor(total / (24 * 60));
+  const hours = Math.floor((total % (24 * 60)) / 60);
+  const mins = total % 60;
+  if (days > 0) return `${days}天${hours}小时`;
+  if (hours > 0) return `${hours}小时${mins}分钟`;
+  return `${mins}分钟`;
+}
+
+function rectificationSlaClass(item) {
+  if (!item) return "none";
+  if (item.slaStatus === "OVERDUE") return "overdue";
+  if (item.slaStatus === "DUE_SOON") return "warning";
+  if (item.slaStatus === "NORMAL") return "normal";
+  return "none";
+}
+
+function formatRectificationSla(item) {
+  if (!item) return "-";
+  const remaining = Number(item.remainingMinutes);
+  if (item.slaStatus === "OVERDUE") {
+    return `已超时 ${formatDurationMinutes(Math.abs(remaining))}`;
+  }
+  if (item.slaStatus === "DUE_SOON") {
+    return `即将超时 ${formatDurationMinutes(remaining)}`;
+  }
+  if (item.slaStatus === "NORMAL") {
+    return `剩余 ${formatDurationMinutes(remaining)}`;
+  }
+  if (item.currentDeadline) {
+    return `截止 ${formatTime(item.currentDeadline)}`;
+  }
+  return "已完成";
 }
 
 function ensureRectificationUploadBucket(taskId) {
@@ -898,7 +938,7 @@ onMounted(() => {
 
 .rectification-header,
 .rectification-row {
-  --row-columns: 2fr 0.8fr 1fr 2fr;
+  --row-columns: 1.8fr 0.8fr 1fr 1fr 2fr;
 }
 
 .rectification-desc {
@@ -928,6 +968,27 @@ onMounted(() => {
 
 .rework-flag:hover {
   background: rgba(204, 122, 0, 0.22);
+}
+
+.rectification-sla {
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.rectification-sla--normal {
+  color: #0d4f9b;
+}
+
+.rectification-sla--warning {
+  color: #b36b00;
+}
+
+.rectification-sla--overdue {
+  color: var(--danger);
+}
+
+.rectification-sla--none {
+  color: var(--muted);
 }
 
 .rectification-action {

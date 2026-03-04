@@ -83,7 +83,7 @@ public class MinioFileService {
                 minioClient.makeBucket(MakeBucketArgs.builder().bucket(bucket).build());
             }
         } catch (Exception ex) {
-            throw new IllegalStateException("minio bucket error", ex);
+            throw new IllegalStateException("minio bucket error: " + ex.getMessage(), ex);
         }
     }
 
@@ -110,7 +110,7 @@ public class MinioFileService {
                 .expiry(PRESIGN_EXPIRE_SECONDS)
                 .build());
         } catch (Exception ex) {
-            throw new IllegalStateException("minio presign error", ex);
+            throw new IllegalStateException("minio presign error: " + ex.getMessage(), ex);
         }
     }
 

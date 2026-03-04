@@ -19,4 +19,9 @@ public class GlobalExceptionHandler {
     public ApiResponse<Void> handleValidation(MethodArgumentNotValidException ex) {
         return ApiResponse.failure(400, ex.getBindingResult().getAllErrors().get(0).getDefaultMessage());
     }
+
+    @ExceptionHandler(IllegalStateException.class)
+    public ApiResponse<Void> handleIllegalState(IllegalStateException ex) {
+        return ApiResponse.failure(500, ex.getMessage());
+    }
 }

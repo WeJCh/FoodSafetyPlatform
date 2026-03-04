@@ -18,6 +18,8 @@ public class RectificationTask {
     private String rectificationDesc;
     private String progress;
     private RectificationStatus status;
+    private LocalDateTime submitDeadline;
+    private LocalDateTime reviewDeadline;
     private LocalDateTime finishTime;
     private Long confirmedBy;
     private LocalDateTime confirmedTime;

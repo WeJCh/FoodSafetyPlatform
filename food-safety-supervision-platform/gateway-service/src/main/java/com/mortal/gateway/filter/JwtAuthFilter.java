@@ -47,7 +47,8 @@ public class JwtAuthFilter implements GlobalFilter, Ordered {
 
     private static final List<RoleRule> ROLE_RULES = List.of(
         RoleRule.of("/api/admin/", "ADMIN"),
-        RoleRule.of("/api/files/", "PUBLIC"),
+        // File upload presign is used by public complaints and enterprise rectification.
+        RoleRule.of("/api/files/", "PUBLIC", "ENTERPRISE"),
         RoleRule.of("/api/regulation/public/", "PUBLIC"),
         RoleRule.of("/api/regulation/complaints/public", "PUBLIC"),
         RoleRule.of("/api/regulation/complaints/my", "PUBLIC"),

@@ -26,6 +26,7 @@ import com.mortal.regulation.service.RectificationService;
 import com.mortal.regulation.service.StatusTransitionValidator;
 import com.mortal.regulation.vo.RectificationTaskVO;
 import com.mortal.regulation.vo.RectificationActionLogVO;
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
@@ -51,6 +52,10 @@ public class RectificationServiceImpl implements RectificationService {
     private static final String ACTION_ENTERPRISE_SUBMIT = "ENTERPRISE_SUBMIT";
     private static final String ACTION_REVIEW_CONFIRM = "REVIEW_CONFIRM";
     private static final String ACTION_REVIEW_REWORK = "REVIEW_REWORK";
+    private static final long ENTERPRISE_SUBMIT_DEADLINE_HOURS = 72L;
+    private static final long ENTERPRISE_RESUBMIT_DEADLINE_HOURS = 48L;
+    private static final long REGULATOR_REVIEW_DEADLINE_HOURS = 24L;
+    private static final long SLA_DUE_SOON_MINUTES = 24L * 60L;
 
     private final RectificationTaskMapper rectificationTaskMapper;
     private final RectificationActionLogMapper rectificationActionLogMapper;
@@ -94,8 +99,10 @@ public class RectificationServiceImpl implements RectificationService {
         task.setEnterpriseId(enterpriseId);
         task.setRectificationDesc(normalizeRectificationDesc(rectificationDesc));
         task.setStatus(RectificationStatus.ONGOING);
-        task.setCreateTime(LocalDateTime.now());
-        task.setUpdateTime(LocalDateTime.now());
+        LocalDateTime now = LocalDateTime.now();
+        task.setSubmitDeadline(now.plusHours(ENTERPRISE_SUBMIT_DEADLINE_HOURS));
+        task.setCreateTime(now);
+        task.setUpdateTime(now);
         task.setDeleted(0);
         try {
             rectificationTaskMapper.insert(task);
@@ -133,10 +140,12 @@ public class RectificationServiceImpl implements RectificationService {
         }
         StatusTransitionValidator.validateRectificationTransition(task.getStatus(), RectificationStatus.SUBMITTED);
         String progress = dto.getProgress().trim();
+        LocalDateTime now = LocalDateTime.now();
         task.setProgress(progress);
         task.setStatus(RectificationStatus.SUBMITTED);
-        task.setFinishTime(LocalDateTime.now());
-        task.setUpdateTime(LocalDateTime.now());
+        task.setFinishTime(now);
+        task.setReviewDeadline(now.plusHours(REGULATOR_REVIEW_DEADLINE_HOURS));
+        task.setUpdateTime(now);
         rectificationTaskMapper.updateById(task);
         saveActionLog(task.getId(), ACTION_ENTERPRISE_SUBMIT, enterpriseUserId, progress, dto.getAttachmentUrls());
         return toVOWithNames(task);
@@ -183,18 +192,21 @@ public class RectificationServiceImpl implements RectificationService {
         if (action == RectificationReviewAction.REWORK && !StringUtils.hasText(comment)) {
             throw new IllegalArgumentException("review comment required for rework");
         }
+        LocalDateTime now = LocalDateTime.now();
         if (action == RectificationReviewAction.CONFIRM) {
             StatusTransitionValidator.validateRectificationTransition(task.getStatus(), RectificationStatus.CONFIRMED);
             task.setStatus(RectificationStatus.CONFIRMED);
             task.setConfirmedBy(regulator.getId());
-            task.setConfirmedTime(LocalDateTime.now());
+            task.setConfirmedTime(now);
         } else {
             StatusTransitionValidator.validateRectificationTransition(task.getStatus(), RectificationStatus.REWORK);
             task.setStatus(RectificationStatus.REWORK);
             task.setConfirmedBy(null);
             task.setConfirmedTime(null);
+            task.setSubmitDeadline(now.plusHours(ENTERPRISE_RESUBMIT_DEADLINE_HOURS));
+            task.setReviewDeadline(null);
         }
-        task.setUpdateTime(LocalDateTime.now());
+        task.setUpdateTime(now);
         rectificationTaskMapper.updateById(task);
         saveActionLog(
             task.getId(),
@@ -324,18 +336,20 @@ public class RectificationServiceImpl implements RectificationService {
         }
         Map<Long, String> enterpriseNames = loadEnterpriseNames(tasks);
         Map<Long, String> regulatorNames = loadRegulatorNames(tasks);
-        return tasks.stream().map(task -> toVO(task, enterpriseNames, regulatorNames)).toList();
+        LocalDateTime now = LocalDateTime.now();
+        return tasks.stream().map(task -> toVO(task, enterpriseNames, regulatorNames, now)).toList();
     }
 
     private RectificationTaskVO toVOWithNames(RectificationTask task) {
         Map<Long, String> enterpriseNames = loadEnterpriseNames(List.of(task));
         Map<Long, String> regulatorNames = loadRegulatorNames(List.of(task));
-        return toVO(task, enterpriseNames, regulatorNames);
+        return toVO(task, enterpriseNames, regulatorNames, LocalDateTime.now());
     }
 
     private RectificationTaskVO toVO(RectificationTask task,
                                      Map<Long, String> enterpriseNames,
-                                     Map<Long, String> regulatorNames) {
+                                     Map<Long, String> regulatorNames,
+                                     LocalDateTime now) {
         RectificationTaskVO vo = new RectificationTaskVO();
         vo.setId(task.getId());
         vo.setInspectionId(task.getInspectionId());
@@ -344,13 +358,58 @@ public class RectificationServiceImpl implements RectificationService {
         vo.setRectificationDesc(task.getRectificationDesc());
         vo.setProgress(task.getProgress());
         vo.setStatus(task.getStatus());
+        vo.setSubmitDeadline(task.getSubmitDeadline());
+        vo.setReviewDeadline(task.getReviewDeadline());
         vo.setFinishTime(task.getFinishTime());
         vo.setConfirmedBy(task.getConfirmedBy());
         vo.setConfirmedByName(regulatorNames.get(task.getConfirmedBy()));
         vo.setConfirmedTime(task.getConfirmedTime());
         vo.setCreateTime(task.getCreateTime());
         vo.setUpdateTime(task.getUpdateTime());
+        fillSlaSnapshot(vo, task, now);
         return vo;
+    }
+    
+    /**
+     * 计算当前整改任务的 SLA 快照，前端可直接用于倒计时和超时标记展示。
+     */
+    private void fillSlaSnapshot(RectificationTaskVO vo, RectificationTask task, LocalDateTime now) {
+        if (task == null || task.getStatus() == null) {
+            vo.setSlaStage("NONE");
+            vo.setSlaStatus("NONE");
+            return;
+        }
+
+        LocalDateTime activeDeadline;
+        String stage;
+        if (task.getStatus() == RectificationStatus.ONGOING || task.getStatus() == RectificationStatus.REWORK) {
+            activeDeadline = task.getSubmitDeadline();
+            stage = "ENTERPRISE_SUBMIT";
+        } else if (task.getStatus() == RectificationStatus.SUBMITTED) {
+            activeDeadline = task.getReviewDeadline();
+            stage = "REGULATOR_REVIEW";
+        } else {
+            activeDeadline = null;
+            stage = "NONE";
+        }
+
+        vo.setSlaStage(stage);
+        vo.setCurrentDeadline(activeDeadline);
+        if (activeDeadline == null || "NONE".equals(stage)) {
+            vo.setSlaStatus("NONE");
+            vo.setRemainingMinutes(null);
+            return;
+        }
+
+        long remainingMinutes = Duration.between(now, activeDeadline).toMinutes();
+        vo.setRemainingMinutes(remainingMinutes);
+        if (remainingMinutes < 0) {
+            vo.setSlaStatus("OVERDUE");
+        } else if (remainingMinutes <= SLA_DUE_SOON_MINUTES) {
+            vo.setSlaStatus("DUE_SOON");
+        } else {
+            vo.setSlaStatus("NORMAL");
+        }
     }
 
     private RectificationActionLogVO toActionLogVO(RectificationActionLog log, Map<Long, String> operatorNames) {
@@ -358,13 +417,35 @@ public class RectificationServiceImpl implements RectificationService {
         vo.setId(log.getId());
         vo.setRectificationId(log.getRectificationId());
         vo.setActionType(log.getActionType());
-        vo.setActionName(resolveActionName(log.getActionType()));
+        vo.setActionName(resolveActionDisplayName(log.getActionType()));
         vo.setOperatorId(log.getOperatorId());
         vo.setOperatorName(operatorNames.get(log.getOperatorId()));
         vo.setActionComment(log.getActionComment());
         vo.setAttachmentUrls(parseAttachmentUrls(log.getAttachmentUrls()));
         vo.setCreateTime(log.getCreateTime());
         return vo;
+    }
+
+    /**
+     * 统一将整改动作类型映射为前端可读文案。
+     */
+    private String resolveActionDisplayName(String actionType) {
+        if (!StringUtils.hasText(actionType)) {
+            return "unknown action";
+        }
+        return switch (actionType.trim().toUpperCase()) {
+            case ACTION_SYSTEM_CREATE -> "系统创建整改任务";
+            case ACTION_ENTERPRISE_SUBMIT -> "企业提交整改";
+            case ACTION_REVIEW_CONFIRM -> "监管复核通过";
+            case ACTION_REVIEW_REWORK -> "监管打回重做";
+            case "SLA_OVERDUE_SUBMIT" -> "企业提交超时";
+            case "SLA_OVERDUE_REVIEW" -> "监管复核超时";
+            case "SLA_ESCALATE_SUBMIT_L1" -> "企业提交超时-一级升级";
+            case "SLA_ESCALATE_SUBMIT_L2" -> "企业提交超时-二级升级";
+            case "SLA_ESCALATE_REVIEW_L1" -> "监管复核超时-一级升级";
+            case "SLA_ESCALATE_REVIEW_L2" -> "监管复核超时-二级升级";
+            default -> actionType;
+        };
     }
 
     private Map<Long, String> loadActionOperatorNames(List<RectificationActionLog> logs) {

@@ -136,6 +136,8 @@ CREATE TABLE IF NOT EXISTS rectification_task (
   rectification_desc TEXT COMMENT '整改要求',
   progress VARCHAR(1000) COMMENT '整改进度',
   status VARCHAR(20) DEFAULT 'ONGOING' COMMENT 'ONGOING / SUBMITTED / REWORK / CONFIRMED',
+  submit_deadline DATETIME COMMENT '企业提交截止时间',
+  review_deadline DATETIME COMMENT '监管复核截止时间',
   finish_time DATETIME COMMENT '完成时间',
   confirmed_by BIGINT COMMENT '复核人ID',
   confirmed_time DATETIME COMMENT '复核时间',
@@ -147,7 +149,7 @@ CREATE TABLE IF NOT EXISTS rectification_task (
 CREATE TABLE IF NOT EXISTS rectification_action_log (
   id BIGINT PRIMARY KEY AUTO_INCREMENT,
   rectification_id BIGINT NOT NULL COMMENT '整改任务ID',
-  action_type VARCHAR(30) NOT NULL COMMENT 'SYSTEM_CREATE / ENTERPRISE_SUBMIT / REVIEW_CONFIRM / REVIEW_REWORK',
+  action_type VARCHAR(30) NOT NULL COMMENT 'SYSTEM_CREATE / ENTERPRISE_SUBMIT / REVIEW_CONFIRM / REVIEW_REWORK / SLA_OVERDUE_* / SLA_ESCALATE_*',
   operator_id BIGINT COMMENT '操作人ID',
   action_comment VARCHAR(1000) COMMENT '操作说明',
   attachment_urls TEXT COMMENT '附件URL(JSON)',
@@ -217,4 +219,6 @@ ALTER TABLE complaint ADD COLUMN rejected_by BIGINT NULL COMMENT '驳回人';
 ALTER TABLE complaint ADD COLUMN rejected_time DATETIME NULL COMMENT '驳回时间';
 ALTER TABLE complaint_handle ADD UNIQUE KEY uk_complaint_handle (complaint_id);
 ALTER TABLE rectification_task MODIFY COLUMN progress VARCHAR(1000) COMMENT '整改进度';
+ALTER TABLE rectification_task ADD COLUMN IF NOT EXISTS submit_deadline DATETIME COMMENT '企业提交截止时间';
+ALTER TABLE rectification_task ADD COLUMN IF NOT EXISTS review_deadline DATETIME COMMENT '监管复核截止时间';
 ALTER TABLE rectification_task ADD UNIQUE KEY uk_rectification_inspection (inspection_id);

@@ -14,6 +14,12 @@ public class RectificationTaskVO {
     private String rectificationDesc;
     private String progress;
     private RectificationStatus status;
+    private LocalDateTime submitDeadline;
+    private LocalDateTime reviewDeadline;
+    private LocalDateTime currentDeadline;
+    private String slaStage;
+    private String slaStatus;
+    private Long remainingMinutes;
     private LocalDateTime finishTime;
     private Long confirmedBy;
     private String confirmedByName;
@@ -21,4 +27,3 @@ public class RectificationTaskVO {
     private LocalDateTime createTime;
     private LocalDateTime updateTime;
 }
-

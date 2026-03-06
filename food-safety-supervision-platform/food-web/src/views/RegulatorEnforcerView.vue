@@ -14,6 +14,7 @@
         <button :class="{ active: section === 'inspections' }" @click="handleInspectionEnter">检查记录</button>
         <button :class="{ active: section === 'rectification' }" @click="section = 'rectification'">整改跟进</button>
         <button :class="{ active: section === 'complaints' }" @click="handleComplaintEnter">投诉处理</button>
+        <button :class="{ active: section === 'warnings' }" @click="handleWarningEnter">风险预警</button>
       </nav>
       <button class="ghost sidebar-ghost" type="button" @click="handleLogout">退出登录</button>
     </aside>
@@ -38,6 +39,7 @@
             <button :class="{ active: section === 'tasks' }" @click="handleTaskEnter">我的任务</button>
             <button :class="{ active: section === 'inspections' }" @click="handleInspectionEnter">检查记录</button>
             <button :class="{ active: section === 'rectification' }" @click="section = 'rectification'">整改跟进</button>
+            <button :class="{ active: section === 'warnings' }" @click="handleWarningEnter">风险预警</button>
           </div>
 
           <div v-if="section === 'enterprises'">
@@ -329,6 +331,183 @@
 
           </div>
 
+          <div v-else-if="section === 'warnings'">
+            <div class="section-title">风险预警</div>
+            <div class="warning-quick-tools">
+              <button
+                class="ghost warning-quick-toggle"
+                :class="{ active: warningOnlyPending }"
+                type="button"
+                @click="toggleWarningOnlyPending"
+              >
+                仅看待处理：{{ warningOnlyPending ? "开启" : "关闭" }}
+              </button>
+              <span v-if="warningOnlyPending" class="warning-quick-tip">已固定筛选状态为“待处理”</span>
+            </div>
+            <form class="filter-bar filter-bar--five" @submit.prevent="handleWarningSearch">
+              <label>状态
+                <select v-model="warningFilters.status" :disabled="warningOnlyPending">
+                  <option value="">全部</option>
+                  <option value="OPEN">待处理</option>
+                  <option value="ACKED">已签收</option>
+                  <option value="PROCESSING">处理中</option>
+                  <option value="RESOLVED">已解决</option>
+                  <option value="CLOSED">已关闭</option>
+                </select>
+              </label>
+              <label>等级
+                <select v-model="warningFilters.level">
+                  <option value="">全部</option>
+                  <option value="L1">一级</option>
+                  <option value="L2">二级</option>
+                </select>
+              </label>
+              <label>预警类型<input v-model.trim="warningFilters.warningType" placeholder="例：SLA_OVERDUE_SUBMIT" /></label>
+              <label>业务类型<input v-model.trim="warningFilters.bizType" placeholder="例：RECTIFICATION" /></label>
+              <label>关键词<input v-model.trim="warningFilters.keyword" placeholder="标题或内容关键词" /></label>
+              <button class="primary" type="submit" :disabled="warningLoading || warningActionLoading">
+                {{ warningLoading ? "查询中..." : "查询" }}
+              </button>
+            </form>
+
+            <div class="list-table warning-table">
+              <div class="list-row list-header warning-header">
+                <span>预警编号</span><span>预警标题</span><span>等级</span><span>状态</span><span>触发次数</span><span>最近触发</span><span>操作</span>
+              </div>
+              <div v-if="!warningRecords.length" class="list-empty">暂无预警记录</div>
+              <div v-for="item in warningRecords" :key="item.id" class="list-row warning-row">
+                <span>{{ item.warningNo || "-" }}</span>
+                <span class="warning-title-cell" :title="item.title || '-'">{{ item.title || "-" }}</span>
+                <span>{{ formatWarningLevel(item.level) }}</span>
+                <span :class="['warning-status-chip', `warning-status-chip--${warningStatusClass(item.status)}`]">
+                  {{ formatWarningStatus(item.status) }}
+                </span>
+                <span>{{ item.triggerCount || 0 }}</span>
+                <span>{{ formatTime(item.lastOccurTime) }}</span>
+                <div class="action-buttons">
+                  <button class="ghost" type="button" @click="openWarningDetail(item)">查看详情</button>
+                  <button
+                    v-if="warningQuickAction(item.status)"
+                    class="primary"
+                    type="button"
+                    :disabled="warningActionLoading"
+                    @click="handleWarningAction(item, warningQuickAction(item.status).actionType)"
+                  >
+                    {{ warningQuickAction(item.status).label }}
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <div class="pager">
+              <span>共{{ warningTotal }} 条，{{ warningPage }}/{{ warningPages }} 页</span>
+              <div class="pager-actions">
+                <button
+                  class="ghost"
+                  type="button"
+                  :disabled="warningPage <= 1 || warningLoading"
+                  @click="changeWarningPage(warningPage - 1)"
+                >
+                  上一页
+                </button>
+                <button
+                  class="ghost"
+                  type="button"
+                  :disabled="warningPage >= warningPages || warningLoading"
+                  @click="changeWarningPage(warningPage + 1)"
+                >
+                  下一页
+                </button>
+              </div>
+            </div>
+
+            <div v-if="warningDetailVisible" class="modal-mask" @click.self="closeWarningDetail">
+              <div class="modal-card warning-detail-modal">
+                <div class="modal-title">预警详情</div>
+                <div class="modal-body">
+                  <div v-if="warningDetailLoading" class="modal-empty">详情加载中...</div>
+                  <template v-else-if="warningDetail">
+                    <div class="warning-summary-grid">
+                      <div class="warning-summary-item">
+                        <span>预警编号</span>
+                        <strong>{{ warningDetail.warningNo || "-" }}</strong>
+                      </div>
+                      <div class="warning-summary-item">
+                        <span>状态</span>
+                        <strong>{{ formatWarningStatus(warningDetail.status) }}</strong>
+                      </div>
+                      <div class="warning-summary-item">
+                        <span>等级</span>
+                        <strong>{{ formatWarningLevel(warningDetail.level) }}</strong>
+                      </div>
+                      <div class="warning-summary-item">
+                        <span>触发次数</span>
+                        <strong>{{ warningDetail.triggerCount || 0 }}</strong>
+                      </div>
+                    </div>
+                    <div class="modal-field"><span>预警标题</span><strong>{{ warningDetail.title || "-" }}</strong></div>
+                    <div class="modal-field"><span>预警内容</span><strong>{{ warningDetail.content || "-" }}</strong></div>
+                    <div class="modal-field">
+                      <span>负载数据</span>
+                      <pre class="warning-payload">{{ formatWarningPayload(warningDetail.payloadJson) }}</pre>
+                    </div>
+                    <div class="modal-field">
+                      <span>处理记录</span>
+                      <div class="modal-list">
+                        <div v-if="!warningDetail.processLogs || !warningDetail.processLogs.length" class="modal-empty">
+                          暂无处理记录
+                        </div>
+                        <div v-for="log in warningDetail.processLogs || []" :key="log.id" class="modal-item">
+                          <div class="modal-item-name">{{ formatWarningAction(log.actionType) }}</div>
+                          <div class="modal-item-meta">{{ log.operatorName || "-" }} · {{ formatTime(log.createTime) }}</div>
+                          <div class="modal-item-desc">{{ log.actionComment || "无说明" }}</div>
+                        </div>
+                      </div>
+                    </div>
+                  </template>
+                </div>
+                <div class="modal-actions warning-detail-actions">
+                  <button
+                    v-if="warningDetail && canJumpWarningComplaint(warningDetail)"
+                    class="ghost"
+                    type="button"
+                    @click="jumpToWarningComplaint(warningDetail)"
+                  >
+                    跳转投诉详情
+                  </button>
+                  <button
+                    v-if="warningDetail && canJumpWarningRectification(warningDetail)"
+                    class="ghost"
+                    type="button"
+                    @click="jumpToWarningRectification(warningDetail)"
+                  >
+                    跳转整改详情
+                  </button>
+                  <button
+                    v-if="warningDetail && warningQuickAction(warningDetail.status)"
+                    class="primary"
+                    type="button"
+                    :disabled="warningActionLoading"
+                    @click="handleWarningAction(warningDetail, warningQuickAction(warningDetail.status).actionType)"
+                  >
+                    {{ warningQuickAction(warningDetail.status).label }}
+                  </button>
+                  <button class="ghost" type="button" @click="closeWarningDetail">关闭</button>
+              </div>
+            </div>
+          </div>
+
+          <RectificationDetailModal
+            :visible="rectificationDetailVisible"
+            :detail="rectificationDetail"
+            :action-logs="rectificationActionLogs"
+            :detail-loading="rectificationDetailLoading"
+            :reviewable="false"
+            :reviewing="false"
+            @close="closeRectificationDetail"
+          />
+        </div>
+
           <div v-else class="placeholder">
             <strong>功能建设中</strong>
             <p>{{ sectionLabel }} 相关能力正在完善，请稍后再试。</p>
@@ -350,11 +529,17 @@ import {
   fetchInspectionRecordDetail,
   fetchMyInspectionRecords,
   fetchMyInspectionTasks,
+  fetchMyWarningDetail,
+  fetchMyWarningRecords,
+  fetchRectificationActions,
+  fetchRectificationDetail,
   fetchRegionPath,
+  processMyWarning,
   startInspectionTask,
   startComplaintProcess,
   submitInspectionTask
 } from "../api/regulation";
+import RectificationDetailModal from "../components/RectificationDetailModal.vue";
 
 const props = defineProps({
   token: { type: String, required: true },
@@ -403,6 +588,29 @@ const complaintSize = ref(8);
 const complaintTotal = ref(0);
 const complaintPages = ref(1);
 const complaintFilters = reactive({ status: "", enterpriseName: "" });
+const warningLoading = ref(false);
+const warningActionLoading = ref(false);
+const warningDetailLoading = ref(false);
+const warningRecords = ref([]);
+const warningPage = ref(1);
+const warningSize = ref(8);
+const warningTotal = ref(0);
+const warningPages = ref(1);
+const warningFilters = reactive({
+  status: "",
+  level: "",
+  warningType: "",
+  bizType: "",
+  keyword: ""
+});
+const warningOnlyPending = ref(false);
+const warningStatusBackup = ref("");
+const warningDetailVisible = ref(false);
+const warningDetail = ref(null);
+const rectificationDetailVisible = ref(false);
+const rectificationDetailLoading = ref(false);
+const rectificationDetail = ref(null);
+const rectificationActionLogs = ref([]);
 
 const taskForm = reactive({
   inspectionDate: "",
@@ -420,7 +628,8 @@ const sectionLabelMap = {
   tasks: "我的任务",
   inspections: "检查记录",
   rectification: "整改跟进",
-  complaints: "投诉处理"
+  complaints: "投诉处理",
+  warnings: "风险预警"
 };
 
 const sectionLabel = computed(() => sectionLabelMap[section.value] || "当前模块");
@@ -438,6 +647,21 @@ const complaintStatusMap = {
   FEEDBACKED: "已反馈",
   REJECTED: "已驳回"
 };
+const warningStatusMap = {
+  OPEN: "待处理",
+  ACKED: "已签收",
+  PROCESSING: "处理中",
+  RESOLVED: "已解决",
+  CLOSED: "已关闭"
+};
+const warningLevelMap = { L1: "一级", L2: "二级" };
+const warningActionMap = {
+  EVENT_UPSERT: "系统上报",
+  ACK: "签收",
+  PROCESS: "进入处理中",
+  RESOLVE: "标记已解决",
+  CLOSE: "关闭"
+};
 
 function formatStatus(value) { return statusMap[value] || value || "-"; }
 function formatApprovalStatus(value) { return approvalStatusMap[value] || value || "-"; }
@@ -445,6 +669,55 @@ function formatTaskStatus(value) { return taskStatusMap[value] || value || "-"; 
 function formatTaskPriority(value) { return taskPriorityMap[value] || value || "-"; }
 function formatInspectionResult(value) { return inspectionResultMap[value] || value || "-"; }
 function formatComplaintStatus(value) { return complaintStatusMap[value] || value || "-"; }
+function formatWarningStatus(value) { return warningStatusMap[value] || value || "-"; }
+function formatWarningLevel(value) { return warningLevelMap[value] || value || "-"; }
+function formatWarningAction(value) { return warningActionMap[value] || value || "-"; }
+
+function warningStatusClass(value) {
+  if (value === "OPEN") return "open";
+  if (value === "ACKED") return "acked";
+  if (value === "PROCESSING") return "processing";
+  if (value === "RESOLVED") return "resolved";
+  if (value === "CLOSED") return "closed";
+  return "unknown";
+}
+
+function warningQuickAction(statusValue) {
+  if (statusValue === "OPEN") return { actionType: "ACK", label: "签收" };
+  if (statusValue === "ACKED") return { actionType: "PROCESS", label: "转处理中" };
+  if (statusValue === "PROCESSING") return { actionType: "RESOLVE", label: "标记解决" };
+  return null;
+}
+
+function formatWarningPayload(payloadJson) {
+  if (!payloadJson) return "-";
+  try {
+    return JSON.stringify(JSON.parse(payloadJson), null, 2);
+  } catch {
+    return String(payloadJson);
+  }
+}
+
+function canJumpWarningComplaint(warning) {
+  return String(warning?.bizType || "").toUpperCase() === "COMPLAINT" && Number(warning?.bizId) > 0;
+}
+
+function canJumpWarningRectification(warning) {
+  return String(warning?.bizType || "").toUpperCase() === "RECTIFICATION" && Number(warning?.bizId) > 0;
+}
+
+function jumpToWarningComplaint(warning) {
+  if (!canJumpWarningComplaint(warning)) return;
+  emit("view-complaint", { id: Number(warning.bizId), fromSection: "warnings" });
+  closeWarningDetail();
+}
+
+async function jumpToWarningRectification(warning) {
+  if (!canJumpWarningRectification(warning)) return;
+  const rectificationId = Number(warning.bizId);
+  closeWarningDetail();
+  await openRectificationDetailById(rectificationId);
+}
 
 async function load() {
   loading.value = true; setStatus("");
@@ -482,6 +755,7 @@ async function handleTaskSearch() { taskPage.value = 1; await loadTasks(); }
 async function changeTaskPage(nextPage) { taskPage.value = nextPage; await loadTasks(); }
 async function handleInspectionEnter() { section.value = "inspections"; await loadInspections(); }
 async function handleComplaintEnter() { section.value = "complaints"; await loadComplaints(); }
+async function handleWarningEnter() { section.value = "warnings"; await loadWarnings(); }
 async function handleInspectionSearch() { inspectionPage.value = 1; await loadInspections(); }
 async function changeInspectionPage(nextPage) { inspectionPage.value = nextPage; await loadInspections(); }
 
@@ -517,8 +791,41 @@ async function loadComplaints() {
   }
 }
 
+async function loadWarnings() {
+  warningLoading.value = true; setStatus("");
+  try {
+    const data = await fetchMyWarningRecords(props.token, {
+      ...warningFilters,
+      page: warningPage.value,
+      size: warningSize.value
+    });
+    warningRecords.value = data.records || [];
+    warningTotal.value = data.total || 0;
+    warningPage.value = data.page || 1;
+    warningSize.value = data.size || warningSize.value;
+    warningPages.value = data.pages || 1;
+  } catch (error) {
+    setStatus(error.message || "加载预警列表失败", "error");
+  } finally {
+    warningLoading.value = false;
+  }
+}
+
 async function handleComplaintSearch() { complaintPage.value = 1; await loadComplaints(); }
 async function changeComplaintPage(nextPage) { complaintPage.value = nextPage; await loadComplaints(); }
+async function handleWarningSearch() { warningPage.value = 1; await loadWarnings(); }
+async function changeWarningPage(nextPage) { warningPage.value = nextPage; await loadWarnings(); }
+async function toggleWarningOnlyPending() {
+  warningOnlyPending.value = !warningOnlyPending.value;
+  if (warningOnlyPending.value) {
+    warningStatusBackup.value = warningFilters.status;
+    warningFilters.status = "OPEN";
+  } else {
+    warningFilters.status = warningStatusBackup.value || "";
+  }
+  warningPage.value = 1;
+  await loadWarnings();
+}
 
 async function handleStartComplaint(item) {
   if (!item?.id) return;
@@ -532,6 +839,74 @@ async function handleStartComplaint(item) {
     setStatus(error.message || "开始处理失败", "error");
   } finally {
     complaintLoading.value = false;
+  }
+}
+
+async function openWarningDetail(item) {
+  if (!item?.id) return;
+  warningDetailVisible.value = true;
+  warningDetailLoading.value = true;
+  warningDetail.value = null;
+  try {
+    warningDetail.value = await fetchMyWarningDetail(props.token, item.id);
+  } catch (error) {
+    setStatus(error.message || "加载预警详情失败", "error");
+    warningDetailVisible.value = false;
+  } finally {
+    warningDetailLoading.value = false;
+  }
+}
+
+function closeWarningDetail() {
+  warningDetailVisible.value = false;
+  warningDetail.value = null;
+  warningDetailLoading.value = false;
+}
+
+async function openRectificationDetailById(rectificationId) {
+  if (!rectificationId) return;
+  rectificationDetailVisible.value = true;
+  rectificationDetailLoading.value = true;
+  rectificationDetail.value = { id: rectificationId };
+  rectificationActionLogs.value = [];
+  try {
+    const [detail, actions] = await Promise.all([
+      fetchRectificationDetail(props.token, rectificationId),
+      fetchRectificationActions(props.token, rectificationId)
+    ]);
+    rectificationDetail.value = detail || rectificationDetail.value;
+    rectificationActionLogs.value = Array.isArray(actions) ? actions : [];
+  } catch (error) {
+    setStatus(error.message || "加载整改详情失败", "error");
+    closeRectificationDetail();
+  } finally {
+    rectificationDetailLoading.value = false;
+  }
+}
+
+function closeRectificationDetail() {
+  rectificationDetailVisible.value = false;
+  rectificationDetail.value = null;
+  rectificationActionLogs.value = [];
+  rectificationDetailLoading.value = false;
+}
+
+async function handleWarningAction(target, actionType) {
+  const warningId = target?.id;
+  if (!warningId || !actionType) return;
+  warningActionLoading.value = true;
+  setStatus("");
+  try {
+    const detail = await processMyWarning(props.token, warningId, { actionType });
+    if (warningDetailVisible.value && warningDetail.value?.id === warningId) {
+      warningDetail.value = detail;
+    }
+    setStatus(`预警已执行${formatWarningAction(actionType)}`, "success");
+    await loadWarnings();
+  } catch (error) {
+    setStatus(error.message || "预警处理失败", "error");
+  } finally {
+    warningActionLoading.value = false;
   }
 }
 
@@ -645,6 +1020,7 @@ onMounted(() => {
   if (section.value === "tasks") { loadTasks(); return; }
   if (section.value === "inspections") { loadInspections(); return; }
   if (section.value === "complaints") { loadComplaints(); return; }
+  if (section.value === "warnings") { loadWarnings(); return; }
   load();
 });
 </script>
@@ -666,6 +1042,48 @@ onMounted(() => {
 .task-header, .task-row { --row-columns: 1.2fr 1.6fr 0.8fr 0.9fr 1fr 1.2fr; }
 .inspection-header, .inspection-row { --row-columns: 1.6fr 1fr 0.8fr 1.2fr 0.8fr; }
 .complaint-header, .complaint-row { --row-columns: 1.4fr 1.4fr 0.9fr 0.9fr 1.1fr 1.2fr; }
+.warning-header, .warning-row {
+  --row-columns: minmax(180px, 1.4fr) minmax(200px, 1.8fr) 0.7fr 0.9fr 0.8fr 1fr 1.2fr;
+}
+.warning-quick-tools {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+}
+.warning-quick-toggle {
+  height: 34px;
+  padding: 0 14px;
+}
+.warning-quick-toggle.active {
+  color: #1f4f89;
+  border-color: #c7defc;
+  background: #eef6ff;
+  font-weight: 600;
+}
+.warning-quick-tip {
+  font-size: 12px;
+  color: var(--muted);
+}
+.warning-title-cell { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.warning-status-chip {
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 30px;
+  padding: 0 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  border: 1px solid transparent;
+}
+.warning-status-chip--open { color: #9b3a0a; background: #fff4eb; border-color: #f8d5bf; }
+.warning-status-chip--acked { color: #1f4f89; background: #eef6ff; border-color: #c7defc; }
+.warning-status-chip--processing { color: #245d62; background: #ecfbfb; border-color: #c4ebec; }
+.warning-status-chip--resolved { color: #1f6b4d; background: #ebf9f1; border-color: #c6e9d6; }
+.warning-status-chip--closed { color: #5a6b7f; background: #f0f4f8; border-color: #d8e1ea; }
+.warning-status-chip--unknown { color: var(--muted); background: #f5f8fb; border-color: var(--stroke); }
 .action-buttons { display: flex; align-items: center; gap: 8px; }
 .action-buttons button { height: 32px; padding: 0 14px; min-width: 88px; white-space: nowrap; }
 .section-subtitle { font-weight: 600; margin-bottom: 8px; }
@@ -675,6 +1093,34 @@ onMounted(() => {
 .task-item { display: grid; grid-template-columns: 1.4fr 0.8fr 1.2fr auto; gap: 8px; align-items: center; }
 .task-actions { display: flex; gap: 10px; justify-content: flex-end; }
 .task-detail-modal { width: min(760px, 94vw); }
+.warning-detail-modal { width: min(920px, 96vw); }
+.warning-summary-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+.warning-summary-item {
+  border: 1px solid var(--stroke);
+  border-radius: 12px;
+  background: var(--card-strong);
+  padding: 10px;
+}
+.warning-summary-item span {
+  display: block;
+  font-size: 12px;
+  color: var(--muted);
+  margin-bottom: 6px;
+}
+.warning-summary-item strong { font-size: 14px; color: var(--ink); }
+.warning-payload {
+  margin: 0;
+  max-height: 180px;
+  overflow: auto;
+  border: 1px solid var(--stroke);
+  border-radius: 12px;
+  background: var(--card-strong);
+  padding: 10px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--muted);
+}
+.warning-detail-actions { justify-content: flex-end; gap: 10px; }
 .task-detail-header { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
 .task-chip {
   display: inline-flex;
@@ -747,5 +1193,9 @@ onMounted(() => {
   .task-item { grid-template-columns: 1fr; }
   .task-detail-grid { grid-template-columns: 1fr; }
   .task-detail-fields { grid-template-columns: 1fr; }
+  .warning-summary-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 640px) {
+  .warning-summary-grid { grid-template-columns: 1fr; }
 }
 </style>

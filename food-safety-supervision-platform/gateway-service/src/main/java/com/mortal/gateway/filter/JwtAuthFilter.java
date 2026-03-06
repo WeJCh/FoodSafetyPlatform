@@ -100,6 +100,10 @@ public class JwtAuthFilter implements GlobalFilter, Ordered {
         if (isPreflight(exchange) || isWhitelisted(path)) {
             return chain.filter(exchange);
         }
+        // 中文注释：internal 接口只允许服务间直连，网关侧统一拒绝外部访问。
+        if (path.startsWith("/api/warning/internal/")) {
+            return forbidden(exchange);
+        }
 
         String token = extractToken(exchange.getRequest().getHeaders());
         if (!isValidSignature(token)) {

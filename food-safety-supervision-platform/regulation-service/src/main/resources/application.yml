@@ -41,3 +41,7 @@ regulation:
       scan-ms: ${RECTIFICATION_SLA_SCAN_MS:600000}
       escalate-l1-minutes: ${RECTIFICATION_SLA_ESCALATE_L1_MINUTES:1440}
       escalate-l2-minutes: ${RECTIFICATION_SLA_ESCALATE_L2_MINUTES:4320}
+
+warning:
+  internal:
+    token: ${WARNING_INTERNAL_TOKEN:warning-internal-token}

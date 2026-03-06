@@ -591,3 +591,125 @@ export function rejectComplaint(token, id, payload) {
     body: JSON.stringify(payload)
   });
 }
+
+/**
+ * 分页查询预警记录
+ * @param token 令牌
+ * @param params 查询参数
+ * @returns 请求结果
+ */
+export function fetchWarningRecords(token, params = {}) {
+  const search = new URLSearchParams();
+  if (params.page) search.append("page", params.page);
+  if (params.size) search.append("size", params.size);
+  if (params.status) search.append("status", params.status);
+  if (params.level) search.append("level", params.level);
+  if (params.warningType) search.append("warningType", params.warningType);
+  if (params.bizType) search.append("bizType", params.bizType);
+  if (params.bizId) search.append("bizId", params.bizId);
+  if (params.keyword) search.append("keyword", params.keyword);
+  const query = search.toString();
+  return requestWithBase(
+    REGULATION_BASE_URL,
+    `/api/regulation/warnings${query ? `?${query}` : ""}`,
+    {
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${token}`
+      }
+    }
+  );
+}
+
+/**
+ * 查询预警详情
+ * @param token 令牌
+ * @param id 预警ID
+ * @returns 请求结果
+ */
+export function fetchWarningRecordDetail(token, id) {
+  return requestWithBase(REGULATION_BASE_URL, `/api/regulation/warnings/${id}`, {
+    method: "GET",
+    headers: {
+      Authorization: `Bearer ${token}`
+    }
+  });
+}
+
+/**
+ * 处理预警动作
+ * @param token 令牌
+ * @param id 预警ID
+ * @param payload 动作参数
+ * @returns 请求结果
+ */
+export function processWarningRecord(token, id, payload) {
+  return requestWithBase(REGULATION_BASE_URL, `/api/regulation/warnings/${id}/actions`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`
+    },
+    body: JSON.stringify(payload)
+  });
+}
+
+/**
+ * 查询当前执法员可见预警列表
+ * @param token 令牌
+ * @param params 查询参数
+ * @returns 请求结果
+ */
+export function fetchMyWarningRecords(token, params = {}) {
+  const search = new URLSearchParams();
+  if (params.page) search.append("page", params.page);
+  if (params.size) search.append("size", params.size);
+  if (params.status) search.append("status", params.status);
+  if (params.level) search.append("level", params.level);
+  if (params.warningType) search.append("warningType", params.warningType);
+  if (params.bizType) search.append("bizType", params.bizType);
+  if (params.bizId) search.append("bizId", params.bizId);
+  if (params.keyword) search.append("keyword", params.keyword);
+  const query = search.toString();
+  return requestWithBase(
+    REGULATION_BASE_URL,
+    `/api/regulation/warnings/my${query ? `?${query}` : ""}`,
+    {
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${token}`
+      }
+    }
+  );
+}
+
+/**
+ * 查询当前执法员可见预警详情
+ * @param token 令牌
+ * @param id 预警ID
+ * @returns 请求结果
+ */
+export function fetchMyWarningDetail(token, id) {
+  return requestWithBase(REGULATION_BASE_URL, `/api/regulation/warnings/my/${id}`, {
+    method: "GET",
+    headers: {
+      Authorization: `Bearer ${token}`
+    }
+  });
+}
+
+/**
+ * 处理当前执法员可操作预警
+ * @param token 令牌
+ * @param id 预警ID
+ * @param payload 动作参数
+ * @returns 请求结果
+ */
+export function processMyWarning(token, id, payload) {
+  return requestWithBase(REGULATION_BASE_URL, `/api/regulation/warnings/my/${id}/actions`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`
+    },
+    body: JSON.stringify(payload)
+  });
+}

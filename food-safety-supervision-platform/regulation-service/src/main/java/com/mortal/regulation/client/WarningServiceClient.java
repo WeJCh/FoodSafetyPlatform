@@ -2,7 +2,8 @@ package com.mortal.regulation.client;
 
 import com.mortal.regulation.common.ApiResponse;
 import com.mortal.regulation.common.PageResult;
-import com.mortal.regulation.dto.WarningProcessActionDTO;
+import com.mortal.regulation.dto.WarningActionCommentDTO;
+import com.mortal.regulation.dto.WarningAssignDTO;
 import com.mortal.regulation.dto.WarningRecordQueryDTO;
 import com.mortal.regulation.dto.WarningEventUpsertDTO;
 import com.mortal.regulation.vo.WarningRecordDetailVO;
@@ -33,9 +34,9 @@ public interface WarningServiceClient {
                                               @RequestHeader(value = "X-Scope-Region-Ids", required = false)
                                               String regionIds);
 
-    @PostMapping("/api/warning/warnings/{id}/actions")
+    @PostMapping("/api/warning/warnings/{id}/process")
     ApiResponse<WarningRecordDetailVO> process(@PathVariable("id") Long id,
-                                               @RequestBody WarningProcessActionDTO dto,
+                                               @RequestBody WarningActionCommentDTO dto,
                                                @RequestHeader(value = "X-Scope-Owner-Regulator-Id", required = false)
                                                String ownerRegulatorId,
                                                @RequestHeader(value = "X-Scope-Region-Ids", required = false)
@@ -44,4 +45,28 @@ public interface WarningServiceClient {
                                                String operatorUserId,
                                                @RequestHeader(value = "X-Username", required = false)
                                                String operatorName);
+
+    @PostMapping("/api/warning/warnings/{id}/resolve")
+    ApiResponse<WarningRecordDetailVO> resolve(@PathVariable("id") Long id,
+                                               @RequestBody WarningActionCommentDTO dto,
+                                               @RequestHeader(value = "X-Scope-Owner-Regulator-Id", required = false)
+                                               String ownerRegulatorId,
+                                               @RequestHeader(value = "X-Scope-Region-Ids", required = false)
+                                               String regionIds,
+                                               @RequestHeader(value = "X-User-Id", required = false)
+                                               String operatorUserId,
+                                               @RequestHeader(value = "X-Username", required = false)
+                                               String operatorName);
+
+    @PostMapping("/api/warning/warnings/{id}/assign")
+    ApiResponse<WarningRecordDetailVO> assign(@PathVariable("id") Long id,
+                                              @RequestBody WarningAssignDTO dto,
+                                              @RequestHeader(value = "X-Scope-Owner-Regulator-Id", required = false)
+                                              String ownerRegulatorId,
+                                              @RequestHeader(value = "X-Scope-Region-Ids", required = false)
+                                              String regionIds,
+                                              @RequestHeader(value = "X-User-Id", required = false)
+                                              String operatorUserId,
+                                              @RequestHeader(value = "X-Username", required = false)
+                                              String operatorName);
 }

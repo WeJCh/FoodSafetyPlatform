@@ -1,6 +1,7 @@
 package com.mortal.regulation.service;
 
 import com.mortal.regulation.common.PageResult;
+import com.mortal.regulation.dto.WarningAssignDTO;
 import com.mortal.regulation.dto.WarningProcessActionDTO;
 import com.mortal.regulation.dto.WarningRecordQueryDTO;
 import com.mortal.regulation.vo.WarningRecordDetailVO;
@@ -28,6 +29,14 @@ public interface WarningProxyService {
                                               String username,
                                               Long warningId,
                                               WarningProcessActionDTO actionDTO);
+
+    /**
+     * 区域管理员指派预警处理人。
+     */
+    WarningRecordDetailVO assignAdminWarning(Long userId,
+                                             String username,
+                                             Long warningId,
+                                             WarningAssignDTO assignDTO);
 
     /**
      * 查询当前执法员可见预警列表。

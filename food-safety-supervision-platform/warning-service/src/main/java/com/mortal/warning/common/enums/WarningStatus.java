@@ -8,7 +8,6 @@ import org.springframework.util.StringUtils;
  */
 public enum WarningStatus {
     OPEN,
-    ACKED,
     PROCESSING,
     RESOLVED,
     CLOSED;

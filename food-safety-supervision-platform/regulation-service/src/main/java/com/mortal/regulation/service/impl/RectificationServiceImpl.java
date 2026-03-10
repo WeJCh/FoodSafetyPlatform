@@ -52,9 +52,13 @@ public class RectificationServiceImpl implements RectificationService {
     private static final String ACTION_ENTERPRISE_SUBMIT = "ENTERPRISE_SUBMIT";
     private static final String ACTION_REVIEW_CONFIRM = "REVIEW_CONFIRM";
     private static final String ACTION_REVIEW_REWORK = "REVIEW_REWORK";
-    private static final long ENTERPRISE_SUBMIT_DEADLINE_HOURS = 72L;
-    private static final long ENTERPRISE_RESUBMIT_DEADLINE_HOURS = 48L;
-    private static final long REGULATOR_REVIEW_DEADLINE_HOURS = 24L;
+    // 企业提交整改截止时间：72小时
+    private static final long ENTERPRISE_SUBMIT_DEADLINE_HOURS = 0L;
+    // 企业重新提交整改截止时间：48小时
+    private static final long ENTERPRISE_RESUBMIT_DEADLINE_HOURS = 0L;
+    // 监管员审核整改截止时间：24小时
+    private static final long REGULATOR_REVIEW_DEADLINE_HOURS = 0L;
+    // SLA 即将到期时间：24小时
     private static final long SLA_DUE_SOON_MINUTES = 24L * 60L;
 
     private final RectificationTaskMapper rectificationTaskMapper;
@@ -440,10 +444,6 @@ public class RectificationServiceImpl implements RectificationService {
             case ACTION_REVIEW_REWORK -> "监管打回重做";
             case "SLA_OVERDUE_SUBMIT" -> "企业提交超时";
             case "SLA_OVERDUE_REVIEW" -> "监管复核超时";
-            case "SLA_ESCALATE_SUBMIT_L1" -> "企业提交超时-一级升级";
-            case "SLA_ESCALATE_SUBMIT_L2" -> "企业提交超时-二级升级";
-            case "SLA_ESCALATE_REVIEW_L1" -> "监管复核超时-一级升级";
-            case "SLA_ESCALATE_REVIEW_L2" -> "监管复核超时-二级升级";
             default -> actionType;
         };
     }

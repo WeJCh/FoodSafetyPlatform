@@ -32,10 +32,11 @@
   - Append process log: `EVENT_UPSERT`.
 
 ## 5. Level Escalation Rule
-- Escalation follows SLA thresholds in regulation scheduler.
-- Level merge rule:
-  - Existing `L1` + incoming `L2` => final `L2`
+- `regulation-service` only reports overdue facts (`SLA_OVERDUE_*`) and does not send `SLA_ESCALATE_*`.
+- Level escalation (`L1 -> L2`) is executed by `warning-service` scheduler.
+- Upsert keeps level merge safety:
   - Existing `L2` + incoming `L1` => keep `L2`
+  - Existing `L1` + incoming `L2` => final `L2` (compatibility only)
 
 ## 6. Example: First Upsert
 ```json
@@ -62,18 +63,18 @@
 }
 ```
 
-## 7. Example: Repeated Upsert (same dedupKey, level upgraded)
+## 7. Example: Repeated Upsert (same dedupKey, count increment)
 ```json
 {
-  "eventType": "SLA_ESCALATE_SUBMIT_L2",
+  "eventType": "SLA_OVERDUE_SUBMIT",
   "bizType": "RECTIFICATION",
   "bizId": 1024,
   "regionId": 330100,
   "ownerRegulatorId": 18,
   "dedupKey": "RECTIFICATION:1024:SLA_OVERDUE_SUBMIT",
-  "level": "L2",
-  "title": "整改提交超时升级（L2）",
-  "content": "企业整改提交严重超时，已触发二级升级提醒",
+  "level": "L1",
+  "title": "整改提交超时",
+  "content": "企业整改提交持续超时，重复上报同一预警流",
   "sourceService": "regulation-service",
   "occurTime": "2026-03-07T10:00:00",
   "payload": {

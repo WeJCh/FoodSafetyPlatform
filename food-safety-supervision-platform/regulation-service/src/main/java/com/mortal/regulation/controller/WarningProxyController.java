@@ -2,6 +2,8 @@ package com.mortal.regulation.controller;
 
 import com.mortal.regulation.common.ApiResponse;
 import com.mortal.regulation.common.PageResult;
+import com.mortal.regulation.dto.WarningActionCommentDTO;
+import com.mortal.regulation.dto.WarningAssignDTO;
 import com.mortal.regulation.dto.WarningProcessActionDTO;
 import com.mortal.regulation.dto.WarningRecordQueryDTO;
 import com.mortal.regulation.service.WarningProxyService;
@@ -74,19 +76,19 @@ public class WarningProxyController {
     }
 
     /**
-     * 区域管理员处理预警动作。
+     * 区域管理员指派预警。
      */
-    @PostMapping("/{id}/actions")
-    public ApiResponse<WarningRecordDetailVO> adminAction(@RequestHeader("Authorization") String token,
+    @PostMapping("/{id}/assign")
+    public ApiResponse<WarningRecordDetailVO> adminAssign(@RequestHeader("Authorization") String token,
                                                           @PathVariable("id") Long id,
-                                                          @Valid @RequestBody WarningProcessActionDTO actionDTO) {
+                                                          @Valid @RequestBody WarningAssignDTO assignDTO) {
         UserIdentity identity = resolveIdentity(token);
         if (!identity.isRegulator()) {
             return ApiResponse.failure(403, "regulator only");
         }
         try {
             return ApiResponse.success(
-                warningProxyService.processAdminWarning(identity.userId(), identity.username(), id, actionDTO)
+                warningProxyService.assignAdminWarning(identity.userId(), identity.username(), id, assignDTO)
             );
         } catch (IllegalArgumentException ex) {
             if ("admin only".equalsIgnoreCase(ex.getMessage())) {
@@ -94,6 +96,26 @@ public class WarningProxyController {
             }
             throw ex;
         }
+    }
+
+    /**
+     * 区域管理员转处理中。
+     */
+    @PostMapping("/{id}/process")
+    public ApiResponse<WarningRecordDetailVO> adminProcess(@RequestHeader("Authorization") String token,
+                                                           @PathVariable("id") Long id,
+                                                           @RequestBody(required = false) WarningActionCommentDTO actionDTO) {
+        return processAdminAction(token, id, "PROCESS", actionDTO);
+    }
+
+    /**
+     * 区域管理员标记已解决。
+     */
+    @PostMapping("/{id}/resolve")
+    public ApiResponse<WarningRecordDetailVO> adminResolve(@RequestHeader("Authorization") String token,
+                                                           @PathVariable("id") Long id,
+                                                           @RequestBody(required = false) WarningActionCommentDTO actionDTO) {
+        return processAdminAction(token, id, "RESOLVE", actionDTO);
     }
 
     /**
@@ -137,26 +159,23 @@ public class WarningProxyController {
     }
 
     /**
-     * 执法员处理预警动作。
+     * 执法员转处理中。
      */
-    @PostMapping("/my/{id}/actions")
-    public ApiResponse<WarningRecordDetailVO> myAction(@RequestHeader("Authorization") String token,
-                                                       @PathVariable("id") Long id,
-                                                       @Valid @RequestBody WarningProcessActionDTO actionDTO) {
-        UserIdentity identity = resolveIdentity(token);
-        if (!identity.isRegulator()) {
-            return ApiResponse.failure(403, "regulator only");
-        }
-        try {
-            return ApiResponse.success(
-                warningProxyService.processMyWarning(identity.userId(), identity.username(), id, actionDTO)
-            );
-        } catch (IllegalArgumentException ex) {
-            if ("enforcer only".equalsIgnoreCase(ex.getMessage())) {
-                return ApiResponse.failure(403, "enforcer only");
-            }
-            throw ex;
-        }
+    @PostMapping("/my/{id}/process")
+    public ApiResponse<WarningRecordDetailVO> myProcess(@RequestHeader("Authorization") String token,
+                                                        @PathVariable("id") Long id,
+                                                        @RequestBody(required = false) WarningActionCommentDTO actionDTO) {
+        return processMyAction(token, id, "PROCESS", actionDTO);
+    }
+
+    /**
+     * 执法员标记已解决。
+     */
+    @PostMapping("/my/{id}/resolve")
+    public ApiResponse<WarningRecordDetailVO> myResolve(@RequestHeader("Authorization") String token,
+                                                        @PathVariable("id") Long id,
+                                                        @RequestBody(required = false) WarningActionCommentDTO actionDTO) {
+        return processMyAction(token, id, "RESOLVE", actionDTO);
     }
 
     private UserIdentity resolveIdentity(String token) {
@@ -167,6 +186,65 @@ public class WarningProxyController {
             throw new IllegalArgumentException("unauthorized");
         }
         return new UserIdentity(userId, userType, username);
+    }
+
+    private WarningProcessActionDTO buildAction(String actionType, WarningActionCommentDTO source) {
+        WarningProcessActionDTO dto = new WarningProcessActionDTO();
+        dto.setActionType(actionType);
+        if (source != null) {
+            dto.setActionComment(source.getActionComment());
+        }
+        return dto;
+    }
+
+    private ApiResponse<WarningRecordDetailVO> processAdminAction(String token,
+                                                                  Long id,
+                                                                  String actionType,
+                                                                  WarningActionCommentDTO actionDTO) {
+        UserIdentity identity = resolveIdentity(token);
+        if (!identity.isRegulator()) {
+            return ApiResponse.failure(403, "regulator only");
+        }
+        try {
+            return ApiResponse.success(
+                warningProxyService.processAdminWarning(
+                    identity.userId(),
+                    identity.username(),
+                    id,
+                    buildAction(actionType, actionDTO)
+                )
+            );
+        } catch (IllegalArgumentException ex) {
+            if ("admin only".equalsIgnoreCase(ex.getMessage())) {
+                return ApiResponse.failure(403, "admin only");
+            }
+            throw ex;
+        }
+    }
+
+    private ApiResponse<WarningRecordDetailVO> processMyAction(String token,
+                                                               Long id,
+                                                               String actionType,
+                                                               WarningActionCommentDTO actionDTO) {
+        UserIdentity identity = resolveIdentity(token);
+        if (!identity.isRegulator()) {
+            return ApiResponse.failure(403, "regulator only");
+        }
+        try {
+            return ApiResponse.success(
+                warningProxyService.processMyWarning(
+                    identity.userId(),
+                    identity.username(),
+                    id,
+                    buildAction(actionType, actionDTO)
+                )
+            );
+        } catch (IllegalArgumentException ex) {
+            if ("enforcer only".equalsIgnoreCase(ex.getMessage())) {
+                return ApiResponse.failure(403, "enforcer only");
+            }
+            throw ex;
+        }
     }
 
     private record UserIdentity(Long userId, String userType, String username) {

@@ -1,8 +1,6 @@
 package com.mortal.regulation.service.scheduler;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
-import com.mortal.regulation.client.WarningServiceClient;
-import com.mortal.regulation.common.ApiResponse;
 import com.mortal.regulation.common.enums.RectificationStatus;
 import com.mortal.regulation.dto.WarningEventUpsertDTO;
 import com.mortal.regulation.entity.FoodEnterprise;
@@ -13,6 +11,7 @@ import com.mortal.regulation.mapper.FoodEnterpriseMapper;
 import com.mortal.regulation.mapper.InspectionRecordMapper;
 import com.mortal.regulation.mapper.RectificationActionLogMapper;
 import com.mortal.regulation.mapper.RectificationTaskMapper;
+import com.mortal.regulation.service.WarningEventOutboxService;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.Collection;
@@ -23,10 +22,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
@@ -36,7 +33,7 @@ import org.springframework.stereotype.Component;
  * <p>本版本目标：</p>
  * <ul>
  *   <li>继续在 regulation-service 写本地审计日志；</li>
- *   <li>并将超时/升级事件上报到 warning-service，形成跨服务预警主记录。</li>
+ *   <li>仅上报超时事件到 warning-service，升级由 warning-service 统一调度。</li>
  * </ul>
  */
 @Component
@@ -49,53 +46,28 @@ public class RectificationSlaScheduler {
 
     private static final String ACTION_SLA_OVERDUE_SUBMIT = "SLA_OVERDUE_SUBMIT";
     private static final String ACTION_SLA_OVERDUE_REVIEW = "SLA_OVERDUE_REVIEW";
-    private static final String ACTION_SLA_ESCALATE_SUBMIT_L1 = "SLA_ESCALATE_SUBMIT_L1";
-    private static final String ACTION_SLA_ESCALATE_SUBMIT_L2 = "SLA_ESCALATE_SUBMIT_L2";
-    private static final String ACTION_SLA_ESCALATE_REVIEW_L1 = "SLA_ESCALATE_REVIEW_L1";
-    private static final String ACTION_SLA_ESCALATE_REVIEW_L2 = "SLA_ESCALATE_REVIEW_L2";
 
     private static final Set<String> SLA_ACTION_TYPES = Set.of(
         ACTION_SLA_OVERDUE_SUBMIT,
-        ACTION_SLA_OVERDUE_REVIEW,
-        ACTION_SLA_ESCALATE_SUBMIT_L1,
-        ACTION_SLA_ESCALATE_SUBMIT_L2,
-        ACTION_SLA_ESCALATE_REVIEW_L1,
-        ACTION_SLA_ESCALATE_REVIEW_L2
+        ACTION_SLA_OVERDUE_REVIEW
     );
 
     private final RectificationTaskMapper rectificationTaskMapper;
     private final RectificationActionLogMapper rectificationActionLogMapper;
-    private final WarningServiceClient warningServiceClient;
+    private final WarningEventOutboxService warningEventOutboxService;
     private final FoodEnterpriseMapper foodEnterpriseMapper;
     private final InspectionRecordMapper inspectionRecordMapper;
-    private final Set<String> failedWarningPushKeys = ConcurrentHashMap.newKeySet();
-    private final String warningInternalToken;
-
-    /**
-     * L1 升级阈值（分钟），默认 24h。
-     */
-    @Value("${regulation.rectification.sla.escalate-l1-minutes:1440}")
-    private long escalateL1Minutes;
-
-    /**
-     * L2 升级阈值（分钟），默认 72h。
-     */
-    @Value("${regulation.rectification.sla.escalate-l2-minutes:4320}")
-    private long escalateL2Minutes;
 
     public RectificationSlaScheduler(RectificationTaskMapper rectificationTaskMapper,
                                      RectificationActionLogMapper rectificationActionLogMapper,
-                                     WarningServiceClient warningServiceClient,
+                                     WarningEventOutboxService warningEventOutboxService,
                                      FoodEnterpriseMapper foodEnterpriseMapper,
-                                     InspectionRecordMapper inspectionRecordMapper,
-                                     @Value("${warning.internal.token:warning-internal-token}")
-                                     String warningInternalToken) {
+                                     InspectionRecordMapper inspectionRecordMapper) {
         this.rectificationTaskMapper = rectificationTaskMapper;
         this.rectificationActionLogMapper = rectificationActionLogMapper;
-        this.warningServiceClient = warningServiceClient;
+        this.warningEventOutboxService = warningEventOutboxService;
         this.foodEnterpriseMapper = foodEnterpriseMapper;
         this.inspectionRecordMapper = inspectionRecordMapper;
-        this.warningInternalToken = warningInternalToken;
     }
 
     /**
@@ -155,13 +127,7 @@ public class RectificationSlaScheduler {
         if (snapshot == null) {
             return;
         }
-        ensureActionLogAndWarning(task, snapshot.overdueActionType(), snapshot.overdueComment(), loggedActions, now);
-        if (snapshot.overdueMinutes() >= escalateL1Minutes) {
-            ensureActionLogAndWarning(task, snapshot.escalateL1ActionType(), snapshot.escalateL1Comment(), loggedActions, now);
-        }
-        if (snapshot.overdueMinutes() >= escalateL2Minutes) {
-            ensureActionLogAndWarning(task, snapshot.escalateL2ActionType(), snapshot.escalateL2Comment(), loggedActions, now);
-        }
+        ensureActionLogAndWarning(task, snapshot.actionType(), snapshot.comment(), loggedActions, now);
     }
 
     private StageSnapshot buildStageSnapshot(LocalDateTime now, RectificationTask task) {
@@ -176,13 +142,8 @@ public class RectificationSlaScheduler {
                 return null;
             }
             return new StageSnapshot(
-                overdueMinutes,
                 ACTION_SLA_OVERDUE_SUBMIT,
-                ACTION_SLA_ESCALATE_SUBMIT_L1,
-                ACTION_SLA_ESCALATE_SUBMIT_L2,
-                "企业整改提交已超时",
-                "企业整改提交超时，已触发一级升级提醒",
-                "企业整改提交严重超时，已触发二级升级提醒"
+                "企业整改提交已超时"
             );
         }
 
@@ -192,13 +153,8 @@ public class RectificationSlaScheduler {
                 return null;
             }
             return new StageSnapshot(
-                overdueMinutes,
                 ACTION_SLA_OVERDUE_REVIEW,
-                ACTION_SLA_ESCALATE_REVIEW_L1,
-                ACTION_SLA_ESCALATE_REVIEW_L2,
-                "监管复核已超时",
-                "监管复核超时，已触发一级升级提醒",
-                "监管复核严重超时，已触发二级升级提醒"
+                "监管复核已超时"
             );
         }
 
@@ -213,7 +169,7 @@ public class RectificationSlaScheduler {
     }
 
     /**
-     * 幂等写本地动作日志，并上报 warning-service。
+     * 幂等写本地动作日志，并写入 Outbox 后尝试立即投递。
      */
     private void ensureActionLogAndWarning(RectificationTask task,
                                            String actionType,
@@ -226,10 +182,6 @@ public class RectificationSlaScheduler {
         }
         String dedupKey = buildDedupKey(taskId, actionType);
         Set<String> actionTypes = loggedActions.computeIfAbsent(taskId, key -> new HashSet<>());
-        if (actionTypes.contains(actionType) && !failedWarningPushKeys.contains(dedupKey)) {
-            return;
-        }
-
         if (!actionTypes.contains(actionType)) {
             RectificationActionLog logItem = new RectificationActionLog();
             logItem.setRectificationId(taskId);
@@ -243,28 +195,13 @@ public class RectificationSlaScheduler {
             actionTypes.add(actionType);
         }
 
-        boolean pushed = pushWarningEvent(task, actionType, comment, now);
-        if (pushed) {
-            failedWarningPushKeys.remove(dedupKey);
-        } else {
-            failedWarningPushKeys.add(dedupKey);
-        }
-    }
-
-    private boolean pushWarningEvent(RectificationTask task, String actionType, String comment, LocalDateTime now) {
-        try {
-            WarningEventUpsertDTO dto = buildWarningEventDto(task, actionType, comment, now);
-            ApiResponse<Map<String, Object>> response = warningServiceClient.upsertInternalEvent(dto, warningInternalToken);
-            if (response == null || response.getCode() != 0) {
-                log.warn("Push warning event failed. taskId={}, actionType={}, response={}",
-                    task.getId(), actionType, response);
-                return false;
-            }
-            return true;
-        } catch (Exception ex) {
-            // 不中断 SLA 主流程，避免联动服务短暂异常影响监管主链路。
-            log.warn("Push warning event exception. taskId={}, actionType={}", task.getId(), actionType, ex);
-            return false;
+        WarningEventUpsertDTO dto = buildWarningEventDto(task, actionType, comment, now);
+        warningEventOutboxService.ensurePendingEvent(dedupKey, dto, now);
+        boolean pushed = warningEventOutboxService.dispatchByEventKey(dedupKey);
+        if (!pushed) {
+            // 中文注释：下游短暂不可用时不阻断主流程，由 Outbox 重试调度继续投递。
+            log.warn("Warning outbox dispatch deferred. taskId={}, actionType={}, eventKey={}",
+                taskId, actionType, dedupKey);
         }
     }
 
@@ -293,9 +230,6 @@ public class RectificationSlaScheduler {
     }
 
     private String resolveLevelByAction(String actionType) {
-        if (ACTION_SLA_ESCALATE_SUBMIT_L2.equals(actionType) || ACTION_SLA_ESCALATE_REVIEW_L2.equals(actionType)) {
-            return "L2";
-        }
         return "L1";
     }
 
@@ -303,10 +237,6 @@ public class RectificationSlaScheduler {
         return switch (actionType) {
             case ACTION_SLA_OVERDUE_SUBMIT -> "整改提交超时";
             case ACTION_SLA_OVERDUE_REVIEW -> "整改复核超时";
-            case ACTION_SLA_ESCALATE_SUBMIT_L1 -> "整改提交超时升级（L1）";
-            case ACTION_SLA_ESCALATE_SUBMIT_L2 -> "整改提交超时升级（L2）";
-            case ACTION_SLA_ESCALATE_REVIEW_L1 -> "整改复核超时升级（L1）";
-            case ACTION_SLA_ESCALATE_REVIEW_L2 -> "整改复核超时升级（L2）";
             default -> "整改SLA预警";
         };
     }
@@ -352,12 +282,6 @@ public class RectificationSlaScheduler {
         return inspectionRecord == null ? null : inspectionRecord.getInspectorId();
     }
 
-    private record StageSnapshot(long overdueMinutes,
-                                 String overdueActionType,
-                                 String escalateL1ActionType,
-                                 String escalateL2ActionType,
-                                 String overdueComment,
-                                 String escalateL1Comment,
-                                 String escalateL2Comment) {
+    private record StageSnapshot(String actionType, String comment) {
     }
 }

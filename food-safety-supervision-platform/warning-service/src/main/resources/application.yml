@@ -27,3 +27,14 @@ mybatis-plus:
 warning:
   internal:
     token: ${WARNING_INTERNAL_TOKEN:warning-internal-token}
+  escalation:
+    enabled: ${WARNING_ESCALATION_ENABLED:true}
+    scan-ms: ${WARNING_ESCALATION_SCAN_MS:30000}
+    initial-delay-ms: ${WARNING_ESCALATION_INITIAL_DELAY_MS:60000}
+    rectification-l2-minutes: ${WARNING_ESCALATION_RECTIFICATION_L2_MINUTES:10}
+  archive:
+    enabled: ${WARNING_ARCHIVE_ENABLED:true}
+    scan-ms: ${WARNING_ARCHIVE_SCAN_MS:600000}
+    initial-delay-ms: ${WARNING_ARCHIVE_INITIAL_DELAY_MS:120000}
+    resolved-days: ${WARNING_ARCHIVE_RESOLVED_DAYS:7}
+    batch-size: ${WARNING_ARCHIVE_BATCH_SIZE:100}

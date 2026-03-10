@@ -38,9 +38,15 @@ minio:
 regulation:
   rectification:
     sla:
-      scan-ms: ${RECTIFICATION_SLA_SCAN_MS:600000}
-      escalate-l1-minutes: ${RECTIFICATION_SLA_ESCALATE_L1_MINUTES:1440}
-      escalate-l2-minutes: ${RECTIFICATION_SLA_ESCALATE_L2_MINUTES:4320}
+      scan-ms: ${RECTIFICATION_SLA_SCAN_MS:30000}
+  warning:
+    outbox:
+      retry-scan-ms: ${REG_WARNING_OUTBOX_RETRY_SCAN_MS:15000}
+      retry-initial-delay-ms: ${REG_WARNING_OUTBOX_RETRY_INITIAL_DELAY_MS:15000}
+      retry-batch-size: ${REG_WARNING_OUTBOX_RETRY_BATCH_SIZE:50}
+      max-retry: ${REG_WARNING_OUTBOX_MAX_RETRY:8}
+      backoff-base-seconds: ${REG_WARNING_OUTBOX_BACKOFF_BASE_SECONDS:30}
+      backoff-max-seconds: ${REG_WARNING_OUTBOX_BACKOFF_MAX_SECONDS:1800}
 
 warning:
   internal:

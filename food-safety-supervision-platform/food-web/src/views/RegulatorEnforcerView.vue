@@ -349,10 +349,9 @@
                 <select v-model="warningFilters.status" :disabled="warningOnlyPending">
                   <option value="">全部</option>
                   <option value="OPEN">待处理</option>
-                  <option value="ACKED">已签收</option>
                   <option value="PROCESSING">处理中</option>
                   <option value="RESOLVED">已解决</option>
-                  <option value="CLOSED">已关闭</option>
+                  <option value="CLOSED">已归档</option>
                 </select>
               </label>
               <label>等级
@@ -453,14 +452,20 @@
                     </div>
                     <div class="modal-field">
                       <span>处理记录</span>
-                      <div class="modal-list">
+                      <div class="warning-timeline-list">
                         <div v-if="!warningDetail.processLogs || !warningDetail.processLogs.length" class="modal-empty">
                           暂无处理记录
                         </div>
-                        <div v-for="log in warningDetail.processLogs || []" :key="log.id" class="modal-item">
-                          <div class="modal-item-name">{{ formatWarningAction(log.actionType) }}</div>
-                          <div class="modal-item-meta">{{ log.operatorName || "-" }} · {{ formatTime(log.createTime) }}</div>
-                          <div class="modal-item-desc">{{ log.actionComment || "无说明" }}</div>
+                        <div v-for="log in warningDetail.processLogs || []" :key="log.id" class="warning-timeline-item">
+                          <span class="warning-timeline-dot" :class="warningTimelineDotClass(log.actionType)"></span>
+                          <div class="warning-timeline-content">
+                            <div class="warning-timeline-header">
+                              <div class="warning-timeline-name">{{ formatWarningAction(log.actionType) }}</div>
+                              <div class="warning-timeline-time">{{ formatTime(log.createTime) }}</div>
+                            </div>
+                            <div class="warning-timeline-meta">操作人：{{ log.operatorName || "-" }}</div>
+                            <div class="warning-timeline-desc">{{ log.actionComment || "无说明" }}</div>
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -649,18 +654,18 @@ const complaintStatusMap = {
 };
 const warningStatusMap = {
   OPEN: "待处理",
-  ACKED: "已签收",
   PROCESSING: "处理中",
   RESOLVED: "已解决",
-  CLOSED: "已关闭"
+  CLOSED: "已归档"
 };
 const warningLevelMap = { L1: "一级", L2: "二级" };
 const warningActionMap = {
   EVENT_UPSERT: "系统上报",
-  ACK: "签收",
+  ASSIGN: "派发处理",
   PROCESS: "进入处理中",
   RESOLVE: "标记已解决",
-  CLOSE: "关闭"
+  AUTO_LEVEL_UP: "自动升级",
+  AUTO_ARCHIVE: "系统归档"
 };
 
 function formatStatus(value) { return statusMap[value] || value || "-"; }
@@ -675,7 +680,6 @@ function formatWarningAction(value) { return warningActionMap[value] || value ||
 
 function warningStatusClass(value) {
   if (value === "OPEN") return "open";
-  if (value === "ACKED") return "acked";
   if (value === "PROCESSING") return "processing";
   if (value === "RESOLVED") return "resolved";
   if (value === "CLOSED") return "closed";
@@ -683,10 +687,16 @@ function warningStatusClass(value) {
 }
 
 function warningQuickAction(statusValue) {
-  if (statusValue === "OPEN") return { actionType: "ACK", label: "签收" };
-  if (statusValue === "ACKED") return { actionType: "PROCESS", label: "转处理中" };
+  if (statusValue === "OPEN") return { actionType: "PROCESS", label: "开始处理" };
   if (statusValue === "PROCESSING") return { actionType: "RESOLVE", label: "标记解决" };
   return null;
+}
+
+function warningTimelineDotClass(actionType) {
+  const value = String(actionType || "").toUpperCase();
+  if (value === "RESOLVE" || value === "AUTO_ARCHIVE") return "done";
+  if (value === "PROCESS" || value === "ASSIGN" || value === "AUTO_LEVEL_UP") return "active";
+  return "";
 }
 
 function formatWarningPayload(payloadJson) {
@@ -1093,7 +1103,9 @@ onMounted(() => {
 .task-item { display: grid; grid-template-columns: 1.4fr 0.8fr 1.2fr auto; gap: 8px; align-items: center; }
 .task-actions { display: flex; gap: 10px; justify-content: flex-end; }
 .task-detail-modal { width: min(760px, 94vw); }
-.warning-detail-modal { width: min(920px, 96vw); }
+.warning-detail-modal {
+  width: min(920px, 96vw);
+}
 .warning-summary-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
 .warning-summary-item {
   border: 1px solid var(--stroke);
@@ -1121,6 +1133,67 @@ onMounted(() => {
   color: var(--muted);
 }
 .warning-detail-actions { justify-content: flex-end; gap: 10px; }
+.warning-timeline-list {
+  display: grid;
+  gap: 8px;
+  max-height: 280px;
+  overflow: auto;
+  padding: 10px;
+  border: 1px solid var(--stroke);
+  border-radius: 12px;
+  background: var(--card-strong);
+}
+.warning-timeline-item {
+  display: grid;
+  grid-template-columns: 14px 1fr;
+  gap: 10px;
+  align-items: start;
+  border-radius: 8px;
+  padding: 4px 6px;
+}
+.warning-timeline-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  margin-top: 5px;
+  border: 2px solid #c9d6e5;
+  background: #fff;
+}
+.warning-timeline-dot.done {
+  border-color: rgba(31, 107, 77, 0.7);
+  background: rgba(31, 107, 77, 0.2);
+}
+.warning-timeline-dot.active {
+  border-color: var(--primary);
+  background: var(--primary);
+}
+.warning-timeline-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+.warning-timeline-name {
+  font-weight: 600;
+  font-size: 13px;
+  color: var(--ink);
+}
+.warning-timeline-time {
+  font-size: 12px;
+  color: var(--muted);
+  white-space: nowrap;
+}
+.warning-timeline-meta {
+  margin-top: 4px;
+  font-size: 12px;
+  color: var(--muted);
+}
+.warning-timeline-desc {
+  margin-top: 6px;
+  font-size: 13px;
+  color: var(--ink);
+  line-height: 1.5;
+  word-break: break-word;
+}
 .task-detail-header { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
 .task-chip {
   display: inline-flex;

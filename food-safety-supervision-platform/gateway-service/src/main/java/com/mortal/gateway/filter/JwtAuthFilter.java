@@ -61,8 +61,7 @@ public class JwtAuthFilter implements GlobalFilter, Ordered {
         // Region tree query for enterprise filing forms and regulators.
         RoleRule.of("/api/regulation/regions", "ENTERPRISE", "REGULATOR_ADMIN", "REGULATOR_ENFORCER"),
         RoleRule.of("/api/regulation/", "REGULATOR_ADMIN", "REGULATOR_ENFORCER"),
-        RoleRule.of("/api/query/", "ADMIN", "REGULATOR_ADMIN", "REGULATOR_ENFORCER"),
-        RoleRule.of("/api/warning/", "ADMIN", "REGULATOR_ADMIN", "REGULATOR_ENFORCER")
+        RoleRule.of("/api/query/", "ADMIN", "REGULATOR_ADMIN", "REGULATOR_ENFORCER")
     );
 
     private final WebClient webClient;
@@ -100,8 +99,8 @@ public class JwtAuthFilter implements GlobalFilter, Ordered {
         if (isPreflight(exchange) || isWhitelisted(path)) {
             return chain.filter(exchange);
         }
-        // 中文注释：internal 接口只允许服务间直连，网关侧统一拒绝外部访问。
-        if (path.startsWith("/api/warning/internal/")) {
+        // 中文注释：warning-service 对外入口统一收口到 regulation 代理，网关不直接放行 /api/warning/**。
+        if (path.startsWith("/api/warning/")) {
             return forbidden(exchange);
         }
 

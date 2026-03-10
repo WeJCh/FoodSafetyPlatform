@@ -3,14 +3,17 @@ com\mortal\warning\dto\WarningScopeDTO.class
 com\mortal\warning\common\enums\WarningActionType.class
 com\mortal\warning\common\enums\WarningStatus.class
 com\mortal\warning\service\impl\WarningEventServiceImpl$1.class
+com\mortal\warning\dto\WarningAssignDTO.class
 com\mortal\warning\dto\WarningEventUpsertDTO.class
 com\mortal\warning\controller\HealthController.class
-com\mortal\warning\dto\WarningProcessActionDTO.class
 com\mortal\warning\controller\WarningRecordController.class
 com\mortal\warning\entity\WarningProcessLog.class
+com\mortal\warning\service\scheduler\WarningArchiveScheduler.class
+com\mortal\warning\service\scheduler\WarningEscalationScheduler$1.class
 com\mortal\warning\dto\WarningRecordQueryDTO.class
 com\mortal\warning\filter\TraceIdFilter.class
 com\mortal\warning\mapper\WarningProcessLogMapper.class
+com\mortal\warning\service\scheduler\WarningEscalationScheduler.class
 com\mortal\warning\common\ApiResponse.class
 com\mortal\warning\common\GlobalExceptionHandler.class
 com\mortal\warning\common\enums\WarningLevel.class
@@ -18,6 +21,7 @@ com\mortal\warning\common\PageResult.class
 com\mortal\warning\mapper\WarningRecordMapper.class
 com\mortal\warning\service\WarningEventService.class
 com\mortal\warning\service\impl\WarningEventServiceImpl.class
+com\mortal\warning\dto\WarningActionCommentDTO.class
 com\mortal\warning\vo\WarningRecordVO.class
 com\mortal\warning\vo\WarningProcessLogVO.class
 com\mortal\warning\vo\WarningRecordDetailVO.class

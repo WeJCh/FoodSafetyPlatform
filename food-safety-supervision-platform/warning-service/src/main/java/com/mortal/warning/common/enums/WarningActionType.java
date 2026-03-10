@@ -8,13 +8,11 @@ import org.springframework.util.StringUtils;
  */
 public enum WarningActionType {
     EVENT_UPSERT,
-    ACK,
     ASSIGN,
     PROCESS,
     RESOLVE,
-    CLOSE,
-    LEVEL_UP,
-    AUTO_LEVEL_UP;
+    AUTO_LEVEL_UP,
+    AUTO_ARCHIVE;
 
     public static WarningActionType fromValue(String value) {
         if (!StringUtils.hasText(value)) {

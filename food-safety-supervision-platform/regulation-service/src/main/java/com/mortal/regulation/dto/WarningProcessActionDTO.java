@@ -11,7 +11,7 @@ import lombok.Data;
 public class WarningProcessActionDTO {
 
     /**
-     * 动作类型：ACK / PROCESS / RESOLVE / CLOSE
+     * 动作类型：PROCESS / RESOLVE
      */
     @NotBlank(message = "actionType required")
     private String actionType;

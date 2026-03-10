@@ -1,7 +1,7 @@
 package com.mortal.warning.service;
 
 import com.mortal.warning.common.PageResult;
-import com.mortal.warning.dto.WarningProcessActionDTO;
+import com.mortal.warning.dto.WarningAssignDTO;
 import com.mortal.warning.dto.WarningRecordQueryDTO;
 import com.mortal.warning.dto.WarningScopeDTO;
 import com.mortal.warning.dto.WarningEventUpsertDTO;
@@ -26,11 +26,21 @@ public interface WarningEventService {
     WarningRecordDetailVO getWarningRecordDetail(Long warningId, WarningScopeDTO scopeDTO);
 
     /**
-     * 处理预警动作（签收/处理中/已解决/已关闭）。
+     * 按新接口执行单一动作（PROCESS/RESOLVE）。
      */
-    WarningRecordDetailVO processWarning(Long warningId,
-                                         WarningProcessActionDTO actionDTO,
-                                         Long operatorId,
-                                         String operatorName,
-                                         WarningScopeDTO scopeDTO);
+    WarningRecordDetailVO processWarningAction(Long warningId,
+                                               String actionType,
+                                               String actionComment,
+                                               Long operatorId,
+                                               String operatorName,
+                                               WarningScopeDTO scopeDTO);
+
+    /**
+     * 指派预警处理人。
+     */
+    WarningRecordDetailVO assignWarning(Long warningId,
+                                        WarningAssignDTO assignDTO,
+                                        Long operatorId,
+                                        String operatorName,
+                                        WarningScopeDTO scopeDTO);
 }

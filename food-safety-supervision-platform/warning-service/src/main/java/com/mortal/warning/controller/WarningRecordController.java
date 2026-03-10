@@ -2,7 +2,8 @@ package com.mortal.warning.controller;
 
 import com.mortal.warning.common.ApiResponse;
 import com.mortal.warning.common.PageResult;
-import com.mortal.warning.dto.WarningProcessActionDTO;
+import com.mortal.warning.dto.WarningActionCommentDTO;
+import com.mortal.warning.dto.WarningAssignDTO;
 import com.mortal.warning.dto.WarningRecordQueryDTO;
 import com.mortal.warning.dto.WarningScopeDTO;
 import com.mortal.warning.service.WarningEventService;
@@ -54,11 +55,58 @@ public class WarningRecordController {
     }
 
     /**
-     * 处理预警动作（签收/进入处理中/解决/关闭）。
+     * 指派处理人。
      */
-    @PostMapping("/{id}/actions")
-    public ApiResponse<WarningRecordDetailVO> process(@PathVariable("id") Long id,
-                                                      @Valid @RequestBody WarningProcessActionDTO actionDTO,
+    @PostMapping("/{id}/assign")
+    public ApiResponse<WarningRecordDetailVO> assign(@PathVariable("id") Long id,
+                                                     @Valid @RequestBody WarningAssignDTO assignDTO,
+                                                     @RequestHeader(value = "X-Scope-Owner-Regulator-Id",
+                                                         required = false) Long ownerRegulatorId,
+                                                     @RequestHeader(value = "X-Scope-Region-Ids",
+                                                         required = false) String regionIds,
+                                                     @RequestHeader(value = "X-User-Id", required = false)
+                                                     Long operatorId,
+                                                     @RequestHeader(value = "X-Username", required = false)
+                                                     String operatorName) {
+        WarningScopeDTO scopeDTO = new WarningScopeDTO();
+        scopeDTO.setOwnerRegulatorId(ownerRegulatorId);
+        scopeDTO.setRegionIds(regionIds);
+        return ApiResponse.success(warningEventService.assignWarning(id, assignDTO, operatorId, operatorName, scopeDTO));
+    }
+
+    /**
+     * 标记处理中。
+     */
+    @PostMapping("/{id}/process")
+    public ApiResponse<WarningRecordDetailVO> processSingle(@PathVariable("id") Long id,
+                                                            @RequestBody(required = false) WarningActionCommentDTO body,
+                                                            @RequestHeader(value = "X-Scope-Owner-Regulator-Id",
+                                                                required = false) Long ownerRegulatorId,
+                                                            @RequestHeader(value = "X-Scope-Region-Ids",
+                                                                required = false) String regionIds,
+                                                            @RequestHeader(value = "X-User-Id", required = false)
+                                                            Long operatorId,
+                                                            @RequestHeader(value = "X-Username", required = false)
+                                                            String operatorName) {
+        WarningScopeDTO scopeDTO = new WarningScopeDTO();
+        scopeDTO.setOwnerRegulatorId(ownerRegulatorId);
+        scopeDTO.setRegionIds(regionIds);
+        return ApiResponse.success(warningEventService.processWarningAction(
+            id,
+            "PROCESS",
+            body == null ? null : body.getActionComment(),
+            operatorId,
+            operatorName,
+            scopeDTO
+        ));
+    }
+
+    /**
+     * 标记已解决。
+     */
+    @PostMapping("/{id}/resolve")
+    public ApiResponse<WarningRecordDetailVO> resolve(@PathVariable("id") Long id,
+                                                      @RequestBody(required = false) WarningActionCommentDTO body,
                                                       @RequestHeader(value = "X-Scope-Owner-Regulator-Id",
                                                           required = false) Long ownerRegulatorId,
                                                       @RequestHeader(value = "X-Scope-Region-Ids",
@@ -70,6 +118,14 @@ public class WarningRecordController {
         WarningScopeDTO scopeDTO = new WarningScopeDTO();
         scopeDTO.setOwnerRegulatorId(ownerRegulatorId);
         scopeDTO.setRegionIds(regionIds);
-        return ApiResponse.success(warningEventService.processWarning(id, actionDTO, operatorId, operatorName, scopeDTO));
+        return ApiResponse.success(warningEventService.processWarningAction(
+            id,
+            "RESOLVE",
+            body == null ? null : body.getActionComment(),
+            operatorId,
+            operatorName,
+            scopeDTO
+        ));
     }
+
 }

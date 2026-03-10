@@ -1,10 +1,16 @@
+com\mortal\regulation\dto\WarningActionCommentDTO.class
 com\mortal\regulation\dto\WarningEventUpsertDTO.class
+com\mortal\regulation\mapper\WarningEventOutboxMapper.class
 com\mortal\regulation\vo\RectificationActionLogVO.class
+com\mortal\regulation\service\scheduler\WarningEventOutboxRetryScheduler.class
+com\mortal\regulation\service\WarningEventOutboxService.class
+com\mortal\regulation\dto\WarningAssignDTO.class
 com\mortal\regulation\service\impl\RectificationServiceImpl$1.class
 com\mortal\regulation\vo\WarningRecordVO.class
 com\mortal\regulation\vo\WarningRecordDetailVO.class
 com\mortal\regulation\vo\WarningProcessLogVO.class
 com\mortal\regulation\controller\WarningProxyController$UserIdentity.class
+com\mortal\regulation\service\impl\WarningEventOutboxServiceImpl.class
 com\mortal\regulation\dto\WarningRecordQueryDTO.class
 com\mortal\regulation\service\scheduler\RectificationSlaScheduler$StageSnapshot.class
 com\mortal\regulation\common\enums\FileBizType.class
@@ -12,6 +18,7 @@ com\mortal\regulation\client\WarningServiceClient.class
 com\mortal\regulation\dto\WarningProcessActionDTO.class
 com\mortal\regulation\service\WarningProxyService.class
 com\mortal\regulation\service\impl\WarningProxyServiceImpl.class
+com\mortal\regulation\entity\WarningEventOutbox.class
 com\mortal\regulation\dto\WarningScopeDTO.class
 com\mortal\regulation\service\scheduler\RectificationSlaScheduler.class
 com\mortal\regulation\controller\WarningProxyController.class

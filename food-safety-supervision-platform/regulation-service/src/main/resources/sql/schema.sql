@@ -8,6 +8,7 @@ USE food_regulation_db;
 -- 按照依赖顺序删除表（先删除有外键约束的子表，再删除父表）
 DROP TABLE IF EXISTS complaint_handle;
 DROP TABLE IF EXISTS complaint;
+DROP TABLE IF EXISTS warning_event_outbox;
 DROP TABLE IF EXISTS rectification_action_log;
 DROP TABLE IF EXISTS rectification_task;
 DROP TABLE IF EXISTS enterprise_key_reason;
@@ -149,7 +150,7 @@ CREATE TABLE IF NOT EXISTS rectification_task (
 CREATE TABLE IF NOT EXISTS rectification_action_log (
   id BIGINT PRIMARY KEY AUTO_INCREMENT,
   rectification_id BIGINT NOT NULL COMMENT '整改任务ID',
-  action_type VARCHAR(30) NOT NULL COMMENT 'SYSTEM_CREATE / ENTERPRISE_SUBMIT / REVIEW_CONFIRM / REVIEW_REWORK / SLA_OVERDUE_* / SLA_ESCALATE_*',
+  action_type VARCHAR(30) NOT NULL COMMENT 'SYSTEM_CREATE / ENTERPRISE_SUBMIT / REVIEW_CONFIRM / REVIEW_REWORK / SLA_OVERDUE_*',
   operator_id BIGINT COMMENT '操作人ID',
   action_comment VARCHAR(1000) COMMENT '操作说明',
   attachment_urls TEXT COMMENT '附件URL(JSON)',
@@ -158,6 +159,23 @@ CREATE TABLE IF NOT EXISTS rectification_action_log (
   KEY idx_rectification_log_task (rectification_id),
   KEY idx_rectification_log_time (create_time)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='整改动作日志表';
+
+CREATE TABLE IF NOT EXISTS warning_event_outbox (
+  id BIGINT PRIMARY KEY AUTO_INCREMENT,
+  event_key VARCHAR(120) NOT NULL COMMENT '事件唯一键（与 dedupKey 对齐）',
+  event_type VARCHAR(64) NOT NULL COMMENT '事件类型',
+  payload_json LONGTEXT NOT NULL COMMENT '上报 warning-service 的完整请求体',
+  status VARCHAR(20) NOT NULL DEFAULT 'PENDING' COMMENT 'PENDING / SENT / DEAD',
+  retry_count INT NOT NULL DEFAULT 0 COMMENT '已重试次数',
+  next_retry_time DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '下次重试时间',
+  last_attempt_time DATETIME COMMENT '最近投递时间',
+  last_error VARCHAR(500) COMMENT '最近失败原因',
+  create_time DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+  deleted TINYINT DEFAULT 0 COMMENT '逻辑删除 1-已删 0-未删',
+  UNIQUE KEY uk_warning_outbox_event_key (event_key),
+  KEY idx_warning_outbox_status_retry (status, next_retry_time)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='预警事件Outbox表';
 
 CREATE TABLE IF NOT EXISTS complaint (
   id BIGINT PRIMARY KEY AUTO_INCREMENT,

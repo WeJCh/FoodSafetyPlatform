@@ -644,12 +644,30 @@ export function fetchWarningRecordDetail(token, id) {
  * @returns 请求结果
  */
 export function processWarningRecord(token, id, payload) {
-  return requestWithBase(REGULATION_BASE_URL, `/api/regulation/warnings/${id}/actions`, {
+  const actionType = String(payload?.actionType || "").toUpperCase();
+  const actionPathMap = {
+    ASSIGN: "assign",
+    PROCESS: "process",
+    RESOLVE: "resolve"
+  };
+  const actionPath = actionPathMap[actionType];
+  if (!actionPath) {
+    throw new Error("unsupported warning actionType");
+  }
+  const body = actionType === "ASSIGN"
+    ? {
+        assignedTo: payload?.assignedTo,
+        actionComment: payload?.actionComment
+      }
+    : {
+        actionComment: payload?.actionComment
+      };
+  return requestWithBase(REGULATION_BASE_URL, `/api/regulation/warnings/${id}/${actionPath}`, {
     method: "POST",
     headers: {
       Authorization: `Bearer ${token}`
     },
-    body: JSON.stringify(payload)
+    body: JSON.stringify(body)
   });
 }
 
@@ -705,11 +723,22 @@ export function fetchMyWarningDetail(token, id) {
  * @returns 请求结果
  */
 export function processMyWarning(token, id, payload) {
-  return requestWithBase(REGULATION_BASE_URL, `/api/regulation/warnings/my/${id}/actions`, {
+  const actionType = String(payload?.actionType || "").toUpperCase();
+  const actionPathMap = {
+    PROCESS: "process",
+    RESOLVE: "resolve"
+  };
+  const actionPath = actionPathMap[actionType];
+  if (!actionPath) {
+    throw new Error("unsupported warning actionType");
+  }
+  return requestWithBase(REGULATION_BASE_URL, `/api/regulation/warnings/my/${id}/${actionPath}`, {
     method: "POST",
     headers: {
       Authorization: `Bearer ${token}`
     },
-    body: JSON.stringify(payload)
+    body: JSON.stringify({
+      actionComment: payload?.actionComment
+    })
   });
 }

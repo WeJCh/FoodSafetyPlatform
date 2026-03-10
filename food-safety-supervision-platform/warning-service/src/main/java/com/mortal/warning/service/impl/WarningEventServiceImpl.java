@@ -8,7 +8,7 @@ import com.mortal.warning.common.PageResult;
 import com.mortal.warning.common.enums.WarningActionType;
 import com.mortal.warning.common.enums.WarningLevel;
 import com.mortal.warning.common.enums.WarningStatus;
-import com.mortal.warning.dto.WarningProcessActionDTO;
+import com.mortal.warning.dto.WarningAssignDTO;
 import com.mortal.warning.dto.WarningRecordQueryDTO;
 import com.mortal.warning.dto.WarningScopeDTO;
 import com.mortal.warning.dto.WarningEventUpsertDTO;
@@ -166,31 +166,61 @@ public class WarningEventServiceImpl implements WarningEventService {
         return toDetailVO(record);
     }
 
-    /**
-     * 处理预警动作，并记录处理日志。
-     * @param warningId 预警ID
-     * @param actionDTO 动作参数
-     * @param operatorId 操作人ID
-     * @param operatorName 操作人名称
-     * @return 处理后的详情
-     */
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public WarningRecordDetailVO processWarning(Long warningId,
-                                                WarningProcessActionDTO actionDTO,
-                                                Long operatorId,
-                                                String operatorName,
-                                                WarningScopeDTO scopeDTO) {
+    public WarningRecordDetailVO processWarningAction(Long warningId,
+                                                      String actionType,
+                                                      String actionComment,
+                                                      Long operatorId,
+                                                      String operatorName,
+                                                      WarningScopeDTO scopeDTO) {
+        WarningActionType normalized = normalizeActionType(actionType);
+        return doProcessWarning(
+            warningId,
+            normalized,
+            actionComment,
+            operatorId,
+            operatorName,
+            scopeDTO,
+            null
+        );
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public WarningRecordDetailVO assignWarning(Long warningId,
+                                               WarningAssignDTO assignDTO,
+                                               Long operatorId,
+                                               String operatorName,
+                                               WarningScopeDTO scopeDTO) {
+        if (assignDTO == null || assignDTO.getAssignedTo() == null) {
+            throw new IllegalArgumentException("assignedTo required");
+        }
+        return doProcessWarning(
+            warningId,
+            WarningActionType.ASSIGN,
+            assignDTO.getActionComment(),
+            operatorId,
+            operatorName,
+            scopeDTO,
+            assignDTO.getAssignedTo()
+        );
+    }
+
+    private WarningRecordDetailVO doProcessWarning(Long warningId,
+                                                   WarningActionType actionType,
+                                                   String actionComment,
+                                                   Long operatorId,
+                                                   String operatorName,
+                                                   WarningScopeDTO scopeDTO,
+                                                   Long assignedTo) {
         WarningRecord record = loadWarningRecord(warningId);
         ensureInScope(record, scopeDTO);
-        if (actionDTO == null) {
-            throw new IllegalArgumentException("action payload required");
-        }
-        WarningActionType actionType = normalizeActionType(actionDTO.getActionType());
         WarningStatus targetStatus = resolveTargetStatus(record.getStatus(), actionType);
-
+        LocalDateTime now = LocalDateTime.now();
+        applyActionMutation(record, actionType, actionComment, operatorId, assignedTo, now);
         record.setStatus(targetStatus.name());
-        record.setUpdateTime(LocalDateTime.now());
+        record.setUpdateTime(now);
         warningRecordMapper.updateById(record);
 
         WarningProcessLog processLog = new WarningProcessLog();
@@ -198,12 +228,37 @@ public class WarningEventServiceImpl implements WarningEventService {
         processLog.setActionType(actionType.name());
         processLog.setOperatorId(operatorId);
         processLog.setOperatorName(StringUtils.hasText(operatorName) ? operatorName.trim() : "unknown");
-        processLog.setActionComment(normalizeOptional(actionDTO.getActionComment()));
-        processLog.setCreateTime(LocalDateTime.now());
-        processLog.setUpdateTime(LocalDateTime.now());
+        processLog.setActionComment(normalizeOptional(actionComment));
+        processLog.setCreateTime(now);
+        processLog.setUpdateTime(now);
         processLog.setDeleted(0);
         warningProcessLogMapper.insert(processLog);
         return toDetailVO(record);
+    }
+
+    /**
+     * 中文注释：将关键动作同步回填到主表，便于列表统计和追溯。
+     */
+    private void applyActionMutation(WarningRecord record,
+                                     WarningActionType actionType,
+                                     String actionComment,
+                                     Long operatorId,
+                                     Long assignedTo,
+                                     LocalDateTime now) {
+        if (actionType == WarningActionType.ASSIGN) {
+            if (assignedTo == null || assignedTo <= 0) {
+                throw new IllegalArgumentException("assignedTo required");
+            }
+            record.setAssignedTo(assignedTo);
+            record.setAssignedTime(now);
+            return;
+        }
+        if (actionType == WarningActionType.RESOLVE) {
+            if (operatorId != null && operatorId > 0) {
+                record.setResolvedBy(operatorId);
+            }
+            record.setResolvedTime(now);
+        }
     }
 
     private WarningRecordVO toVO(WarningRecord record) {
@@ -320,10 +375,8 @@ public class WarningEventServiceImpl implements WarningEventService {
     private WarningActionType normalizeActionType(String actionType) {
         WarningActionType normalized = WarningActionType.fromValue(actionType);
         Set<WarningActionType> supported = Set.of(
-            WarningActionType.ACK,
             WarningActionType.PROCESS,
-            WarningActionType.RESOLVE,
-            WarningActionType.CLOSE
+            WarningActionType.RESOLVE
         );
         if (!supported.contains(normalized)) {
             throw new IllegalArgumentException("unsupported actionType");
@@ -334,25 +387,21 @@ public class WarningEventServiceImpl implements WarningEventService {
     private WarningStatus resolveTargetStatus(String currentStatus, WarningActionType actionType) {
         WarningStatus normalizedStatus = WarningStatus.fromValue(currentStatus);
         switch (actionType) {
-            case ACK -> {
-                ensureAllowed(normalizedStatus, Set.of(WarningStatus.OPEN), actionType);
-                return WarningStatus.ACKED;
-            }
             case PROCESS -> {
-                ensureAllowed(normalizedStatus, Set.of(WarningStatus.OPEN, WarningStatus.ACKED), actionType);
+                ensureAllowed(normalizedStatus, Set.of(WarningStatus.OPEN), actionType);
                 return WarningStatus.PROCESSING;
             }
-            case RESOLVE -> {
+            case ASSIGN -> {
                 ensureAllowed(
                     normalizedStatus,
-                    Set.of(WarningStatus.OPEN, WarningStatus.ACKED, WarningStatus.PROCESSING),
+                    Set.of(WarningStatus.OPEN, WarningStatus.PROCESSING),
                     actionType
                 );
-                return WarningStatus.RESOLVED;
+                return normalizedStatus;
             }
-            case CLOSE -> {
-                ensureAllowed(normalizedStatus, Set.of(WarningStatus.RESOLVED), actionType);
-                return WarningStatus.CLOSED;
+            case RESOLVE -> {
+                ensureAllowed(normalizedStatus, Set.of(WarningStatus.PROCESSING), actionType);
+                return WarningStatus.RESOLVED;
             }
             default -> throw new IllegalArgumentException("unsupported actionType");
         }

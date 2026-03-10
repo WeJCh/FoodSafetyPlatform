@@ -4,6 +4,8 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.mortal.regulation.client.WarningServiceClient;
 import com.mortal.regulation.common.ApiResponse;
 import com.mortal.regulation.common.PageResult;
+import com.mortal.regulation.dto.WarningActionCommentDTO;
+import com.mortal.regulation.dto.WarningAssignDTO;
 import com.mortal.regulation.dto.WarningProcessActionDTO;
 import com.mortal.regulation.dto.WarningRecordQueryDTO;
 import com.mortal.regulation.entity.AddrRegion;
@@ -34,8 +36,8 @@ public class WarningProxyServiceImpl implements WarningProxyService {
 
     private static final String ROLE_ADMIN = "REGULATOR_ADMIN";
     private static final String ROLE_ENFORCER = "REGULATOR_ENFORCER";
-    private static final Set<String> ADMIN_ALLOWED_ACTIONS = Set.of("ACK", "PROCESS", "RESOLVE", "CLOSE");
-    private static final Set<String> ENFORCER_ALLOWED_ACTIONS = Set.of("ACK", "PROCESS", "RESOLVE");
+    private static final Set<String> ADMIN_ALLOWED_ACTIONS = Set.of("PROCESS", "RESOLVE");
+    private static final Set<String> ENFORCER_ALLOWED_ACTIONS = Set.of("PROCESS", "RESOLVE");
 
     private final WarningServiceClient warningServiceClient;
     private final FoodRegulatorMapper foodRegulatorMapper;
@@ -94,18 +96,44 @@ public class WarningProxyServiceImpl implements WarningProxyService {
             throw new IllegalArgumentException("warning not found");
         }
 
-        WarningProcessActionDTO remoteAction = new WarningProcessActionDTO();
-        remoteAction.setActionType(actionType);
-        remoteAction.setActionComment(actionDTO.getActionComment());
-        ApiResponse<WarningRecordDetailVO> response = warningServiceClient.process(
+        ApiResponse<WarningRecordDetailVO> response = executeAction(
             warningId,
-            remoteAction,
+            actionType,
+            actionDTO.getActionComment(),
             null,
             regionIds,
             String.valueOf(userId),
             StringUtils.hasText(username) ? username.trim() : "unknown"
         );
         return requireSuccess(response, "process warning failed");
+    }
+
+    @Override
+    public WarningRecordDetailVO assignAdminWarning(Long userId,
+                                                    String username,
+                                                    Long warningId,
+                                                    WarningAssignDTO assignDTO) {
+        FoodRegulator admin = requireAdmin(userId);
+        if (assignDTO == null || assignDTO.getAssignedTo() == null || assignDTO.getAssignedTo() <= 0) {
+            throw new IllegalArgumentException("assignedTo required");
+        }
+        String regionIds = joinRegionIds(resolveRegulatorRegionIds(admin.getId()));
+        if (!StringUtils.hasText(regionIds)) {
+            throw new IllegalArgumentException("warning not found");
+        }
+
+        WarningAssignDTO remoteAssign = new WarningAssignDTO();
+        remoteAssign.setAssignedTo(assignDTO.getAssignedTo());
+        remoteAssign.setActionComment(assignDTO.getActionComment());
+        ApiResponse<WarningRecordDetailVO> response = warningServiceClient.assign(
+            warningId,
+            remoteAssign,
+            null,
+            regionIds,
+            String.valueOf(userId),
+            StringUtils.hasText(username) ? username.trim() : "unknown"
+        );
+        return requireSuccess(response, "assign warning failed");
     }
 
     @Override
@@ -139,12 +167,10 @@ public class WarningProxyServiceImpl implements WarningProxyService {
             throw new IllegalArgumentException("enforcer action not allowed");
         }
 
-        WarningProcessActionDTO remoteAction = new WarningProcessActionDTO();
-        remoteAction.setActionType(actionType);
-        remoteAction.setActionComment(actionDTO.getActionComment());
-        ApiResponse<WarningRecordDetailVO> response = warningServiceClient.process(
+        ApiResponse<WarningRecordDetailVO> response = executeAction(
             warningId,
-            remoteAction,
+            actionType,
+            actionDTO.getActionComment(),
             String.valueOf(enforcer.getId()),
             null,
             String.valueOf(userId),
@@ -158,6 +184,31 @@ public class WarningProxyServiceImpl implements WarningProxyService {
             throw new IllegalArgumentException("actionType required");
         }
         return actionDTO.getActionType().trim().toUpperCase(Locale.ROOT);
+    }
+
+    private WarningActionCommentDTO buildActionCommentDTO(String actionComment) {
+        WarningActionCommentDTO dto = new WarningActionCommentDTO();
+        dto.setActionComment(actionComment);
+        return dto;
+    }
+
+    private ApiResponse<WarningRecordDetailVO> executeAction(Long warningId,
+                                                             String actionType,
+                                                             String actionComment,
+                                                             String ownerRegulatorId,
+                                                             String regionIds,
+                                                             String operatorUserId,
+                                                             String operatorName) {
+        WarningActionCommentDTO body = buildActionCommentDTO(actionComment);
+        return switch (actionType) {
+            case "PROCESS" -> warningServiceClient.process(
+                warningId, body, ownerRegulatorId, regionIds, operatorUserId, operatorName
+            );
+            case "RESOLVE" -> warningServiceClient.resolve(
+                warningId, body, ownerRegulatorId, regionIds, operatorUserId, operatorName
+            );
+            default -> throw new IllegalArgumentException("unsupported actionType");
+        };
     }
 
     private FoodRegulator requireAdmin(Long userId) {

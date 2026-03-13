@@ -73,6 +73,9 @@
           <button :class="{ active: section === 'warning' }" @click="handleWarningEnter">
             风险预警
           </button>
+          <button :class="{ active: section === 'stats' }" @click="section = 'stats'">
+            数据统计
+          </button>
         </div>
 
         <div v-if="section === 'enterprises'">
@@ -936,6 +939,10 @@
           </div>
         </div>
 
+        <div v-else-if="section === 'stats'">
+          <WarningStatsPanel :token="token" mode="admin" />
+        </div>
+
         <div v-else class="placeholder">
           <strong>功能占位</strong>
           <p>{{ sectionLabel }} 将在后续版本实现。</p>
@@ -979,6 +986,7 @@ import {
   rejectEnterpriseBatch
 } from "../api/regulation";
 import RectificationDetailModal from "../components/RectificationDetailModal.vue";
+import WarningStatsPanel from "../components/WarningStatsPanel.vue";
 
 const props = defineProps({
   token: {
@@ -2034,6 +2042,9 @@ onMounted(() => {
     handleWarningEnter();
     return;
   }
+  if (section.value === "stats") {
+    return;
+  }
   load();
 });
 </script>
@@ -2073,7 +2084,6 @@ onMounted(() => {
 }
 
 .regulator-shell .card {
-  max-width: 1280px;
   width: 100%;
   padding: 28px;
 }

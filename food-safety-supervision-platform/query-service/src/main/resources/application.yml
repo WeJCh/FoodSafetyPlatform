@@ -23,3 +23,15 @@ spring:
 mybatis-plus:
   configuration:
     map-underscore-to-camel-case: true
+
+warning:
+  internal:
+    # 与 warning-service 使用同一环境变量 WARNING_INTERNAL_TOKEN，确保调用内部统计接口通过鉴权。
+    token: ${WARNING_INTERNAL_TOKEN:warning-internal-token}
+
+query:
+  warning-stats:
+    cache:
+      # 预留缓存开关：当前默认关闭，后续可启用 30s 本地缓存。
+      enabled: ${WARNING_STATS_CACHE_ENABLED:false}
+      ttl-seconds: ${WARNING_STATS_CACHE_TTL_SECONDS:30}

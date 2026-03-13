@@ -15,6 +15,7 @@
         <button :class="{ active: section === 'rectification' }" @click="section = 'rectification'">整改跟进</button>
         <button :class="{ active: section === 'complaints' }" @click="handleComplaintEnter">投诉处理</button>
         <button :class="{ active: section === 'warnings' }" @click="handleWarningEnter">风险预警</button>
+        <button :class="{ active: section === 'stats' }" @click="section = 'stats'">数据统计</button>
       </nav>
       <button class="ghost sidebar-ghost" type="button" @click="handleLogout">退出登录</button>
     </aside>
@@ -40,6 +41,7 @@
             <button :class="{ active: section === 'inspections' }" @click="handleInspectionEnter">检查记录</button>
             <button :class="{ active: section === 'rectification' }" @click="section = 'rectification'">整改跟进</button>
             <button :class="{ active: section === 'warnings' }" @click="handleWarningEnter">风险预警</button>
+            <button :class="{ active: section === 'stats' }" @click="section = 'stats'">数据统计</button>
           </div>
 
           <div v-if="section === 'enterprises'">
@@ -498,8 +500,18 @@
                     {{ warningQuickAction(warningDetail.status).label }}
                   </button>
                   <button class="ghost" type="button" @click="closeWarningDetail">关闭</button>
+                </div>
               </div>
             </div>
+          </div>
+
+          <div v-else-if="section === 'stats'">
+            <WarningStatsPanel :token="token" mode="enforcer" />
+          </div>
+
+          <div v-else class="placeholder">
+            <strong>功能建设中</strong>
+            <p>{{ sectionLabel }} 相关能力正在完善，请稍后再试。</p>
           </div>
 
           <RectificationDetailModal
@@ -511,12 +523,6 @@
             :reviewing="false"
             @close="closeRectificationDetail"
           />
-        </div>
-
-          <div v-else class="placeholder">
-            <strong>功能建设中</strong>
-            <p>{{ sectionLabel }} 相关能力正在完善，请稍后再试。</p>
-          </div>
 
           <div class="status" :class="status.type" v-if="status.message">{{ status.message }}</div>
         </div>
@@ -545,6 +551,7 @@ import {
   submitInspectionTask
 } from "../api/regulation";
 import RectificationDetailModal from "../components/RectificationDetailModal.vue";
+import WarningStatsPanel from "../components/WarningStatsPanel.vue";
 
 const props = defineProps({
   token: { type: String, required: true },
@@ -634,7 +641,8 @@ const sectionLabelMap = {
   inspections: "检查记录",
   rectification: "整改跟进",
   complaints: "投诉处理",
-  warnings: "风险预警"
+  warnings: "风险预警",
+  stats: "数据统计"
 };
 
 const sectionLabel = computed(() => sectionLabelMap[section.value] || "当前模块");
@@ -1031,6 +1039,7 @@ onMounted(() => {
   if (section.value === "inspections") { loadInspections(); return; }
   if (section.value === "complaints") { loadComplaints(); return; }
   if (section.value === "warnings") { loadWarnings(); return; }
+  if (section.value === "stats") { return; }
   load();
 });
 </script>
@@ -1043,7 +1052,7 @@ onMounted(() => {
 .regulator-shell .hero-content p { max-width: 720px; font-size: 16px; }
 .regulator-shell .hero-highlights { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .regulator-shell .form-panel { display: block; width: 100%; padding: 24px 36px 60px; align-items: stretch; justify-content: flex-start; }
-.regulator-shell .card { max-width: 1280px; width: 100%; padding: 28px; }
+.regulator-shell .card { width: 100%; padding: 28px; }
 .sub-nav { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 16px; }
 .sub-nav button { padding: 8px 14px; border-radius: 999px; border: 1px solid var(--stroke); background: var(--card-strong); color: var(--ink); cursor: pointer; }
 .sub-nav button.active { background: var(--nav); border-color: transparent; font-weight: 600; color: #fff; }

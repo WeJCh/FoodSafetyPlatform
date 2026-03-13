@@ -26,6 +26,7 @@ mybatis-plus:
 
 warning:
   internal:
+    # 与 query-service 使用同一环境变量 WARNING_INTERNAL_TOKEN，确保内部统计/事件接口鉴权一致。
     token: ${WARNING_INTERNAL_TOKEN:warning-internal-token}
   escalation:
     enabled: ${WARNING_ESCALATION_ENABLED:true}

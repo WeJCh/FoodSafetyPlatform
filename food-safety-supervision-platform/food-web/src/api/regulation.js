@@ -742,3 +742,84 @@ export function processMyWarning(token, id, payload) {
     })
   });
 }
+
+function buildWarningStatsQuery(params = {}) {
+  const search = new URLSearchParams();
+  const keys = [
+    "startTime",
+    "endTime",
+    "warningType",
+    "bizType",
+    "level",
+    "status",
+    "regionId",
+    "regionIds",
+    "ownerRegulatorId",
+    "topN",
+    "trendDays",
+    "overdueHours"
+  ];
+  keys.forEach((key) => {
+    const value = params[key];
+    if (value !== undefined && value !== null && value !== "") {
+      search.append(key, value);
+    }
+  });
+  return search.toString();
+}
+
+export function fetchWarningOverview(token, params = {}) {
+  const query = buildWarningStatsQuery(params);
+  return requestWithBase(
+    REGULATION_BASE_URL,
+    `/api/query/warnings/overview${query ? `?${query}` : ""}`,
+    {
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${token}`
+      }
+    }
+  );
+}
+
+export function fetchWarningTrend(token, params = {}) {
+  const query = buildWarningStatsQuery(params);
+  return requestWithBase(
+    REGULATION_BASE_URL,
+    `/api/query/warnings/trend${query ? `?${query}` : ""}`,
+    {
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${token}`
+      }
+    }
+  );
+}
+
+export function fetchWarningTypes(token, params = {}) {
+  const query = buildWarningStatsQuery(params);
+  return requestWithBase(
+    REGULATION_BASE_URL,
+    `/api/query/warnings/types${query ? `?${query}` : ""}`,
+    {
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${token}`
+      }
+    }
+  );
+}
+
+export function fetchWarningEfficiency(token, params = {}) {
+  const query = buildWarningStatsQuery(params);
+  return requestWithBase(
+    REGULATION_BASE_URL,
+    `/api/query/warnings/efficiency${query ? `?${query}` : ""}`,
+    {
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${token}`
+      }
+    }
+  );
+}

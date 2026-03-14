@@ -5,6 +5,7 @@ D:\JAVA\FoodSafetyPlatform\food-safety-supervision-platform\query-service\src\ma
 D:\JAVA\FoodSafetyPlatform\food-safety-supervision-platform\query-service\src\main\java\com\mortal\query\vo\WarningStatsItemVO.java
 D:\JAVA\FoodSafetyPlatform\food-safety-supervision-platform\query-service\src\main\java\com\mortal\query\vo\WarningStatsOverviewVO.java
 D:\JAVA\FoodSafetyPlatform\food-safety-supervision-platform\query-service\src\main\java\com\mortal\query\filter\TraceIdFilter.java
+D:\JAVA\FoodSafetyPlatform\food-safety-supervision-platform\query-service\src\main\java\com\mortal\query\client\RegulationRegionClient.java
 D:\JAVA\FoodSafetyPlatform\food-safety-supervision-platform\query-service\src\main\java\com\mortal\query\common\ForbiddenException.java
 D:\JAVA\FoodSafetyPlatform\food-safety-supervision-platform\query-service\src\main\java\com\mortal\query\QueryServiceApplication.java
 D:\JAVA\FoodSafetyPlatform\food-safety-supervision-platform\query-service\src\main\java\com\mortal\query\client\RegulatorProfileClient.java
@@ -18,3 +19,4 @@ D:\JAVA\FoodSafetyPlatform\food-safety-supervision-platform\query-service\src\ma
 D:\JAVA\FoodSafetyPlatform\food-safety-supervision-platform\query-service\src\main\java\com\mortal\query\dto\WarningStatsQueryDTO.java
 D:\JAVA\FoodSafetyPlatform\food-safety-supervision-platform\query-service\src\main\java\com\mortal\query\vo\RegulatorProfileVO.java
 D:\JAVA\FoodSafetyPlatform\food-safety-supervision-platform\query-service\src\main\java\com\mortal\query\controller\HealthController.java
+D:\JAVA\FoodSafetyPlatform\food-safety-supervision-platform\query-service\src\main\java\com\mortal\query\vo\RegionVO.java

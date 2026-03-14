@@ -87,13 +87,37 @@
       <section class="panel-block trend-block">
         <div class="panel-title">趋势变化</div>
         <div v-if="!trend.length" class="panel-empty">暂无趋势数据</div>
-        <div v-else class="trend-canvas">
-          <div v-for="point in trend" :key="point.day" class="trend-column">
-            <span class="trend-day">{{ formatDay(point.day) }}</span>
-            <div class="trend-track">
-              <div class="trend-bar" :style="{ height: `${calcTrendHeight(point.count)}%` }"></div>
+        <div v-else class="trend-line-panel">
+          <div class="trend-scroll">
+            <svg
+              class="trend-svg"
+              :viewBox="`0 0 ${trendChart.width} ${trendChart.height}`"
+              preserveAspectRatio="none"
+              aria-label="预警趋势折线图"
+              :style="{ width: `${trendCanvasWidth}px` }"
+            >
+              <g class="trend-grid">
+                <line
+                  v-for="gridY in trendChart.gridY"
+                  :key="gridY"
+                  :x1="trendChart.paddingLeft"
+                  :x2="trendChart.width - trendChart.paddingRight"
+                  :y1="gridY"
+                  :y2="gridY"
+                />
+              </g>
+              <polyline class="trend-area" :points="trendChart.areaPoints"></polyline>
+              <polyline class="trend-line" :points="trendChart.linePoints"></polyline>
+              <g v-for="point in trendChart.points" :key="point.day">
+                <circle class="trend-dot" :cx="point.x" :cy="point.y" r="4"></circle>
+                <text class="trend-value" :x="point.x" :y="point.labelY">{{ point.count }}</text>
+              </g>
+            </svg>
+            <div class="trend-x-axis" :style="{ width: `${trendCanvasWidth}px` }">
+              <span v-for="point in trendChart.points" :key="point.day" class="trend-x-item">
+                {{ formatDay(point.day) }}
+              </span>
             </div>
-            <strong class="trend-count">{{ Number(point.count) || 0 }}</strong>
           </div>
         </div>
       </section>
@@ -213,9 +237,71 @@ const levelDistribution = computed(() => {
   ];
 });
 
-const trendMax = computed(() => {
-  const values = trend.value.map((item) => Number(item.count) || 0);
-  return Math.max(1, ...values);
+const trendChart = computed(() => {
+  const raw = Array.isArray(trend.value) ? trend.value : [];
+  const width = 720;
+  const height = 220;
+  const paddingLeft = 18;
+  const paddingRight = 18;
+  const paddingTop = 24;
+  const paddingBottom = 28;
+  if (!raw.length) {
+    return {
+      width,
+      height,
+      paddingLeft,
+      paddingRight,
+      points: [],
+      linePoints: "",
+      areaPoints: "",
+      gridY: []
+    };
+  }
+  const values = raw.map((item) => Number(item?.count) || 0);
+  const maxValue = Math.max(...values, 1);
+  const minValue = Math.min(...values, 0);
+  const range = Math.max(maxValue - minValue, 1);
+  const plotWidth = width - paddingLeft - paddingRight;
+  const baseY = height - paddingBottom;
+  const gridCount = 4;
+  const points = raw.map((item, index) => {
+    const count = Number(item?.count) || 0;
+    const ratioX = raw.length === 1 ? 0.5 : index / (raw.length - 1);
+    const x = paddingLeft + ratioX * plotWidth;
+    const y = paddingTop + ((maxValue - count) / range) * (baseY - paddingTop);
+    return {
+      day: item?.day || `day-${index}`,
+      count,
+      x: Number(x.toFixed(2)),
+      y: Number(y.toFixed(2)),
+      labelY: Number(Math.max(paddingTop - 4, y - 10).toFixed(2))
+    };
+  });
+  const linePoints = points.map((point) => `${point.x},${point.y}`).join(" ");
+  const areaPoints = [
+    `${points[0].x},${baseY}`,
+    ...points.map((point) => `${point.x},${point.y}`),
+    `${points[points.length - 1].x},${baseY}`
+  ].join(" ");
+  const gridY = Array.from({ length: gridCount }, (_, index) => {
+    const ratio = index / (gridCount - 1);
+    return Number((paddingTop + ratio * (baseY - paddingTop)).toFixed(2));
+  });
+  return {
+    width,
+    height,
+    paddingLeft,
+    paddingRight,
+    points,
+    linePoints,
+    areaPoints,
+    gridY
+  };
+});
+
+const trendCanvasWidth = computed(() => {
+  const pointCount = Array.isArray(trend.value) ? trend.value.length : 0;
+  return Math.max(720, pointCount * 32);
 });
 
 const statusMax = computed(() => Math.max(1, ...statusDistribution.value.map((item) => Number(item.count) || 0)));
@@ -310,12 +396,6 @@ function formatDay(day) {
   if (!day) return "-";
   const text = String(day);
   return text.length > 5 ? text.slice(5) : text;
-}
-
-function calcTrendHeight(count) {
-  const value = Number(count) || 0;
-  if (!value) return 8;
-  return Math.max(12, Math.round((value / trendMax.value) * 100));
 }
 
 function formatMinutes(value) {
@@ -608,49 +688,67 @@ onMounted(() => {
   color: var(--muted);
 }
 
-.trend-canvas {
-  min-height: 190px;
+.trend-line-panel {
   display: grid;
   gap: 8px;
-  grid-template-columns: repeat(auto-fit, minmax(56px, 1fr));
 }
 
-.trend-column {
+.trend-scroll {
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding-bottom: 2px;
+}
+
+.trend-svg {
+  height: 190px;
+  border: 1px solid #dce8f5;
+  border-radius: 10px;
+  background: linear-gradient(180deg, #f9fcff 0%, #f2f8ff 100%);
+  display: block;
+}
+
+.trend-grid line {
+  stroke: #d9e6f4;
+  stroke-width: 1;
+  stroke-dasharray: 4 4;
+}
+
+.trend-area {
+  fill: rgba(53, 126, 199, 0.16);
+  stroke: none;
+}
+
+.trend-line {
+  fill: none;
+  stroke: #2d75bf;
+  stroke-width: 2.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.trend-dot {
+  fill: #2d75bf;
+  stroke: #ffffff;
+  stroke-width: 2;
+}
+
+.trend-value {
+  fill: #245a94;
+  font-size: 11px;
+  text-anchor: middle;
+}
+
+.trend-x-axis {
   display: grid;
-  grid-template-rows: auto 1fr auto;
   gap: 8px;
-  align-items: end;
+  grid-template-columns: repeat(auto-fit, minmax(24px, 1fr));
+  margin-top: 6px;
 }
 
-.trend-day {
+.trend-x-item {
   text-align: center;
   font-size: 11px;
   color: var(--muted);
-}
-
-.trend-track {
-  height: 132px;
-  border-radius: 8px;
-  border: 1px solid #dce8f5;
-  background: linear-gradient(180deg, #f9fcff 0%, #f2f8ff 100%);
-  position: relative;
-  overflow: hidden;
-}
-
-.trend-bar {
-  position: absolute;
-  left: 10px;
-  right: 10px;
-  bottom: 8px;
-  max-height: calc(100% - 16px);
-  border-radius: 6px;
-  background: linear-gradient(180deg, #3f89d3 0%, #2368ae 100%);
-}
-
-.trend-count {
-  text-align: center;
-  font-size: 12px;
-  color: var(--ink);
 }
 
 .type-list {

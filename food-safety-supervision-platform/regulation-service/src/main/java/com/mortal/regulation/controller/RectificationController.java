@@ -70,6 +70,21 @@ public class RectificationController {
         );
     }
 
+    @GetMapping("/regulator/my")
+    public ApiResponse<PageResult<RectificationTaskVO>> listForEnforcer(@RequestHeader("Authorization") String token,
+                                                                        @RequestParam(required = false) String status,
+                                                                        @RequestParam(required = false) String enterpriseName,
+                                                                        @RequestParam(defaultValue = "1") int page,
+                                                                        @RequestParam(defaultValue = "10") int size) {
+        UserIdentity identity = resolveIdentity(token);
+        if (!identity.isRegulator()) {
+            return ApiResponse.failure(403, "regulator only");
+        }
+        return ApiResponse.success(
+            rectificationService.listForEnforcer(identity.userId(), status, enterpriseName, page, size)
+        );
+    }
+
     /**
      * 获取整改任务详情
      * @param token 令牌

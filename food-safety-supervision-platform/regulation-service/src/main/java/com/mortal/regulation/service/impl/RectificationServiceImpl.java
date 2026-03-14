@@ -47,17 +47,18 @@ import org.springframework.util.StringUtils;
 public class RectificationServiceImpl implements RectificationService {
 
     private static final String ROLE_ADMIN = "REGULATOR_ADMIN";
+    private static final String ROLE_ENFORCER = "REGULATOR_ENFORCER";
     private static final String DEFAULT_RECTIFICATION_DESC = "请根据检查问题完成整改并提交说明";
     private static final String ACTION_SYSTEM_CREATE = "SYSTEM_CREATE";
     private static final String ACTION_ENTERPRISE_SUBMIT = "ENTERPRISE_SUBMIT";
     private static final String ACTION_REVIEW_CONFIRM = "REVIEW_CONFIRM";
     private static final String ACTION_REVIEW_REWORK = "REVIEW_REWORK";
     // 企业提交整改截止时间：72小时
-    private static final long ENTERPRISE_SUBMIT_DEADLINE_HOURS = 0L;
+    private static final long ENTERPRISE_SUBMIT_DEADLINE_HOURS = 72L;
     // 企业重新提交整改截止时间：48小时
-    private static final long ENTERPRISE_RESUBMIT_DEADLINE_HOURS = 0L;
+    private static final long ENTERPRISE_RESUBMIT_DEADLINE_HOURS = 48L;
     // 监管员审核整改截止时间：24小时
-    private static final long REGULATOR_REVIEW_DEADLINE_HOURS = 0L;
+    private static final long REGULATOR_REVIEW_DEADLINE_HOURS = 24L;
     // SLA 即将到期时间：24小时
     private static final long SLA_DUE_SOON_MINUTES = 24L * 60L;
 
@@ -163,7 +164,26 @@ public class RectificationServiceImpl implements RectificationService {
                                                         int size) {
         FoodRegulator regulator = requireRegulator(regulatorUserId);
         requireRole(regulator, ROLE_ADMIN);
-        List<Long> enterpriseIds = resolveEnterpriseIdsForAdmin(regulator.getId(), enterpriseName);
+        return listForRegulatorRole(regulator.getId(), status, enterpriseName, page, size);
+    }
+
+    @Override
+    public PageResult<RectificationTaskVO> listForEnforcer(Long regulatorUserId,
+                                                           String status,
+                                                           String enterpriseName,
+                                                           int page,
+                                                           int size) {
+        FoodRegulator regulator = requireRegulator(regulatorUserId);
+        requireRole(regulator, ROLE_ENFORCER);
+        return listForRegulatorRole(regulator.getId(), status, enterpriseName, page, size);
+    }
+
+    private PageResult<RectificationTaskVO> listForRegulatorRole(Long regulatorId,
+                                                                 String status,
+                                                                 String enterpriseName,
+                                                                 int page,
+                                                                 int size) {
+        List<Long> enterpriseIds = resolveEnterpriseIdsForRegulator(regulatorId, enterpriseName);
         if (enterpriseIds.isEmpty()) {
             return PageResult.of(List.of(), 0, page, size);
         }
@@ -593,7 +613,7 @@ public class RectificationServiceImpl implements RectificationService {
         rectificationActionLogMapper.insert(log);
     }
 
-    private List<Long> resolveEnterpriseIdsForAdmin(Long regulatorId, String enterpriseName) {
+    private List<Long> resolveEnterpriseIdsForRegulator(Long regulatorId, String enterpriseName) {
         List<Long> regionIds = resolveRegulatorRegionIds(regulatorId);
         if (regionIds.isEmpty()) {
             return List.of();

@@ -12,7 +12,7 @@
         <button :class="{ active: section === 'enterprises' }" @click="section = 'enterprises'">企业监管</button>
         <button :class="{ active: section === 'tasks' }" @click="handleTaskEnter">我的任务</button>
         <button :class="{ active: section === 'inspections' }" @click="handleInspectionEnter">检查记录</button>
-        <button :class="{ active: section === 'rectification' }" @click="section = 'rectification'">整改跟进</button>
+        <button :class="{ active: section === 'rectification' }" @click="handleRectificationEnter">整改跟进</button>
         <button :class="{ active: section === 'complaints' }" @click="handleComplaintEnter">投诉处理</button>
         <button :class="{ active: section === 'warnings' }" @click="handleWarningEnter">风险预警</button>
         <button :class="{ active: section === 'stats' }" @click="section = 'stats'">数据统计</button>
@@ -39,7 +39,7 @@
             <button :class="{ active: section === 'enterprises' }" @click="section = 'enterprises'">企业列表</button>
             <button :class="{ active: section === 'tasks' }" @click="handleTaskEnter">我的任务</button>
             <button :class="{ active: section === 'inspections' }" @click="handleInspectionEnter">检查记录</button>
-            <button :class="{ active: section === 'rectification' }" @click="section = 'rectification'">整改跟进</button>
+            <button :class="{ active: section === 'rectification' }" @click="handleRectificationEnter">整改跟进</button>
             <button :class="{ active: section === 'warnings' }" @click="handleWarningEnter">风险预警</button>
             <button :class="{ active: section === 'stats' }" @click="section = 'stats'">数据统计</button>
           </div>
@@ -278,6 +278,54 @@
                   </div>
                 </div>
                 <div class="modal-actions"><button class="ghost" type="button" @click="closeInspectionDetail">关闭</button></div>
+              </div>
+            </div>
+          </div>
+
+          <div v-else-if="section === 'rectification'">
+            <div class="section-title">整改跟进</div>
+            <form class="filter-bar filter-bar--triple" @submit.prevent="handleRectificationSearch">
+              <label>整改状态
+                <select v-model="rectificationFilters.status">
+                  <option value="">全部</option>
+                  <option value="ONGOING">整改中</option>
+                  <option value="SUBMITTED">待复核</option>
+                  <option value="REWORK">打回重做</option>
+                  <option value="CONFIRMED">已确认</option>
+                </select>
+              </label>
+              <label>企业名称<input v-model.trim="rectificationFilters.enterpriseName" placeholder="输入企业名称" /></label>
+              <button class="primary" type="submit" :disabled="rectificationLoading">
+                {{ rectificationLoading ? "查询中..." : "查询" }}
+              </button>
+            </form>
+
+            <div class="list-table">
+              <div class="list-row list-header rectification-header">
+                <span>企业名称</span><span>状态</span><span>整改时限</span><span>整改说明</span><span>更新时间</span><span>操作</span>
+              </div>
+              <div v-if="!rectificationRecords.length" class="list-empty">暂无整改任务</div>
+              <div v-for="item in rectificationRecords" :key="item.id" class="list-row rectification-row">
+                <span>{{ item.enterpriseName || "-" }}</span>
+                <span>{{ formatRectificationStatus(item.status) }}</span>
+                <span :class="['rectification-sla', `rectification-sla--${rectificationSlaClass(item)}`]">
+                  {{ formatRectificationSla(item) }}
+                </span>
+                <div class="rectification-text" :title="item.progress || '-'">
+                  {{ item.progress || "企业暂未提交整改说明" }}
+                </div>
+                <span>{{ formatTime(item.updateTime) }}</span>
+                <div class="action-buttons">
+                  <button class="ghost" type="button" @click="openRectificationDetail(item)">查看详情</button>
+                </div>
+              </div>
+            </div>
+
+            <div class="pager">
+              <span>共{{ rectificationTotal }} 条，{{ rectificationPage }}/{{ rectificationPages }} 页</span>
+              <div class="pager-actions">
+                <button class="ghost" type="button" :disabled="rectificationPage <= 1" @click="changeRectificationPage(rectificationPage - 1)">上一页</button>
+                <button class="ghost" type="button" :disabled="rectificationPage >= rectificationPages" @click="changeRectificationPage(rectificationPage + 1)">下一页</button>
               </div>
             </div>
           </div>
@@ -540,6 +588,7 @@ import {
   fetchInspectionRecordDetail,
   fetchMyInspectionRecords,
   fetchMyInspectionTasks,
+  fetchMyRegulatorRectifications,
   fetchMyWarningDetail,
   fetchMyWarningRecords,
   fetchRectificationActions,
@@ -600,6 +649,13 @@ const complaintSize = ref(8);
 const complaintTotal = ref(0);
 const complaintPages = ref(1);
 const complaintFilters = reactive({ status: "", enterpriseName: "" });
+const rectificationLoading = ref(false);
+const rectificationRecords = ref([]);
+const rectificationPage = ref(1);
+const rectificationSize = ref(8);
+const rectificationTotal = ref(0);
+const rectificationPages = ref(1);
+const rectificationFilters = reactive({ status: "", enterpriseName: "" });
 const warningLoading = ref(false);
 const warningActionLoading = ref(false);
 const warningDetailLoading = ref(false);
@@ -652,6 +708,12 @@ const approvalStatusMap = { PENDING: "待审核", APPROVED: "已通过", REJECTE
 const taskStatusMap = { CREATED: "待派发", ASSIGNED: "待执行", IN_PROGRESS: "执行中", COMPLETED: "已完成", CLOSED: "已归档" };
 const taskPriorityMap = { LOW: "低", MEDIUM: "中", HIGH: "高" };
 const inspectionResultMap = { PASS: "合格", FAIL: "不合格" };
+const rectificationStatusMap = {
+  ONGOING: "整改中",
+  SUBMITTED: "待复核",
+  REWORK: "打回重做",
+  CONFIRMED: "已确认"
+};
 const complaintStatusMap = {
   SUBMITTED: "已提交",
   PENDING: "已受理",
@@ -681,6 +743,7 @@ function formatApprovalStatus(value) { return approvalStatusMap[value] || value 
 function formatTaskStatus(value) { return taskStatusMap[value] || value || "-"; }
 function formatTaskPriority(value) { return taskPriorityMap[value] || value || "-"; }
 function formatInspectionResult(value) { return inspectionResultMap[value] || value || "-"; }
+function formatRectificationStatus(value) { return rectificationStatusMap[value] || value || "-"; }
 function formatComplaintStatus(value) { return complaintStatusMap[value] || value || "-"; }
 function formatWarningStatus(value) { return warningStatusMap[value] || value || "-"; }
 function formatWarningLevel(value) { return warningLevelMap[value] || value || "-"; }
@@ -734,6 +797,8 @@ async function jumpToWarningRectification(warning) {
   if (!canJumpWarningRectification(warning)) return;
   const rectificationId = Number(warning.bizId);
   closeWarningDetail();
+  section.value = "rectification";
+  await loadRectifications();
   await openRectificationDetailById(rectificationId);
 }
 
@@ -772,6 +837,7 @@ async function loadTasks() {
 async function handleTaskSearch() { taskPage.value = 1; await loadTasks(); }
 async function changeTaskPage(nextPage) { taskPage.value = nextPage; await loadTasks(); }
 async function handleInspectionEnter() { section.value = "inspections"; await loadInspections(); }
+async function handleRectificationEnter() { section.value = "rectification"; await loadRectifications(); }
 async function handleComplaintEnter() { section.value = "complaints"; await loadComplaints(); }
 async function handleWarningEnter() { section.value = "warnings"; await loadWarnings(); }
 async function handleInspectionSearch() { inspectionPage.value = 1; await loadInspections(); }
@@ -809,6 +875,30 @@ async function loadComplaints() {
   }
 }
 
+async function loadRectifications() {
+  rectificationLoading.value = true; setStatus("");
+  try {
+    const data = await fetchMyRegulatorRectifications(props.token, {
+      ...rectificationFilters,
+      page: rectificationPage.value,
+      size: rectificationSize.value
+    });
+    rectificationRecords.value = data.records || [];
+    rectificationTotal.value = data.total || 0;
+    rectificationPage.value = data.page || 1;
+    rectificationSize.value = data.size || rectificationSize.value;
+    rectificationPages.value = data.pages || 1;
+    // 列表刷新时同步已打开详情，避免时间线与状态过期。
+    if (rectificationDetailVisible.value && rectificationDetail.value?.id) {
+      await openRectificationDetailById(rectificationDetail.value.id, true);
+    }
+  } catch (error) {
+    setStatus(error.message || "加载整改任务失败", "error");
+  } finally {
+    rectificationLoading.value = false;
+  }
+}
+
 async function loadWarnings() {
   warningLoading.value = true; setStatus("");
   try {
@@ -831,6 +921,8 @@ async function loadWarnings() {
 
 async function handleComplaintSearch() { complaintPage.value = 1; await loadComplaints(); }
 async function changeComplaintPage(nextPage) { complaintPage.value = nextPage; await loadComplaints(); }
+async function handleRectificationSearch() { rectificationPage.value = 1; await loadRectifications(); }
+async function changeRectificationPage(nextPage) { rectificationPage.value = nextPage; await loadRectifications(); }
 async function handleWarningSearch() { warningPage.value = 1; await loadWarnings(); }
 async function changeWarningPage(nextPage) { warningPage.value = nextPage; await loadWarnings(); }
 async function toggleWarningOnlyPending() {
@@ -881,10 +973,12 @@ function closeWarningDetail() {
   warningDetailLoading.value = false;
 }
 
-async function openRectificationDetailById(rectificationId) {
+async function openRectificationDetailById(rectificationId, silent = false) {
   if (!rectificationId) return;
   rectificationDetailVisible.value = true;
-  rectificationDetailLoading.value = true;
+  if (!silent) {
+    rectificationDetailLoading.value = true;
+  }
   rectificationDetail.value = { id: rectificationId };
   rectificationActionLogs.value = [];
   try {
@@ -895,11 +989,20 @@ async function openRectificationDetailById(rectificationId) {
     rectificationDetail.value = detail || rectificationDetail.value;
     rectificationActionLogs.value = Array.isArray(actions) ? actions : [];
   } catch (error) {
-    setStatus(error.message || "加载整改详情失败", "error");
-    closeRectificationDetail();
+    if (!silent) {
+      setStatus(error.message || "加载整改详情失败", "error");
+      closeRectificationDetail();
+    }
   } finally {
-    rectificationDetailLoading.value = false;
+    if (!silent) {
+      rectificationDetailLoading.value = false;
+    }
   }
+}
+
+async function openRectificationDetail(item) {
+  if (!item?.id) return;
+  await openRectificationDetailById(item.id);
 }
 
 function closeRectificationDetail() {
@@ -1034,9 +1137,46 @@ function handleLogout() { emit("logout"); }
 function handleViewDetail(item) { emit("view-enterprise", { id: item.id, fromSection: section.value }); }
 function formatTime(value) { if (!value) return "-"; return String(value).replace("T", " ").slice(0, 16); }
 
+function formatDurationMinutes(minutes) {
+  const total = Math.max(0, Number(minutes) || 0);
+  const days = Math.floor(total / (24 * 60));
+  const hours = Math.floor((total % (24 * 60)) / 60);
+  const mins = total % 60;
+  if (days > 0) return `${days}天${hours}小时`;
+  if (hours > 0) return `${hours}小时${mins}分钟`;
+  return `${mins}分钟`;
+}
+
+function rectificationSlaClass(item) {
+  if (!item) return "none";
+  if (item.slaStatus === "OVERDUE") return "overdue";
+  if (item.slaStatus === "DUE_SOON") return "warning";
+  if (item.slaStatus === "NORMAL") return "normal";
+  return "none";
+}
+
+function formatRectificationSla(item) {
+  if (!item) return "-";
+  const remaining = Number(item.remainingMinutes);
+  if (item.slaStatus === "OVERDUE") {
+    return `已超时 ${formatDurationMinutes(Math.abs(remaining))}`;
+  }
+  if (item.slaStatus === "DUE_SOON") {
+    return `即将超时 ${formatDurationMinutes(remaining)}`;
+  }
+  if (item.slaStatus === "NORMAL") {
+    return `剩余 ${formatDurationMinutes(remaining)}`;
+  }
+  if (item.currentDeadline) {
+    return `截止 ${formatTime(item.currentDeadline)}`;
+  }
+  return "已完成";
+}
+
 onMounted(() => {
   if (section.value === "tasks") { loadTasks(); return; }
   if (section.value === "inspections") { loadInspections(); return; }
+  if (section.value === "rectification") { loadRectifications(); return; }
   if (section.value === "complaints") { loadComplaints(); return; }
   if (section.value === "warnings") { loadWarnings(); return; }
   if (section.value === "stats") { return; }
@@ -1060,10 +1200,24 @@ onMounted(() => {
 .list-row { --row-columns: 1.6fr 0.9fr 0.9fr 1fr 1.2fr 0.8fr; }
 .task-header, .task-row { --row-columns: 1.2fr 1.6fr 0.8fr 0.9fr 1fr 1.2fr; }
 .inspection-header, .inspection-row { --row-columns: 1.6fr 1fr 0.8fr 1.2fr 0.8fr; }
+.rectification-header, .rectification-row { --row-columns: 1.3fr 0.8fr 1fr 1.6fr 1fr 0.9fr; }
 .complaint-header, .complaint-row { --row-columns: 1.4fr 1.4fr 0.9fr 0.9fr 1.1fr 1.2fr; }
 .warning-header, .warning-row {
   --row-columns: minmax(180px, 1.4fr) minmax(200px, 1.8fr) 0.7fr 0.9fr 0.8fr 1fr 1.2fr;
 }
+.rectification-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.rectification-sla {
+  font-size: 12px;
+  font-weight: 600;
+}
+.rectification-sla--normal { color: #0d4f9b; }
+.rectification-sla--warning { color: #b36b00; }
+.rectification-sla--overdue { color: var(--danger); }
+.rectification-sla--none { color: var(--muted); }
 .warning-quick-tools {
   display: flex;
   align-items: center;

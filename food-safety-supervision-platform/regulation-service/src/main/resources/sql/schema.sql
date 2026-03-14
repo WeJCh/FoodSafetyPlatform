@@ -144,7 +144,8 @@ CREATE TABLE IF NOT EXISTS rectification_task (
   confirmed_time DATETIME COMMENT '复核时间',
   create_time DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
   update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
-  deleted TINYINT DEFAULT 0 COMMENT '逻辑删除 1-已删 0-未删'
+  deleted TINYINT DEFAULT 0 COMMENT '逻辑删除 1-已删 0-未删',
+  UNIQUE KEY uk_rectification_inspection (inspection_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='整改任务表';
 
 CREATE TABLE IF NOT EXISTS rectification_action_log (
@@ -227,16 +228,3 @@ CREATE TABLE IF NOT EXISTS enterprise_key_reason (
   create_time DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间'
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='重点监管原因记录';
 
-ALTER TABLE complaint ADD COLUMN image_urls TEXT NULL COMMENT '现场图片URL(JSON)';
-ALTER TABLE complaint ADD COLUMN accepted_by BIGINT NULL COMMENT '受理人';
-ALTER TABLE complaint ADD COLUMN accepted_time DATETIME NULL COMMENT '受理时间';
-ALTER TABLE complaint ADD COLUMN processed_by BIGINT NULL COMMENT '处理完成人';
-ALTER TABLE complaint ADD COLUMN processed_time DATETIME NULL COMMENT '处理完成时间';
-ALTER TABLE complaint ADD COLUMN submitter_user_id BIGINT NULL COMMENT '提交用户ID';
-ALTER TABLE complaint ADD COLUMN rejected_by BIGINT NULL COMMENT '驳回人';
-ALTER TABLE complaint ADD COLUMN rejected_time DATETIME NULL COMMENT '驳回时间';
-ALTER TABLE complaint_handle ADD UNIQUE KEY uk_complaint_handle (complaint_id);
-ALTER TABLE rectification_task MODIFY COLUMN progress VARCHAR(1000) COMMENT '整改进度';
-ALTER TABLE rectification_task ADD COLUMN IF NOT EXISTS submit_deadline DATETIME COMMENT '企业提交截止时间';
-ALTER TABLE rectification_task ADD COLUMN IF NOT EXISTS review_deadline DATETIME COMMENT '监管复核截止时间';
-ALTER TABLE rectification_task ADD UNIQUE KEY uk_rectification_inspection (inspection_id);

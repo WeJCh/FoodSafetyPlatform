@@ -38,7 +38,7 @@ minio:
 regulation:
   rectification:
     sla:
-      scan-ms: ${RECTIFICATION_SLA_SCAN_MS:30000}
+      scan-ms: ${RECTIFICATION_SLA_SCAN_MS:300000}
   warning:
     outbox:
       retry-scan-ms: ${REG_WARNING_OUTBOX_RETRY_SCAN_MS:15000}

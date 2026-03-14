@@ -1,15 +1,20 @@
 package com.mortal.query.service;
 
+import com.mortal.query.client.RegulationRegionClient;
 import com.mortal.query.client.RegulatorProfileClient;
 import com.mortal.query.common.ApiResponse;
 import com.mortal.query.common.ForbiddenException;
 import com.mortal.query.dto.WarningStatsQueryDTO;
 import com.mortal.query.vo.RegulatorProfileVO;
+import com.mortal.query.vo.RegionVO;
+import java.util.ArrayDeque;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Set;
 import java.util.stream.Collectors;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
@@ -19,13 +24,18 @@ import org.springframework.util.StringUtils;
 @Service
 public class WarningStatsScopeService {
 
+    private static final Logger log = LoggerFactory.getLogger(WarningStatsScopeService.class);
+
     private static final String ROLE_ADMIN = "REGULATOR_ADMIN";
     private static final String ROLE_ENFORCER = "REGULATOR_ENFORCER";
 
     private final RegulatorProfileClient regulatorProfileClient;
+    private final RegulationRegionClient regulationRegionClient;
 
-    public WarningStatsScopeService(RegulatorProfileClient regulatorProfileClient) {
+    public WarningStatsScopeService(RegulatorProfileClient regulatorProfileClient,
+                                    RegulationRegionClient regulationRegionClient) {
         this.regulatorProfileClient = regulatorProfileClient;
+        this.regulationRegionClient = regulationRegionClient;
     }
 
     /**
@@ -50,7 +60,9 @@ public class WarningStatsScopeService {
             return query;
         }
         if (ROLE_ADMIN.equals(roleType)) {
-            applyAdminScope(query, parsePositiveIds(profile.getRegionIds()));
+            Set<Long> directRegionIds = parsePositiveIds(profile.getRegionIds());
+            Set<Long> fullRegionIds = expandRegionIds(directRegionIds, authorization);
+            applyAdminScope(query, fullRegionIds);
             return query;
         }
         throw new ForbiddenException("unsupported regulator role");
@@ -166,5 +178,44 @@ public class WarningStatsScopeService {
     private String joinRegionIds(Set<Long> regionIds) {
         return regionIds.stream().map(String::valueOf).collect(Collectors.joining(","));
     }
-}
 
+    /**
+     * 管理员统计范围按“辖区+下级辖区”展开，保证与监管预警列表口径一致。
+     */
+    private Set<Long> expandRegionIds(Set<Long> rootRegionIds, String authorization) {
+        if (rootRegionIds == null || rootRegionIds.isEmpty()) {
+            return Set.of();
+        }
+        if (!StringUtils.hasText(authorization)) {
+            return rootRegionIds;
+        }
+        Set<Long> result = new LinkedHashSet<>(rootRegionIds);
+        ArrayDeque<Long> queue = new ArrayDeque<>(rootRegionIds);
+        while (!queue.isEmpty()) {
+            Long parentId = queue.poll();
+            List<RegionVO> children = fetchRegions(authorization, parentId);
+            for (RegionVO child : children) {
+                Long childId = child == null ? null : child.getId();
+                if (childId == null || childId <= 0 || result.contains(childId)) {
+                    continue;
+                }
+                result.add(childId);
+                queue.add(childId);
+            }
+        }
+        return result;
+    }
+
+    private List<RegionVO> fetchRegions(String authorization, Long parentId) {
+        try {
+            ApiResponse<List<RegionVO>> response = regulationRegionClient.listRegions(authorization, parentId);
+            if (response == null || response.getCode() != 0 || response.getData() == null) {
+                return List.of();
+            }
+            return response.getData();
+        } catch (Exception ex) {
+            log.warn("expand region scope failed. parentId={}, message={}", parentId, ex.getMessage());
+            return List.of();
+        }
+    }
+}

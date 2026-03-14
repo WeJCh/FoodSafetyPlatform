@@ -621,6 +621,25 @@ export function fetchWarningRecords(token, params = {}) {
   );
 }
 
+export function fetchMyRegulatorRectifications(token, params = {}) {
+  const search = new URLSearchParams();
+  if (params.status) search.append("status", params.status);
+  if (params.enterpriseName) search.append("enterpriseName", params.enterpriseName);
+  if (params.page) search.append("page", params.page);
+  if (params.size) search.append("size", params.size);
+  const query = search.toString();
+  return requestWithBase(
+    REGULATION_BASE_URL,
+    `/api/regulation/rectifications/regulator/my${query ? `?${query}` : ""}`,
+    {
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${token}`
+      }
+    }
+  );
+}
+
 /**
  * 查询预警详情
  * @param token 令牌

@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -11,10 +12,12 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.mortal.query.client.RegulatorProfileClient;
+import com.mortal.query.client.RegulationRegionClient;
 import com.mortal.query.client.WarningStatsClient;
 import com.mortal.query.common.ApiResponse;
 import com.mortal.query.dto.WarningStatsQueryDTO;
 import com.mortal.query.vo.RegulatorProfileVO;
+import com.mortal.query.vo.RegionVO;
 import com.mortal.query.vo.WarningStatsOverviewVO;
 import com.mortal.query.vo.WarningTrendPointVO;
 import java.time.LocalDateTime;
@@ -49,6 +52,9 @@ class WarningStatsControllerIntegrationTest {
     @MockBean
     private RegulatorProfileClient regulatorProfileClient;
 
+    @MockBean
+    private RegulationRegionClient regulationRegionClient;
+
     @Test
     void overview_shouldPassInternalTokenAndScopedParams() throws Exception {
         mockAdminProfile(List.of(1001L, 1002L));
@@ -79,6 +85,30 @@ class WarningStatsControllerIntegrationTest {
         assertEquals(LocalDateTime.of(2026, 3, 13, 23, 59, 59), forwarded.getEndTime());
         assertEquals("SLA_OVERDUE_SUBMIT", forwarded.getWarningType());
         assertEquals("1001,1002", forwarded.getRegionIds());
+    }
+
+    @Test
+    void overview_shouldExpandAdminRegionScopeWithChildren() throws Exception {
+        mockAdminProfile(List.of(1001L));
+        when(regulationRegionClient.listRegions(anyString(), eq(1001L)))
+            .thenReturn(ApiResponse.success(List.of(region(100101L, 1001L))));
+        when(regulationRegionClient.listRegions(anyString(), eq(100101L)))
+            .thenReturn(ApiResponse.success(List.of()));
+
+        ArgumentCaptor<WarningStatsQueryDTO> queryCaptor = ArgumentCaptor.forClass(WarningStatsQueryDTO.class);
+        when(warningStatsClient.fetchOverview(queryCaptor.capture(), anyString()))
+            .thenReturn(ApiResponse.success(new WarningStatsOverviewVO()));
+
+        mockMvc.perform(
+                get("/api/query/warnings/overview")
+                    .header("X-User-Id", "18")
+                    .header("X-User-Type", "REGULATOR_ADMIN")
+                    .header("Authorization", "Bearer test-token")
+            )
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.code").value(0));
+
+        assertEquals("1001,100101", queryCaptor.getValue().getRegionIds());
     }
 
     @Test
@@ -155,5 +185,16 @@ class WarningStatsControllerIntegrationTest {
         profile.setRoleType("REGULATOR_ADMIN");
         profile.setRegionIds(regionIds);
         when(regulatorProfileClient.getMyProfile(anyString())).thenReturn(ApiResponse.success(profile));
+        // 默认不返回下级辖区，便于当前用例验证参数透传。
+        for (Long regionId : regionIds) {
+            when(regulationRegionClient.listRegions(anyString(), eq(regionId))).thenReturn(ApiResponse.success(List.of()));
+        }
+    }
+
+    private RegionVO region(Long id, Long parentId) {
+        RegionVO region = new RegionVO();
+        region.setId(id);
+        region.setParentId(parentId);
+        return region;
     }
 }

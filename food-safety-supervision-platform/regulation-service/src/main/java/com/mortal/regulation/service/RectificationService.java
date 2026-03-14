@@ -21,6 +21,12 @@ public interface RectificationService {
                                                  int page,
                                                  int size);
 
+    PageResult<RectificationTaskVO> listForEnforcer(Long regulatorUserId,
+                                                    String status,
+                                                    String enterpriseName,
+                                                    int page,
+                                                    int size);
+
     RectificationTaskVO review(Long regulatorUserId, Long rectificationId, RectificationReviewDTO dto);
 
     /**

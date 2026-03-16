@@ -1,6 +1,6 @@
 package com.mortal.gateway.filter;
 
-import com.mortal.gateway.common.ApiResponse;
+import com.mortal.platform.common.ApiResponse;
 import com.mortal.gateway.util.ResponseUtil;
 import com.mortal.gateway.filter.TraceIdFilter;
 import com.mortal.gateway.vo.AuthIntrospectVO;
@@ -49,9 +49,10 @@ public class JwtAuthFilter implements GlobalFilter, Ordered {
         RoleRule.of("/api/admin/", "ADMIN"),
         // File upload presign is used by public complaints and enterprise rectification.
         RoleRule.of("/api/files/", "PUBLIC", "ENTERPRISE"),
+        RoleRule.of("/api/complaints/public", "PUBLIC"),
+        RoleRule.of("/api/complaints/my", "PUBLIC"),
+        RoleRule.of("/api/complaints/", "REGULATOR_ADMIN", "REGULATOR_ENFORCER"),
         RoleRule.of("/api/regulation/public/", "PUBLIC"),
-        RoleRule.of("/api/regulation/complaints/public", "PUBLIC"),
-        RoleRule.of("/api/regulation/complaints/my", "PUBLIC"),
         // Enterprise rectification endpoints for enterprise users.
         RoleRule.of("/api/regulation/rectifications/my", "ENTERPRISE"),
         // Shared rectification detail/action endpoints for enterprise and regulators.
@@ -342,3 +343,4 @@ public class JwtAuthFilter implements GlobalFilter, Ordered {
         }
     }
 }
+

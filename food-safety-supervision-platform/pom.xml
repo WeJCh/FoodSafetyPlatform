@@ -12,6 +12,8 @@
         <module>user-service</module>
         <module>gateway-service</module>
         <module>regulation-service</module>
+        <module>platform-common</module>
+        <module>complaint-service</module>
         <module>query-service</module>
         <module>warning-service</module>
     </modules>

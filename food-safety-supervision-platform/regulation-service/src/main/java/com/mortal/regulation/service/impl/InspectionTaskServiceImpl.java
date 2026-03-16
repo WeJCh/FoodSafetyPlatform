@@ -2,7 +2,7 @@ package com.mortal.regulation.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
-import com.mortal.regulation.common.PageResult;
+import com.mortal.platform.common.PageResult;
 import com.mortal.regulation.dto.InspectionItemDTO;
 import com.mortal.regulation.dto.InspectionSubmitDTO;
 import com.mortal.regulation.dto.InspectionTaskAssignDTO;
@@ -597,3 +597,4 @@ public class InspectionTaskServiceImpl implements InspectionTaskService {
         return deleted != null && deleted == 1;
     }
 }
+

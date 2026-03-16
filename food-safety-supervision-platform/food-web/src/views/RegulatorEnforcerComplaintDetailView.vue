@@ -150,7 +150,7 @@
 
 <script setup>
 import { computed, onMounted, reactive, ref, watch } from "vue";
-import { fetchComplaintDetail, handleComplaint, startComplaintProcess } from "../api/regulation";
+import { fetchComplaintDetail, handleComplaint, startComplaintProcess } from "../api/complaint";
 
 const props = defineProps({
   token: {

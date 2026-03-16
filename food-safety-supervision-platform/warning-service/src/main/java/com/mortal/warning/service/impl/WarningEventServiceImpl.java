@@ -4,7 +4,7 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.mortal.warning.common.PageResult;
+import com.mortal.platform.common.PageResult;
 import com.mortal.warning.common.enums.WarningActionType;
 import com.mortal.warning.common.enums.WarningLevel;
 import com.mortal.warning.common.enums.WarningStatus;

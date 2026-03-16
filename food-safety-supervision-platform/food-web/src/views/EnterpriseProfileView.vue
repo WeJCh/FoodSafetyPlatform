@@ -287,10 +287,10 @@
 
 <script setup>
 import { computed, onBeforeUnmount, onMounted, reactive, ref } from "vue";
+import { presignUpload } from "../api/file";
 import {
   fetchEnterpriseProfile,
   fetchMyRectifications,
-  presignUpload,
   fetchRectificationActions,
   fetchRectificationDetail,
   fetchRegions,

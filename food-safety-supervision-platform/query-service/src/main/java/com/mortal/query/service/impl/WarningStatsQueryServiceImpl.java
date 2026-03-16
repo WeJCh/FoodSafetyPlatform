@@ -1,7 +1,7 @@
 package com.mortal.query.service.impl;
 
 import com.mortal.query.client.WarningStatsClient;
-import com.mortal.query.common.ApiResponse;
+import com.mortal.platform.common.ApiResponse;
 import com.mortal.query.dto.WarningStatsQueryDTO;
 import com.mortal.query.service.WarningStatsQueryService;
 import com.mortal.query.vo.WarningEfficiencyStatsVO;

@@ -2,7 +2,7 @@ package com.mortal.query.service;
 
 import com.mortal.query.client.RegulationRegionClient;
 import com.mortal.query.client.RegulatorProfileClient;
-import com.mortal.query.common.ApiResponse;
+import com.mortal.platform.common.ApiResponse;
 import com.mortal.query.common.ForbiddenException;
 import com.mortal.query.dto.WarningStatsQueryDTO;
 import com.mortal.query.vo.RegulatorProfileVO;

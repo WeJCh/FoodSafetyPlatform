@@ -1,6 +1,6 @@
 package com.mortal.user.controller;
 
-import com.mortal.user.common.ApiResponse;
+import com.mortal.platform.common.ApiResponse;
 import com.mortal.user.dto.LoginDTO;
 import com.mortal.user.service.AuthService;
 import com.mortal.user.service.UserService;

@@ -1,0 +1,4 @@
+com\mortal\platform\common\ApiResponse.class
+com\mortal\platform\common\PageResult.class
+com\mortal\platform\common\PlatformCommonAutoConfiguration.class
+com\mortal\platform\common\GlobalExceptionHandler.class

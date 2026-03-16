@@ -5,5 +5,4 @@ D:\JAVA\FoodSafetyPlatform\food-safety-supervision-platform\gateway-service\src\
 D:\JAVA\FoodSafetyPlatform\food-safety-supervision-platform\gateway-service\src\main\java\com\mortal\gateway\config\WebClientConfig.java
 D:\JAVA\FoodSafetyPlatform\food-safety-supervision-platform\gateway-service\src\main\java\com\mortal\gateway\config\SentinelGatewayBlockHandler.java
 D:\JAVA\FoodSafetyPlatform\food-safety-supervision-platform\gateway-service\src\main\java\com\mortal\gateway\filter\TraceIdFilter.java
-D:\JAVA\FoodSafetyPlatform\food-safety-supervision-platform\gateway-service\src\main\java\com\mortal\gateway\common\ApiResponse.java
 D:\JAVA\FoodSafetyPlatform\food-safety-supervision-platform\gateway-service\src\main\java\com\mortal\gateway\config\SentinelGatewayConfig.java

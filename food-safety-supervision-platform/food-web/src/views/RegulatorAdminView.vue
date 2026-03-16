@@ -959,14 +959,13 @@
 
 <script setup>
 import { computed, onMounted, reactive, ref } from "vue";
+import { acceptComplaint, fetchComplaints } from "../api/complaint";
 import {
   approveEnterprise,
   approveEnterpriseBatch,
-  acceptComplaint,
   assignInspectionTask,
   closeInspectionTask,
   createInspectionTask,
-  fetchComplaints,
   fetchEnterpriseDetail,
   fetchEligibleRegulators,
   fetchEnterprises,
@@ -2679,6 +2678,5 @@ onMounted(() => {
   }
 }
 </style>
-
 
 

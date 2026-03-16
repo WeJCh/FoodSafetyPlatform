@@ -1,5 +1,6 @@
 package com.mortal.user.common;
 
+import com.mortal.platform.common.ApiResponse;
 import com.mortal.user.enums.ErrorCode;
 import jakarta.validation.ConstraintViolationException;
 import org.springframework.http.HttpStatus;

@@ -581,10 +581,10 @@
 
 <script setup>
 import { computed, onMounted, reactive, ref } from "vue";
+import { fetchComplaints, startComplaintProcess } from "../api/complaint";
 import {
   fetchEnterpriseDetail,
   fetchEnterprises,
-  fetchComplaints,
   fetchInspectionRecordDetail,
   fetchMyInspectionRecords,
   fetchMyInspectionTasks,
@@ -596,7 +596,6 @@ import {
   fetchRegionPath,
   processMyWarning,
   startInspectionTask,
-  startComplaintProcess,
   submitInspectionTask
 } from "../api/regulation";
 import RectificationDetailModal from "../components/RectificationDetailModal.vue";

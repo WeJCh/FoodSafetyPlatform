@@ -1,6 +1,6 @@
 package com.mortal.regulation.service;
 
-import com.mortal.regulation.common.PageResult;
+import com.mortal.platform.common.PageResult;
 import com.mortal.regulation.vo.InspectionRecordDetailVO;
 import com.mortal.regulation.vo.InspectionRecordVO;
 import java.time.LocalDate;
@@ -25,3 +25,4 @@ public interface InspectionRecordService {
 
     InspectionRecordDetailVO getDetail(Long userId, Long recordId);
 }
+

@@ -1,6 +1,6 @@
 package com.mortal.warning.service;
 
-import com.mortal.warning.common.PageResult;
+import com.mortal.platform.common.PageResult;
 import com.mortal.warning.dto.WarningAssignDTO;
 import com.mortal.warning.dto.WarningRecordQueryDTO;
 import com.mortal.warning.dto.WarningScopeDTO;

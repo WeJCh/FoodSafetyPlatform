@@ -1,7 +1,7 @@
 package com.mortal.regulation.controller;
 
-import com.mortal.regulation.common.ApiResponse;
-import com.mortal.regulation.common.PageResult;
+import com.mortal.platform.common.ApiResponse;
+import com.mortal.platform.common.PageResult;
 import com.mortal.regulation.service.EnterpriseProfileService;
 import com.mortal.regulation.util.JwtUserResolver;
 import com.mortal.regulation.vo.EnterpriseProfileVO;
@@ -124,3 +124,4 @@ public class EnterpriseManageController {
         }
     }
 }
+

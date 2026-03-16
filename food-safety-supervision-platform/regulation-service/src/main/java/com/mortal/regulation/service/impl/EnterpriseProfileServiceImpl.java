@@ -3,7 +3,7 @@ package com.mortal.regulation.service.impl;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.mortal.regulation.client.UserServiceClient;
-import com.mortal.regulation.common.PageResult;
+import com.mortal.platform.common.PageResult;
 import com.mortal.regulation.dto.EnterpriseApprovalBatchDTO;
 import com.mortal.regulation.dto.EnterpriseApprovalDTO;
 import com.mortal.regulation.dto.EnterpriseProfileDTO;
@@ -564,3 +564,4 @@ public class EnterpriseProfileServiceImpl implements EnterpriseProfileService {
         return StringUtils.hasText(value) ? value.trim().toUpperCase() : null;
     }
 }
+

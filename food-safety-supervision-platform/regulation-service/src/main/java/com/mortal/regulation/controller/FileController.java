@@ -1,6 +1,6 @@
 package com.mortal.regulation.controller;
 
-import com.mortal.regulation.common.ApiResponse;
+import com.mortal.platform.common.ApiResponse;
 import com.mortal.regulation.dto.FilePresignRequest;
 import com.mortal.regulation.service.MinioFileService;
 import com.mortal.regulation.util.JwtUserResolver;
@@ -40,3 +40,4 @@ public class FileController {
         return ApiResponse.success(minioFileService.presignUpload(userId, request));
     }
 }
+

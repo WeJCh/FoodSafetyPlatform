@@ -1,5 +1,6 @@
 package com.mortal.warning.common;
 
+import com.mortal.platform.common.ApiResponse;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;

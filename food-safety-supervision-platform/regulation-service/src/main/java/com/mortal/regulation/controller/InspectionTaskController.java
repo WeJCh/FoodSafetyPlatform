@@ -1,7 +1,7 @@
 package com.mortal.regulation.controller;
 
-import com.mortal.regulation.common.ApiResponse;
-import com.mortal.regulation.common.PageResult;
+import com.mortal.platform.common.ApiResponse;
+import com.mortal.platform.common.PageResult;
 import com.mortal.regulation.dto.InspectionSubmitDTO;
 import com.mortal.regulation.dto.InspectionTaskAssignDTO;
 import com.mortal.regulation.dto.InspectionTaskCreateDTO;
@@ -128,3 +128,4 @@ public class InspectionTaskController {
         }
     }
 }
+

@@ -6,19 +6,23 @@
         <sourceOutputDir name="target/generated-sources/annotations" />
         <sourceTestOutputDir name="target/generated-test-sources/test-annotations" />
         <outputRelativeToContentRoot value="true" />
-        <module name="user-service" />
-        <module name="regulation-service" />
+        <module name="complaint-service" />
         <module name="gateway-service" />
         <module name="warning-service" />
         <module name="query-service" />
+        <module name="platform-common" />
+        <module name="user-service" />
+        <module name="regulation-service" />
       </profile>
     </annotationProcessing>
     <bytecodeTargetLevel target="17" />
   </component>
   <component name="JavacSettings">
     <option name="ADDITIONAL_OPTIONS_OVERRIDE">
+      <module name="complaint-service" options="-parameters" />
       <module name="food-safety-supervision-platform" options="" />
       <module name="gateway-service" options="-parameters" />
+      <module name="platform-common" options="-parameters" />
       <module name="query-service" options="-parameters" />
       <module name="regulation-service" options="-parameters" />
       <module name="user-service" options="-parameters" />

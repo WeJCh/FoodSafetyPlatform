@@ -36,6 +36,8 @@ minio:
   public-endpoint: ${MINIO_PUBLIC_ENDPOINT:http://192.168.142.133:9000}
 
 regulation:
+  internal:
+    token: ${REGULATION_INTERNAL_TOKEN:regulation-internal-token}
   rectification:
     sla:
       scan-ms: ${RECTIFICATION_SLA_SCAN_MS:300000}

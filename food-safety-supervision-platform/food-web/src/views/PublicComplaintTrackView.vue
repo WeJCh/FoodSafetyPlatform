@@ -124,7 +124,7 @@
 
 <script setup>
 import { onMounted, reactive, ref } from "vue";
-import { fetchMyComplaintDetail, fetchMyComplaints } from "../api/regulation";
+import { fetchMyComplaintDetail, fetchMyComplaints } from "../api/complaint";
 
 const props = defineProps({
   publicUser: {

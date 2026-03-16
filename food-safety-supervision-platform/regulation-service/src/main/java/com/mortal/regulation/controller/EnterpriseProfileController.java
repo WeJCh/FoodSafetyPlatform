@@ -1,6 +1,6 @@
 package com.mortal.regulation.controller;
 
-import com.mortal.regulation.common.ApiResponse;
+import com.mortal.platform.common.ApiResponse;
 import com.mortal.regulation.dto.EnterpriseApprovalBatchDTO;
 import com.mortal.regulation.dto.EnterpriseApprovalDTO;
 import com.mortal.regulation.dto.EnterpriseProfileDTO;
@@ -216,3 +216,4 @@ public class EnterpriseProfileController {
         }
     }
 }
+

@@ -174,7 +174,9 @@
 
 <script setup>
 import { computed, onMounted, reactive, ref, watch } from "vue";
-import { fetchPublicEnterprises, presignUpload, submitPublicComplaint } from "../api/regulation";
+import { submitPublicComplaint } from "../api/complaint";
+import { presignUpload } from "../api/file";
+import { fetchPublicEnterprises } from "../api/regulation";
 
 const props = defineProps({
   publicUser: {

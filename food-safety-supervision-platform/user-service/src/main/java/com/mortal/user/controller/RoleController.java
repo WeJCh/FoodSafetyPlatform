@@ -1,6 +1,6 @@
 package com.mortal.user.controller;
 
-import com.mortal.user.common.ApiResponse;
+import com.mortal.platform.common.ApiResponse;
 import com.mortal.user.entity.Role;
 import com.mortal.user.service.RoleService;
 import java.util.List;

@@ -1,6 +1,6 @@
 package com.mortal.regulation.service;
 
-import com.mortal.regulation.common.PageResult;
+import com.mortal.platform.common.PageResult;
 import com.mortal.regulation.dto.RectificationReviewDTO;
 import com.mortal.regulation.dto.RectificationSubmitDTO;
 import com.mortal.regulation.vo.RectificationActionLogVO;
@@ -47,3 +47,4 @@ public interface RectificationService {
      */
     List<RectificationActionLogVO> listActions(Long operatorUserId, String userType, Long rectificationId);
 }
+

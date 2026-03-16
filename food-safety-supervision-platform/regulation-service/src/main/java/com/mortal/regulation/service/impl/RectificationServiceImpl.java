@@ -5,7 +5,7 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.mortal.regulation.common.PageResult;
+import com.mortal.platform.common.PageResult;
 import com.mortal.regulation.common.enums.RectificationReviewAction;
 import com.mortal.regulation.common.enums.RectificationStatus;
 import com.mortal.regulation.dto.RectificationReviewDTO;
@@ -683,3 +683,4 @@ public class RectificationServiceImpl implements RectificationService {
         return deleted != null && deleted == 1;
     }
 }
+

@@ -1,6 +1,6 @@
 package com.mortal.query.client;
 
-import com.mortal.query.common.ApiResponse;
+import com.mortal.platform.common.ApiResponse;
 import com.mortal.query.vo.RegulatorProfileVO;
 import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.web.bind.annotation.GetMapping;

@@ -2,7 +2,7 @@ package com.mortal.regulation.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
-import com.mortal.regulation.common.PageResult;
+import com.mortal.platform.common.PageResult;
 import com.mortal.regulation.entity.AddrRegion;
 import com.mortal.regulation.entity.FoodEnterprise;
 import com.mortal.regulation.entity.FoodRegulator;
@@ -338,3 +338,4 @@ public class InspectionRecordServiceImpl implements InspectionRecordService {
         return deleted != null && deleted == 1;
     }
 }
+

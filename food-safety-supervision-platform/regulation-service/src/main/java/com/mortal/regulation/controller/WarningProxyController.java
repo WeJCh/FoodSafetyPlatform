@@ -1,7 +1,7 @@
 package com.mortal.regulation.controller;
 
-import com.mortal.regulation.common.ApiResponse;
-import com.mortal.regulation.common.PageResult;
+import com.mortal.platform.common.ApiResponse;
+import com.mortal.platform.common.PageResult;
 import com.mortal.regulation.dto.WarningActionCommentDTO;
 import com.mortal.regulation.dto.WarningAssignDTO;
 import com.mortal.regulation.dto.WarningProcessActionDTO;
@@ -257,3 +257,4 @@ public class WarningProxyController {
         }
     }
 }
+

@@ -64,6 +64,10 @@ spring:
           uri: lb://regulation-service
           predicates:
             - Path=/api/files/**
+        - id: complaint-service
+          uri: lb://complaint-service
+          predicates:
+            - Path=/api/complaints/**
         - id: query-service
           uri: lb://query-service
           predicates:

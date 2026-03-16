@@ -1,6 +1,6 @@
 package com.mortal.warning.controller;
 
-import com.mortal.warning.common.ApiResponse;
+import com.mortal.platform.common.ApiResponse;
 import com.mortal.warning.dto.WarningStatsQueryDTO;
 import com.mortal.warning.service.WarningStatsService;
 import com.mortal.warning.vo.WarningEfficiencyStatsVO;

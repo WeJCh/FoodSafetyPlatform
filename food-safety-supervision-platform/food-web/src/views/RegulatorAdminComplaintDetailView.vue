@@ -189,8 +189,10 @@ import {
   acceptComplaint,
   assignComplaint,
   fetchComplaintDetail,
-  fetchEligibleRegulators,
   rejectComplaint
+} from "../api/complaint";
+import {
+  fetchEligibleRegulators
 } from "../api/regulation";
 
 const props = defineProps({

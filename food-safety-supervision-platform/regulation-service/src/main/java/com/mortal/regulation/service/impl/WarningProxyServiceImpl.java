@@ -2,8 +2,8 @@ package com.mortal.regulation.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.mortal.regulation.client.WarningServiceClient;
-import com.mortal.regulation.common.ApiResponse;
-import com.mortal.regulation.common.PageResult;
+import com.mortal.platform.common.ApiResponse;
+import com.mortal.platform.common.PageResult;
 import com.mortal.regulation.dto.WarningActionCommentDTO;
 import com.mortal.regulation.dto.WarningAssignDTO;
 import com.mortal.regulation.dto.WarningProcessActionDTO;
@@ -335,3 +335,4 @@ public class WarningProxyServiceImpl implements WarningProxyService {
         return response.getData();
     }
 }
+

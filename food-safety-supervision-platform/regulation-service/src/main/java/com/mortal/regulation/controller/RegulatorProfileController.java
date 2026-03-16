@@ -1,6 +1,6 @@
 package com.mortal.regulation.controller;
 
-import com.mortal.regulation.common.ApiResponse;
+import com.mortal.platform.common.ApiResponse;
 import com.mortal.regulation.dto.RegulatorProfileDTO;
 import com.mortal.regulation.dto.RegulatorStatusDTO;
 import com.mortal.regulation.service.RegulatorProfileService;
@@ -132,3 +132,4 @@ public class RegulatorProfileController {
         }
     }
 }
+

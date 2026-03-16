@@ -21,10 +21,8 @@ com\mortal\warning\filter\TraceIdFilter.class
 com\mortal\warning\mapper\WarningProcessLogMapper.class
 com\mortal\warning\service\scheduler\WarningEscalationScheduler.class
 com\mortal\warning\vo\WarningStatsItemVO.class
-com\mortal\warning\common\ApiResponse.class
 com\mortal\warning\common\GlobalExceptionHandler.class
 com\mortal\warning\common\enums\WarningLevel.class
-com\mortal\warning\common\PageResult.class
 com\mortal\warning\mapper\WarningRecordMapper.class
 com\mortal\warning\service\WarningEventService.class
 com\mortal\warning\service\impl\WarningEventServiceImpl.class

@@ -1,7 +1,7 @@
 package com.mortal.warning.controller;
 
-import com.mortal.warning.common.ApiResponse;
-import com.mortal.warning.common.PageResult;
+import com.mortal.platform.common.ApiResponse;
+import com.mortal.platform.common.PageResult;
 import com.mortal.warning.dto.WarningActionCommentDTO;
 import com.mortal.warning.dto.WarningAssignDTO;
 import com.mortal.warning.dto.WarningRecordQueryDTO;

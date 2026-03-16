@@ -5,7 +5,7 @@ import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.mortal.regulation.client.WarningServiceClient;
-import com.mortal.regulation.common.ApiResponse;
+import com.mortal.platform.common.ApiResponse;
 import com.mortal.regulation.dto.WarningEventUpsertDTO;
 import com.mortal.regulation.entity.WarningEventOutbox;
 import com.mortal.regulation.mapper.WarningEventOutboxMapper;
@@ -304,4 +304,5 @@ public class WarningEventOutboxServiceImpl implements WarningEventOutboxService 
         return value.trim();
     }
 }
+
 

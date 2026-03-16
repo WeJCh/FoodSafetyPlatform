@@ -1,7 +1,7 @@
 package com.mortal.regulation.client;
 
-import com.mortal.regulation.common.ApiResponse;
-import com.mortal.regulation.common.PageResult;
+import com.mortal.platform.common.ApiResponse;
+import com.mortal.platform.common.PageResult;
 import com.mortal.regulation.dto.WarningActionCommentDTO;
 import com.mortal.regulation.dto.WarningAssignDTO;
 import com.mortal.regulation.dto.WarningRecordQueryDTO;
@@ -70,3 +70,4 @@ public interface WarningServiceClient {
                                               @RequestHeader(value = "X-Username", required = false)
                                               String operatorName);
 }
+

@@ -1,6 +1,6 @@
 package com.mortal.regulation.controller;
 
-import com.mortal.regulation.common.ApiResponse;
+import com.mortal.platform.common.ApiResponse;
 import com.mortal.regulation.dto.RegionCreateDTO;
 import com.mortal.regulation.service.RegionService;
 import com.mortal.regulation.util.JwtUserResolver;
@@ -68,3 +68,4 @@ public class RegionController {
         }
     }
 }
+

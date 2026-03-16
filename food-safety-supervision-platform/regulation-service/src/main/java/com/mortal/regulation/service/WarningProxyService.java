@@ -1,6 +1,6 @@
 package com.mortal.regulation.service;
 
-import com.mortal.regulation.common.PageResult;
+import com.mortal.platform.common.PageResult;
 import com.mortal.regulation.dto.WarningAssignDTO;
 import com.mortal.regulation.dto.WarningProcessActionDTO;
 import com.mortal.regulation.dto.WarningRecordQueryDTO;
@@ -56,3 +56,4 @@ public interface WarningProxyService {
                                            Long warningId,
                                            WarningProcessActionDTO actionDTO);
 }
+

@@ -5,10 +5,8 @@ import com.mortal.platform.common.PageResult;
 import com.mortal.regulation.dto.WarningActionCommentDTO;
 import com.mortal.regulation.dto.WarningAssignDTO;
 import com.mortal.regulation.dto.WarningRecordQueryDTO;
-import com.mortal.regulation.dto.WarningEventUpsertDTO;
 import com.mortal.regulation.vo.WarningRecordDetailVO;
 import com.mortal.regulation.vo.WarningRecordVO;
-import java.util.Map;
 import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.cloud.openfeign.SpringQueryMap;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -19,10 +17,6 @@ import org.springframework.web.bind.annotation.PathVariable;
 
 @FeignClient("warning-service")
 public interface WarningServiceClient {
-
-    @PostMapping("/api/warning/internal/events/upsert")
-    ApiResponse<Map<String, Object>> upsertInternalEvent(@RequestBody WarningEventUpsertDTO dto,
-                                                         @RequestHeader("X-Internal-Token") String internalToken);
 
     @GetMapping("/api/warning/warnings")
     ApiResponse<PageResult<WarningRecordVO>> pageRecords(@SpringQueryMap WarningRecordQueryDTO queryDTO);

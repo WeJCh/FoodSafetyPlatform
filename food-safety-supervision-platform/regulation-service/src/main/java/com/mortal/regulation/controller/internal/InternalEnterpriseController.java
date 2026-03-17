@@ -68,6 +68,17 @@ public class InternalEnterpriseController {
         return ApiResponse.success(toDetailVO(enterprise, loadAddressDetail(enterprise.getAddressId())));
     }
 
+    @GetMapping("/by-user/{userId}")
+    public ApiResponse<InternalEnterpriseDetailVO> getByUserId(@PathVariable Long userId) {
+        FoodEnterprise enterprise = foodEnterpriseMapper.selectOne(new LambdaQueryWrapper<FoodEnterprise>()
+            .eq(FoodEnterprise::getUserId, userId)
+            .eq(FoodEnterprise::getDeleted, 0));
+        if (enterprise == null) {
+            return ApiResponse.failure(404, "enterprise not found");
+        }
+        return ApiResponse.success(toDetailVO(enterprise, loadAddressDetail(enterprise.getAddressId())));
+    }
+
     @PostMapping("/summaries")
     public ApiResponse<List<InternalEnterpriseSummaryVO>> summaries(@RequestBody(required = false) List<Long> ids) {
         List<Long> cleanedIds = sanitizeIds(ids);
@@ -183,4 +194,3 @@ public class InternalEnterpriseController {
         return deleted != null && deleted == 1;
     }
 }
-

@@ -290,13 +290,15 @@ import { computed, onBeforeUnmount, onMounted, reactive, ref } from "vue";
 import { presignUpload } from "../api/file";
 import {
   fetchEnterpriseProfile,
+  fetchRegions,
+  submitEnterpriseProfile
+} from "../api/regulation";
+import {
   fetchMyRectifications,
   fetchRectificationActions,
   fetchRectificationDetail,
-  fetchRegions,
-  submitEnterpriseProfile,
   submitMyRectification
-} from "../api/regulation";
+} from "../api/regulationOperation";
 import RectificationDetailModal from "../components/RectificationDetailModal.vue";
 
 const props = defineProps({

@@ -1,0 +1,48 @@
+server:
+  port: 8086
+
+spring:
+  application:
+    name: regulation-operation-service
+  cloud:
+    nacos:
+      config:
+        import-check:
+          enabled: false
+      discovery:
+        server-addr: ${NACOS_ADDR:127.0.0.1:8848}
+    sentinel:
+      transport:
+        dashboard: ${SENTINEL_DASHBOARD:127.0.0.1:8080}
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:mysql://${DB_HOST:127.0.0.1}:${DB_PORT:3306}/food_regulation_operation_db?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai
+    username: ${DB_USER:root}
+    password: ${DB_PASSWORD:123456}
+
+mybatis-plus:
+  configuration:
+    map-underscore-to-camel-case: true
+
+jwt:
+  secret: "foodUserServiceJwtSecretKey123456"
+  expiration-minutes: 120
+
+regulation:
+  internal:
+    token: ${REGULATION_INTERNAL_TOKEN:regulation-internal-token}
+  rectification:
+    sla:
+      scan-ms: ${RECTIFICATION_SLA_SCAN_MS:300000}
+  warning:
+    outbox:
+      retry-scan-ms: ${REG_WARNING_OUTBOX_RETRY_SCAN_MS:15000}
+      retry-initial-delay-ms: ${REG_WARNING_OUTBOX_RETRY_INITIAL_DELAY_MS:15000}
+      retry-batch-size: ${REG_WARNING_OUTBOX_RETRY_BATCH_SIZE:50}
+      max-retry: ${REG_WARNING_OUTBOX_MAX_RETRY:8}
+      backoff-base-seconds: ${REG_WARNING_OUTBOX_BACKOFF_BASE_SECONDS:30}
+      backoff-max-seconds: ${REG_WARNING_OUTBOX_BACKOFF_MAX_SECONDS:1800}
+
+warning:
+  internal:
+    token: ${WARNING_INTERNAL_TOKEN:warning-internal-token}

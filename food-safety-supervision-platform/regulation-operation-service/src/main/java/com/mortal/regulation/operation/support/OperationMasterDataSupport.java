@@ -1,0 +1,307 @@
+package com.mortal.regulation.operation.support;
+
+import com.mortal.platform.common.ApiResponse;
+import com.mortal.regulation.operation.client.regulation.RegulationEnterpriseInternalClient;
+import com.mortal.regulation.operation.client.regulation.RegulationRegulatorInternalClient;
+import com.mortal.regulation.operation.client.regulation.vo.InternalEnterpriseDetailVO;
+import com.mortal.regulation.operation.client.regulation.vo.InternalEnterpriseSummaryVO;
+import com.mortal.regulation.operation.client.regulation.vo.InternalRegulatorIdentityVO;
+import com.mortal.regulation.operation.client.regulation.vo.InternalRegulatorSummaryVO;
+import com.mortal.regulation.operation.common.OperationErrorMessages;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.Collections;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
+import java.util.stream.Collectors;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Service;
+import org.springframework.util.StringUtils;
+
+@Service
+public class OperationMasterDataSupport {
+
+    public static final String ROLE_ADMIN = "REGULATOR_ADMIN";
+    public static final String ROLE_ENFORCER = "REGULATOR_ENFORCER";
+
+    private final RegulationEnterpriseInternalClient enterpriseClient;
+    private final RegulationRegulatorInternalClient regulatorClient;
+    private final String regulationInternalToken;
+
+    public OperationMasterDataSupport(RegulationEnterpriseInternalClient enterpriseClient,
+                                      RegulationRegulatorInternalClient regulatorClient,
+                                      @Value("${regulation.internal.token:regulation-internal-token}")
+                                      String regulationInternalToken) {
+        this.enterpriseClient = enterpriseClient;
+        this.regulatorClient = regulatorClient;
+        this.regulationInternalToken = regulationInternalToken;
+    }
+
+    public InternalEnterpriseDetailVO requireEnterprise(Long enterpriseId) {
+        if (enterpriseId == null) {
+            throw new IllegalArgumentException(OperationErrorMessages.ENTERPRISE_NOT_FOUND);
+        }
+        ApiResponse<InternalEnterpriseDetailVO> response =
+            enterpriseClient.getEnterpriseById(enterpriseId, regulationInternalToken);
+        return requireData(response, OperationErrorMessages.ENTERPRISE_NOT_FOUND);
+    }
+
+    public InternalEnterpriseDetailVO requireApprovedEnterprise(Long enterpriseId) {
+        InternalEnterpriseDetailVO enterprise = requireEnterprise(enterpriseId);
+        if (!"APPROVED".equalsIgnoreCase(enterprise.getApprovalStatus())) {
+            throw new IllegalArgumentException("enterprise not approved");
+        }
+        return enterprise;
+    }
+
+    public InternalEnterpriseDetailVO requireEnterpriseByUserId(Long userId) {
+        if (userId == null) {
+            throw new IllegalArgumentException(OperationErrorMessages.UNAUTHORIZED);
+        }
+        ApiResponse<InternalEnterpriseDetailVO> response =
+            enterpriseClient.getEnterpriseByUserId(userId, regulationInternalToken);
+        return requireData(response, OperationErrorMessages.ENTERPRISE_NOT_FOUND);
+    }
+
+    public InternalRegulatorIdentityVO requireRegulatorByUserId(Long userId) {
+        if (userId == null) {
+            throw new IllegalArgumentException(OperationErrorMessages.UNAUTHORIZED);
+        }
+        ApiResponse<InternalRegulatorIdentityVO> response =
+            regulatorClient.getRegulatorByUserId(userId, regulationInternalToken);
+        InternalRegulatorIdentityVO regulator = requireData(response, OperationErrorMessages.REGULATOR_NOT_FOUND);
+        ensureEnabled(regulator);
+        return regulator;
+    }
+
+    public InternalRegulatorIdentityVO requireRegulatorById(Long regulatorId) {
+        if (regulatorId == null) {
+            throw new IllegalArgumentException(OperationErrorMessages.REGULATOR_NOT_FOUND);
+        }
+        ApiResponse<InternalRegulatorIdentityVO> response =
+            regulatorClient.getRegulatorIdentityById(regulatorId, regulationInternalToken);
+        InternalRegulatorIdentityVO regulator = requireData(response, OperationErrorMessages.REGULATOR_NOT_FOUND);
+        ensureEnabled(regulator);
+        return regulator;
+    }
+
+    public InternalRegulatorIdentityVO requireAdmin(Long userId) {
+        InternalRegulatorIdentityVO regulator = requireRegulatorByUserId(userId);
+        requireRole(regulator, ROLE_ADMIN);
+        return regulator;
+    }
+
+    public InternalRegulatorIdentityVO requireEnforcer(Long userId) {
+        InternalRegulatorIdentityVO regulator = requireRegulatorByUserId(userId);
+        requireRole(regulator, ROLE_ENFORCER);
+        return regulator;
+    }
+
+    public void requireRole(InternalRegulatorIdentityVO regulator, String roleType) {
+        if (regulator == null || !roleType.equalsIgnoreCase(regulator.getRoleType())) {
+            throw new IllegalArgumentException(OperationErrorMessages.INVALID_REGULATOR_ROLE);
+        }
+    }
+
+    public Map<Long, String> loadEnterpriseNames(Collection<Long> enterpriseIds) {
+        List<Long> cleanedIds = sanitizeIds(enterpriseIds);
+        if (cleanedIds.isEmpty()) {
+            return Collections.emptyMap();
+        }
+        ApiResponse<List<InternalEnterpriseSummaryVO>> response =
+            enterpriseClient.getEnterpriseSummaries(cleanedIds, regulationInternalToken);
+        if (response == null || !response.isSuccess() || response.getData() == null) {
+            return Collections.emptyMap();
+        }
+        return response.getData().stream()
+            .filter(Objects::nonNull)
+            .collect(Collectors.toMap(InternalEnterpriseSummaryVO::getId,
+                InternalEnterpriseSummaryVO::getEnterpriseName,
+                (a, b) -> a));
+    }
+
+    public Map<Long, String> loadRegulatorNames(Collection<Long> regulatorIds) {
+        List<Long> cleanedIds = sanitizeIds(regulatorIds);
+        if (cleanedIds.isEmpty()) {
+            return Collections.emptyMap();
+        }
+        ApiResponse<List<InternalRegulatorSummaryVO>> response =
+            regulatorClient.getRegulatorSummaries(cleanedIds, regulationInternalToken);
+        if (response == null || !response.isSuccess() || response.getData() == null) {
+            return Collections.emptyMap();
+        }
+        return response.getData().stream()
+            .filter(Objects::nonNull)
+            .collect(Collectors.toMap(InternalRegulatorSummaryVO::getId,
+                InternalRegulatorSummaryVO::getName,
+                (a, b) -> a));
+    }
+
+    public Map<Long, String> loadOperatorNamesByUserIds(Collection<Long> userIds) {
+        List<Long> cleanedIds = sanitizeIds(userIds);
+        if (cleanedIds.isEmpty()) {
+            return Collections.emptyMap();
+        }
+        Map<Long, String> names = new HashMap<>();
+        for (Long userId : cleanedIds) {
+            ApiResponse<InternalRegulatorIdentityVO> regulatorResponse =
+                regulatorClient.getRegulatorByUserId(userId, regulationInternalToken);
+            if (regulatorResponse != null && regulatorResponse.isSuccess() && regulatorResponse.getData() != null) {
+                names.put(userId, regulatorResponse.getData().getName());
+                continue;
+            }
+            ApiResponse<InternalEnterpriseDetailVO> enterpriseResponse =
+                enterpriseClient.getEnterpriseByUserId(userId, regulationInternalToken);
+            if (enterpriseResponse != null && enterpriseResponse.isSuccess() && enterpriseResponse.getData() != null) {
+                names.put(userId, enterpriseResponse.getData().getEnterpriseName());
+            }
+        }
+        return names;
+    }
+
+    public boolean isEnterpriseInRegulatorScope(Long regulatorId, Long enterpriseId) {
+        if (enterpriseId == null) {
+            return false;
+        }
+        return resolveScopeEnterpriseIds(regulatorId).contains(enterpriseId);
+    }
+
+    public void requireEnterpriseInScope(Long regulatorId, Long enterpriseId) {
+        if (!isEnterpriseInRegulatorScope(regulatorId, enterpriseId)) {
+            throw new IllegalArgumentException(OperationErrorMessages.NOT_IN_SCOPE);
+        }
+    }
+
+    public List<Long> resolveScopeRegionIds(Long regulatorId) {
+        if (regulatorId == null) {
+            throw new IllegalArgumentException(OperationErrorMessages.REGULATOR_NOT_FOUND);
+        }
+        ApiResponse<List<Long>> response =
+            regulatorClient.getScopeRegionIds(regulatorId, regulationInternalToken);
+        if (response == null || !response.isSuccess() || response.getData() == null) {
+            throw new IllegalArgumentException(OperationErrorMessages.REGULATOR_NOT_FOUND);
+        }
+        return response.getData().stream()
+            .filter(Objects::nonNull)
+            .distinct()
+            .toList();
+    }
+
+    public boolean coversRegion(Long regulatorId, Long regionId) {
+        if (regionId == null) {
+            return false;
+        }
+        return resolveScopeRegionIds(regulatorId).contains(regionId);
+    }
+
+    public void requireRegionInScope(Long regulatorId, Long regionId) {
+        if (!coversRegion(regulatorId, regionId)) {
+            throw new IllegalArgumentException(OperationErrorMessages.NOT_IN_SCOPE);
+        }
+    }
+
+    public boolean isRegulatorAssignableToRegion(Long regulatorId, Long regionId) {
+        if (regulatorId == null || regionId == null) {
+            return false;
+        }
+        ApiResponse<Boolean> response =
+            regulatorClient.isAssignableToRegion(regulatorId, regionId, regulationInternalToken);
+        if (response == null || !response.isSuccess() || response.getData() == null) {
+            throw new IllegalArgumentException(OperationErrorMessages.REGULATOR_NOT_FOUND);
+        }
+        return Boolean.TRUE.equals(response.getData());
+    }
+
+    public List<Long> resolveScopeEnterpriseIds(Long regulatorId) {
+        if (regulatorId == null) {
+            throw new IllegalArgumentException(OperationErrorMessages.REGULATOR_NOT_FOUND);
+        }
+        ApiResponse<List<Long>> response =
+            regulatorClient.getScopeEnterpriseIds(regulatorId, regulationInternalToken);
+        if (response == null || !response.isSuccess() || response.getData() == null) {
+            throw new IllegalArgumentException(OperationErrorMessages.REGULATOR_NOT_FOUND);
+        }
+        return response.getData().stream()
+            .filter(Objects::nonNull)
+            .distinct()
+            .toList();
+    }
+
+    public List<Long> resolveScopedEnterpriseIds(Long regulatorId, String enterpriseName) {
+        List<Long> scopeEnterpriseIds = resolveScopeEnterpriseIds(regulatorId);
+        if (scopeEnterpriseIds.isEmpty()) {
+            return List.of();
+        }
+        if (!StringUtils.hasText(enterpriseName)) {
+            return scopeEnterpriseIds;
+        }
+        List<Long> matchedEnterpriseIds = queryEnterpriseIdsByName(enterpriseName);
+        if (matchedEnterpriseIds == null || matchedEnterpriseIds.isEmpty()) {
+            return List.of();
+        }
+        Set<Long> scopeSet = new LinkedHashSet<>(scopeEnterpriseIds);
+        return matchedEnterpriseIds.stream()
+            .filter(scopeSet::contains)
+            .distinct()
+            .toList();
+    }
+
+    public List<Long> queryEnterpriseIdsByName(String keyword) {
+        if (!StringUtils.hasText(keyword)) {
+            return null;
+        }
+        ApiResponse<List<Long>> response =
+            enterpriseClient.queryEnterpriseIdsByName(keyword.trim(), regulationInternalToken);
+        if (response == null || !response.isSuccess() || response.getData() == null) {
+            return List.of();
+        }
+        return response.getData().stream()
+            .filter(Objects::nonNull)
+            .distinct()
+            .toList();
+    }
+
+    public List<Long> queryRegulatorIdsByName(String keyword) {
+        if (!StringUtils.hasText(keyword)) {
+            return null;
+        }
+        ApiResponse<List<Long>> response =
+            regulatorClient.queryRegulatorIdsByName(keyword.trim(), regulationInternalToken);
+        if (response == null || !response.isSuccess() || response.getData() == null) {
+            return List.of();
+        }
+        return response.getData().stream()
+            .filter(Objects::nonNull)
+            .distinct()
+            .toList();
+    }
+
+    private void ensureEnabled(InternalRegulatorIdentityVO regulator) {
+        if (regulator.getStatus() != null && regulator.getStatus() != 1) {
+            throw new IllegalArgumentException(OperationErrorMessages.REGULATOR_DISABLED);
+        }
+    }
+
+    private <T> T requireData(ApiResponse<T> response, String notFoundMessage) {
+        if (response == null || !response.isSuccess() || response.getData() == null) {
+            throw new IllegalArgumentException(notFoundMessage);
+        }
+        return response.getData();
+    }
+
+    private List<Long> sanitizeIds(Collection<Long> ids) {
+        if (ids == null || ids.isEmpty()) {
+            return List.of();
+        }
+        Set<Long> cleaned = new LinkedHashSet<>();
+        for (Long id : ids) {
+            if (id != null) {
+                cleaned.add(id);
+            }
+        }
+        return cleaned.stream().toList();
+    }
+}

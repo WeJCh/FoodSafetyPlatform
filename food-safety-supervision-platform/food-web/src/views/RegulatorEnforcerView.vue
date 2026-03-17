@@ -585,19 +585,21 @@ import { fetchComplaints, startComplaintProcess } from "../api/complaint";
 import {
   fetchEnterpriseDetail,
   fetchEnterprises,
+  fetchMyWarningDetail,
+  fetchMyWarningRecords,
+  fetchRegionPath,
+  processMyWarning
+} from "../api/regulation";
+import {
   fetchInspectionRecordDetail,
   fetchMyInspectionRecords,
   fetchMyInspectionTasks,
   fetchMyRegulatorRectifications,
-  fetchMyWarningDetail,
-  fetchMyWarningRecords,
   fetchRectificationActions,
   fetchRectificationDetail,
-  fetchRegionPath,
-  processMyWarning,
   startInspectionTask,
   submitInspectionTask
-} from "../api/regulation";
+} from "../api/regulationOperation";
 import RectificationDetailModal from "../components/RectificationDetailModal.vue";
 import WarningStatsPanel from "../components/WarningStatsPanel.vue";
 

@@ -60,6 +60,15 @@ public class InternalRegulatorController {
         return ApiResponse.success(toIdentityVO(regulator, findDirectRegionIds(regulator.getId())));
     }
 
+    @GetMapping("/{id}/identity")
+    public ApiResponse<InternalRegulatorIdentityVO> getIdentityById(@PathVariable Long id) {
+        FoodRegulator regulator = foodRegulatorMapper.selectById(id);
+        if (regulator == null || isDeleted(regulator.getDeleted())) {
+            return ApiResponse.failure(404, "regulator not found");
+        }
+        return ApiResponse.success(toIdentityVO(regulator, findDirectRegionIds(regulator.getId())));
+    }
+
     @GetMapping("/{id}")
     public ApiResponse<InternalRegulatorSummaryVO> getById(@PathVariable Long id) {
         FoodRegulator regulator = foodRegulatorMapper.selectById(id);
@@ -135,6 +144,33 @@ public class InternalRegulatorController {
         return ApiResponse.success(enterpriseIds);
     }
 
+    @GetMapping("/{id}/scope-region-ids")
+    public ApiResponse<List<Long>> scopeRegionIds(@PathVariable Long id) {
+        FoodRegulator regulator = foodRegulatorMapper.selectById(id);
+        if (regulator == null || isDeleted(regulator.getDeleted())) {
+            return ApiResponse.failure(404, "regulator not found");
+        }
+        List<Long> directRegionIds = findDirectRegionIds(id);
+        if (directRegionIds.isEmpty()) {
+            return ApiResponse.success(List.of());
+        }
+        return ApiResponse.success(collectRegionIds(directRegionIds));
+    }
+
+    @GetMapping("/{id}/assignable-to-region/{regionId}")
+    public ApiResponse<Boolean> assignableToRegion(@PathVariable Long id, @PathVariable Long regionId) {
+        FoodRegulator regulator = foodRegulatorMapper.selectById(id);
+        if (regulator == null || isDeleted(regulator.getDeleted())) {
+            return ApiResponse.failure(404, "regulator not found");
+        }
+        if (regionId == null) {
+            return ApiResponse.success(false);
+        }
+        boolean matched = findDirectRegionIds(id).stream()
+            .anyMatch(directRegionId -> isAncestorRegion(regionId, directRegionId));
+        return ApiResponse.success(matched);
+    }
+
     private InternalRegulatorIdentityVO toIdentityVO(FoodRegulator regulator, List<Long> regionIds) {
         InternalRegulatorIdentityVO vo = new InternalRegulatorIdentityVO();
         vo.setId(regulator.getId());
@@ -193,6 +229,24 @@ public class InternalRegulatorController {
             }
         }
         return result.stream().toList();
+    }
+
+    private boolean isAncestorRegion(Long ancestorId, Long regionId) {
+        if (ancestorId == null || regionId == null) {
+            return false;
+        }
+        Long cursor = regionId;
+        while (cursor != null) {
+            if (ancestorId.equals(cursor)) {
+                return true;
+            }
+            AddrRegion current = addrRegionMapper.selectById(cursor);
+            if (current == null || isDeleted(current.getDeleted())) {
+                break;
+            }
+            cursor = current.getParentId();
+        }
+        return false;
     }
 
     private List<Long> sanitizeIds(List<Long> ids) {

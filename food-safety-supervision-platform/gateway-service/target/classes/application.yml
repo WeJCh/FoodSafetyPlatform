@@ -56,6 +56,10 @@ spring:
           uri: lb://user-service
           predicates:
             - Path=/api/admin/**
+        - id: regulation-operation-service
+          uri: lb://regulation-operation-service
+          predicates:
+            - Path=/api/regulation-operation/**
         - id: regulation-service
           uri: lb://regulation-service
           predicates:

@@ -963,27 +963,29 @@ import { acceptComplaint, fetchComplaints } from "../api/complaint";
 import {
   approveEnterprise,
   approveEnterpriseBatch,
-  assignInspectionTask,
-  closeInspectionTask,
-  createInspectionTask,
   fetchEnterpriseDetail,
   fetchEligibleRegulators,
   fetchEnterprises,
-  fetchInspectionRecordDetail,
-  fetchInspectionRecords,
-  fetchInspectionTasks,
   fetchPendingEnterprises,
   fetchWarningRecordDetail,
   fetchWarningRecords,
-  fetchRectificationActions,
-  fetchRectificationDetail,
-  fetchRectifications,
   fetchRegionPath,
   processWarningRecord,
-  reviewRectification,
   rejectEnterprise,
   rejectEnterpriseBatch
 } from "../api/regulation";
+import {
+  assignInspectionTask,
+  closeInspectionTask,
+  createInspectionTask,
+  fetchInspectionRecordDetail,
+  fetchInspectionRecords,
+  fetchInspectionTasks,
+  fetchRectificationActions,
+  fetchRectificationDetail,
+  fetchRectifications,
+  reviewRectification
+} from "../api/regulationOperation";
 import RectificationDetailModal from "../components/RectificationDetailModal.vue";
 import WarningStatsPanel from "../components/WarningStatsPanel.vue";
 
@@ -2678,5 +2680,3 @@ onMounted(() => {
   }
 }
 </style>
-
-

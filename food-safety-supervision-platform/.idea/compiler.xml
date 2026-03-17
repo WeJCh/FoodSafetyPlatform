@@ -10,6 +10,7 @@
         <module name="gateway-service" />
         <module name="warning-service" />
         <module name="query-service" />
+        <module name="regulation-operation-service" />
         <module name="platform-common" />
         <module name="user-service" />
         <module name="regulation-service" />
@@ -24,6 +25,7 @@
       <module name="gateway-service" options="-parameters" />
       <module name="platform-common" options="-parameters" />
       <module name="query-service" options="-parameters" />
+      <module name="regulation-operation-service" options="-parameters" />
       <module name="regulation-service" options="-parameters" />
       <module name="user-service" options="-parameters" />
       <module name="warning-service" options="-parameters" />

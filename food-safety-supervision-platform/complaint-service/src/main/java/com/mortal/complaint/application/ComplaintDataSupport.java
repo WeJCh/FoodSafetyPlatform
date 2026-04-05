@@ -1,6 +1,7 @@
 package com.mortal.complaint.application;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.mortal.complaint.client.regulation.dto.EnterpriseKeyReasonUpsertDTO;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.mortal.complaint.client.regulation.RegulationInternalClient;
@@ -95,6 +96,52 @@ public class ComplaintDataSupport {
             throw new IllegalArgumentException("enterprise not found");
         }
         return response.getData();
+    }
+
+    /**
+     * 统计企业近一段时间内的有效投诉数量
+     * @param enterpriseId 企业ID
+     * @param since 统计时间
+     * @return 有效投诉数量
+     */
+    public long countAcceptedComplaints(Long enterpriseId, LocalDateTime since) {
+        if (enterpriseId == null || since == null) {
+            return 0L;
+        }
+        return complaintMapper.selectCount(new LambdaQueryWrapper<Complaint>()
+            .eq(Complaint::getDeleted, 0)
+            .eq(Complaint::getEnterpriseId, enterpriseId)
+            .isNotNull(Complaint::getAcceptedTime)
+            .ge(Complaint::getAcceptedTime, since)
+            .ne(Complaint::getStatus, ComplaintStatus.REJECTED));
+    }
+
+    /**
+     * 标记企业为关键企业
+     * @param enterpriseId 企业ID
+     * @param reasonType 原因类型
+     * @param reasonDetail 原因详情
+     * @param sourceType 来源类型
+     * @param sourceId 来源ID
+     * @param operatorId 操作员ID
+     */
+    public void markEnterpriseAsKey(Long enterpriseId,
+                                    String reasonType,
+                                    String reasonDetail,
+                                    String sourceType,
+                                    Long sourceId,
+                                    Long operatorId) {
+        EnterpriseKeyReasonUpsertDTO dto = new EnterpriseKeyReasonUpsertDTO();
+        dto.setReasonType(reasonType);
+        dto.setReasonDetail(reasonDetail);
+        dto.setSourceType(sourceType);
+        dto.setSourceId(sourceId);
+        dto.setOperatorId(operatorId);
+        ApiResponse<Void> response =
+            regulationInternalClient.markEnterpriseAsKey(enterpriseId, dto, regulationInternalToken);
+        if (response == null || !response.isSuccess()) {
+            throw new IllegalArgumentException("mark enterprise as key failed");
+        }
     }
 
     /**
@@ -248,12 +295,15 @@ public class ComplaintDataSupport {
         vo.setAssignedBy(complaint.getAssignedBy());
         vo.setAssignedByName(regulatorNames.get(complaint.getAssignedBy()));
         vo.setAssignedTime(complaint.getAssignedTime());
+        vo.setDeadlineTime(complaint.getDeadlineTime());
         vo.setProcessedBy(complaint.getProcessedBy());
         vo.setProcessedByName(regulatorNames.get(complaint.getProcessedBy()));
         vo.setProcessedTime(complaint.getProcessedTime());
+        vo.setFeedbackSummary(complaint.getFeedbackSummary());
         vo.setRejectedBy(complaint.getRejectedBy());
         vo.setRejectedByName(regulatorNames.get(complaint.getRejectedBy()));
         vo.setRejectedTime(complaint.getRejectedTime());
+        vo.setRejectReason(complaint.getRejectReason());
         vo.setCreateTime(complaint.getCreateTime());
         vo.setUpdateTime(complaint.getUpdateTime());
         return vo;

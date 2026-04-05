@@ -42,8 +42,8 @@ public class MinioFileService {
     /**
      * Generate presigned upload URL and public URL.
      */
-    public FilePresignVO presignUpload(Long userId, FilePresignRequest request) {
-        FileBizType bizType = validateRequest(request);
+    public FilePresignVO presignUpload(Long userId, FilePresignRequest request, FileBizType bizType) {
+        validateRequest(request);
         ensureBucket();
         String objectKey = buildObjectKey(userId, request.getFilename(), bizType);
         String uploadUrl = buildUploadUrl(objectKey);
@@ -56,7 +56,7 @@ public class MinioFileService {
         return vo;
     }
 
-    private FileBizType validateRequest(FilePresignRequest request) {
+    private void validateRequest(FilePresignRequest request) {
         if (request.getSize() == null || request.getSize() <= 0) {
             throw new IllegalArgumentException("file size required");
         }
@@ -69,7 +69,6 @@ public class MinioFileService {
         if (!ALLOWED_CONTENT_TYPES.contains(contentType)) {
             throw new IllegalArgumentException("invalid content type");
         }
-        return FileBizType.fromValue(request.getBizType());
     }
 
     /**

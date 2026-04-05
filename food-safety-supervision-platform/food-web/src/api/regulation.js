@@ -12,6 +12,35 @@ export function fetchEnterpriseProfile(token) {
   });
 }
 
+export function fetchMyProducts(token) {
+  return requestWithBase(REGULATION_BASE_URL, "/api/regulation/products/my", {
+    method: "GET",
+    headers: {
+      Authorization: `Bearer ${token}`
+    }
+  });
+}
+
+export function createProduct(token, payload) {
+  return requestWithBase(REGULATION_BASE_URL, "/api/regulation/products", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`
+    },
+    body: JSON.stringify(payload)
+  });
+}
+
+export function updateProduct(token, id, payload) {
+  return requestWithBase(REGULATION_BASE_URL, `/api/regulation/products/${id}`, {
+    method: "PUT",
+    headers: {
+      Authorization: `Bearer ${token}`
+    },
+    body: JSON.stringify(payload)
+  });
+}
+
 export function submitEnterpriseProfile(token, payload) {
   return requestWithBase(REGULATION_BASE_URL, "/api/regulation/enterprise/profile", {
     method: "POST",
@@ -114,6 +143,108 @@ export function fetchPublicEnterprises(token, params = {}) {
       }
     }
   );
+}
+
+export function fetchPublicEnterpriseDetail(token, id) {
+  return requestWithBase(REGULATION_BASE_URL, `/api/regulation/public/enterprises/${id}`, {
+    method: "GET",
+    headers: {
+      Authorization: `Bearer ${token}`
+    }
+  });
+}
+
+export function fetchBulletins(token, params = {}) {
+  const search = new URLSearchParams();
+  if (params.keyword) search.append("keyword", params.keyword);
+  if (params.status) search.append("status", params.status);
+  if (params.page) search.append("page", params.page);
+  if (params.size) search.append("size", params.size);
+  const query = search.toString();
+  return requestWithBase(
+    REGULATION_BASE_URL,
+    `/api/regulation/bulletins${query ? `?${query}` : ""}`,
+    {
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${token}`
+      }
+    }
+  );
+}
+
+export function fetchBulletinDetail(token, id) {
+  return requestWithBase(REGULATION_BASE_URL, `/api/regulation/bulletins/${id}`, {
+    method: "GET",
+    headers: {
+      Authorization: `Bearer ${token}`
+    }
+  });
+}
+
+export function createBulletin(token, payload) {
+  return requestWithBase(REGULATION_BASE_URL, "/api/regulation/bulletins", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`
+    },
+    body: JSON.stringify(payload)
+  });
+}
+
+export function updateBulletin(token, id, payload) {
+  return requestWithBase(REGULATION_BASE_URL, `/api/regulation/bulletins/${id}`, {
+    method: "PUT",
+    headers: {
+      Authorization: `Bearer ${token}`
+    },
+    body: JSON.stringify(payload)
+  });
+}
+
+export function publishBulletin(token, id) {
+  return requestWithBase(REGULATION_BASE_URL, `/api/regulation/bulletins/${id}/publish`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`
+    }
+  });
+}
+
+export function offlineBulletin(token, id) {
+  return requestWithBase(REGULATION_BASE_URL, `/api/regulation/bulletins/${id}/offline`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`
+    }
+  });
+}
+
+export function fetchPublicBulletins(token, params = {}) {
+  const search = new URLSearchParams();
+  if (params.keyword) search.append("keyword", params.keyword);
+  if (params.page) search.append("page", params.page);
+  if (params.size) search.append("size", params.size);
+  const query = search.toString();
+  return requestWithBase(
+    REGULATION_BASE_URL,
+    `/api/regulation/public/bulletins${query ? `?${query}` : ""}`,
+    {
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${token}`
+      }
+    }
+  );
+}
+
+export function fetchPublicBulletinDetail(token, id) {
+  return requestWithBase(REGULATION_BASE_URL, `/api/regulation/public/bulletins/${id}`, {
+    method: "GET",
+    headers: {
+      Authorization: `Bearer ${token}`
+    }
+  });
 }
 
 /**
@@ -235,6 +366,15 @@ export function rejectEnterpriseBatch(token, payload = {}) {
  */
 export function fetchEnterpriseDetail(token, id) {
   return requestWithBase(REGULATION_BASE_URL, `/api/regulation/enterprises/${id}`, {
+    method: "GET",
+    headers: {
+      Authorization: `Bearer ${token}`
+    }
+  });
+}
+
+export function fetchEnterpriseProducts(token, enterpriseId) {
+  return requestWithBase(REGULATION_BASE_URL, `/api/regulation/enterprises/${enterpriseId}/products`, {
     method: "GET",
     headers: {
       Authorization: `Bearer ${token}`
@@ -465,6 +605,31 @@ export function fetchWarningEfficiency(token, params = {}) {
   return requestWithBase(
     REGULATION_BASE_URL,
     `/api/query/warnings/efficiency${query ? `?${query}` : ""}`,
+    {
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${token}`
+      }
+    }
+  );
+}
+
+function buildSupervisionOverviewQuery(params = {}) {
+  const search = new URLSearchParams();
+  ["regionId", "regionIds", "ownerRegulatorId"].forEach((key) => {
+    const value = params[key];
+    if (value !== undefined && value !== null && value !== "") {
+      search.append(key, value);
+    }
+  });
+  return search.toString();
+}
+
+export function fetchSupervisionOverview(token, params = {}) {
+  const query = buildSupervisionOverviewQuery(params);
+  return requestWithBase(
+    REGULATION_BASE_URL,
+    `/api/query/supervision/overview${query ? `?${query}` : ""}`,
     {
       method: "GET",
       headers: {

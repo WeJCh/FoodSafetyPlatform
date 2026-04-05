@@ -21,8 +21,11 @@
       <div class="hero-copy">
         <span class="badge badge--public">公众服务</span>
         <h1>投诉入口清晰可见，处理进度全程可追踪</h1>
-        <p>面向社会公众的一站式食品安全服务入口，确保投诉可追踪、信息可查证、处理可反馈。</p>
+        <p>当前版本聚焦投诉提交与进度查询，确保投诉可追踪、处理可反馈，未开放能力暂不对外展示。</p>
         <div class="hero-actions">
+          <button class="ghost" type="button" @click="$emit('open-bulletins')">监管公告</button>
+          <button class="ghost" type="button" @click="$emit('open-enterprises')">企业公示</button>
+          <button class="ghost" type="button" @click="$emit('open-sampling-results')">抽检结果</button>
           <button class="primary" type="button" @click="$emit('open-complaint')">我要投诉</button>
           <button class="ghost" type="button" @click="$emit('open-track')">我的投诉</button>
         </div>
@@ -36,8 +39,16 @@
             <span>节点与处理部门可追踪</span>
           </div>
           <div>
-            <strong>政务可信</strong>
-            <span>官方公示与风险提示</span>
+            <strong>企业公示</strong>
+            <span>备案通过企业可在线查看</span>
+          </div>
+          <div>
+            <strong>抽检公示</strong>
+            <span>已发布抽检结果可在线查看</span>
+          </div>
+          <div>
+            <strong>办理留痕</strong>
+            <span>处理结果可在线查看</span>
           </div>
         </div>
       </div>
@@ -69,69 +80,106 @@
 
       <article class="service-card">
         <div class="card-head">
-          <span class="chip">公开信息</span>
-          <h3>企业公示</h3>
-          <p>查询企业状态、负责人信息与监管记录。</p>
+          <span class="chip">信息公示</span>
+          <h3>监管公告</h3>
+          <p>已开放公告查询，可查看监管部门发布的食品安全提醒、阶段性通知和公众须知。</p>
         </div>
-        <button class="ghost" type="button" @click="$emit('open-enterprise')">进入公示</button>
+        <div class="card-actions">
+          <button class="ghost" type="button" @click="$emit('open-bulletins')">查看公告</button>
+        </div>
       </article>
 
       <article class="service-card">
         <div class="card-head">
-          <span class="chip">风险提示</span>
-          <h3>预警与公告</h3>
-          <p>风险预警、抽检结果与食品召回信息集中展示。</p>
+          <span class="chip">信息公示</span>
+          <h3>企业公示</h3>
+          <p>已开放备案通过企业查询，可查看企业基础备案信息与当前监管状态。</p>
         </div>
-        <button class="ghost" type="button" @click="$emit('open-bulletin')">查看公告</button>
+        <div class="card-actions">
+          <button class="ghost" type="button" @click="$emit('open-enterprises')">查看企业</button>
+        </div>
+      </article>
+
+      <article class="service-card">
+        <div class="card-head">
+          <span class="chip">信息公示</span>
+          <h3>抽检结果</h3>
+          <p>已开放抽检结果公示，可查看已发布的企业产品抽检结论和处置建议。</p>
+        </div>
+        <div class="card-actions">
+          <button class="ghost" type="button" @click="$emit('open-sampling-results')">查看结果</button>
+        </div>
+      </article>
+
+      <article class="service-card">
+        <div class="card-head">
+          <span class="chip">提交建议</span>
+          <h3>材料准备</h3>
+          <p>建议提前准备涉事企业名称、问题描述和现场图片，便于监管部门快速核查。</p>
+        </div>
       </article>
     </section>
 
     <section class="public-notice">
       <div class="notice-head">
-        <h3>公告通知</h3>
-        <span>演示数据</span>
+        <h3>当前服务说明</h3>
+        <span>P2</span>
       </div>
       <div class="notice-list">
         <div class="notice-item">
           <div>
-            <strong>重点监管企业名单更新</strong>
-            <p>重点监管名单按季度更新，当前版本已发布。</p>
+            <strong>投诉提交已开放</strong>
+            <p>支持问题描述填写和图片上传，提交后系统自动生成投诉编号。</p>
           </div>
-          <span>2026-02-04</span>
+          <span>已启用</span>
         </div>
         <div class="notice-item">
           <div>
-            <strong>节日期间食品安全提示</strong>
-            <p>倡导正规渠道采购，关注食品标签与保质期。</p>
+            <strong>进度查询已开放</strong>
+            <p>可在“我的投诉”中查看受理、派单、处理等节点状态。</p>
           </div>
-          <span>2026-02-02</span>
+          <span>已启用</span>
         </div>
         <div class="notice-item">
           <div>
-            <strong>抽检不合格产品公示</strong>
-            <p>已完成处置与召回公示，详情点击查看。</p>
+            <strong>企业公示已开放</strong>
+            <p>公众可查看已审核通过企业的备案信息与当前监管状态。</p>
           </div>
-          <span>2026-01-28</span>
+          <span>已启用</span>
+        </div>
+        <div class="notice-item">
+          <div>
+            <strong>监管公告已开放</strong>
+            <p>公众可查看监管部门发布的食品安全公告与阶段性提示信息。</p>
+          </div>
+          <span>已启用</span>
+        </div>
+        <div class="notice-item">
+          <div>
+            <strong>抽检结果公示已开放</strong>
+            <p>公众可查询已发布的抽检结果、抽检结论与处置建议。</p>
+          </div>
+          <span>已启用</span>
         </div>
       </div>
     </section>
 
     <section class="public-risk">
       <div>
-        <h3>食品安全风险提示</h3>
-        <p>关注高温季节食品储存、加工卫生与冷链运输风险。</p>
+        <h3>投诉提交建议</h3>
+        <p>尽量写明时间、地点、涉事企业和问题表现，并上传清晰图片，便于后续研判和处理。</p>
       </div>
       <div class="risk-tags">
-        <span>生鲜冷链</span>
-        <span>餐饮后厨</span>
-        <span>校园周边</span>
-        <span>网络外卖</span>
+        <span>问题描述</span>
+        <span>现场图片</span>
+        <span>涉事企业</span>
+        <span>联系方式</span>
       </div>
     </section>
 
     <footer class="public-footer">
       <div>食品安全监管热线：12315</div>
-      <div>本页面为演示版，数据仅供参考</div>
+      <div>当前版本已开放监管公告、企业公示、抽检结果公示、投诉提交与进度查询</div>
     </footer>
   </div>
 </template>
@@ -144,7 +192,7 @@ defineProps({
   }
 });
 
-defineEmits(["logout", "open-complaint", "open-track", "open-enterprise", "open-bulletin"]);
+defineEmits(["logout", "open-complaint", "open-track", "open-enterprises", "open-bulletins", "open-sampling-results"]);
 </script>
 
 <style scoped>
@@ -238,7 +286,7 @@ defineEmits(["logout", "open-complaint", "open-track", "open-enterprise", "open-
 .hero-tips {
   margin-top: 18px;
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
   gap: 10px;
 }
 

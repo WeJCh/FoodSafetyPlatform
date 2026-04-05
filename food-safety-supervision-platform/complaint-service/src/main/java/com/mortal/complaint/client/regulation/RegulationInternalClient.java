@@ -1,5 +1,6 @@
 package com.mortal.complaint.client.regulation;
 
+import com.mortal.complaint.client.regulation.dto.EnterpriseKeyReasonUpsertDTO;
 import com.mortal.complaint.client.regulation.vo.InternalEnterpriseDetailVO;
 import com.mortal.complaint.client.regulation.vo.InternalEnterpriseSummaryVO;
 import com.mortal.complaint.client.regulation.vo.InternalRegulatorIdentityVO;
@@ -52,6 +53,34 @@ public interface RegulationInternalClient {
     ApiResponse<List<Long>> queryEnterpriseIdsByName(@RequestParam("keyword") String keyword,
                                                      @RequestHeader("X-Internal-Token")
                                                      String internalToken);
+
+    /**
+     * 按辖区查询企业ID列表
+     * @param regionId 单个辖区ID
+     * @param regionIds 多个辖区ID
+     * @param internalToken 内部令牌
+     * @return 企业ID列表
+     */
+    @GetMapping("/api/internal/regulation/enterprises/scope-ids")
+    ApiResponse<List<Long>> getEnterpriseIdsByScope(@RequestParam(value = "regionId", required = false)
+                                                    Long regionId,
+                                                    @RequestParam(value = "regionIds", required = false)
+                                                    String regionIds,
+                                                    @RequestHeader("X-Internal-Token")
+                                                    String internalToken);
+
+    /**
+     * 标记企业为关键企业
+     * @param id 企业ID
+     * @param dto 企业关键原因插入DTO
+     * @param internalToken 内部令牌
+     * @return 空响应
+     */
+    @PostMapping("/api/internal/regulation/enterprises/{id}/key-reasons")
+    ApiResponse<Void> markEnterpriseAsKey(@PathVariable("id") Long id,
+                                          @RequestBody EnterpriseKeyReasonUpsertDTO dto,
+                                          @RequestHeader("X-Internal-Token")
+                                          String internalToken);
 
     /**
      * 根据用户ID获取监管者身份
@@ -108,4 +137,3 @@ public interface RegulationInternalClient {
                                                   @RequestHeader("X-Internal-Token")
                                                   String internalToken);
 }
-

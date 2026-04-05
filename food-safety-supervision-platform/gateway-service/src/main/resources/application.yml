@@ -88,5 +88,5 @@ gateway:
   auth:
     # Introspect timeout in milliseconds to avoid blocking the gateway when user-service is slow.
     introspect-timeout-ms: 1500
-    # Fail-open when user-service is unavailable to avoid system-wide 401. Set to false for strict mode.
-    introspect-fail-open: true
+    # Strict by default. Enable fail-open only via env var for temporary troubleshooting.
+    introspect-fail-open: ${GATEWAY_AUTH_INTROSPECT_FAIL_OPEN:false}

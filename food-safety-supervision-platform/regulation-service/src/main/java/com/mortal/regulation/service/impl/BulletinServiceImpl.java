@@ -1,0 +1,274 @@
+package com.mortal.regulation.service.impl;
+
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.mortal.platform.common.PageResult;
+import com.mortal.regulation.dto.BulletinSaveDTO;
+import com.mortal.regulation.entity.FoodRegulator;
+import com.mortal.regulation.entity.PublicBulletin;
+import com.mortal.regulation.mapper.FoodRegulatorMapper;
+import com.mortal.regulation.mapper.PublicBulletinMapper;
+import com.mortal.regulation.service.BulletinService;
+import com.mortal.regulation.vo.BulletinDetailVO;
+import com.mortal.regulation.vo.BulletinVO;
+import java.time.LocalDateTime;
+import java.util.Collections;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
+import java.util.stream.Collectors;
+import org.springframework.stereotype.Service;
+import org.springframework.util.StringUtils;
+
+@Service
+public class BulletinServiceImpl implements BulletinService {
+
+    private static final String ROLE_ADMIN = "REGULATOR_ADMIN";
+    private static final String STATUS_DRAFT = "DRAFT";
+    private static final String STATUS_PUBLISHED = "PUBLISHED";
+    private static final String STATUS_OFFLINE = "OFFLINE";
+    private static final int MAX_PAGE_SIZE = 20;
+    private static final int MAX_SUMMARY_LENGTH = 120;
+
+    private final PublicBulletinMapper publicBulletinMapper;
+    private final FoodRegulatorMapper foodRegulatorMapper;
+
+    public BulletinServiceImpl(PublicBulletinMapper publicBulletinMapper,
+                               FoodRegulatorMapper foodRegulatorMapper) {
+        this.publicBulletinMapper = publicBulletinMapper;
+        this.foodRegulatorMapper = foodRegulatorMapper;
+    }
+
+    @Override
+    public PageResult<BulletinVO> listAdmin(Long userId, String keyword, String status, int page, int size) {
+        requireAdmin(userId);
+        int safePage = Math.max(1, page);
+        int safeSize = Math.max(1, Math.min(size, MAX_PAGE_SIZE));
+        LambdaQueryWrapper<PublicBulletin> wrapper = new LambdaQueryWrapper<PublicBulletin>()
+            .eq(PublicBulletin::getDeleted, 0);
+        if (StringUtils.hasText(keyword)) {
+            wrapper.and(condition -> condition
+                .like(PublicBulletin::getTitle, keyword.trim())
+                .or()
+                .like(PublicBulletin::getSummary, keyword.trim()));
+        }
+        if (StringUtils.hasText(status)) {
+            wrapper.eq(PublicBulletin::getStatus, normalize(status));
+        }
+        wrapper.orderByDesc(PublicBulletin::getUpdateTime).orderByDesc(PublicBulletin::getId);
+        Page<PublicBulletin> pageInfo = publicBulletinMapper.selectPage(new Page<>(safePage, safeSize), wrapper);
+        Map<Long, String> regulatorNameMap = loadRegulatorNameMap(pageInfo.getRecords());
+        List<BulletinVO> records = pageInfo.getRecords().stream()
+            .map(item -> toVO(item, regulatorNameMap))
+            .toList();
+        return PageResult.of(records, pageInfo.getTotal(), safePage, safeSize);
+    }
+
+    @Override
+    public BulletinDetailVO getAdminDetail(Long userId, Long bulletinId) {
+        requireAdmin(userId);
+        PublicBulletin bulletin = requireBulletin(bulletinId);
+        return toDetailVO(bulletin, loadRegulatorNameMap(List.of(bulletin)));
+    }
+
+    @Override
+    public BulletinDetailVO create(Long userId, BulletinSaveDTO dto) {
+        requireAdmin(userId);
+        PublicBulletin bulletin = new PublicBulletin();
+        bulletin.setTitle(dto.getTitle().trim());
+        bulletin.setSummary(resolveSummary(dto));
+        bulletin.setContent(normalizeContent(dto.getContent()));
+        bulletin.setStatus(STATUS_DRAFT);
+        bulletin.setCreatedBy(userId);
+        bulletin.setDeleted(0);
+        publicBulletinMapper.insert(bulletin);
+        PublicBulletin saved = publicBulletinMapper.selectById(bulletin.getId());
+        return toDetailVO(saved, loadRegulatorNameMap(List.of(saved)));
+    }
+
+    @Override
+    public BulletinDetailVO update(Long userId, Long bulletinId, BulletinSaveDTO dto) {
+        requireAdmin(userId);
+        PublicBulletin bulletin = requireBulletin(bulletinId);
+        bulletin.setTitle(dto.getTitle().trim());
+        bulletin.setSummary(resolveSummary(dto));
+        bulletin.setContent(normalizeContent(dto.getContent()));
+        publicBulletinMapper.updateById(bulletin);
+        PublicBulletin saved = publicBulletinMapper.selectById(bulletinId);
+        return toDetailVO(saved, loadRegulatorNameMap(List.of(saved)));
+    }
+
+    @Override
+    public BulletinDetailVO publish(Long userId, Long bulletinId) {
+        requireAdmin(userId);
+        PublicBulletin bulletin = requireBulletin(bulletinId);
+        bulletin.setStatus(STATUS_PUBLISHED);
+        bulletin.setPublishedBy(userId);
+        bulletin.setPublishedTime(LocalDateTime.now());
+        publicBulletinMapper.updateById(bulletin);
+        PublicBulletin saved = publicBulletinMapper.selectById(bulletinId);
+        return toDetailVO(saved, loadRegulatorNameMap(List.of(saved)));
+    }
+
+    @Override
+    public BulletinDetailVO offline(Long userId, Long bulletinId) {
+        requireAdmin(userId);
+        PublicBulletin bulletin = requireBulletin(bulletinId);
+        bulletin.setStatus(STATUS_OFFLINE);
+        publicBulletinMapper.updateById(bulletin);
+        PublicBulletin saved = publicBulletinMapper.selectById(bulletinId);
+        return toDetailVO(saved, loadRegulatorNameMap(List.of(saved)));
+    }
+
+    @Override
+    public PageResult<BulletinVO> listPublic(String keyword, int page, int size) {
+        int safePage = Math.max(1, page);
+        int safeSize = Math.max(1, Math.min(size, MAX_PAGE_SIZE));
+        LambdaQueryWrapper<PublicBulletin> wrapper = new LambdaQueryWrapper<PublicBulletin>()
+            .eq(PublicBulletin::getDeleted, 0)
+            .eq(PublicBulletin::getStatus, STATUS_PUBLISHED);
+        if (StringUtils.hasText(keyword)) {
+            wrapper.and(condition -> condition
+                .like(PublicBulletin::getTitle, keyword.trim())
+                .or()
+                .like(PublicBulletin::getSummary, keyword.trim()));
+        }
+        wrapper.orderByDesc(PublicBulletin::getPublishedTime).orderByDesc(PublicBulletin::getId);
+        Page<PublicBulletin> pageInfo = publicBulletinMapper.selectPage(new Page<>(safePage, safeSize), wrapper);
+        Map<Long, String> regulatorNameMap = loadRegulatorNameMap(pageInfo.getRecords());
+        List<BulletinVO> records = pageInfo.getRecords().stream()
+            .map(item -> toVO(item, regulatorNameMap))
+            .toList();
+        return PageResult.of(records, pageInfo.getTotal(), safePage, safeSize);
+    }
+
+    @Override
+    public BulletinDetailVO getPublicDetail(Long bulletinId) {
+        if (bulletinId == null) {
+            return null;
+        }
+        PublicBulletin bulletin = publicBulletinMapper.selectById(bulletinId);
+        if (bulletin == null || isDeleted(bulletin.getDeleted())) {
+            return null;
+        }
+        if (!STATUS_PUBLISHED.equalsIgnoreCase(bulletin.getStatus())) {
+            return null;
+        }
+        return toDetailVO(bulletin, loadRegulatorNameMap(List.of(bulletin)));
+    }
+
+    private FoodRegulator requireAdmin(Long userId) {
+        if (userId == null) {
+            throw new IllegalArgumentException("unauthorized");
+        }
+        FoodRegulator regulator = foodRegulatorMapper.selectOne(new LambdaQueryWrapper<FoodRegulator>()
+            .eq(FoodRegulator::getUserId, userId)
+            .eq(FoodRegulator::getDeleted, 0)
+            .last("limit 1"));
+        if (regulator == null) {
+            throw new IllegalArgumentException("admin only");
+        }
+        if (regulator.getStatus() != null && regulator.getStatus() != 1) {
+            throw new IllegalArgumentException("regulator disabled");
+        }
+        if (!ROLE_ADMIN.equalsIgnoreCase(regulator.getRoleType())) {
+            throw new IllegalArgumentException("admin only");
+        }
+        return regulator;
+    }
+
+    private PublicBulletin requireBulletin(Long bulletinId) {
+        if (bulletinId == null) {
+            throw new IllegalArgumentException("bulletinId required");
+        }
+        PublicBulletin bulletin = publicBulletinMapper.selectById(bulletinId);
+        if (bulletin == null || isDeleted(bulletin.getDeleted())) {
+            throw new IllegalArgumentException("bulletin not found");
+        }
+        return bulletin;
+    }
+
+    private BulletinVO toVO(PublicBulletin bulletin, Map<Long, String> regulatorNameMap) {
+        BulletinVO vo = new BulletinVO();
+        vo.setId(bulletin.getId());
+        vo.setTitle(bulletin.getTitle());
+        vo.setSummary(bulletin.getSummary());
+        vo.setStatus(bulletin.getStatus());
+        vo.setCreatedBy(bulletin.getCreatedBy());
+        vo.setCreatedByName(resolveName(regulatorNameMap, bulletin.getCreatedBy()));
+        vo.setPublishedBy(bulletin.getPublishedBy());
+        vo.setPublishedByName(resolveName(regulatorNameMap, bulletin.getPublishedBy()));
+        vo.setPublishedTime(bulletin.getPublishedTime());
+        vo.setCreateTime(bulletin.getCreateTime());
+        vo.setUpdateTime(bulletin.getUpdateTime());
+        return vo;
+    }
+
+    private BulletinDetailVO toDetailVO(PublicBulletin bulletin, Map<Long, String> regulatorNameMap) {
+        BulletinDetailVO vo = new BulletinDetailVO();
+        vo.setId(bulletin.getId());
+        vo.setTitle(bulletin.getTitle());
+        vo.setSummary(bulletin.getSummary());
+        vo.setContent(bulletin.getContent());
+        vo.setStatus(bulletin.getStatus());
+        vo.setCreatedBy(bulletin.getCreatedBy());
+        vo.setCreatedByName(resolveName(regulatorNameMap, bulletin.getCreatedBy()));
+        vo.setPublishedBy(bulletin.getPublishedBy());
+        vo.setPublishedByName(resolveName(regulatorNameMap, bulletin.getPublishedBy()));
+        vo.setPublishedTime(bulletin.getPublishedTime());
+        vo.setCreateTime(bulletin.getCreateTime());
+        vo.setUpdateTime(bulletin.getUpdateTime());
+        return vo;
+    }
+
+    private Map<Long, String> loadRegulatorNameMap(List<PublicBulletin> bulletins) {
+        Set<Long> userIds = bulletins.stream()
+            .flatMap(item -> java.util.stream.Stream.of(item.getCreatedBy(), item.getPublishedBy()))
+            .filter(Objects::nonNull)
+            .collect(Collectors.toSet());
+        if (userIds.isEmpty()) {
+            return Collections.emptyMap();
+        }
+        return foodRegulatorMapper.selectList(new LambdaQueryWrapper<FoodRegulator>()
+                .in(FoodRegulator::getUserId, userIds)
+                .eq(FoodRegulator::getDeleted, 0))
+            .stream()
+            .collect(Collectors.toMap(FoodRegulator::getUserId, FoodRegulator::getName, (left, right) -> left));
+    }
+
+    private String resolveName(Map<Long, String> regulatorNameMap, Long userId) {
+        if (userId == null) {
+            return null;
+        }
+        return regulatorNameMap.getOrDefault(userId, "监管人员");
+    }
+
+    private boolean isDeleted(Integer deleted) {
+        return deleted != null && deleted == 1;
+    }
+
+    private String resolveSummary(BulletinSaveDTO dto) {
+        if (StringUtils.hasText(dto.getSummary())) {
+            return dto.getSummary().trim();
+        }
+        String normalizedContent = normalizeContent(dto.getContent());
+        if (!StringUtils.hasText(normalizedContent)) {
+            return "";
+        }
+        String collapsed = normalizedContent.replaceAll("\\s+", " ").trim();
+        if (collapsed.length() <= MAX_SUMMARY_LENGTH) {
+            return collapsed;
+        }
+        return collapsed.substring(0, MAX_SUMMARY_LENGTH);
+    }
+
+    private String normalizeContent(String value) {
+        return StringUtils.hasText(value) ? value.trim() : "";
+    }
+
+    private String normalize(String value) {
+        return StringUtils.hasText(value) ? value.trim().toUpperCase(Locale.ROOT) : null;
+    }
+}

@@ -1,4 +1,0 @@
--------------------------------------------------------------------------------
-Test set: com.mortal.query.controller.WarningStatsControllerIntegrationTest
--------------------------------------------------------------------------------
-Tests run: 5, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 19.93 s -- in com.mortal.query.controller.WarningStatsControllerIntegrationTest

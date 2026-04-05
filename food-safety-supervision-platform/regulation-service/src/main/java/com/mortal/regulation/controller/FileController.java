@@ -1,16 +1,19 @@
 package com.mortal.regulation.controller;
 
 import com.mortal.platform.common.ApiResponse;
+import com.mortal.regulation.common.enums.FileBizType;
 import com.mortal.regulation.dto.FilePresignRequest;
 import com.mortal.regulation.service.MinioFileService;
 import com.mortal.regulation.util.JwtUserResolver;
 import com.mortal.regulation.vo.FilePresignVO;
 import jakarta.validation.Valid;
+import java.util.Locale;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.util.StringUtils;
 
 /**
  * 文件控制器
@@ -32,12 +35,39 @@ public class FileController {
      */
     @PostMapping("/presign")
     public ApiResponse<FilePresignVO> presign(@RequestHeader("Authorization") String token,
+                                              @RequestHeader(value = "X-User-Type", required = false) String userTypeHeader,
                                               @Valid @RequestBody FilePresignRequest request) {
         Long userId = jwtUserResolver.resolveUserId(token);
         if (userId == null) {
             return ApiResponse.failure(401, "unauthorized");
         }
-        return ApiResponse.success(minioFileService.presignUpload(userId, request));
+        String userType = resolveUserType(userTypeHeader, token);
+        if (!StringUtils.hasText(userType)) {
+            return ApiResponse.failure(401, "unauthorized");
+        }
+        FileBizType bizType = FileBizType.fromValue(request.getBizType());
+        if (!isAllowedBizType(userType, bizType)) {
+            return ApiResponse.failure(403, "forbidden biz type");
+        }
+        return ApiResponse.success(minioFileService.presignUpload(userId, request, bizType));
+    }
+
+    private String resolveUserType(String userTypeHeader, String token) {
+        String resolved = StringUtils.hasText(userTypeHeader)
+            ? userTypeHeader.trim()
+            : jwtUserResolver.resolveUserType(token);
+        if (!StringUtils.hasText(resolved)) {
+            return null;
+        }
+        return resolved.trim().toUpperCase(Locale.ROOT);
+    }
+
+    private boolean isAllowedBizType(String userType, FileBizType bizType) {
+        return switch (userType) {
+            case "PUBLIC" -> FileBizType.COMPLAINT == bizType;
+            case "ENTERPRISE" -> FileBizType.RECTIFICATION == bizType;
+            default -> false;
+        };
     }
 }
 

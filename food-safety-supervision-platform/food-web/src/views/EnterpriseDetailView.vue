@@ -3,8 +3,8 @@
     <div class="hero-panel">
       <div class="hero-content">
         <span class="badge">企业详情</span>
-        <h1>企业备案信息</h1>
-        <p>只读展示企业备案详情，监管人员不可在此修改。</p>
+        <h1>企业备案与产品档案</h1>
+        <p>只读展示企业备案详情与产品档案，监管人员不可在此修改。</p>
       </div>
     </div>
 
@@ -64,6 +64,44 @@
           </div>
         </div>
 
+        <div v-if="detail?.status === 'KEY'" class="key-reason-panel">
+          <div class="section-title section-title--sub">重点监管原因</div>
+          <div v-if="!detail.keyReasons || !detail.keyReasons.length" class="status info">
+            当前企业已纳入重点监管，但历史原因记录暂未补齐。
+          </div>
+          <div v-else class="key-reason-list">
+            <div v-for="(reason, index) in detail.keyReasons" :key="`${reason.reasonType || 'reason'}-${index}`" class="key-reason-item">
+              <div class="key-reason-head">
+                <strong>{{ reason.reasonLabel || formatReasonType(reason.reasonType) }}</strong>
+                <span>{{ formatTime(reason.createTime) }}</span>
+              </div>
+              <p>{{ reason.reasonDetail || "已触发重点监管规则" }}</p>
+            </div>
+          </div>
+        </div>
+
+        <div v-if="detail" class="product-panel">
+          <div class="section-title section-title--sub">产品档案</div>
+          <div v-if="productLoading" class="status info">产品档案加载中...</div>
+          <div v-else-if="!productRecords.length" class="status info">
+            当前企业暂无产品档案。
+          </div>
+          <div v-else class="product-list">
+            <div v-for="item in productRecords" :key="item.id" class="product-item">
+              <div class="product-item__head">
+                <strong>{{ item.productName || "-" }}</strong>
+                <span>{{ formatProductStatus(item.status) }}</span>
+              </div>
+              <div class="product-item__meta">
+                <span>类别：{{ item.category || "-" }}</span>
+                <span>规格：{{ item.specification || "-" }}</span>
+                <span>更新时间：{{ formatTime(item.updateTime) }}</span>
+              </div>
+              <p>{{ item.remark || "暂无备注" }}</p>
+            </div>
+          </div>
+        </div>
+
         <button class="ghost back-btn" type="button" @click="handleBack">返回列表</button>
       </div>
     </div>
@@ -72,7 +110,7 @@
 
 <script setup>
 import { onMounted, ref, watch } from "vue";
-import { fetchEnterpriseDetail, fetchRegionPath } from "../api/regulation";
+import { fetchEnterpriseDetail, fetchEnterpriseProducts, fetchRegionPath } from "../api/regulation";
 
 const props = defineProps({
   token: {
@@ -90,6 +128,8 @@ const emit = defineEmits(["back"]);
 const loading = ref(false);
 const detail = ref(null);
 const regionName = ref("");
+const productLoading = ref(false);
+const productRecords = ref([]);
 
 const statusMap = {
   NORMAL: "正常",
@@ -105,6 +145,7 @@ const approvalStatusMap = {
 async function loadDetail() {
   if (!props.enterpriseId) {
     detail.value = null;
+    productRecords.value = [];
     return;
   }
   loading.value = true;
@@ -117,9 +158,19 @@ async function loadDetail() {
         ? path.map((item) => item.name).join("/")
         : "";
     }
+    productLoading.value = true;
+    try {
+      productRecords.value = await fetchEnterpriseProducts(props.token, props.enterpriseId);
+    } catch {
+      productRecords.value = [];
+    } finally {
+      productLoading.value = false;
+    }
   } catch (error) {
     detail.value = null;
     regionName.value = "";
+    productRecords.value = [];
+    productLoading.value = false;
   } finally {
     loading.value = false;
   }
@@ -140,6 +191,25 @@ function formatStatus(value) {
 
 function formatApprovalStatus(value) {
   return approvalStatusMap[value] || value || "-";
+}
+
+function formatProductStatus(value) {
+  const map = {
+    ACTIVE: "启用",
+    INACTIVE: "停用"
+  };
+  return map[value] || value || "-";
+}
+
+function formatReasonType(value) {
+  const map = {
+    COMPLAINT_OVERFLOW: "投诉过多",
+    CONSECUTIVE_FAIL: "连续不合格",
+    SAMPLING_FAIL: "抽检不合格",
+    WARNING_TRIGGERED: "预警触发",
+    MANUAL_SET: "人工设定"
+  };
+  return map[value] || value || "-";
 }
 
 onMounted(loadDetail);
@@ -185,6 +255,86 @@ watch(() => props.enterpriseId, loadDetail);
 
 .back-btn {
   margin-top: 20px;
+}
+
+.key-reason-panel {
+  margin-top: 22px;
+  padding-top: 18px;
+  border-top: 1px solid var(--stroke);
+}
+
+.section-title--sub {
+  margin-bottom: 12px;
+}
+
+.product-panel {
+  margin-top: 22px;
+  padding-top: 18px;
+  border-top: 1px solid var(--stroke);
+}
+
+.product-list {
+  display: grid;
+  gap: 12px;
+}
+
+.product-item {
+  padding: 14px 16px;
+  border-radius: 14px;
+  border: 1px solid var(--stroke);
+  background: var(--card-strong);
+  display: grid;
+  gap: 8px;
+}
+
+.product-item__head,
+.product-item__meta {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.product-item__meta {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.product-item p {
+  margin: 0;
+  color: var(--text);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.key-reason-list {
+  display: grid;
+  gap: 12px;
+}
+
+.key-reason-item {
+  padding: 14px 16px;
+  border-radius: 14px;
+  border: 1px solid rgba(194, 118, 12, 0.18);
+  background: rgba(255, 246, 232, 0.9);
+}
+
+.key-reason-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+}
+
+.key-reason-head span {
+  margin-bottom: 0;
+}
+
+.key-reason-item p {
+  margin: 8px 0 0;
+  color: var(--text);
+  font-size: 13px;
+  line-height: 1.6;
 }
 
 .status.info {

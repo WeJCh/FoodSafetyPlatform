@@ -6,6 +6,7 @@ import com.mortal.regulation.dto.EnterpriseApprovalDTO;
 import com.mortal.regulation.dto.EnterpriseProfileDTO;
 import com.mortal.regulation.vo.BatchActionResult;
 import com.mortal.regulation.vo.EnterpriseProfileVO;
+import com.mortal.regulation.vo.PublicEnterpriseDetailVO;
 import com.mortal.regulation.vo.PublicEnterpriseVO;
 import java.util.List;
 
@@ -57,6 +58,13 @@ public interface EnterpriseProfileService {
      * @return 公共企业列表
      */
     PageResult<PublicEnterpriseVO> listPublic(String enterpriseName, int page, int size);
+
+    /**
+     * 获取公共企业详情
+     * @param enterpriseId 企业ID
+     * @return 公共企业详情
+     */
+    PublicEnterpriseDetailVO getPublicById(Long enterpriseId);
 
     /**
      * 获取待审核企业列表

@@ -1,6 +1,7 @@
 package com.mortal.regulation.operation.client.regulation;
 
 import com.mortal.platform.common.ApiResponse;
+import com.mortal.regulation.operation.client.regulation.dto.EnterpriseKeyReasonUpsertDTO;
 import com.mortal.regulation.operation.client.regulation.vo.InternalEnterpriseDetailVO;
 import com.mortal.regulation.operation.client.regulation.vo.InternalEnterpriseSummaryVO;
 import java.util.List;
@@ -34,4 +35,32 @@ public interface RegulationEnterpriseInternalClient {
     ApiResponse<List<Long>> queryEnterpriseIdsByName(@RequestParam("keyword") String keyword,
                                                      @RequestHeader("X-Internal-Token")
                                                      String internalToken);
+
+    /**
+     * 获取企业范围ID列表。
+     * 
+     * @param regionId 辖区ID
+     * @param regionIds 辖区ID列表
+     * @param internalToken 内部令牌
+     * @return 企业范围ID列表
+     */
+    @GetMapping("/api/internal/regulation/enterprises/scope-ids")
+    ApiResponse<List<Long>> getEnterpriseIdsByScope(@RequestParam(value = "regionId", required = false) Long regionId,
+                                                    @RequestParam(value = "regionIds", required = false)
+                                                    String regionIds,
+                                                    @RequestHeader("X-Internal-Token")
+                                                    String internalToken);
+
+    /**
+     * 标记企业为关键企业
+     * @param id 企业ID
+     * @param dto 企业关键原因插入DTO
+     * @param internalToken 内部令牌
+     * @return 空响应
+     */
+    @PostMapping("/api/internal/regulation/enterprises/{id}/key-reasons")
+    ApiResponse<Void> markEnterpriseAsKey(@PathVariable("id") Long id,
+                                          @RequestBody EnterpriseKeyReasonUpsertDTO dto,
+                                          @RequestHeader("X-Internal-Token")
+                                          String internalToken);
 }

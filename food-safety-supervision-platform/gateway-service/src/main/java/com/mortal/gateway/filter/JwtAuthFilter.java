@@ -53,6 +53,8 @@ public class JwtAuthFilter implements GlobalFilter, Ordered {
         RoleRule.of("/api/complaints/my", "PUBLIC"),
         RoleRule.of("/api/complaints/", "REGULATOR_ADMIN", "REGULATOR_ENFORCER"),
         RoleRule.of("/api/regulation/public/", "PUBLIC"),
+        // Public sampling-result publication is hosted in regulation-operation-service.
+        RoleRule.of("/api/regulation-operation/public/sampling/results", "PUBLIC"),
         // Execution-domain rectification endpoints for enterprise users.
         RoleRule.of("/api/regulation-operation/rectifications/my", "ENTERPRISE"),
         // Shared execution-domain rectification detail/action endpoints for enterprise and regulators.
@@ -60,6 +62,8 @@ public class JwtAuthFilter implements GlobalFilter, Ordered {
         RoleRule.of("/api/regulation-operation/", "REGULATOR_ADMIN", "REGULATOR_ENFORCER"),
         // Enterprise profile and filing endpoints.
         RoleRule.of("/api/regulation/enterprise/", "ENTERPRISE", "REGULATOR_ADMIN", "REGULATOR_ENFORCER"),
+        // Enterprise product archive endpoints.
+        RoleRule.of("/api/regulation/products", "ENTERPRISE"),
         // Region tree query for enterprise filing forms and regulators.
         RoleRule.of("/api/regulation/regions", "ENTERPRISE", "REGULATOR_ADMIN", "REGULATOR_ENFORCER"),
         RoleRule.of("/api/regulation/", "REGULATOR_ADMIN", "REGULATOR_ENFORCER"),
@@ -83,7 +87,7 @@ public class JwtAuthFilter implements GlobalFilter, Ordered {
         this.secret = secret;
     }
 
-    @Value("${gateway.auth.introspect-fail-open:true}")
+    @Value("${gateway.auth.introspect-fail-open:false}")
     public void setFailOpen(boolean failOpen) {
         this.failOpen = failOpen;
     }
@@ -148,6 +152,10 @@ public class JwtAuthFilter implements GlobalFilter, Ordered {
                 return chain.filter(mutatedExchange);
             })
             .onErrorResume(ex -> {
+                if (failOpen) {
+                    log.warn("Gateway introspect call exception, fail-open enabled. path={}", path, ex);
+                    return chain.filter(exchange);
+                }
                 log.error("Gateway introspect call exception.", ex);
                 return unauthorized(exchange);
             });

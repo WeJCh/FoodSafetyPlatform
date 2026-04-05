@@ -10,8 +10,11 @@
         <button :class="{ active: section === 'profile' }" @click="section = 'profile'">
           企业备案
         </button>
-        <button :class="{ active: section === 'inspections' }" @click="section = 'inspections'">
-          检查结果
+        <button :class="{ active: section === 'products' }" @click="handleProductsEnter">
+          产品档案
+        </button>
+        <button :class="{ active: section === 'inspections' }" @click="handleInspectionEnter">
+          检查记录
         </button>
         <button :class="{ active: section === 'rectification' }" @click="handleRectificationEnter">
           整改任务
@@ -24,7 +27,7 @@
       <div class="dashboard-topbar">
         <div class="dashboard-title">
           <strong>企业用户工作台</strong>
-          <span>备案维护、检查结果与整改跟进</span>
+          <span>备案维护、产品档案、检查记录与整改跟进</span>
         </div>
         <div class="user-chip">
           <span>{{ enterpriseUser.username }}</span>
@@ -124,7 +127,193 @@
             </div>
           </div>
 
-          <div v-else-if="section === 'rectification'">
+          <div v-else-if="section === 'products'">
+            <div class="section-title">产品档案</div>
+            <div v-if="!profileLoaded" class="status info">
+              请先完成企业备案后再维护产品档案。
+            </div>
+            <div v-else-if="profile.approvalStatus !== 'APPROVED'" class="status info">
+              当前企业备案尚未审核通过，产品档案维护功能暂不可用。
+            </div>
+            <template v-else>
+              <form class="product-form" @submit.prevent="handleProductSubmit">
+                <label>
+                  产品名称
+                  <input v-model.trim="productForm.productName" required placeholder="请输入产品名称" />
+                </label>
+                <label>
+                  产品类别
+                  <input v-model.trim="productForm.category" required placeholder="如：乳制品、冷冻食品" />
+                </label>
+                <label>
+                  规格
+                  <input v-model.trim="productForm.specification" placeholder="如：250ml/盒、500g/袋" />
+                </label>
+                <label>
+                  状态
+                  <select v-model="productForm.status">
+                    <option value="ACTIVE">启用</option>
+                    <option value="INACTIVE">停用</option>
+                  </select>
+                </label>
+                <label class="product-form__full">
+                  备注
+                  <input v-model.trim="productForm.remark" placeholder="可选填写产品说明" />
+                </label>
+                <div class="product-form__actions">
+                  <button class="primary" type="submit" :disabled="productLoading">
+                    {{ productLoading ? "提交中..." : productSubmitLabel }}
+                  </button>
+                  <button v-if="editingProductId" class="ghost" type="button" @click="resetProductForm()">
+                    取消编辑
+                  </button>
+                </div>
+              </form>
+
+              <div class="list-table product-table">
+                <div class="list-row list-header product-header">
+                  <span>产品名称</span>
+                  <span>类别</span>
+                  <span>规格</span>
+                  <span>状态</span>
+                  <span>更新时间</span>
+                  <span>操作</span>
+                </div>
+                <div v-if="!productRecords.length" class="list-empty">
+                  暂无产品档案
+                </div>
+                <div v-for="item in productRecords" :key="item.id" class="list-row product-row">
+                  <div>
+                    <div class="primary-text">{{ item.productName || "-" }}</div>
+                    <div class="secondary-text">{{ item.remark || "暂无备注" }}</div>
+                  </div>
+                  <span>{{ item.category || "-" }}</span>
+                  <span>{{ item.specification || "-" }}</span>
+                  <span>{{ formatProductStatus(item.status) }}</span>
+                  <span>{{ formatTime(item.updateTime) }}</span>
+                  <div class="action-buttons">
+                    <button class="ghost" type="button" @click="handleEditProduct(item)">
+                      编辑
+                    </button>
+                    <button class="ghost" type="button" :disabled="productLoading" @click="handleToggleProductStatus(item)">
+                      {{ item.status === "ACTIVE" ? "停用" : "启用" }}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </template>
+          </div>
+
+          <div v-else-if="section === 'inspections'">
+            <div class="section-title">检查记录</div>
+            <form class="filter-bar filter-bar--triple" @submit.prevent="handleInspectionSearch">
+              <label>
+                检查结果
+                <select v-model="inspectionFilters.result">
+                  <option value="">全部</option>
+                  <option value="PASS">合格</option>
+                  <option value="FAIL">不合格</option>
+                </select>
+              </label>
+              <label>
+                起始日期
+                <input v-model="inspectionFilters.startDate" type="date" />
+              </label>
+              <label>
+                截止日期
+                <input v-model="inspectionFilters.endDate" type="date" />
+              </label>
+              <button class="primary" type="submit" :disabled="inspectionLoading">
+                {{ inspectionLoading ? "查询中..." : "查询" }}
+              </button>
+            </form>
+
+            <div class="list-table inspection-table">
+              <div class="list-row list-header inspection-header">
+                <span>检查日期</span>
+                <span>检查结果</span>
+                <span>问题描述</span>
+                <span>更新时间</span>
+                <span>操作</span>
+              </div>
+              <div v-if="!inspectionRecords.length" class="list-empty">
+                暂无检查记录
+              </div>
+              <div v-for="record in inspectionRecords" :key="record.id" class="list-row inspection-row">
+                <span>{{ record.inspectionDate || "-" }}</span>
+                <span>{{ formatInspectionResult(record.result) }}</span>
+                <div class="inspection-problem" :title="record.problemDesc || '-'">
+                  {{ record.problemDesc || "-" }}
+                </div>
+                <span>{{ formatTime(record.updateTime) }}</span>
+                <button class="ghost" type="button" @click="openInspectionDetail(record)">查看详情</button>
+              </div>
+            </div>
+
+            <div class="pager">
+              <span>共 {{ inspectionTotal }} 条，{{ inspectionPage }}/{{ inspectionPages }} 页</span>
+              <div class="pager-actions">
+                <button
+                  class="ghost"
+                  type="button"
+                  :disabled="inspectionPage <= 1"
+                  @click="changeInspectionPage(inspectionPage - 1)"
+                >
+                  上一页
+                </button>
+                <button
+                  class="ghost"
+                  type="button"
+                  :disabled="inspectionPage >= inspectionPages"
+                  @click="changeInspectionPage(inspectionPage + 1)"
+                >
+                  下一页
+                </button>
+              </div>
+            </div>
+
+            <div v-if="inspectionDetail" class="modal-mask" @click.self="closeInspectionDetail">
+              <div class="modal-card">
+                <div class="modal-title">检查记录详情</div>
+                <div class="modal-body">
+                  <div class="modal-field">
+                    <span>企业名称</span>
+                    <strong>{{ inspectionDetail.record.enterpriseName || "-" }}</strong>
+                  </div>
+                  <div class="modal-field">
+                    <span>检查日期</span>
+                    <strong>{{ inspectionDetail.record.inspectionDate || "-" }}</strong>
+                  </div>
+                  <div class="modal-field">
+                    <span>检查结果</span>
+                    <strong>{{ formatInspectionResult(inspectionDetail.record.result) }}</strong>
+                  </div>
+                  <div class="modal-field">
+                    <span>问题描述</span>
+                    <strong>{{ inspectionDetail.record.problemDesc || "-" }}</strong>
+                  </div>
+                  <div class="modal-field">
+                    <span>检查明细</span>
+                    <div class="modal-list">
+                      <div v-if="!inspectionDetail.items || !inspectionDetail.items.length" class="modal-empty">
+                        暂无检查明细
+                      </div>
+                      <div v-for="(item, index) in inspectionDetail.items || []" :key="index" class="modal-item">
+                        <div class="modal-item-name">{{ item.itemName || "-" }}</div>
+                        <div class="modal-item-meta">{{ formatInspectionResult(item.itemResult) }}</div>
+                        <div class="modal-item-desc">{{ item.problemDesc || "-" }}</div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <div class="modal-actions">
+                  <button class="ghost" type="button" @click="closeInspectionDetail">关闭</button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div v-else>
             <div class="section-title">整改任务</div>
             <form class="filter-bar filter-bar--triple" @submit.prevent="handleRectificationSearch">
               <label>
@@ -275,10 +464,6 @@
             />
           </div>
 
-          <div v-else class="placeholder">
-            <strong>功能占位</strong>
-            <p>{{ sectionLabel }} 将在后续版本实现。</p>
-          </div>
         </div>
       </div>
     </div>
@@ -289,11 +474,16 @@
 import { computed, onBeforeUnmount, onMounted, reactive, ref } from "vue";
 import { presignUpload } from "../api/file";
 import {
+  createProduct,
   fetchEnterpriseProfile,
+  fetchMyProducts,
   fetchRegions,
-  submitEnterpriseProfile
+  submitEnterpriseProfile,
+  updateProduct
 } from "../api/regulation";
 import {
+  fetchEnterpriseInspectionRecordDetail,
+  fetchEnterpriseInspectionRecords,
   fetchMyRectifications,
   fetchRectificationActions,
   fetchRectificationDetail,
@@ -348,12 +538,34 @@ const form = reactive({
   principal: "",
   principalPhone: ""
 });
+const productLoading = ref(false);
+const productRecords = ref([]);
+const editingProductId = ref(null);
+const productForm = reactive({
+  productName: "",
+  category: "",
+  specification: "",
+  status: "ACTIVE",
+  remark: ""
+});
 const rectificationLoading = ref(false);
 const rectificationRecords = ref([]);
 const rectificationPage = ref(1);
 const rectificationSize = ref(8);
 const rectificationTotal = ref(0);
 const rectificationPages = ref(1);
+const inspectionLoading = ref(false);
+const inspectionRecords = ref([]);
+const inspectionPage = ref(1);
+const inspectionSize = ref(8);
+const inspectionTotal = ref(0);
+const inspectionPages = ref(1);
+const inspectionDetail = ref(null);
+const inspectionFilters = reactive({
+  result: "",
+  startDate: "",
+  endDate: ""
+});
 const rectificationFilters = reactive({
   status: ""
 });
@@ -370,17 +582,19 @@ const RECTIFICATION_ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp"];
 const RECTIFICATION_MAX_FILE_SIZE = 5 * 1024 * 1024;
 const RECTIFICATION_MAX_FILE_COUNT = 6;
 
-const sectionLabelMap = {
-  inspections: "检查结果",
-  rectification: "整改任务"
-};
-
-const sectionLabel = computed(() => sectionLabelMap[section.value] || "当前模块");
 const rectificationStatusMap = {
   ONGOING: "整改中",
   SUBMITTED: "待复核",
   REWORK: "打回重做",
   CONFIRMED: "已确认"
+};
+const inspectionResultMap = {
+  PASS: "合格",
+  FAIL: "不合格"
+};
+const productStatusMap = {
+  ACTIVE: "启用",
+  INACTIVE: "停用"
 };
 
 const statusLabel = computed(() => {
@@ -399,6 +613,7 @@ const statusTone = computed(() => {
 });
 
 const submitLabel = computed(() => (profileLoaded.value ? "更新并重新提交" : "提交备案"));
+const productSubmitLabel = computed(() => (editingProductId.value ? "保存产品" : "新增产品"));
 
 function setStatus(message, type = "info") {
   status.message = message;
@@ -411,6 +626,15 @@ function resetForm(payload = {}) {
   form.addressDetail = payload.addressDetail || "";
   form.principal = payload.principal || "";
   form.principalPhone = payload.principalPhone || "";
+}
+
+function resetProductForm(payload = {}) {
+  editingProductId.value = payload.id || null;
+  productForm.productName = payload.productName || "";
+  productForm.category = payload.category || "";
+  productForm.specification = payload.specification || "";
+  productForm.status = payload.status || "ACTIVE";
+  productForm.remark = payload.remark || "";
 }
 
 async function loadProfile() {
@@ -471,6 +695,14 @@ function handleLogout() {
 
 function formatRectificationStatus(value) {
   return rectificationStatusMap[value] || value || "-";
+}
+
+function formatInspectionResult(value) {
+  return inspectionResultMap[value] || value || "-";
+}
+
+function formatProductStatus(value) {
+  return productStatusMap[value] || value || "-";
 }
 
 function formatTime(value) {
@@ -670,9 +902,115 @@ async function loadRectificationReworkFlags(records) {
   );
 }
 
+async function handleProductsEnter() {
+  section.value = "products";
+  await loadProducts();
+}
+
+async function loadProducts() {
+  if (!profileLoaded.value || profile.approvalStatus !== "APPROVED") {
+    productRecords.value = [];
+    resetProductForm();
+    return;
+  }
+  productLoading.value = true;
+  setStatus("");
+  try {
+    productRecords.value = await fetchMyProducts(props.token);
+  } catch (error) {
+    setStatus(error.message || "加载产品档案失败", "error");
+  } finally {
+    productLoading.value = false;
+  }
+}
+
+async function handleProductSubmit() {
+  if (!profileLoaded.value || profile.approvalStatus !== "APPROVED") {
+    setStatus("企业备案审核通过后才能维护产品档案", "error");
+    return;
+  }
+  productLoading.value = true;
+  setStatus("");
+  try {
+    const payload = {
+      productName: productForm.productName,
+      category: productForm.category,
+      specification: productForm.specification,
+      status: productForm.status,
+      remark: productForm.remark
+    };
+    if (editingProductId.value) {
+      await updateProduct(props.token, editingProductId.value, payload);
+      setStatus("产品档案更新成功", "success");
+    } else {
+      await createProduct(props.token, payload);
+      setStatus("产品档案新增成功", "success");
+    }
+    resetProductForm();
+    await loadProducts();
+  } catch (error) {
+    setStatus(error.message || "保存产品档案失败", "error");
+  } finally {
+    productLoading.value = false;
+  }
+}
+
+function handleEditProduct(item) {
+  resetProductForm(item || {});
+}
+
+async function handleToggleProductStatus(item) {
+  if (!item?.id) {
+    return;
+  }
+  productLoading.value = true;
+  setStatus("");
+  try {
+    await updateProduct(props.token, item.id, {
+      productName: item.productName,
+      category: item.category,
+      specification: item.specification,
+      status: item.status === "ACTIVE" ? "INACTIVE" : "ACTIVE",
+      remark: item.remark
+    });
+    setStatus("产品状态更新成功", "success");
+    await loadProducts();
+  } catch (error) {
+    setStatus(error.message || "更新产品状态失败", "error");
+  } finally {
+    productLoading.value = false;
+  }
+}
+
 async function handleRectificationEnter() {
   section.value = "rectification";
   await loadRectifications();
+}
+
+async function handleInspectionEnter() {
+  section.value = "inspections";
+  await loadInspections();
+}
+
+async function loadInspections() {
+  inspectionLoading.value = true;
+  setStatus("");
+  try {
+    const data = await fetchEnterpriseInspectionRecords(props.token, {
+      ...inspectionFilters,
+      page: inspectionPage.value,
+      size: inspectionSize.value
+    });
+    inspectionRecords.value = data.records || [];
+    inspectionTotal.value = data.total || 0;
+    inspectionPage.value = data.page || 1;
+    inspectionSize.value = data.size || inspectionSize.value;
+    inspectionPages.value = data.pages || 1;
+  } catch (error) {
+    setStatus(error.message || "加载检查记录失败", "error");
+  } finally {
+    inspectionLoading.value = false;
+  }
 }
 
 async function loadRectifications() {
@@ -727,6 +1065,32 @@ async function loadRectificationDetail(id, silent = false) {
 async function handleRectificationSearch() {
   rectificationPage.value = 1;
   await loadRectifications();
+}
+
+async function handleInspectionSearch() {
+  inspectionPage.value = 1;
+  await loadInspections();
+}
+
+async function changeInspectionPage(nextPage) {
+  inspectionPage.value = nextPage;
+  await loadInspections();
+}
+
+async function openInspectionDetail(record) {
+  if (!record?.id) return;
+  inspectionLoading.value = true;
+  try {
+    inspectionDetail.value = await fetchEnterpriseInspectionRecordDetail(props.token, record.id);
+  } catch (error) {
+    setStatus(error.message || "加载检查记录失败", "error");
+  } finally {
+    inspectionLoading.value = false;
+  }
+}
+
+function closeInspectionDetail() {
+  inspectionDetail.value = null;
 }
 
 async function changeRectificationPage(nextPage) {
@@ -934,8 +1298,42 @@ onMounted(() => {
   margin-top: -6px;
 }
 
+.product-form {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  margin-bottom: 18px;
+}
+
+.product-form__full {
+  grid-column: 1 / -1;
+}
+
+.product-form__actions {
+  grid-column: 1 / -1;
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.product-header,
+.product-row {
+  --row-columns: 1.4fr 1fr 1fr 0.7fr 0.9fr 1fr;
+}
+
 .enterprise-shell .admin-info {
   margin-bottom: 16px;
+}
+
+.inspection-header,
+.inspection-row {
+  --row-columns: 0.9fr 0.8fr 1.8fr 1fr 0.8fr;
+}
+
+.inspection-problem {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .rectification-header,
@@ -1065,14 +1463,56 @@ onMounted(() => {
   width: 100%;
 }
 
+.modal-list {
+  display: grid;
+  gap: 10px;
+}
+
+.modal-item {
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid var(--stroke);
+  background: var(--card-strong);
+  display: grid;
+  gap: 4px;
+}
+
+.modal-item-name {
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.modal-item-meta {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.modal-item-desc {
+  font-size: 13px;
+  color: var(--ink);
+}
+
 .enterprise-shell {
   grid-template-columns: 260px 1fr;
 }
 
 @media (max-width: 960px) {
+  .inspection-header,
+  .inspection-row,
+  .product-header,
+  .product-row,
   .rectification-header,
   .rectification-row {
     --row-columns: 1fr;
+  }
+
+  .product-form {
+    grid-template-columns: 1fr;
+  }
+
+  .product-form__actions {
+    flex-direction: column;
+    align-items: stretch;
   }
 
   .rectification-action {

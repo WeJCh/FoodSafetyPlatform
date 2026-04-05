@@ -5,6 +5,10 @@ COLLATE utf8mb4_general_ci;
 
 USE food_query_db;
 
+-- P0 说明：
+-- 当前 query-service 的运行职责仅为“预警统计聚合与权限收口”。
+-- 下列表结构暂作为后续统计扩展的预留表，不属于 P0 阶段真实运行链路的数据来源。
+
 CREATE TABLE IF NOT EXISTS stat_enterprise (
   id BIGINT PRIMARY KEY AUTO_INCREMENT,
   total_count INT COMMENT '企业总数',

@@ -24,6 +24,7 @@ public class EnterpriseProfileVO {
     private LocalDateTime approvedTime;
     private List<RegionVO> regionPath;
     private String regionPathText;
+    private List<EnterpriseKeyReasonVO> keyReasons;
     private LocalDateTime createTime;
     private LocalDateTime updateTime;
 }

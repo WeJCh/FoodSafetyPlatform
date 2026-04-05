@@ -17,9 +17,11 @@ import com.mortal.regulation.mapper.AddrRegionMapper;
 import com.mortal.regulation.mapper.FoodEnterpriseMapper;
 import com.mortal.regulation.mapper.FoodRegulatorMapper;
 import com.mortal.regulation.mapper.FoodRegulatorRegionMapper;
+import com.mortal.regulation.service.EnterpriseKeyReasonService;
 import com.mortal.regulation.service.EnterpriseProfileService;
 import com.mortal.regulation.vo.BatchActionResult;
 import com.mortal.regulation.vo.EnterpriseProfileVO;
+import com.mortal.regulation.vo.PublicEnterpriseDetailVO;
 import com.mortal.regulation.vo.PublicEnterpriseVO;
 import com.mortal.regulation.vo.RegionVO;
 import java.time.LocalDateTime;
@@ -50,19 +52,22 @@ public class EnterpriseProfileServiceImpl implements EnterpriseProfileService {
     private final FoodRegulatorMapper foodRegulatorMapper;
     private final FoodRegulatorRegionMapper foodRegulatorRegionMapper;
     private final UserServiceClient userServiceClient;
+    private final EnterpriseKeyReasonService enterpriseKeyReasonService;
 
     public EnterpriseProfileServiceImpl(FoodEnterpriseMapper foodEnterpriseMapper,
                                         AddrLocationMapper addrLocationMapper,
                                         AddrRegionMapper addrRegionMapper,
                                         FoodRegulatorMapper foodRegulatorMapper,
                                         FoodRegulatorRegionMapper foodRegulatorRegionMapper,
-                                        UserServiceClient userServiceClient) {
+                                        UserServiceClient userServiceClient,
+                                        EnterpriseKeyReasonService enterpriseKeyReasonService) {
         this.foodEnterpriseMapper = foodEnterpriseMapper;
         this.addrLocationMapper = addrLocationMapper;
         this.addrRegionMapper = addrRegionMapper;
         this.foodRegulatorMapper = foodRegulatorMapper;
         this.foodRegulatorRegionMapper = foodRegulatorRegionMapper;
         this.userServiceClient = userServiceClient;
+        this.enterpriseKeyReasonService = enterpriseKeyReasonService;
     }
 
     @Override
@@ -106,7 +111,13 @@ public class EnterpriseProfileServiceImpl implements EnterpriseProfileService {
         if (enterprise == null || isDeleted(enterprise.getDeleted())) {
             return null;
         }
-        return toVO(enterprise, resolveAddressDetail(enterprise.getAddressId()), resolveRegionPath(enterprise.getRegionId()));
+        EnterpriseProfileVO vo = toVO(
+            enterprise,
+            resolveAddressDetail(enterprise.getAddressId()),
+            resolveRegionPath(enterprise.getRegionId())
+        );
+        attachKeyReasons(vo, enterprise.getId());
+        return vo;
     }
 
     @Override
@@ -115,7 +126,13 @@ public class EnterpriseProfileServiceImpl implements EnterpriseProfileService {
         if (enterprise == null || isDeleted(enterprise.getDeleted())) {
             return null;
         }
-        return toVO(enterprise, resolveAddressDetail(enterprise.getAddressId()), resolveRegionPath(enterprise.getRegionId()));
+        EnterpriseProfileVO vo = toVO(
+            enterprise,
+            resolveAddressDetail(enterprise.getAddressId()),
+            resolveRegionPath(enterprise.getRegionId())
+        );
+        attachKeyReasons(vo, enterprise.getId());
+        return vo;
     }
 
     @Override
@@ -163,6 +180,31 @@ public class EnterpriseProfileServiceImpl implements EnterpriseProfileService {
                 addressMap.get(enterprise.getAddressId())))
             .toList();
         return PageResult.of(records, pageInfo.getTotal(), safePage, safeSize);
+    }
+
+    /**
+     * 获取公众企业详情
+     * @param enterpriseId 企业ID
+     * @return 公众企业详情VO
+     */
+    @Override
+    public PublicEnterpriseDetailVO getPublicById(Long enterpriseId) {
+        if (enterpriseId == null) {
+            return null;
+        }
+        FoodEnterprise enterprise = foodEnterpriseMapper.selectById(enterpriseId);
+        if (enterprise == null || isDeleted(enterprise.getDeleted())) {
+            return null;
+        }
+        if (!APPROVAL_APPROVED.equalsIgnoreCase(enterprise.getApprovalStatus())) {
+            return null;
+        }
+        PublicEnterpriseDetailVO vo = toPublicDetailVO(
+            enterprise,
+            resolveRegionPath(enterprise.getRegionId()),
+            resolveAddressDetail(enterprise.getAddressId()));
+        attachKeyReasons(vo, enterprise.getId());
+        return vo;
     }
 
     private PageResult<EnterpriseProfileVO> listByRegionIds(String enterpriseName,
@@ -557,11 +599,62 @@ public class EnterpriseProfileServiceImpl implements EnterpriseProfileService {
         vo.setRegionId(enterprise.getRegionId());
         vo.setRegionPathText(buildRegionPathText(regionPath));
         vo.setAddressDetail(addressDetail);
+        vo.setStatus(enterprise.getStatus());
+        vo.setApprovedTime(enterprise.getApprovedTime());
+        vo.setUpdateTime(enterprise.getUpdateTime());
         return vo;
+    }
+
+    private PublicEnterpriseDetailVO toPublicDetailVO(FoodEnterprise enterprise,
+                                                      List<RegionVO> regionPath,
+                                                      String addressDetail) {
+        PublicEnterpriseDetailVO vo = new PublicEnterpriseDetailVO();
+        vo.setId(enterprise.getId());
+        vo.setEnterpriseName(enterprise.getEnterpriseName());
+        vo.setLicenseNo(enterprise.getLicenseNo());
+        vo.setRegionId(enterprise.getRegionId());
+        vo.setRegionPathText(buildRegionPathText(regionPath));
+        vo.setAddressDetail(addressDetail);
+        vo.setPrincipal(enterprise.getPrincipal());
+        vo.setPrincipalPhoneMasked(maskPhone(enterprise.getPrincipalPhone()));
+        vo.setRegulatorName(enterprise.getRegulatorName());
+        vo.setStatus(enterprise.getStatus());
+        vo.setApprovedTime(enterprise.getApprovedTime());
+        vo.setUpdateTime(enterprise.getUpdateTime());
+        return vo;
+    }
+
+    private void attachKeyReasons(EnterpriseProfileVO vo, Long enterpriseId) {
+        if (vo == null) {
+            return;
+        }
+        vo.setKeyReasons(enterpriseKeyReasonService.listRecentByEnterpriseId(enterpriseId, 3));
+    }
+
+    private void attachKeyReasons(PublicEnterpriseDetailVO vo, Long enterpriseId) {
+        if (vo == null) {
+            return;
+        }
+        vo.setKeyReasons(enterpriseKeyReasonService.listRecentByEnterpriseId(enterpriseId, 3));
+    }
+
+    /**
+     * 手机号脱敏
+     * @param phone 手机号
+     * @return 脱敏后的手机号
+     */
+    private String maskPhone(String phone) {
+        if (!StringUtils.hasText(phone)) {
+            return null;
+        }
+        String text = phone.trim();
+        if (text.length() < 7) {
+            return text;
+        }
+        return text.substring(0, 3) + "****" + text.substring(text.length() - 4);
     }
 
     private String normalize(String value) {
         return StringUtils.hasText(value) ? value.trim().toUpperCase() : null;
     }
 }
-

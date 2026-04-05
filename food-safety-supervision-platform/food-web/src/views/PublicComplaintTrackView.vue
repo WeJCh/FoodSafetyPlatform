@@ -97,17 +97,24 @@
               <span>提交时间</span>
               <strong>{{ formatTime(selected.createTime) }}</strong>
             </div>
+            <div>
+              <span>办理时限</span>
+              <strong>{{ formatTime(selected.deadlineTime) }}</strong>
+            </div>
           </div>
           <div class="detail-content">
             <span>投诉内容</span>
             <p>{{ selected.content || "-" }}</p>
           </div>
           <div v-if="selected.status === 'FEEDBACKED'" class="result-tip">
-            <p>处理结果：{{ selected.handleResult || "暂无处理结果" }}</p>
+            <p>反馈摘要：{{ resolveFeedbackSummary(selected) || "暂无反馈摘要" }}</p>
+            <p v-if="selected.handleResult && selected.handleResult !== resolveFeedbackSummary(selected)">
+              处理记录：{{ selected.handleResult }}
+            </p>
           </div>
           <div v-if="selected.status === 'REJECTED'" class="rejected-tip">
             <p>该投诉已驳回。</p>
-            <p v-if="selected.handleResult">驳回原因：{{ selected.handleResult }}</p>
+            <p v-if="resolveRejectReason(selected)">驳回原因：{{ resolveRejectReason(selected) }}</p>
             <p v-else>可能原因：信息不完整或不属于食品安全投诉。</p>
             <p>如需继续反馈，请补充材料后重新提交，或联系监管部门咨询。</p>
           </div>
@@ -171,6 +178,14 @@ function formatStatus(value) {
 function formatTime(value) {
   if (!value) return "-";
   return String(value).replace("T", " ").slice(0, 16);
+}
+
+function resolveFeedbackSummary(item) {
+  return item?.feedbackSummary || item?.handleResult || "";
+}
+
+function resolveRejectReason(item) {
+  return item?.rejectReason || item?.handleResult || "";
 }
 
 async function selectComplaint(item) {

@@ -27,12 +27,15 @@ public class ComplaintVO {
     private Long assignedBy;
     private String assignedByName;
     private LocalDateTime assignedTime;
+    private LocalDateTime deadlineTime;
     private Long processedBy;
     private String processedByName;
     private LocalDateTime processedTime;
+    private String feedbackSummary;
     private Long rejectedBy;
     private String rejectedByName;
     private LocalDateTime rejectedTime;
+    private String rejectReason;
     private String handleResult;
     private LocalDateTime createTime;
     private LocalDateTime updateTime;

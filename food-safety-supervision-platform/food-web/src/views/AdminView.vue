@@ -3,17 +3,8 @@
     <aside class="admin-sidebar">
       <div class="admin-brand">管理员中心</div>
       <nav class="admin-nav">
-        <button :class="{ active: section === 'regulators' }" @click="section = 'regulators'">
+        <button class="active" type="button">
           监管人员管理
-        </button>
-        <button :class="{ active: section === 'enterprise-approval' }" @click="section = 'enterprise-approval'">
-          企业审批
-        </button>
-        <button :class="{ active: section === 'users' }" @click="section = 'users'">
-          用户管理
-        </button>
-        <button :class="{ active: section === 'logs' }" @click="section = 'logs'">
-          操作日志
         </button>
       </nav>
       <button class="ghost" type="button" @click="handleLogout">退出管理员页面</button>
@@ -23,7 +14,7 @@
       <div class="dashboard-topbar">
         <div class="dashboard-title">
           <strong>系统管理员工作台</strong>
-          <span>监管人员与账号信息维护</span>
+          <span>监管人员账号开通与状态维护</span>
         </div>
         <div class="user-chip">
           <span>{{ adminUser.username }}</span>
@@ -39,25 +30,16 @@
             <div>角色：{{ adminUser.userType }}</div>
           </div>
 
-          <div v-if="section === 'regulators'" class="sub-nav">
+          <div class="sub-nav">
             <button :class="{ active: subSection === 'create' }" @click="subSection = 'create'">
               添加监管人员
             </button>
             <button :class="{ active: subSection === 'list' }" @click="subSection = 'list'; loadRegulators()">
               监管人员列表
             </button>
-            <button :class="{ active: subSection === 'roles' }" @click="subSection = 'roles'">
-              角色调整
-            </button>
-            <button :class="{ active: subSection === 'transfer' }" @click="subSection = 'transfer'">
-              区域交接
-            </button>
-            <button :class="{ active: subSection === 'disable' }" @click="subSection = 'disable'">
-              启用/停用
-            </button>
           </div>
 
-          <form v-if="section === 'regulators' && subSection === 'create'" @submit.prevent="handleCreate">
+          <form v-if="subSection === 'create'" @submit.prevent="handleCreate">
             <label>
               监管人员账号
               <input v-model.trim="regulatorForm.username" required placeholder="请输入账号" />
@@ -134,7 +116,7 @@
             </button>
           </form>
 
-          <div v-else-if="section === 'regulators' && subSection === 'list'">
+          <div v-else>
             <div class="section-title">监管人员列表</div>
             <form class="filter-bar filter-bar--five" @submit.prevent="handleSearch">
               <label>
@@ -217,16 +199,6 @@
             </div>
           </div>
 
-          <div v-else-if="section === 'regulators'" class="placeholder">
-            <strong>功能占位</strong>
-            <p>{{ regulatorSubLabel }} 将在后续版本实现。</p>
-          </div>
-
-          <div v-else class="placeholder">
-            <strong>功能占位</strong>
-            <p>{{ sectionLabel }} 将在后续版本实现。</p>
-          </div>
-
           <div class="status" :class="status.type" v-if="status.message">
             {{ status.message }}
           </div>
@@ -237,7 +209,7 @@
 </template>
 
 <script setup>
-import { computed, onMounted, reactive, ref } from "vue";
+import { onMounted, reactive, ref } from "vue";
 import { createRegulator } from "../api/auth";
 import {
   createRegulatorProfile,
@@ -261,7 +233,6 @@ const emit = defineEmits(["logout"]);
 
 const loading = ref(false);
 const status = reactive({ message: "", type: "" });
-const section = ref("regulators");
 const subSection = ref("create");
 
 const regulatorForm = reactive({
@@ -324,21 +295,6 @@ async function loadRegulators() {
     listLoading.value = false;
   }
 }
-
-const sectionLabel = computed(() => {
-  if (section.value === "enterprise-approval") return "企业审批";
-  if (section.value === "users") return "用户管理";
-  if (section.value === "logs") return "操作日志";
-  return "监管人员管理";
-});
-
-const regulatorSubLabel = computed(() => {
-  if (subSection.value === "list") return "监管人员列表";
-  if (subSection.value === "roles") return "角色调整";
-  if (subSection.value === "transfer") return "区域交接";
-  if (subSection.value === "disable") return "启用/停用";
-  return "添加监管人员";
-});
 
 function setStatus(message, type = "info") {
   status.message = message;

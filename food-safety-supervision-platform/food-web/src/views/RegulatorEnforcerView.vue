@@ -11,6 +11,7 @@
       <nav class="admin-nav">
         <button :class="{ active: section === 'enterprises' }" @click="section = 'enterprises'">企业监管</button>
         <button :class="{ active: section === 'tasks' }" @click="handleTaskEnter">我的任务</button>
+        <button :class="{ active: section === 'sampling' }" @click="handleSamplingEnter">抽检任务</button>
         <button :class="{ active: section === 'inspections' }" @click="handleInspectionEnter">检查记录</button>
         <button :class="{ active: section === 'rectification' }" @click="handleRectificationEnter">整改跟进</button>
         <button :class="{ active: section === 'complaints' }" @click="handleComplaintEnter">投诉处理</button>
@@ -24,7 +25,7 @@
       <div class="dashboard-topbar">
         <div class="dashboard-title">
           <strong>执法人员工作台</strong>
-          <span>任务执行、检查记录与整改跟进</span>
+          <span>任务执行、抽检录入、检查记录与整改跟进</span>
         </div>
         <div class="user-chip">
           <span>{{ regulatorUser.username }}</span>
@@ -38,6 +39,7 @@
           <div class="sub-nav">
             <button :class="{ active: section === 'enterprises' }" @click="section = 'enterprises'">企业列表</button>
             <button :class="{ active: section === 'tasks' }" @click="handleTaskEnter">我的任务</button>
+            <button :class="{ active: section === 'sampling' }" @click="handleSamplingEnter">抽检任务</button>
             <button :class="{ active: section === 'inspections' }" @click="handleInspectionEnter">检查记录</button>
             <button :class="{ active: section === 'rectification' }" @click="handleRectificationEnter">整改跟进</button>
             <button :class="{ active: section === 'warnings' }" @click="handleWarningEnter">风险预警</button>
@@ -215,6 +217,140 @@
                   </section>
                 </div>
                 <div class="modal-actions"><button class="ghost" type="button" @click="closeTaskDetail">关闭</button></div>
+              </div>
+            </div>
+          </div>
+
+          <div v-else-if="section === 'sampling'">
+            <div class="section-title">抽检任务</div>
+            <form class="filter-bar filter-bar--compact" @submit.prevent="handleSamplingSearch">
+              <label>任务状态
+                <select v-model="samplingFilters.status">
+                  <option value="">全部</option>
+                  <option value="ASSIGNED">待抽检</option>
+                  <option value="COMPLETED">已完成</option>
+                  <option value="CLOSED">已归档</option>
+                </select>
+              </label>
+              <button class="primary" type="submit" :disabled="samplingLoading">{{ samplingLoading ? "查询中..." : "查询" }}</button>
+            </form>
+
+            <div class="list-table task-table">
+              <div class="list-row list-header sampling-header">
+                <span>任务编号</span><span>企业</span><span>产品</span><span>优先级</span><span>状态</span><span>截止时间</span><span>操作</span>
+              </div>
+              <div v-if="!samplingRecords.length" class="list-empty">暂无抽检任务</div>
+              <div v-for="task in samplingRecords" :key="task.id" class="list-row sampling-row">
+                <span>{{ task.taskNo }}</span>
+                <span>{{ task.enterpriseName || "-" }}</span>
+                <div>
+                  <div class="primary-text">{{ task.productName || "-" }}</div>
+                  <div class="secondary-text">{{ task.productSpecification || "暂无规格" }}</div>
+                </div>
+                <span>{{ formatTaskPriority(task.priority) }}</span>
+                <span>{{ formatSamplingTaskStatus(task.status) }}</span>
+                <span>{{ formatTime(task.deadline) }}</span>
+                <div class="action-buttons">
+                  <button class="ghost" type="button" :disabled="samplingLoading" @click="openSamplingTaskDetail(task)">查看详情</button>
+                  <button v-if="task.status === 'ASSIGNED'" class="primary" type="button" @click="handleSelectSamplingTask(task)">提交结果</button>
+                </div>
+              </div>
+            </div>
+
+            <div class="pager">
+              <span>共{{ samplingTotal }} 条，{{ samplingPage }}/{{ samplingPages }} 页</span>
+              <div class="pager-actions">
+                <button class="ghost" type="button" :disabled="samplingPage <= 1" @click="changeSamplingPage(samplingPage - 1)">上一页</button>
+                <button class="ghost" type="button" :disabled="samplingPage >= samplingPages" @click="changeSamplingPage(samplingPage + 1)">下一页</button>
+              </div>
+            </div>
+
+            <div v-if="activeSamplingTask" class="task-submit">
+              <div class="section-subtitle">抽检结果填报</div>
+              <div class="task-meta">
+                <span>任务：{{ activeSamplingTask.taskNo }}</span>
+                <span>企业：{{ activeSamplingTask.enterpriseName || "-" }}</span>
+                <span>产品：{{ activeSamplingTask.productName || "-" }}</span>
+              </div>
+              <form class="task-form" @submit.prevent="handleSubmitSamplingResult">
+                <label>采样时间<input v-model="samplingForm.sampledTime" type="datetime-local" required /></label>
+                <label>抽检结果
+                  <select v-model="samplingForm.result">
+                    <option value="PASS">合格</option>
+                    <option value="FAIL">不合格</option>
+                  </select>
+                </label>
+                <label>抽检结论<textarea v-model.trim="samplingForm.conclusion" rows="3" placeholder="填写抽检结论"></textarea></label>
+                <label>处置建议<textarea v-model.trim="samplingForm.disposalSuggestion" rows="3" placeholder="填写后续建议"></textarea></label>
+                <div class="task-actions">
+                  <button class="primary" type="submit" :disabled="samplingLoading">{{ samplingLoading ? "提交中..." : "提交结果" }}</button>
+                  <button class="ghost" type="button" @click="clearActiveSamplingTask">取消</button>
+                </div>
+              </form>
+            </div>
+
+            <div v-if="samplingDetailTask" class="modal-mask" @click.self="closeSamplingTaskDetail">
+              <div class="modal-card task-detail-modal">
+                <div class="modal-title">抽检任务详情</div>
+                <div class="task-detail-header">
+                  <span class="task-chip task-chip--status">{{ formatSamplingTaskStatus(samplingDetailTask.status) }}</span>
+                  <span class="task-chip task-chip--priority">{{ formatTaskPriority(samplingDetailTask.priority) }}</span>
+                  <span class="task-chip">{{ samplingDetailTask.taskNo || "-" }}</span>
+                </div>
+                <div class="task-detail-grid">
+                  <section class="task-detail-section">
+                    <div class="task-detail-section-title">企业信息</div>
+                    <div v-if="samplingDetailLoading" class="task-detail-loading">加载企业信息中...</div>
+                    <div v-else class="task-detail-fields">
+                      <div class="task-detail-field">
+                        <span>企业名称</span>
+                        <strong>{{ samplingDetailEnterprise?.enterpriseName || samplingDetailTask.enterpriseName || "-" }}</strong>
+                      </div>
+                      <div class="task-detail-field">
+                        <span>负责人姓名</span>
+                        <strong>{{ samplingDetailEnterprise?.principal || "-" }}</strong>
+                      </div>
+                      <div class="task-detail-field">
+                        <span>所属区域</span>
+                        <strong>{{ samplingDetailRegionName || "-" }}</strong>
+                      </div>
+                      <div class="task-detail-field task-detail-field--full">
+                        <span>详细地址</span>
+                        <strong>{{ samplingDetailEnterprise?.addressDetail || "-" }}</strong>
+                      </div>
+                    </div>
+                  </section>
+                  <section class="task-detail-section">
+                    <div class="task-detail-section-title">抽检信息</div>
+                    <div class="task-detail-fields">
+                      <div class="task-detail-field">
+                        <span>任务标题</span>
+                        <strong>{{ samplingDetailTask.taskTitle || "-" }}</strong>
+                      </div>
+                      <div class="task-detail-field">
+                        <span>抽检产品</span>
+                        <strong>{{ samplingDetailTask.productName || "-" }}</strong>
+                      </div>
+                      <div class="task-detail-field">
+                        <span>产品类别</span>
+                        <strong>{{ samplingDetailTask.productCategory || "-" }}</strong>
+                      </div>
+                      <div class="task-detail-field">
+                        <span>产品规格</span>
+                        <strong>{{ samplingDetailTask.productSpecification || "-" }}</strong>
+                      </div>
+                      <div class="task-detail-field">
+                        <span>截止时间</span>
+                        <strong>{{ formatTime(samplingDetailTask.deadline) }}</strong>
+                      </div>
+                      <div class="task-detail-field task-detail-field--full">
+                        <span>任务描述</span>
+                        <strong>{{ samplingDetailTask.taskDesc || "暂无任务描述" }}</strong>
+                      </div>
+                    </div>
+                  </section>
+                </div>
+                <div class="modal-actions"><button class="ghost" type="button" @click="closeSamplingTaskDetail">关闭</button></div>
               </div>
             </div>
           </div>
@@ -553,7 +689,8 @@
             </div>
           </div>
 
-          <div v-else-if="section === 'stats'">
+          <div v-else-if="section === 'stats'" class="stats-dashboard">
+            <SupervisionOverviewPanel :token="token" mode="enforcer" />
             <WarningStatsPanel :token="token" mode="enforcer" />
           </div>
 
@@ -593,14 +730,17 @@ import {
 import {
   fetchInspectionRecordDetail,
   fetchMyInspectionRecords,
+  fetchMySamplingTasks,
   fetchMyInspectionTasks,
   fetchMyRegulatorRectifications,
   fetchRectificationActions,
   fetchRectificationDetail,
   startInspectionTask,
+  submitSamplingResult,
   submitInspectionTask
 } from "../api/regulationOperation";
 import RectificationDetailModal from "../components/RectificationDetailModal.vue";
+import SupervisionOverviewPanel from "../components/SupervisionOverviewPanel.vue";
 import WarningStatsPanel from "../components/WarningStatsPanel.vue";
 
 const props = defineProps({
@@ -633,6 +773,18 @@ const detailTask = ref(null);
 const detailTaskEnterprise = ref(null);
 const detailTaskRegionName = ref("-");
 const detailTaskLoading = ref(false);
+const samplingLoading = ref(false);
+const samplingRecords = ref([]);
+const samplingPage = ref(1);
+const samplingSize = ref(8);
+const samplingTotal = ref(0);
+const samplingPages = ref(1);
+const samplingFilters = reactive({ status: "" });
+const activeSamplingTask = ref(null);
+const samplingDetailTask = ref(null);
+const samplingDetailEnterprise = ref(null);
+const samplingDetailRegionName = ref("-");
+const samplingDetailLoading = ref(false);
 
 const inspectionFilters = reactive({ enterpriseName: "", result: "", startDate: "", endDate: "" });
 const inspectionRecords = ref([]);
@@ -687,6 +839,12 @@ const taskForm = reactive({
   problemDesc: "",
   items: [{ itemName: "", itemResult: "PASS", problemDesc: "" }]
 });
+const samplingForm = reactive({
+  sampledTime: "",
+  result: "PASS",
+  conclusion: "",
+  disposalSuggestion: ""
+});
 
 function setStatus(message, type = "info") {
   status.message = message;
@@ -695,6 +853,7 @@ function setStatus(message, type = "info") {
 
 const sectionLabelMap = {
   tasks: "我的任务",
+  sampling: "抽检任务",
   inspections: "检查记录",
   rectification: "整改跟进",
   complaints: "投诉处理",
@@ -707,6 +866,7 @@ const sectionLabel = computed(() => sectionLabelMap[section.value] || "当前模
 const statusMap = { NORMAL: "正常", KEY: "重点监管" };
 const approvalStatusMap = { PENDING: "待审核", APPROVED: "已通过", REJECTED: "已驳回" };
 const taskStatusMap = { CREATED: "待派发", ASSIGNED: "待执行", IN_PROGRESS: "执行中", COMPLETED: "已完成", CLOSED: "已归档" };
+const samplingTaskStatusMap = { CREATED: "待派发", ASSIGNED: "待抽检", COMPLETED: "已完成", CLOSED: "已归档" };
 const taskPriorityMap = { LOW: "低", MEDIUM: "中", HIGH: "高" };
 const inspectionResultMap = { PASS: "合格", FAIL: "不合格" };
 const rectificationStatusMap = {
@@ -742,6 +902,7 @@ const warningActionMap = {
 function formatStatus(value) { return statusMap[value] || value || "-"; }
 function formatApprovalStatus(value) { return approvalStatusMap[value] || value || "-"; }
 function formatTaskStatus(value) { return taskStatusMap[value] || value || "-"; }
+function formatSamplingTaskStatus(value) { return samplingTaskStatusMap[value] || value || "-"; }
 function formatTaskPriority(value) { return taskPriorityMap[value] || value || "-"; }
 function formatInspectionResult(value) { return inspectionResultMap[value] || value || "-"; }
 function formatRectificationStatus(value) { return rectificationStatusMap[value] || value || "-"; }
@@ -835,8 +996,31 @@ async function loadTasks() {
   }
 }
 
+async function loadSamplingTasks() {
+  samplingLoading.value = true; setStatus("");
+  try {
+    const data = await fetchMySamplingTasks(props.token, {
+      ...samplingFilters,
+      page: samplingPage.value,
+      size: samplingSize.value
+    });
+    samplingRecords.value = data.records || [];
+    samplingTotal.value = data.total || 0;
+    samplingPage.value = data.page || 1;
+    samplingSize.value = data.size || samplingSize.value;
+    samplingPages.value = data.pages || 1;
+  } catch (error) {
+    setStatus(error.message || "加载抽检任务失败", "error");
+  } finally {
+    samplingLoading.value = false;
+  }
+}
+
 async function handleTaskSearch() { taskPage.value = 1; await loadTasks(); }
 async function changeTaskPage(nextPage) { taskPage.value = nextPage; await loadTasks(); }
+async function handleSamplingSearch() { samplingPage.value = 1; await loadSamplingTasks(); }
+async function changeSamplingPage(nextPage) { samplingPage.value = nextPage; await loadSamplingTasks(); }
+async function handleSamplingEnter() { section.value = "sampling"; await loadSamplingTasks(); }
 async function handleInspectionEnter() { section.value = "inspections"; await loadInspections(); }
 async function handleRectificationEnter() { section.value = "rectification"; await loadRectifications(); }
 async function handleComplaintEnter() { section.value = "complaints"; await loadComplaints(); }
@@ -1058,7 +1242,16 @@ function handleSelectTask(task) {
   taskForm.items = [{ itemName: "", itemResult: "PASS", problemDesc: "" }];
 }
 
+function handleSelectSamplingTask(task) {
+  activeSamplingTask.value = task;
+  samplingForm.sampledTime = new Date().toISOString().slice(0, 16);
+  samplingForm.result = "PASS";
+  samplingForm.conclusion = "";
+  samplingForm.disposalSuggestion = "";
+}
+
 function clearActiveTask() { activeTask.value = null; }
+function clearActiveSamplingTask() { activeSamplingTask.value = null; }
 async function openTaskDetail(task) {
   if (!task) return;
   detailTask.value = task;
@@ -1083,11 +1276,42 @@ async function openTaskDetail(task) {
   }
 }
 
+async function openSamplingTaskDetail(task) {
+  if (!task) return;
+  samplingDetailTask.value = task;
+  samplingDetailEnterprise.value = null;
+  samplingDetailRegionName.value = "-";
+  if (!task.enterpriseId) return;
+
+  samplingDetailLoading.value = true;
+  try {
+    const enterprise = await fetchEnterpriseDetail(props.token, task.enterpriseId);
+    samplingDetailEnterprise.value = enterprise || null;
+    if (enterprise?.regionId) {
+      const path = await fetchRegionPath(props.token, enterprise.regionId).catch(() => []);
+      samplingDetailRegionName.value = Array.isArray(path) && path.length
+        ? path.map((item) => item.name).join("/")
+        : "-";
+    }
+  } catch (error) {
+    setStatus(error.message || "加载企业信息失败", "error");
+  } finally {
+    samplingDetailLoading.value = false;
+  }
+}
+
 function closeTaskDetail() {
   detailTask.value = null;
   detailTaskEnterprise.value = null;
   detailTaskRegionName.value = "-";
   detailTaskLoading.value = false;
+}
+
+function closeSamplingTaskDetail() {
+  samplingDetailTask.value = null;
+  samplingDetailEnterprise.value = null;
+  samplingDetailRegionName.value = "-";
+  samplingDetailLoading.value = false;
 }
 
 async function openInspectionDetail(record) {
@@ -1131,12 +1355,37 @@ async function handleSubmitTask() {
   }
 }
 
+async function handleSubmitSamplingResult() {
+  if (!activeSamplingTask.value) return;
+  if (!samplingForm.sampledTime) {
+    setStatus("请选择采样时间", "error");
+    return;
+  }
+  samplingLoading.value = true; setStatus("");
+  try {
+    await submitSamplingResult(props.token, activeSamplingTask.value.id, {
+      sampledTime: normalizeDateTimeInput(samplingForm.sampledTime),
+      result: samplingForm.result,
+      conclusion: samplingForm.conclusion,
+      disposalSuggestion: samplingForm.disposalSuggestion
+    });
+    setStatus("抽检结果已提交", "success");
+    clearActiveSamplingTask();
+    await loadSamplingTasks();
+  } catch (error) {
+    setStatus(error.message || "提交抽检结果失败", "error");
+  } finally {
+    samplingLoading.value = false;
+  }
+}
+
 async function handleSearch() { page.value = 1; await load(); }
 async function changePage(nextPage) { page.value = nextPage; await load(); }
 async function handleTaskEnter() { section.value = "tasks"; await loadTasks(); }
 function handleLogout() { emit("logout"); }
 function handleViewDetail(item) { emit("view-enterprise", { id: item.id, fromSection: section.value }); }
 function formatTime(value) { if (!value) return "-"; return String(value).replace("T", " ").slice(0, 16); }
+function normalizeDateTimeInput(value) { return value && value.length === 16 ? `${value}:00` : value; }
 
 function formatDurationMinutes(minutes) {
   const total = Math.max(0, Number(minutes) || 0);
@@ -1176,6 +1425,7 @@ function formatRectificationSla(item) {
 
 onMounted(() => {
   if (section.value === "tasks") { loadTasks(); return; }
+  if (section.value === "sampling") { loadSamplingTasks(); return; }
   if (section.value === "inspections") { loadInspections(); return; }
   if (section.value === "rectification") { loadRectifications(); return; }
   if (section.value === "complaints") { loadComplaints(); return; }
@@ -1186,6 +1436,8 @@ onMounted(() => {
 </script>
 
 <style scoped>
+.stats-dashboard { display: grid; gap: 22px; }
+
 .regulator-shell { grid-template-columns: 260px 1fr; }
 .regulator-shell .sub-nav { display: none; }
 .regulator-shell .hero-panel { padding: 48px 80px 32px; }
@@ -1200,6 +1452,7 @@ onMounted(() => {
 .placeholder { border-radius: 12px; border: 1px dashed var(--stroke); padding: 16px; color: var(--muted); font-size: 13px; }
 .list-row { --row-columns: 1.6fr 0.9fr 0.9fr 1fr 1.2fr 0.8fr; }
 .task-header, .task-row { --row-columns: 1.2fr 1.6fr 0.8fr 0.9fr 1fr 1.2fr; }
+.sampling-header, .sampling-row { --row-columns: 1.2fr 1.4fr 1.5fr 0.8fr 0.9fr 1fr 1.4fr; }
 .inspection-header, .inspection-row { --row-columns: 1.6fr 1fr 0.8fr 1.2fr 0.8fr; }
 .rectification-header, .rectification-row { --row-columns: 1.3fr 0.8fr 1fr 1.6fr 1fr 0.9fr; }
 .complaint-header, .complaint-row { --row-columns: 1.4fr 1.4fr 0.9fr 0.9fr 1.1fr 1.2fr; }
@@ -1428,6 +1681,7 @@ onMounted(() => {
 @media (max-width: 960px) { .regulator-shell { grid-template-columns: 1fr; } }
 @media (max-width: 820px) {
   .task-item { grid-template-columns: 1fr; }
+  .task-header, .task-row, .sampling-header, .sampling-row, .inspection-header, .inspection-row, .rectification-header, .rectification-row, .complaint-header, .complaint-row, .warning-header, .warning-row { --row-columns: 1fr; }
   .task-detail-grid { grid-template-columns: 1fr; }
   .task-detail-fields { grid-template-columns: 1fr; }
   .warning-summary-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }

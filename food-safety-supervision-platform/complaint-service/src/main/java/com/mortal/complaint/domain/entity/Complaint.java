@@ -33,12 +33,15 @@ public class Complaint {
     private Long assignedTo;
     private Long assignedBy;
     private LocalDateTime assignedTime;
+    private LocalDateTime deadlineTime;
     private Long acceptedBy;
     private LocalDateTime acceptedTime;
     private Long processedBy;
     private LocalDateTime processedTime;
+    private String feedbackSummary;
     private Long rejectedBy;
     private LocalDateTime rejectedTime;
+    private String rejectReason;
     private LocalDateTime createTime;
     private LocalDateTime updateTime;
     private Integer deleted;

@@ -4,6 +4,8 @@ COLLATE utf8mb4_general_ci;
 
 USE food_regulation_operation_db;
 
+DROP TABLE IF EXISTS sampling_result;
+DROP TABLE IF EXISTS sampling_task;
 DROP TABLE IF EXISTS warning_event_outbox;
 DROP TABLE IF EXISTS rectification_action_log;
 DROP TABLE IF EXISTS rectification_task;
@@ -35,6 +37,53 @@ CREATE TABLE IF NOT EXISTS inspection_task (
   KEY idx_task_status (status),
   KEY idx_task_assigned (assigned_to)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='检查任务表';
+
+CREATE TABLE IF NOT EXISTS sampling_task (
+  id BIGINT PRIMARY KEY AUTO_INCREMENT,
+  task_no VARCHAR(40) NOT NULL COMMENT '任务编号',
+  enterprise_id BIGINT NOT NULL COMMENT '企业ID',
+  product_id BIGINT NOT NULL COMMENT '产品ID',
+  region_id BIGINT NOT NULL COMMENT '所属行政区',
+  task_title VARCHAR(100) NOT NULL COMMENT '任务标题',
+  task_desc VARCHAR(500) COMMENT '任务描述',
+  priority VARCHAR(10) DEFAULT 'MEDIUM' COMMENT 'LOW / MEDIUM / HIGH',
+  status VARCHAR(20) DEFAULT 'CREATED' COMMENT 'CREATED / ASSIGNED / COMPLETED / CLOSED',
+  created_by BIGINT NOT NULL COMMENT '创建人ID',
+  assigned_to BIGINT COMMENT '指派给',
+  assigned_by BIGINT COMMENT '指派人',
+  assigned_time DATETIME COMMENT '指派时间',
+  completed_time DATETIME COMMENT '完成时间',
+  deadline DATETIME COMMENT '截止时间',
+  create_time DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+  deleted TINYINT DEFAULT 0 COMMENT '逻辑删除 1-已删 0-未删',
+  KEY idx_sampling_task_enterprise (enterprise_id),
+  KEY idx_sampling_task_product (product_id),
+  KEY idx_sampling_task_region (region_id),
+  KEY idx_sampling_task_status (status),
+  KEY idx_sampling_task_assigned (assigned_to)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='抽检任务表';
+
+CREATE TABLE IF NOT EXISTS sampling_result (
+  id BIGINT PRIMARY KEY AUTO_INCREMENT,
+  task_id BIGINT NOT NULL COMMENT '抽检任务ID',
+  enterprise_id BIGINT NOT NULL COMMENT '企业ID',
+  product_id BIGINT NOT NULL COMMENT '产品ID',
+  sampled_by BIGINT NOT NULL COMMENT '采样执行人',
+  sampled_time DATETIME NOT NULL COMMENT '采样时间',
+  result VARCHAR(20) NOT NULL COMMENT 'PASS / FAIL',
+  conclusion VARCHAR(500) COMMENT '抽检结论',
+  disposal_suggestion VARCHAR(500) COMMENT '处置建议',
+  public_status VARCHAR(20) DEFAULT 'DRAFT' COMMENT 'DRAFT / PUBLISHED / OFFLINE',
+  published_time DATETIME COMMENT '公示时间',
+  create_time DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+  deleted TINYINT DEFAULT 0 COMMENT '逻辑删除 1-已删 0-未删',
+  UNIQUE KEY uk_sampling_result_task (task_id),
+  KEY idx_sampling_result_enterprise (enterprise_id),
+  KEY idx_sampling_result_product (product_id),
+  KEY idx_sampling_result_public (public_status)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='抽检结果表';
 
 CREATE TABLE IF NOT EXISTS inspection_record (
   id BIGINT PRIMARY KEY AUTO_INCREMENT,

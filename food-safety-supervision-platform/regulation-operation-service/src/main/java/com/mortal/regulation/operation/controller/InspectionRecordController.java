@@ -30,6 +30,43 @@ public class InspectionRecordController {
         this.requestIdentityResolver = requestIdentityResolver;
     }
 
+    @GetMapping("/enterprise")
+    public ApiResponse<PageResult<InspectionRecordVO>> listEnterprise(@RequestHeader("Authorization") String token,
+                                                                      @RequestParam(required = false) String result,
+                                                                      @RequestParam(required = false)
+                                                                      @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
+                                                                      LocalDate startDate,
+                                                                      @RequestParam(required = false)
+                                                                      @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
+                                                                      LocalDate endDate,
+                                                                      @RequestParam(defaultValue = "1") int page,
+                                                                      @RequestParam(defaultValue = "10") int size) {
+        RequestIdentity identity = requestIdentityResolver.resolve(token);
+        if (!identity.isEnterprise()) {
+            return ApiResponse.failure(403, OperationErrorMessages.ENTERPRISE_ONLY);
+        }
+        return ApiResponse.success(
+            inspectionRecordService.listForEnterprise(identity.userId(), result, startDate, endDate, page, size)
+        );
+    }
+
+    @GetMapping("/enterprise/{id}")
+    public ApiResponse<InspectionRecordDetailVO> detailEnterprise(@RequestHeader("Authorization") String token,
+                                                                  @PathVariable Long id) {
+        RequestIdentity identity = requestIdentityResolver.resolve(token);
+        if (!identity.isEnterprise()) {
+            return ApiResponse.failure(403, OperationErrorMessages.ENTERPRISE_ONLY);
+        }
+        try {
+            return ApiResponse.success(inspectionRecordService.getDetailForEnterprise(identity.userId(), id));
+        } catch (IllegalArgumentException ex) {
+            if (OperationErrorMessages.RECORD_NOT_FOUND.equalsIgnoreCase(ex.getMessage())) {
+                return ApiResponse.failure(404, OperationErrorMessages.RECORD_NOT_FOUND);
+            }
+            throw ex;
+        }
+    }
+
     @GetMapping("/my")
     public ApiResponse<PageResult<InspectionRecordVO>> listMy(@RequestHeader("Authorization") String token,
                                                               @RequestParam(required = false) String enterpriseName,

@@ -1,0 +1,22 @@
+# Maven / Java
+**/target/
+!**/src/main/**/target/
+!**/src/test/**/target/
+
+# Frontend
+food-web/node_modules/
+food-web/dist/
+food-web/.env.local
+food-web/.env.*.local
+
+# IDE
+.idea/
+*.iml
+*.ipr
+*.iws
+.vscode/
+
+# Logs / OS
+*.log
+.DS_Store
+Thumbs.db

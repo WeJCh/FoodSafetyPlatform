@@ -3,6 +3,7 @@ package com.mortal.regulation.operation.service.impl;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.mortal.platform.common.PageResult;
+import com.mortal.regulation.operation.client.regulation.vo.InternalEnterpriseDetailVO;
 import com.mortal.regulation.operation.client.regulation.vo.InternalRegulatorIdentityVO;
 import com.mortal.regulation.operation.common.OperationErrorMessages;
 import com.mortal.regulation.operation.entity.InspectionItem;
@@ -35,6 +36,32 @@ public class InspectionRecordServiceImpl implements InspectionRecordService {
         this.inspectionRecordMapper = inspectionRecordMapper;
         this.inspectionItemMapper = inspectionItemMapper;
         this.masterDataSupport = masterDataSupport;
+    }
+
+    @Override
+    public PageResult<InspectionRecordVO> listForEnterprise(Long userId,
+                                                            String result,
+                                                            LocalDate startDate,
+                                                            LocalDate endDate,
+                                                            int page,
+                                                            int size) {
+        InternalEnterpriseDetailVO enterprise = masterDataSupport.requireEnterpriseByUserId(userId);
+        LambdaQueryWrapper<InspectionRecord> wrapper = new LambdaQueryWrapper<InspectionRecord>()
+            .eq(InspectionRecord::getDeleted, 0)
+            .eq(InspectionRecord::getEnterpriseId, enterprise.getId());
+        if (StringUtils.hasText(result)) {
+            wrapper.eq(InspectionRecord::getResult, normalize(result));
+        }
+        if (startDate != null) {
+            wrapper.ge(InspectionRecord::getInspectionDate, startDate);
+        }
+        if (endDate != null) {
+            wrapper.le(InspectionRecord::getInspectionDate, endDate);
+        }
+        wrapper.orderByDesc(InspectionRecord::getUpdateTime);
+        Page<InspectionRecord> pageInfo = inspectionRecordMapper.selectPage(new Page<>(page, size), wrapper);
+        List<InspectionRecordVO> vos = toVOs(pageInfo.getRecords());
+        return PageResult.of(vos, pageInfo.getTotal(), page, size);
     }
 
     @Override
@@ -100,6 +127,19 @@ public class InspectionRecordServiceImpl implements InspectionRecordService {
         Page<InspectionRecord> pageInfo = inspectionRecordMapper.selectPage(new Page<>(page, size), wrapper);
         List<InspectionRecordVO> vos = toVOs(pageInfo.getRecords());
         return PageResult.of(vos, pageInfo.getTotal(), page, size);
+    }
+
+    @Override
+    public InspectionRecordDetailVO getDetailForEnterprise(Long userId, Long recordId) {
+        InternalEnterpriseDetailVO enterprise = masterDataSupport.requireEnterpriseByUserId(userId);
+        InspectionRecord record = requireRecord(recordId);
+        if (!Objects.equals(record.getEnterpriseId(), enterprise.getId())) {
+            throw new IllegalArgumentException(OperationErrorMessages.RECORD_NOT_FOUND);
+        }
+        InspectionRecordDetailVO detail = new InspectionRecordDetailVO();
+        detail.setRecord(toVO(record, loadEnterpriseNames(List.of(record))));
+        detail.setItems(loadItems(record.getId()));
+        return detail;
     }
 
     @Override

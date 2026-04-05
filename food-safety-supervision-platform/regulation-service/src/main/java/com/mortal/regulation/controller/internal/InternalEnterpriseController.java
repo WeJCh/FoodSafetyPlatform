@@ -2,10 +2,12 @@ package com.mortal.regulation.controller.internal;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.mortal.platform.common.ApiResponse;
+import com.mortal.regulation.dto.EnterpriseKeyReasonUpsertDTO;
 import com.mortal.regulation.entity.AddrLocation;
 import com.mortal.regulation.entity.FoodEnterprise;
 import com.mortal.regulation.mapper.AddrLocationMapper;
 import com.mortal.regulation.mapper.FoodEnterpriseMapper;
+import com.mortal.regulation.service.EnterpriseKeyReasonService;
 import com.mortal.regulation.vo.internal.InternalEnterpriseDetailVO;
 import com.mortal.regulation.vo.internal.InternalEnterpriseSummaryVO;
 import java.util.Collections;
@@ -52,11 +54,14 @@ public class InternalEnterpriseController {
 
     private final FoodEnterpriseMapper foodEnterpriseMapper;
     private final AddrLocationMapper addrLocationMapper;
+    private final EnterpriseKeyReasonService enterpriseKeyReasonService;
 
     public InternalEnterpriseController(FoodEnterpriseMapper foodEnterpriseMapper,
-                                        AddrLocationMapper addrLocationMapper) {
+                                        AddrLocationMapper addrLocationMapper,
+                                        EnterpriseKeyReasonService enterpriseKeyReasonService) {
         this.foodEnterpriseMapper = foodEnterpriseMapper;
         this.addrLocationMapper = addrLocationMapper;
+        this.enterpriseKeyReasonService = enterpriseKeyReasonService;
     }
 
     @GetMapping("/{id}")
@@ -119,6 +124,29 @@ public class InternalEnterpriseController {
             .distinct()
             .toList();
         return ApiResponse.success(ids);
+    }
+
+    /**
+     * 标记企业为关键企业
+     * @param id 企业ID
+     * @param dto 企业关键原因插入DTO
+     * @return 空响应
+     */
+    @PostMapping("/{id}/key-reasons")
+    public ApiResponse<Void> markAsKey(@PathVariable Long id,
+                                       @RequestBody EnterpriseKeyReasonUpsertDTO dto) {
+        if (dto == null) {
+            return ApiResponse.failure(400, "request body required");
+        }
+        enterpriseKeyReasonService.markEnterpriseAsKey(
+            id,
+            dto.getReasonType(),
+            dto.getReasonDetail(),
+            dto.getSourceType(),
+            dto.getSourceId(),
+            dto.getOperatorId()
+        );
+        return ApiResponse.success(null);
     }
 
     private InternalEnterpriseDetailVO toDetailVO(FoodEnterprise enterprise, String addressDetail) {

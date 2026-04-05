@@ -102,19 +102,30 @@
                   <em>{{ formatTime(complaint.assignedTime) }}</em>
                 </div>
                 <div class="flow-item">
+                  <span>办理时限</span>
+                  <strong>{{ formatTime(complaint.deadlineTime) }}</strong>
+                  <em>投诉派发后公众端可查看办理时限</em>
+                </div>
+                <div class="flow-item">
                   <span>处理完成</span>
                   <strong>{{ complaint.processedByName || "暂无处理完成记录" }}</strong>
                   <em>{{ formatTime(complaint.processedTime) }}</em>
                 </div>
               </div>
 
-              <div v-if="latestHandle" class="section-title">最新处理记录</div>
-              <div v-if="latestHandle" class="result-card">
-                <div class="result-meta">
-                  <strong>{{ latestHandle.handlerName || "-" }}</strong>
-                  <span>{{ formatTime(latestHandle.handleTime) }}</span>
-                </div>
-                <p>{{ latestHandle.handleResult || "-" }}</p>
+              <div v-if="complaint.feedbackSummary || complaint.rejectReason || latestHandle" class="section-title">
+                结果信息
+              </div>
+              <div v-if="complaint.feedbackSummary || complaint.rejectReason || latestHandle" class="result-card">
+                <p v-if="complaint.feedbackSummary">反馈摘要：{{ complaint.feedbackSummary }}</p>
+                <p v-if="complaint.rejectReason">驳回原因：{{ complaint.rejectReason }}</p>
+                <template v-if="latestHandle">
+                  <div class="result-meta">
+                    <strong>{{ latestHandle.handlerName || "-" }}</strong>
+                    <span>{{ formatTime(latestHandle.handleTime) }}</span>
+                  </div>
+                  <p>{{ latestHandle.handleResult || "-" }}</p>
+                </template>
               </div>
 
               <div class="section-title">派发处理</div>
@@ -134,6 +145,10 @@
                         {{ item.name }}
                       </option>
                     </select>
+                  </label>
+                  <label>
+                    办理时限
+                    <input v-model="assignForm.deadlineTime" type="datetime-local" />
                   </label>
                   <button class="primary" type="button" :disabled="loadingAction" @click="handleAssign">
                     确认派发
@@ -213,7 +228,7 @@ const loadingAction = ref(false);
 const detail = ref(null);
 const status = reactive({ message: "", type: "" });
 const enforcers = ref([]);
-const assignForm = reactive({ regulatorId: "" });
+const assignForm = reactive({ regulatorId: "", deadlineTime: "" });
 const rejectForm = reactive({ reason: "" });
 const contentExpanded = ref(false);
 const imagePreviewUrls = ref([]);
@@ -260,6 +275,7 @@ async function loadDetail() {
   try {
     detail.value = await fetchComplaintDetail(props.token, props.complaintId);
     assignForm.regulatorId = "";
+    assignForm.deadlineTime = "";
     rejectForm.reason = "";
     contentExpanded.value = false;
     await loadEnforcers(detail.value?.enterprise?.regionId);
@@ -307,7 +323,10 @@ async function handleAssign() {
   loadingAction.value = true;
   setStatus("");
   try {
-    await assignComplaint(props.token, complaint.value.id, { regulatorId: assignForm.regulatorId });
+    await assignComplaint(props.token, complaint.value.id, {
+      regulatorId: assignForm.regulatorId,
+      deadlineTime: normalizeDateTime(assignForm.deadlineTime)
+    });
     setStatus("派发成功", "success");
     await loadDetail();
   } catch (error) {
@@ -368,6 +387,11 @@ function handleBack() {
 function formatTime(value) {
   if (!value) return "-";
   return String(value).replace("T", " ").slice(0, 16);
+}
+
+function normalizeDateTime(value) {
+  if (!value) return undefined;
+  return value.length === 16 ? `${value}:00` : value;
 }
 
 function formatComplaintStatus(value) {

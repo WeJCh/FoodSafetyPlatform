@@ -34,6 +34,10 @@
               <span>更新时间</span>
               <strong>{{ formatTime(complaint.updateTime) }}</strong>
             </div>
+            <div>
+              <span>办理时限</span>
+              <strong>{{ formatTime(complaint.deadlineTime) }}</strong>
+            </div>
           </div>
 
           <div class="detail-stack">
@@ -77,13 +81,16 @@
               <div class="section-title">处理操作</div>
               <div class="handle-panel">
                 <div v-if="canStart" class="status info">该投诉已派发，点击开始处理。</div>
+                <div v-if="complaint.deadlineTime" class="status info">
+                  当前办理时限：{{ formatTime(complaint.deadlineTime) }}
+                </div>
                 <div v-if="canHandle" class="handle-form">
                   <label>
-                    处理结果
+                    反馈摘要
                     <textarea
-                      v-model.trim="handleForm.handleResult"
+                      v-model.trim="handleForm.feedbackSummary"
                       rows="4"
-                      placeholder="请输入处理结果"
+                      placeholder="请输入面向公众展示的反馈摘要"
                     ></textarea>
                   </label>
                 </div>
@@ -108,6 +115,7 @@
                   </button>
                 </div>
                 <div v-if="latestHandle" class="result-card">
+                  <p v-if="complaint.feedbackSummary">反馈摘要：{{ complaint.feedbackSummary }}</p>
                   <div class="result-meta">
                     <strong>{{ latestHandle.handlerName || "-" }}</strong>
                     <span>{{ formatTime(latestHandle.handleTime) }}</span>
@@ -169,7 +177,7 @@ const loading = ref(false);
 const loadingAction = ref(false);
 const detail = ref(null);
 const status = reactive({ message: "", type: "" });
-const handleForm = reactive({ handleResult: "" });
+const handleForm = reactive({ feedbackSummary: "" });
 const imagePreviewUrls = ref([]);
 const imagePreviewIndex = ref(0);
 
@@ -207,7 +215,7 @@ async function loadDetail() {
   setStatus("");
   try {
     detail.value = await fetchComplaintDetail(props.token, props.complaintId);
-    handleForm.handleResult = "";
+    handleForm.feedbackSummary = "";
   } catch (error) {
     detail.value = null;
     setStatus(error.message || "加载投诉详情失败", "error");
@@ -233,15 +241,15 @@ async function handleStart() {
 
 async function handleSubmit() {
   if (!complaint.value?.id) return;
-  if (!handleForm.handleResult.trim()) {
-    setStatus("请填写处理结果", "error");
+  if (!handleForm.feedbackSummary.trim()) {
+    setStatus("请填写反馈摘要", "error");
     return;
   }
   loadingAction.value = true;
   setStatus("");
   try {
     await handleComplaint(props.token, complaint.value.id, {
-      handleResult: handleForm.handleResult
+      feedbackSummary: handleForm.feedbackSummary
     });
     setStatus("投诉处理已完成", "success");
     await loadDetail();

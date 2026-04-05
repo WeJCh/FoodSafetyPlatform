@@ -10,8 +10,59 @@
     v-else-if="view === 'public'"
     :public-user="publicUser"
     @logout="handleLogout"
+    @open-bulletins="handleOpenPublicBulletins"
+    @open-enterprises="handleOpenPublicEnterprises"
+    @open-sampling-results="handleOpenPublicSamplingResults"
     @open-complaint="handleOpenPublicComplaint"
     @open-track="handleOpenPublicTrack"
+  />
+  <PublicBulletinListView
+    v-else-if="view === 'public-bulletins'"
+    :public-user="publicUser"
+    :public-token="publicToken"
+    @back="handlePublicHome"
+    @logout="handleLogout"
+    @view-bulletin="handleViewPublicBulletin"
+  />
+  <PublicBulletinDetailView
+    v-else-if="view === 'public-bulletin-detail'"
+    :public-user="publicUser"
+    :public-token="publicToken"
+    :bulletin-id="publicBulletinDetailId"
+    @back="handleBackFromPublicBulletinDetail"
+    @logout="handleLogout"
+  />
+  <PublicEnterpriseListView
+    v-else-if="view === 'public-enterprises'"
+    :public-user="publicUser"
+    :public-token="publicToken"
+    @back="handlePublicHome"
+    @logout="handleLogout"
+    @view-enterprise="handleViewPublicEnterprise"
+  />
+  <PublicEnterpriseDetailView
+    v-else-if="view === 'public-enterprise-detail'"
+    :public-user="publicUser"
+    :public-token="publicToken"
+    :enterprise-id="publicEnterpriseDetailId"
+    @back="handleBackFromPublicEnterpriseDetail"
+    @logout="handleLogout"
+  />
+  <PublicSamplingResultListView
+    v-else-if="view === 'public-sampling-results'"
+    :public-user="publicUser"
+    :public-token="publicToken"
+    @back="handlePublicHome"
+    @logout="handleLogout"
+    @view-result="handleViewPublicSamplingResult"
+  />
+  <PublicSamplingResultDetailView
+    v-else-if="view === 'public-sampling-result-detail'"
+    :public-user="publicUser"
+    :public-token="publicToken"
+    :sampling-result-id="publicSamplingResultDetailId"
+    @back="handleBackFromPublicSamplingResultDetail"
+    @logout="handleLogout"
   />
   <PublicComplaintView
     v-else-if="view === 'public-complaint'"
@@ -83,10 +134,16 @@ import { reactive, ref } from "vue";
 import AdminView from "./views/AdminView.vue";
 import AuthView from "./views/AuthView.vue";
 import EnterpriseDetailView from "./views/EnterpriseDetailView.vue";
+import PublicBulletinDetailView from "./views/PublicBulletinDetailView.vue";
+import PublicBulletinListView from "./views/PublicBulletinListView.vue";
 import EnterpriseProfileView from "./views/EnterpriseProfileView.vue";
 import PublicComplaintTrackView from "./views/PublicComplaintTrackView.vue";
 import PublicComplaintView from "./views/PublicComplaintView.vue";
+import PublicEnterpriseDetailView from "./views/PublicEnterpriseDetailView.vue";
+import PublicEnterpriseListView from "./views/PublicEnterpriseListView.vue";
 import PublicHomeView from "./views/PublicHomeView.vue";
+import PublicSamplingResultDetailView from "./views/PublicSamplingResultDetailView.vue";
+import PublicSamplingResultListView from "./views/PublicSamplingResultListView.vue";
 import RegulatorAdminView from "./views/RegulatorAdminView.vue";
 import RegulatorAdminComplaintDetailView from "./views/RegulatorAdminComplaintDetailView.vue";
 import RegulatorEnforcerView from "./views/RegulatorEnforcerView.vue";
@@ -101,6 +158,9 @@ const enterpriseToken = ref("");
 const enterpriseUser = reactive({ username: "", userType: "", roles: [] });
 const publicToken = ref("");
 const publicUser = reactive({ username: "", userType: "", roles: [] });
+const publicBulletinDetailId = ref("");
+const publicEnterpriseDetailId = ref("");
+const publicSamplingResultDetailId = ref("");
 const regulatorToken = ref("");
 const regulatorUser = reactive({ username: "", userType: "", roleType: "", roles: [] });
 const enterpriseDetailId = ref("");
@@ -137,12 +197,60 @@ function handlePublicHome() {
   view.value = "public";
 }
 
+function handleOpenPublicBulletins() {
+  view.value = "public-bulletins";
+}
+
+function handleOpenPublicEnterprises() {
+  view.value = "public-enterprises";
+}
+
+function handleOpenPublicSamplingResults() {
+  view.value = "public-sampling-results";
+}
+
 function handleOpenPublicComplaint() {
   view.value = "public-complaint";
 }
 
 function handleOpenPublicTrack() {
   view.value = "public-track";
+}
+
+function handleViewPublicEnterprise(payload) {
+  const resolvedId = typeof payload === "object" ? payload?.id : payload;
+  if (!resolvedId) return;
+  publicEnterpriseDetailId.value = resolvedId;
+  view.value = "public-enterprise-detail";
+}
+
+function handleViewPublicBulletin(payload) {
+  const resolvedId = typeof payload === "object" ? payload?.id : payload;
+  if (!resolvedId) return;
+  publicBulletinDetailId.value = resolvedId;
+  view.value = "public-bulletin-detail";
+}
+
+function handleBackFromPublicBulletinDetail() {
+  publicBulletinDetailId.value = "";
+  view.value = "public-bulletins";
+}
+
+function handleBackFromPublicEnterpriseDetail() {
+  publicEnterpriseDetailId.value = "";
+  view.value = "public-enterprises";
+}
+
+function handleViewPublicSamplingResult(payload) {
+  const resolvedId = typeof payload === "object" ? payload?.id : payload;
+  if (!resolvedId) return;
+  publicSamplingResultDetailId.value = resolvedId;
+  view.value = "public-sampling-result-detail";
+}
+
+function handleBackFromPublicSamplingResultDetail() {
+  publicSamplingResultDetailId.value = "";
+  view.value = "public-sampling-results";
 }
 
 async function handleRegulatorLogin(payload) {
@@ -222,6 +330,9 @@ async function handleLogout() {
   publicUser.username = "";
   publicUser.userType = "";
   publicUser.roles = [];
+  publicBulletinDetailId.value = "";
+  publicEnterpriseDetailId.value = "";
+  publicSamplingResultDetailId.value = "";
   regulatorToken.value = "";
   regulatorUser.username = "";
   regulatorUser.userType = "";

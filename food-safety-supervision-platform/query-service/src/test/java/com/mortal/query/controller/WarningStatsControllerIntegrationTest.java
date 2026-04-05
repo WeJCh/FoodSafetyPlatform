@@ -14,7 +14,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.mortal.query.client.RegulatorProfileClient;
 import com.mortal.query.client.RegulationRegionClient;
 import com.mortal.query.client.WarningStatsClient;
-import com.mortal.query.common.ApiResponse;
+import com.mortal.platform.common.ApiResponse;
 import com.mortal.query.dto.WarningStatsQueryDTO;
 import com.mortal.query.vo.RegulatorProfileVO;
 import com.mortal.query.vo.RegionVO;

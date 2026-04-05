@@ -25,6 +25,8 @@ import org.springframework.web.bind.annotation.RestController;
 
 /**
  * 预警统计查询接口（监管看板）。
+ *
+ * <p>P0 阶段 query-service 仅承载预警统计聚合能力，不扩展企业、检查、投诉综合统计接口。</p>
  */
 @RestController
 @RequestMapping("/api/query/warnings")

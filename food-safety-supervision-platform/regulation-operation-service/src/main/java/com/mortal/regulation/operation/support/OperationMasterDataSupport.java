@@ -2,9 +2,13 @@ package com.mortal.regulation.operation.support;
 
 import com.mortal.platform.common.ApiResponse;
 import com.mortal.regulation.operation.client.regulation.RegulationEnterpriseInternalClient;
+import com.mortal.regulation.operation.client.regulation.RegulationProductInternalClient;
 import com.mortal.regulation.operation.client.regulation.RegulationRegulatorInternalClient;
+import com.mortal.regulation.operation.client.regulation.dto.EnterpriseKeyReasonUpsertDTO;
 import com.mortal.regulation.operation.client.regulation.vo.InternalEnterpriseDetailVO;
 import com.mortal.regulation.operation.client.regulation.vo.InternalEnterpriseSummaryVO;
+import com.mortal.regulation.operation.client.regulation.vo.InternalProductDetailVO;
+import com.mortal.regulation.operation.client.regulation.vo.InternalProductSummaryVO;
 import com.mortal.regulation.operation.client.regulation.vo.InternalRegulatorIdentityVO;
 import com.mortal.regulation.operation.client.regulation.vo.InternalRegulatorSummaryVO;
 import com.mortal.regulation.operation.common.OperationErrorMessages;
@@ -28,14 +32,17 @@ public class OperationMasterDataSupport {
     public static final String ROLE_ENFORCER = "REGULATOR_ENFORCER";
 
     private final RegulationEnterpriseInternalClient enterpriseClient;
+    private final RegulationProductInternalClient productClient;
     private final RegulationRegulatorInternalClient regulatorClient;
     private final String regulationInternalToken;
 
     public OperationMasterDataSupport(RegulationEnterpriseInternalClient enterpriseClient,
+                                      RegulationProductInternalClient productClient,
                                       RegulationRegulatorInternalClient regulatorClient,
                                       @Value("${regulation.internal.token:regulation-internal-token}")
                                       String regulationInternalToken) {
         this.enterpriseClient = enterpriseClient;
+        this.productClient = productClient;
         this.regulatorClient = regulatorClient;
         this.regulationInternalToken = regulationInternalToken;
     }
@@ -64,6 +71,41 @@ public class OperationMasterDataSupport {
         ApiResponse<InternalEnterpriseDetailVO> response =
             enterpriseClient.getEnterpriseByUserId(userId, regulationInternalToken);
         return requireData(response, OperationErrorMessages.ENTERPRISE_NOT_FOUND);
+    }
+
+    /**
+     * 获取产品详情
+     * 
+     * @param productId 产品ID
+     * @return 产品详情
+     */
+    public InternalProductDetailVO requireProduct(Long productId) {
+        if (productId == null) {
+            throw new IllegalArgumentException("product not found");
+        }
+        ApiResponse<InternalProductDetailVO> response =
+            productClient.getProductById(productId, regulationInternalToken);
+        return requireData(response, "product not found");
+    }
+
+    /**
+     * 获取企业的产品列表
+     * 
+     * @param enterpriseId 企业ID
+     * @return 产品列表
+     */
+    public List<InternalProductSummaryVO> listProductsByEnterprise(Long enterpriseId) {
+        if (enterpriseId == null) {
+            return List.of();
+        }
+        ApiResponse<List<InternalProductSummaryVO>> response =
+            productClient.listByEnterprise(enterpriseId, regulationInternalToken);
+        if (response == null || !response.isSuccess() || response.getData() == null) {
+            return List.of();
+        }
+        return response.getData().stream()
+            .filter(Objects::nonNull)
+            .toList();
     }
 
     public InternalRegulatorIdentityVO requireRegulatorByUserId(Long userId) {
@@ -137,6 +179,42 @@ public class OperationMasterDataSupport {
             .filter(Objects::nonNull)
             .collect(Collectors.toMap(InternalRegulatorSummaryVO::getId,
                 InternalRegulatorSummaryVO::getName,
+                (a, b) -> a));
+    }
+
+    /**
+     * 获取产品名称列表
+     * 
+     * @param productIds 产品ID列表
+     * @return 产品名称列表
+     */
+    public Map<Long, String> loadProductNames(Collection<Long> productIds) {
+        return loadProductSummaries(productIds).values().stream()
+            .collect(Collectors.toMap(InternalProductSummaryVO::getId,
+                InternalProductSummaryVO::getProductName,
+                (a, b) -> a));
+    }
+
+    /**
+     * 获取产品摘要列表
+     * 
+     * @param productIds 产品ID列表
+     * @return 产品摘要列表
+     */
+    public Map<Long, InternalProductSummaryVO> loadProductSummaries(Collection<Long> productIds) {
+        List<Long> cleanedIds = sanitizeIds(productIds);
+        if (cleanedIds.isEmpty()) {
+            return Collections.emptyMap();
+        }
+        ApiResponse<List<InternalProductSummaryVO>> response =
+            productClient.getProductSummaries(cleanedIds, regulationInternalToken);
+        if (response == null || !response.isSuccess() || response.getData() == null) {
+            return Collections.emptyMap();
+        }
+        return response.getData().stream()
+            .filter(Objects::nonNull)
+            .collect(Collectors.toMap(InternalProductSummaryVO::getId,
+                item -> item,
                 (a, b) -> a));
     }
 
@@ -277,6 +355,34 @@ public class OperationMasterDataSupport {
             .filter(Objects::nonNull)
             .distinct()
             .toList();
+    }
+
+    /**
+     * 标记企业为关键企业
+     * @param enterpriseId 企业ID
+     * @param reasonType 原因类型
+     * @param reasonDetail 原因详情
+     * @param sourceType 来源类型
+     * @param sourceId 来源ID
+     * @param operatorId 操作员ID
+     */
+    public void markEnterpriseAsKey(Long enterpriseId,
+                                    String reasonType,
+                                    String reasonDetail,
+                                    String sourceType,
+                                    Long sourceId,
+                                    Long operatorId) {
+        EnterpriseKeyReasonUpsertDTO dto = new EnterpriseKeyReasonUpsertDTO();
+        dto.setReasonType(reasonType);
+        dto.setReasonDetail(reasonDetail);
+        dto.setSourceType(sourceType);
+        dto.setSourceId(sourceId);
+        dto.setOperatorId(operatorId);
+        ApiResponse<Void> response =
+            enterpriseClient.markEnterpriseAsKey(enterpriseId, dto, regulationInternalToken);
+        if (response == null || !response.isSuccess()) {
+            throw new IllegalArgumentException("mark enterprise as key failed");
+        }
     }
 
     private void ensureEnabled(InternalRegulatorIdentityVO regulator) {

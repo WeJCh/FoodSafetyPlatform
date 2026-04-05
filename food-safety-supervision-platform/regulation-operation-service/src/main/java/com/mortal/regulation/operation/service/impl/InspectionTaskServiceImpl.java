@@ -10,6 +10,7 @@ import com.mortal.regulation.operation.dto.InspectionItemDTO;
 import com.mortal.regulation.operation.dto.InspectionSubmitDTO;
 import com.mortal.regulation.operation.dto.InspectionTaskAssignDTO;
 import com.mortal.regulation.operation.dto.InspectionTaskCreateDTO;
+import com.mortal.regulation.operation.dto.WarningEventUpsertDTO;
 import com.mortal.regulation.operation.entity.InspectionItem;
 import com.mortal.regulation.operation.entity.InspectionRecord;
 import com.mortal.regulation.operation.entity.InspectionTask;
@@ -18,6 +19,7 @@ import com.mortal.regulation.operation.mapper.InspectionRecordMapper;
 import com.mortal.regulation.operation.mapper.InspectionTaskMapper;
 import com.mortal.regulation.operation.service.InspectionTaskService;
 import com.mortal.regulation.operation.service.RectificationService;
+import com.mortal.regulation.operation.service.WarningEventOutboxService;
 import com.mortal.regulation.operation.support.OperationMasterDataSupport;
 import com.mortal.regulation.operation.vo.InspectionTaskVO;
 import java.time.LocalDate;
@@ -30,6 +32,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -45,23 +48,35 @@ public class InspectionTaskServiceImpl implements InspectionTaskService {
     private static final String PRIORITY_LOW = "LOW";
     private static final String PRIORITY_MEDIUM = "MEDIUM";
     private static final String PRIORITY_HIGH = "HIGH";
+    private static final String RESULT_FAIL = "FAIL";
+    private static final String KEY_REASON_CONSECUTIVE_FAIL = "CONSECUTIVE_FAIL";
+    private static final String KEY_SOURCE_ROUTINE = "ROUTINE";
+    private static final String WARNING_BIZ_TYPE_INSPECTION = "INSPECTION";
+    private static final String WARNING_EVENT_CONSECUTIVE_FAIL = "INSPECTION_CONSECUTIVE_FAIL";
+    private static final String WARNING_SOURCE_SERVICE = "regulation-operation-service";
 
     private final InspectionTaskMapper inspectionTaskMapper;
     private final InspectionRecordMapper inspectionRecordMapper;
     private final InspectionItemMapper inspectionItemMapper;
     private final OperationMasterDataSupport masterDataSupport;
     private final RectificationService rectificationService;
+    private final WarningEventOutboxService warningEventOutboxService;
+
+    @Value("${regulation.inspection.key-threshold:2}")
+    private int consecutiveFailThreshold = 2;
 
     public InspectionTaskServiceImpl(InspectionTaskMapper inspectionTaskMapper,
                                      InspectionRecordMapper inspectionRecordMapper,
                                      InspectionItemMapper inspectionItemMapper,
                                      OperationMasterDataSupport masterDataSupport,
-                                     RectificationService rectificationService) {
+                                     RectificationService rectificationService,
+                                     WarningEventOutboxService warningEventOutboxService) {
         this.inspectionTaskMapper = inspectionTaskMapper;
         this.inspectionRecordMapper = inspectionRecordMapper;
         this.inspectionItemMapper = inspectionItemMapper;
         this.masterDataSupport = masterDataSupport;
         this.rectificationService = rectificationService;
+        this.warningEventOutboxService = warningEventOutboxService;
     }
 
     @Override
@@ -230,6 +245,7 @@ public class InspectionTaskServiceImpl implements InspectionTaskService {
                 buildRectificationDesc(dto, items)
             );
         }
+        tryMarkConsecutiveFailAsKey(task, record, regulator.getId());
 
         task.setStatus(STATUS_COMPLETED);
         task.setCompletedTime(LocalDateTime.now());
@@ -411,6 +427,82 @@ public class InspectionTaskServiceImpl implements InspectionTaskService {
             }
         }
         return builder.toString();
+    }
+
+    /**
+     * 尝试标记连续不合格为关键企业
+     * @param task 检查任务
+     * @param record 检查记录
+     * @param operatorId 操作员ID
+     */
+    private void tryMarkConsecutiveFailAsKey(InspectionTask task, InspectionRecord record, Long operatorId) {
+        if (task == null || record == null || !RESULT_FAIL.equals(record.getResult())) {
+            return;
+        }
+        int threshold = Math.max(2, consecutiveFailThreshold);
+        List<InspectionRecord> recentRecords = inspectionRecordMapper.selectList(new LambdaQueryWrapper<InspectionRecord>()
+            .eq(InspectionRecord::getDeleted, 0)
+            .eq(InspectionRecord::getEnterpriseId, task.getEnterpriseId())
+            .orderByDesc(InspectionRecord::getInspectionDate, InspectionRecord::getId)
+            .last("limit " + threshold));
+        if (recentRecords.size() < threshold) {
+            return;
+        }
+        boolean allFailed = recentRecords.stream()
+            .allMatch(item -> RESULT_FAIL.equalsIgnoreCase(item.getResult()));
+        if (!allFailed) {
+            return;
+        }
+        String reasonDetail = "企业最近" + threshold + "次检查均为不合格，已自动纳入重点监管";
+        masterDataSupport.markEnterpriseAsKey(
+            task.getEnterpriseId(),
+            KEY_REASON_CONSECUTIVE_FAIL,
+            reasonDetail,
+            KEY_SOURCE_ROUTINE,
+            record.getId(),
+            operatorId
+        );
+        ensureInspectionWarning(task, record, threshold, reasonDetail);
+    }
+
+    /**
+     * 确保检查警告事件
+     * @param task 检查任务
+     * @param record 检查记录
+     * @param consecutiveFailCount 连续不合格次数
+     * @param reasonDetail 原因详情
+     */
+    private void ensureInspectionWarning(InspectionTask task,
+                                         InspectionRecord record,
+                                         int consecutiveFailCount,
+                                         String reasonDetail) {
+        LocalDateTime now = LocalDateTime.now();
+        String eventKey = buildInspectionWarningKey(record.getId());
+        WarningEventUpsertDTO dto = new WarningEventUpsertDTO();
+        dto.setEventType(WARNING_EVENT_CONSECUTIVE_FAIL);
+        dto.setBizType(WARNING_BIZ_TYPE_INSPECTION);
+        dto.setBizId(record.getId());
+        dto.setRegionId(task.getRegionId());
+        dto.setOwnerRegulatorId(record.getInspectorId());
+        dto.setDedupKey(eventKey);
+        dto.setLevel("L2");
+        dto.setTitle("企业连续检查不合格");
+        dto.setContent(reasonDetail);
+        dto.setSourceService(WARNING_SOURCE_SERVICE);
+        dto.setOccurTime(now);
+        dto.setPayload(Map.of(
+            "enterpriseId", task.getEnterpriseId(),
+            "taskId", task.getId(),
+            "inspectionId", record.getId(),
+            "consecutiveFailCount", consecutiveFailCount,
+            "inspectionDate", record.getInspectionDate()
+        ));
+        warningEventOutboxService.ensurePendingEvent(eventKey, dto, now);
+        warningEventOutboxService.dispatchByEventKey(eventKey);
+    }
+
+    private String buildInspectionWarningKey(Long inspectionId) {
+        return WARNING_BIZ_TYPE_INSPECTION + ":" + inspectionId + ":" + WARNING_EVENT_CONSECUTIVE_FAIL;
     }
 
     private boolean isDeleted(Integer deleted) {

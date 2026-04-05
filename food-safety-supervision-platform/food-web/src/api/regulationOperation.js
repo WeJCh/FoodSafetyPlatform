@@ -88,6 +88,128 @@ export function closeInspectionTask(token, id) {
   });
 }
 
+export function createSamplingTask(token, payload) {
+  return requestWithBase(REGULATION_OPERATION_BASE_URL, "/api/regulation-operation/sampling/tasks", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`
+    },
+    body: JSON.stringify(payload)
+  });
+}
+
+export function assignSamplingTask(token, id, payload) {
+  return requestWithBase(REGULATION_OPERATION_BASE_URL, `/api/regulation-operation/sampling/tasks/${id}/assign`, {
+    method: "PUT",
+    headers: {
+      Authorization: `Bearer ${token}`
+    },
+    body: JSON.stringify(payload)
+  });
+}
+
+export function fetchSamplingTasks(token, params = {}) {
+  const search = new URLSearchParams();
+  if (params.enterpriseName) search.append("enterpriseName", params.enterpriseName);
+  if (params.status) search.append("status", params.status);
+  if (params.page) search.append("page", params.page);
+  if (params.size) search.append("size", params.size);
+  const query = search.toString();
+  return requestWithBase(
+    REGULATION_OPERATION_BASE_URL,
+    `/api/regulation-operation/sampling/tasks${query ? `?${query}` : ""}`,
+    {
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${token}`
+      }
+    }
+  );
+}
+
+export function fetchMySamplingTasks(token, params = {}) {
+  const search = new URLSearchParams();
+  if (params.status) search.append("status", params.status);
+  if (params.page) search.append("page", params.page);
+  if (params.size) search.append("size", params.size);
+  const query = search.toString();
+  return requestWithBase(
+    REGULATION_OPERATION_BASE_URL,
+    `/api/regulation-operation/sampling/tasks/my${query ? `?${query}` : ""}`,
+    {
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${token}`
+      }
+    }
+  );
+}
+
+export function submitSamplingResult(token, id, payload) {
+  return requestWithBase(REGULATION_OPERATION_BASE_URL, `/api/regulation-operation/sampling/tasks/${id}/result`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`
+    },
+    body: JSON.stringify(payload)
+  });
+}
+
+export function closeSamplingTask(token, id) {
+  return requestWithBase(REGULATION_OPERATION_BASE_URL, `/api/regulation-operation/sampling/tasks/${id}/close`, {
+    method: "PUT",
+    headers: {
+      Authorization: `Bearer ${token}`
+    }
+  });
+}
+
+export function publishSamplingResult(token, id) {
+  return requestWithBase(REGULATION_OPERATION_BASE_URL, `/api/regulation-operation/sampling/results/${id}/publish`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`
+    }
+  });
+}
+
+export function offlineSamplingResult(token, id) {
+  return requestWithBase(REGULATION_OPERATION_BASE_URL, `/api/regulation-operation/sampling/results/${id}/offline`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`
+    }
+  });
+}
+
+export function fetchPublicSamplingResults(token, params = {}) {
+  const search = new URLSearchParams();
+  if (params.enterpriseName) search.append("enterpriseName", params.enterpriseName);
+  if (params.result) search.append("result", params.result);
+  if (params.page) search.append("page", params.page);
+  if (params.size) search.append("size", params.size);
+  const query = search.toString();
+  return requestWithBase(
+    REGULATION_OPERATION_BASE_URL,
+    `/api/regulation-operation/public/sampling/results${query ? `?${query}` : ""}`,
+    {
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${token}`
+      }
+    }
+  );
+}
+
+export function fetchPublicSamplingResultDetail(token, id) {
+  return requestWithBase(REGULATION_OPERATION_BASE_URL, `/api/regulation-operation/public/sampling/results/${id}`, {
+    method: "GET",
+    headers: {
+      Authorization: `Bearer ${token}`
+    }
+  });
+}
+
 export function fetchMyRectifications(token, params = {}) {
   const search = new URLSearchParams();
   if (params.status) search.append("status", params.status);
@@ -220,6 +342,39 @@ export function fetchInspectionRecordDetail(token, id) {
       Authorization: `Bearer ${token}`
     }
   });
+}
+
+export function fetchEnterpriseInspectionRecords(token, params = {}) {
+  const search = new URLSearchParams();
+  if (params.result) search.append("result", params.result);
+  if (params.startDate) search.append("startDate", params.startDate);
+  if (params.endDate) search.append("endDate", params.endDate);
+  if (params.page) search.append("page", params.page);
+  if (params.size) search.append("size", params.size);
+  const query = search.toString();
+  return requestWithBase(
+    REGULATION_OPERATION_BASE_URL,
+    `/api/regulation-operation/inspections/enterprise${query ? `?${query}` : ""}`,
+    {
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${token}`
+      }
+    }
+  );
+}
+
+export function fetchEnterpriseInspectionRecordDetail(token, id) {
+  return requestWithBase(
+    REGULATION_OPERATION_BASE_URL,
+    `/api/regulation-operation/inspections/enterprise/${id}`,
+    {
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${token}`
+      }
+    }
+  );
 }
 
 export function fetchMyRegulatorRectifications(token, params = {}) {

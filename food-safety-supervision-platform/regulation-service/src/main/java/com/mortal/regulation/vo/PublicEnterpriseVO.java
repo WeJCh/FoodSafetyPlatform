@@ -1,5 +1,6 @@
 package com.mortal.regulation.vo;
 
+import java.time.LocalDateTime;
 import lombok.Data;
 
 /**
@@ -13,4 +14,7 @@ public class PublicEnterpriseVO {
     private Long regionId;
     private String regionPathText;
     private String addressDetail;
+    private String status;
+    private LocalDateTime approvedTime;
+    private LocalDateTime updateTime;
 }

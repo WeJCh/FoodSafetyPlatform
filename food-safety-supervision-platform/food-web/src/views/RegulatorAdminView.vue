@@ -17,6 +17,9 @@
         <button :class="{ active: section === 'dispatch' }" @click="handleDispatchEnter">
           任务派发
         </button>
+        <button :class="{ active: section === 'sampling' }" @click="handleSamplingEnter">
+          抽检任务
+        </button>
         <button :class="{ active: section === 'complaints' }" @click="handleComplaintEnter">
           投诉流转
         </button>
@@ -29,6 +32,9 @@
         <button :class="{ active: section === 'warning' }" @click="handleWarningEnter">
           风险预警
         </button>
+        <button :class="{ active: section === 'bulletins' }" @click="section = 'bulletins'">
+          公告发布
+        </button>
         <button :class="{ active: section === 'stats' }" @click="section = 'stats'">
           数据统计
         </button>
@@ -40,7 +46,7 @@
       <div class="dashboard-topbar">
         <div class="dashboard-title">
           <strong>区域管理员工作台</strong>
-          <span>备案审核、任务派发与企业监管</span>
+          <span>备案审核、任务派发、抽检协同与企业监管</span>
         </div>
         <div class="user-chip">
           <span>{{ regulatorUser.username }}</span>
@@ -61,6 +67,9 @@
           <button :class="{ active: section === 'dispatch' }" @click="handleDispatchEnter">
             任务派发
           </button>
+          <button :class="{ active: section === 'sampling' }" @click="handleSamplingEnter">
+            抽检任务
+          </button>
           <button :class="{ active: section === 'inspections' }" @click="handleInspectionEnter">
             检查记录
           </button>
@@ -72,6 +81,9 @@
           </button>
           <button :class="{ active: section === 'warning' }" @click="handleWarningEnter">
             风险预警
+          </button>
+          <button :class="{ active: section === 'bulletins' }" @click="section = 'bulletins'">
+            公告发布
           </button>
           <button :class="{ active: section === 'stats' }" @click="section = 'stats'">
             数据统计
@@ -418,6 +430,283 @@
                   </div>
                   <div class="modal-actions">
                     <button class="ghost" type="button" @click="closeTaskDetail">关闭</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div v-else-if="section === 'sampling'">
+          <div class="section-title">抽检任务</div>
+          <div class="dispatch-grid">
+            <div class="dispatch-form">
+              <div class="section-subtitle">创建抽检任务</div>
+              <form class="dispatch-form-grid" @submit.prevent="handleCreateSamplingTask">
+                <label>
+                  选择企业
+                  <select v-model="samplingForm.enterpriseId" :disabled="samplingLoading" @change="handleSamplingEnterpriseChange">
+                    <option value="">请选择企业</option>
+                    <option v-for="item in samplingEnterprises" :key="item.id" :value="item.id">
+                      {{ item.enterpriseName }}
+                    </option>
+                  </select>
+                </label>
+                <label>
+                  选择产品
+                  <select
+                    v-model="samplingForm.productId"
+                    :disabled="samplingLoading || samplingProductLoading || !samplingForm.enterpriseId"
+                  >
+                    <option value="">请选择产品</option>
+                    <option v-for="item in samplingProducts" :key="item.id" :value="item.id">
+                      {{ item.productName }}
+                    </option>
+                  </select>
+                </label>
+                <label>
+                  任务标题
+                  <input v-model.trim="samplingForm.taskTitle" required placeholder="例：乳制品例行抽检" />
+                </label>
+                <label class="span-all">
+                  任务描述
+                  <textarea v-model.trim="samplingForm.taskDesc" rows="3" placeholder="填写抽检要求说明"></textarea>
+                </label>
+                <label>
+                  优先级
+                  <select v-model="samplingForm.priority">
+                    <option value="MEDIUM">中</option>
+                    <option value="LOW">低</option>
+                    <option value="HIGH">高</option>
+                  </select>
+                </label>
+                <label>
+                  截止时间
+                  <input v-model="samplingForm.deadline" type="datetime-local" required />
+                </label>
+                <div class="secondary-text span-all" v-if="samplingForm.enterpriseId && !samplingProductLoading && !samplingProducts.length">
+                  当前企业暂无可抽检的启用产品，请先补齐产品档案。
+                </div>
+                <button class="primary dispatch-submit span-all" type="submit" :disabled="samplingLoading">
+                  {{ samplingLoading ? "创建中..." : "创建抽检任务" }}
+                </button>
+              </form>
+            </div>
+
+            <div class="dispatch-list">
+              <div class="section-subtitle">抽检任务列表</div>
+              <form class="filter-bar filter-bar--triple" @submit.prevent="handleSamplingSearch">
+                <label>
+                  企业名称
+                  <input v-model.trim="samplingFilters.enterpriseName" placeholder="输入企业名称" />
+                </label>
+                <label>
+                  任务状态
+                  <select v-model="samplingFilters.status">
+                    <option value="">全部</option>
+                    <option value="CREATED">待派发</option>
+                    <option value="ASSIGNED">已派发</option>
+                    <option value="COMPLETED">已完成</option>
+                    <option value="CLOSED">已归档</option>
+                  </select>
+                </label>
+                <button class="primary" type="submit" :disabled="samplingTaskLoading">
+                  {{ samplingTaskLoading ? "查询中..." : "查询" }}
+                </button>
+              </form>
+
+              <div class="list-table task-table">
+                <div class="list-row list-header sampling-header">
+                  <span>任务号</span>
+                  <span>企业</span>
+                  <span>产品</span>
+                  <span>优先级</span>
+                  <span>状态</span>
+                  <span>负责人</span>
+                  <span>截止时间</span>
+                  <span>操作</span>
+                </div>
+                <div v-if="!samplingTasks.length" class="list-empty">
+                  暂无抽检任务
+                </div>
+                <div v-for="task in samplingTasks" :key="task.id" class="list-row sampling-row">
+                  <span>{{ task.taskNo }}</span>
+                  <span>{{ task.enterpriseName || "-" }}</span>
+                  <div>
+                    <div class="primary-text">{{ task.productName || "-" }}</div>
+                    <div class="secondary-text">
+                      {{ task.productSpecification || "暂无规格" }}
+                      <template v-if="task.samplingResult">
+                        · 结果：{{ formatInspectionResult(task.samplingResult) }}
+                      </template>
+                    </div>
+                  </div>
+                  <span>{{ formatTaskPriority(task.priority) }}</span>
+                  <span>{{ formatSamplingTaskStatus(task.status) }}</span>
+                  <span>{{ task.assignedToName || "-" }}</span>
+                  <span>{{ formatTime(task.deadline) }}</span>
+                  <div class="action-buttons">
+                    <button class="ghost" type="button" @click="openSamplingTaskDetail(task)">
+                      查看详情
+                    </button>
+                    <span v-if="task.samplingResultId" class="secondary-text">
+                      {{ formatSamplingPublicStatus(task.samplingPublicStatus) }}
+                    </span>
+                    <select
+                      v-if="isSamplingTaskAssignable(task)"
+                      v-model="samplingAssignments[task.id]"
+                      :disabled="samplingTaskLoading || isTaskDeadlineExceeded(task.deadline)"
+                    >
+                      <option value="">选择执法人员</option>
+                      <option
+                        v-for="item in getEnforcers(task.regionId)"
+                        :key="item.id"
+                        :value="item.id"
+                      >
+                        {{ item.name }}
+                      </option>
+                    </select>
+                    <button
+                      v-if="isSamplingTaskAssignable(task)"
+                      class="ghost"
+                      type="button"
+                      :disabled="samplingTaskLoading || isTaskDeadlineExceeded(task.deadline)"
+                      @click="handleAssignSamplingTask(task)"
+                    >
+                      派发
+                    </button>
+                    <button
+                      v-if="task.samplingResultId && task.samplingPublicStatus !== 'PUBLISHED'"
+                      class="primary"
+                      type="button"
+                      :disabled="samplingTaskLoading"
+                      @click="handlePublishSamplingResult(task)"
+                    >
+                      公示
+                    </button>
+                    <button
+                      v-if="task.samplingResultId && task.samplingPublicStatus === 'PUBLISHED'"
+                      class="ghost"
+                      type="button"
+                      :disabled="samplingTaskLoading"
+                      @click="handleOfflineSamplingResult(task)"
+                    >
+                      下线
+                    </button>
+                    <button
+                      v-if="isSamplingTaskClosable(task)"
+                      class="ghost"
+                      type="button"
+                      :disabled="samplingTaskLoading"
+                      @click="handleCloseSamplingTask(task)"
+                    >
+                      归档
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <div class="pager">
+                <span>共 {{ samplingTotal }} 条，{{ samplingPage }}/{{ samplingPages }} 页</span>
+                <div class="pager-actions">
+                  <button
+                    class="ghost"
+                    type="button"
+                    :disabled="samplingPage <= 1"
+                    @click="changeSamplingPage(samplingPage - 1)"
+                  >
+                    上一页
+                  </button>
+                  <button
+                    class="ghost"
+                    type="button"
+                    :disabled="samplingPage >= samplingPages"
+                    @click="changeSamplingPage(samplingPage + 1)"
+                  >
+                    下一页
+                  </button>
+                </div>
+              </div>
+
+              <div v-if="samplingDetailTask" class="modal-mask" @click.self="closeSamplingTaskDetail">
+                <div class="modal-card task-detail-modal">
+                  <div class="modal-title">抽检任务详情</div>
+                  <div class="task-detail-header">
+                    <span class="task-chip task-chip--status">{{ formatSamplingTaskStatus(samplingDetailTask.status) }}</span>
+                    <span class="task-chip task-chip--priority">{{ formatTaskPriority(samplingDetailTask.priority) }}</span>
+                    <span class="task-chip">{{ samplingDetailTask.taskNo || "-" }}</span>
+                  </div>
+                  <div class="task-detail-grid">
+                    <section class="task-detail-section">
+                      <div class="task-detail-section-title">企业信息</div>
+                      <div v-if="samplingDetailLoading" class="task-detail-loading">加载企业信息中...</div>
+                      <div v-else class="task-detail-fields">
+                        <div class="task-detail-field">
+                          <span>企业名称</span>
+                          <strong>{{ samplingDetailEnterprise?.enterpriseName || samplingDetailTask.enterpriseName || "-" }}</strong>
+                        </div>
+                        <div class="task-detail-field">
+                          <span>负责人姓名</span>
+                          <strong>{{ samplingDetailEnterprise?.principal || "-" }}</strong>
+                        </div>
+                        <div class="task-detail-field">
+                          <span>所属区域</span>
+                          <strong>{{ samplingDetailRegionName || "-" }}</strong>
+                        </div>
+                        <div class="task-detail-field task-detail-field--full">
+                          <span>详细地址</span>
+                          <strong>{{ samplingDetailEnterprise?.addressDetail || "-" }}</strong>
+                        </div>
+                      </div>
+                    </section>
+                    <section class="task-detail-section">
+                      <div class="task-detail-section-title">抽检信息</div>
+                      <div class="task-detail-fields">
+                        <div class="task-detail-field">
+                          <span>任务标题</span>
+                          <strong>{{ samplingDetailTask.taskTitle || "-" }}</strong>
+                        </div>
+                        <div class="task-detail-field">
+                          <span>抽检产品</span>
+                          <strong>{{ samplingDetailTask.productName || "-" }}</strong>
+                        </div>
+                        <div class="task-detail-field">
+                          <span>产品类别</span>
+                          <strong>{{ samplingDetailTask.productCategory || "-" }}</strong>
+                        </div>
+                        <div class="task-detail-field">
+                          <span>产品规格</span>
+                          <strong>{{ samplingDetailTask.productSpecification || "-" }}</strong>
+                        </div>
+                        <div class="task-detail-field">
+                          <span>当前执行人</span>
+                          <strong>{{ samplingDetailTask.assignedToName || "-" }}</strong>
+                        </div>
+                        <div class="task-detail-field">
+                          <span>公示状态</span>
+                          <strong>{{ formatSamplingPublicStatus(samplingDetailTask.samplingPublicStatus) }}</strong>
+                        </div>
+                        <div class="task-detail-field">
+                          <span>截止时间</span>
+                          <strong>{{ formatTime(samplingDetailTask.deadline) }}</strong>
+                        </div>
+                        <div class="task-detail-field">
+                          <span>抽检结果</span>
+                          <strong>{{ formatInspectionResult(samplingDetailTask.samplingResult) }}</strong>
+                        </div>
+                        <div class="task-detail-field task-detail-field--full">
+                          <span>抽检结论</span>
+                          <strong>{{ samplingDetailTask.samplingConclusion || "结果提交后显示" }}</strong>
+                        </div>
+                        <div class="task-detail-field task-detail-field--full">
+                          <span>任务描述</span>
+                          <strong>{{ samplingDetailTask.taskDesc || "暂无任务描述" }}</strong>
+                        </div>
+                      </div>
+                    </section>
+                  </div>
+                  <div class="modal-actions">
+                    <button class="ghost" type="button" @click="closeSamplingTaskDetail">关闭</button>
                   </div>
                 </div>
               </div>
@@ -939,8 +1228,13 @@
           </div>
         </div>
 
-        <div v-else-if="section === 'stats'">
+        <div v-else-if="section === 'stats'" class="stats-dashboard">
+          <SupervisionOverviewPanel :token="token" mode="admin" />
           <WarningStatsPanel :token="token" mode="admin" />
+        </div>
+
+        <div v-else-if="section === 'bulletins'">
+          <RegulatorBulletinManager :token="token" />
         </div>
 
         <div v-else class="placeholder">
@@ -964,6 +1258,7 @@ import {
   approveEnterprise,
   approveEnterpriseBatch,
   fetchEnterpriseDetail,
+  fetchEnterpriseProducts,
   fetchEligibleRegulators,
   fetchEnterprises,
   fetchPendingEnterprises,
@@ -975,18 +1270,26 @@ import {
   rejectEnterpriseBatch
 } from "../api/regulation";
 import {
+  assignSamplingTask,
   assignInspectionTask,
+  closeSamplingTask,
   closeInspectionTask,
+  createSamplingTask,
   createInspectionTask,
   fetchInspectionRecordDetail,
   fetchInspectionRecords,
   fetchInspectionTasks,
+  fetchSamplingTasks,
+  offlineSamplingResult,
+  publishSamplingResult,
   fetchRectificationActions,
   fetchRectificationDetail,
   fetchRectifications,
   reviewRectification
 } from "../api/regulationOperation";
+import RegulatorBulletinManager from "../components/RegulatorBulletinManager.vue";
 import RectificationDetailModal from "../components/RectificationDetailModal.vue";
+import SupervisionOverviewPanel from "../components/SupervisionOverviewPanel.vue";
 import WarningStatsPanel from "../components/WarningStatsPanel.vue";
 
 const props = defineProps({
@@ -1046,6 +1349,33 @@ const dispatchSize = ref(8);
 const dispatchTotal = ref(0);
 const dispatchPages = ref(1);
 const taskAssignments = reactive({});
+const samplingLoading = ref(false);
+const samplingTaskLoading = ref(false);
+const samplingProductLoading = ref(false);
+const samplingEnterprises = ref([]);
+const samplingProducts = ref([]);
+const samplingForm = reactive({
+  enterpriseId: "",
+  productId: "",
+  taskTitle: "",
+  taskDesc: "",
+  priority: "MEDIUM",
+  deadline: ""
+});
+const samplingFilters = reactive({
+  enterpriseName: "",
+  status: ""
+});
+const samplingTasks = ref([]);
+const samplingPage = ref(1);
+const samplingSize = ref(8);
+const samplingTotal = ref(0);
+const samplingPages = ref(1);
+const samplingAssignments = reactive({});
+const samplingDetailTask = ref(null);
+const samplingDetailEnterprise = ref(null);
+const samplingDetailRegionName = ref("-");
+const samplingDetailLoading = ref(false);
 const enforcerMap = reactive({});
 const detailTask = ref(null);
 const detailTaskEnterprise = ref(null);
@@ -1119,10 +1449,12 @@ function setStatus(message, type = "info") {
 const sectionLabelMap = {
   approvals: "备案审核",
   dispatch: "任务派发",
+  sampling: "抽检任务",
   inspections: "检查记录",
   rectification: "整改复核",
   complaints: "投诉流转",
   warning: "风险预警",
+  bulletins: "公告发布",
   stats: "数据统计"
 };
 
@@ -1160,6 +1492,17 @@ const taskPriorityMap = {
   LOW: "低",
   MEDIUM: "中",
   HIGH: "高"
+};
+const samplingTaskStatusMap = {
+  CREATED: "待派发",
+  ASSIGNED: "已派发",
+  COMPLETED: "已完成",
+  CLOSED: "已归档"
+};
+const samplingPublicStatusMap = {
+  DRAFT: "待公示",
+  PUBLISHED: "已公示",
+  OFFLINE: "已下线"
 };
 
 const inspectionResultMap = {
@@ -1209,6 +1552,14 @@ function formatTaskStatus(value) {
 
 function formatTaskPriority(value) {
   return taskPriorityMap[value] || value || "-";
+}
+
+function formatSamplingTaskStatus(value) {
+  return samplingTaskStatusMap[value] || value || "-";
+}
+
+function formatSamplingPublicStatus(value) {
+  return samplingPublicStatusMap[value] || (value ? value : "未生成");
 }
 
 function formatInspectionResult(value) {
@@ -1316,6 +1667,11 @@ async function handleDispatchEnter() {
   await loadDispatch();
 }
 
+async function handleSamplingEnter() {
+  section.value = "sampling";
+  await loadSampling();
+}
+
 async function handleInspectionEnter() {
   section.value = "inspections";
   await loadInspections();
@@ -1338,6 +1694,10 @@ async function handleWarningEnter() {
 
 async function loadDispatch() {
   await Promise.all([loadDispatchEnterprises(), loadDispatchTasks()]);
+}
+
+async function loadSampling() {
+  await Promise.all([loadSamplingEnterprises(), loadSamplingTasks()]);
 }
 
 async function loadComplaints() {
@@ -1377,6 +1737,46 @@ async function loadDispatchEnterprises() {
   }
 }
 
+async function loadSamplingEnterprises() {
+  samplingLoading.value = true;
+  try {
+    const data = await fetchEnterprises(props.token, {
+      approvalStatus: "APPROVED",
+      page: 1,
+      size: 100
+    });
+    samplingEnterprises.value = data.records || [];
+  } catch (error) {
+    setStatus(error.message || "加载企业列表失败", "error");
+  } finally {
+    samplingLoading.value = false;
+  }
+}
+
+async function loadSamplingProducts(enterpriseId) {
+  if (!enterpriseId) {
+    samplingProducts.value = [];
+    return;
+  }
+  samplingProductLoading.value = true;
+  try {
+    const data = await fetchEnterpriseProducts(props.token, enterpriseId);
+    samplingProducts.value = Array.isArray(data)
+      ? data.filter((item) => item?.status === "ACTIVE")
+      : [];
+  } catch (error) {
+    samplingProducts.value = [];
+    setStatus(error.message || "加载企业产品失败", "error");
+  } finally {
+    samplingProductLoading.value = false;
+  }
+}
+
+async function handleSamplingEnterpriseChange() {
+  samplingForm.productId = "";
+  await loadSamplingProducts(samplingForm.enterpriseId);
+}
+
 async function loadDispatchTasks() {
   dispatchTaskLoading.value = true;
   setStatus("");
@@ -1399,6 +1799,31 @@ async function loadDispatchTasks() {
     setStatus(error.message || "加载任务列表失败", "error");
   } finally {
     dispatchTaskLoading.value = false;
+  }
+}
+
+async function loadSamplingTasks() {
+  samplingTaskLoading.value = true;
+  setStatus("");
+  try {
+    const data = await fetchSamplingTasks(props.token, {
+      ...samplingFilters,
+      page: samplingPage.value,
+      size: samplingSize.value
+    });
+    samplingTasks.value = data.records || [];
+    samplingTotal.value = data.total || 0;
+    samplingPage.value = data.page || 1;
+    samplingSize.value = data.size || samplingSize.value;
+    samplingPages.value = data.pages || 1;
+    const regionIds = samplingTasks.value
+      .map((task) => task.regionId)
+      .filter((value) => value);
+    await Promise.all(regionIds.map((id) => ensureEnforcers(id)));
+  } catch (error) {
+    setStatus(error.message || "加载抽检任务失败", "error");
+  } finally {
+    samplingTaskLoading.value = false;
   }
 }
 
@@ -1657,6 +2082,16 @@ async function changeDispatchPage(nextPage) {
   await loadDispatchTasks();
 }
 
+async function handleSamplingSearch() {
+  samplingPage.value = 1;
+  await loadSamplingTasks();
+}
+
+async function changeSamplingPage(nextPage) {
+  samplingPage.value = nextPage;
+  await loadSamplingTasks();
+}
+
 async function handleCreateTask() {
   if (!dispatchForm.enterpriseId) {
     setStatus("请选择企业后再创建任务", "error");
@@ -1693,6 +2128,47 @@ async function handleCreateTask() {
   }
 }
 
+async function handleCreateSamplingTask() {
+  if (!samplingForm.enterpriseId) {
+    setStatus("请选择企业后再创建抽检任务", "error");
+    return;
+  }
+  if (!samplingForm.productId) {
+    setStatus("请选择产品后再创建抽检任务", "error");
+    return;
+  }
+  if (!samplingForm.taskTitle.trim()) {
+    setStatus("请填写抽检任务标题", "error");
+    return;
+  }
+  if (!samplingForm.deadline) {
+    setStatus("请填写截止时间", "error");
+    return;
+  }
+  samplingLoading.value = true;
+  setStatus("");
+  try {
+    await createSamplingTask(props.token, {
+      enterpriseId: samplingForm.enterpriseId,
+      productId: samplingForm.productId,
+      taskTitle: samplingForm.taskTitle,
+      taskDesc: samplingForm.taskDesc,
+      priority: samplingForm.priority,
+      deadline: normalizeDeadline(samplingForm.deadline)
+    });
+    setStatus("抽检任务已创建", "success");
+    samplingForm.taskTitle = "";
+    samplingForm.taskDesc = "";
+    samplingForm.priority = "MEDIUM";
+    samplingForm.deadline = "";
+    await loadSamplingTasks();
+  } catch (error) {
+    setStatus(error.message || "创建抽检任务失败", "error");
+  } finally {
+    samplingLoading.value = false;
+  }
+}
+
 async function ensureEnforcers(regionId) {
   if (!regionId || enforcerMap[regionId]) {
     return;
@@ -1725,6 +2201,14 @@ function isTaskClosable(task) {
   return task.status === "COMPLETED";
 }
 
+function isSamplingTaskAssignable(task) {
+  return ["CREATED", "ASSIGNED"].includes(task.status);
+}
+
+function isSamplingTaskClosable(task) {
+  return task.status === "COMPLETED";
+}
+
 async function handleCloseTask(task) {
   if (!task?.id) return;
   dispatchTaskLoading.value = true;
@@ -1737,6 +2221,21 @@ async function handleCloseTask(task) {
     setStatus(error.message || "关闭任务失败", "error");
   } finally {
     dispatchTaskLoading.value = false;
+  }
+}
+
+async function handleCloseSamplingTask(task) {
+  if (!task?.id) return;
+  samplingTaskLoading.value = true;
+  setStatus("", "info");
+  try {
+    await closeSamplingTask(props.token, task.id);
+    setStatus("抽检任务已归档", "success");
+    await loadSamplingTasks();
+  } catch (error) {
+    setStatus(error.message || "归档抽检任务失败", "error");
+  } finally {
+    samplingTaskLoading.value = false;
   }
 }
 
@@ -1760,6 +2259,65 @@ async function handleAssignTask(task) {
     setStatus(error.message || "任务派发失败", "error");
   } finally {
     dispatchTaskLoading.value = false;
+  }
+}
+
+async function handleAssignSamplingTask(task) {
+  if (isTaskDeadlineExceeded(task?.deadline)) {
+    setStatus("任务已超期，无法派发", "error");
+    return;
+  }
+  const regulatorId = samplingAssignments[task.id];
+  if (!regulatorId) {
+    setStatus("请选择执法人员后再派发", "error");
+    return;
+  }
+  samplingTaskLoading.value = true;
+  setStatus("");
+  try {
+    await assignSamplingTask(props.token, task.id, { regulatorId });
+    setStatus("抽检任务已派发", "success");
+    await loadSamplingTasks();
+  } catch (error) {
+    setStatus(error.message || "抽检任务派发失败", "error");
+  } finally {
+    samplingTaskLoading.value = false;
+  }
+}
+
+async function handlePublishSamplingResult(task) {
+  if (!task?.samplingResultId) {
+    setStatus("抽检结果未生成，无法公示", "error");
+    return;
+  }
+  samplingTaskLoading.value = true;
+  setStatus("");
+  try {
+    await publishSamplingResult(props.token, task.samplingResultId);
+    setStatus("抽检结果已公示", "success");
+    await loadSamplingTasks();
+  } catch (error) {
+    setStatus(error.message || "抽检结果公示失败", "error");
+  } finally {
+    samplingTaskLoading.value = false;
+  }
+}
+
+async function handleOfflineSamplingResult(task) {
+  if (!task?.samplingResultId) {
+    setStatus("抽检结果未生成，无法下线", "error");
+    return;
+  }
+  samplingTaskLoading.value = true;
+  setStatus("");
+  try {
+    await offlineSamplingResult(props.token, task.samplingResultId);
+    setStatus("抽检结果已下线", "success");
+    await loadSamplingTasks();
+  } catch (error) {
+    setStatus(error.message || "抽检结果下线失败", "error");
+  } finally {
+    samplingTaskLoading.value = false;
   }
 }
 
@@ -1787,11 +2345,42 @@ async function openTaskDetail(task) {
   }
 }
 
+async function openSamplingTaskDetail(task) {
+  if (!task) return;
+  samplingDetailTask.value = task;
+  samplingDetailEnterprise.value = null;
+  samplingDetailRegionName.value = "-";
+  if (!task.enterpriseId) return;
+
+  samplingDetailLoading.value = true;
+  try {
+    const enterprise = await fetchEnterpriseDetail(props.token, task.enterpriseId);
+    samplingDetailEnterprise.value = enterprise || null;
+    if (enterprise?.regionId) {
+      const path = await fetchRegionPath(props.token, enterprise.regionId).catch(() => []);
+      samplingDetailRegionName.value = Array.isArray(path) && path.length
+        ? path.map((item) => item.name).join("/")
+        : "-";
+    }
+  } catch (error) {
+    setStatus(error.message || "加载企业信息失败", "error");
+  } finally {
+    samplingDetailLoading.value = false;
+  }
+}
+
 function closeTaskDetail() {
   detailTask.value = null;
   detailTaskEnterprise.value = null;
   detailTaskRegionName.value = "-";
   detailTaskLoading.value = false;
+}
+
+function closeSamplingTaskDetail() {
+  samplingDetailTask.value = null;
+  samplingDetailEnterprise.value = null;
+  samplingDetailRegionName.value = "-";
+  samplingDetailLoading.value = false;
 }
 
 async function openInspectionDetail(record) {
@@ -2027,6 +2616,10 @@ onMounted(() => {
     handleDispatchEnter();
     return;
   }
+  if (section.value === "sampling") {
+    handleSamplingEnter();
+    return;
+  }
   if (section.value === "inspections") {
     handleInspectionEnter();
     return;
@@ -2046,11 +2639,19 @@ onMounted(() => {
   if (section.value === "stats") {
     return;
   }
+  if (section.value === "bulletins") {
+    return;
+  }
   load();
 });
 </script>
 
 <style scoped>
+.stats-dashboard {
+  display: grid;
+  gap: 22px;
+}
+
 .regulator-shell {
   grid-template-columns: 260px 1fr;
 }
@@ -2208,18 +2809,35 @@ onMounted(() => {
     minmax(200px, 1.6fr);
 }
 
+.sampling-header,
+.sampling-row {
+  grid-template-columns:
+    minmax(180px, 1.5fr)
+    minmax(140px, 1.2fr)
+    minmax(160px, 1.4fr)
+    minmax(72px, 0.7fr)
+    minmax(88px, 0.8fr)
+    minmax(96px, 0.9fr)
+    minmax(140px, 1fr)
+    minmax(200px, 1.6fr);
+}
+
 .task-row > span,
-.task-row > div {
+.task-row > div,
+.sampling-row > span,
+.sampling-row > div {
   min-width: 0;
 }
 
-.task-row > span {
+.task-row > span,
+.sampling-row > span {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.task-row > span:first-child {
+.task-row > span:first-child,
+.sampling-row > span:first-child {
   /* Task numbers are long and unbroken; allow wrapping to avoid overlap. */
   white-space: normal;
   word-break: break-all;
@@ -2622,7 +3240,9 @@ onMounted(() => {
   }
 
   .task-header,
-  .task-row {
+  .task-row,
+  .sampling-header,
+  .sampling-row {
     grid-template-columns: 1fr;
   }
 

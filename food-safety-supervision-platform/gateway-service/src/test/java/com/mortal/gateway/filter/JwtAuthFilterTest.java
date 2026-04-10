@@ -111,6 +111,46 @@ class JwtAuthFilterTest {
         assertNull(exchange.getResponse().getStatusCode());
     }
 
+    @Test
+    void filter_shouldAllowAdminToQueryRegionsForRegulatorSetup() {
+        JwtAuthFilter filter = newFilter(false, request -> Mono.just(successResponse("ADMIN", List.of("ADMIN"))));
+        AtomicBoolean chainInvoked = new AtomicBoolean(false);
+        GatewayFilterChain chain = exchange -> {
+            chainInvoked.set(true);
+            return Mono.empty();
+        };
+        MockServerWebExchange exchange = MockServerWebExchange.from(
+            MockServerHttpRequest.get("/api/regulation/regions")
+                .header(HttpHeaders.AUTHORIZATION, bearerToken())
+                .build()
+        );
+
+        filter.filter(exchange, chain).block();
+
+        assertTrue(chainInvoked.get());
+        assertNull(exchange.getResponse().getStatusCode());
+    }
+
+    @Test
+    void filter_shouldAllowAdminToManageRegulatorProfiles() {
+        JwtAuthFilter filter = newFilter(false, request -> Mono.just(successResponse("ADMIN", List.of("ADMIN"))));
+        AtomicBoolean chainInvoked = new AtomicBoolean(false);
+        GatewayFilterChain chain = exchange -> {
+            chainInvoked.set(true);
+            return Mono.empty();
+        };
+        MockServerWebExchange exchange = MockServerWebExchange.from(
+            MockServerHttpRequest.get("/api/regulation/regulators")
+                .header(HttpHeaders.AUTHORIZATION, bearerToken())
+                .build()
+        );
+
+        filter.filter(exchange, chain).block();
+
+        assertTrue(chainInvoked.get());
+        assertNull(exchange.getResponse().getStatusCode());
+    }
+
     private JwtAuthFilter newFilter(boolean failOpen, ExchangeFunction exchangeFunction) {
         WebClient.Builder builder = WebClient.builder().exchangeFunction(exchangeFunction);
         JwtAuthFilter filter = new JwtAuthFilter(builder, new ResponseUtil());

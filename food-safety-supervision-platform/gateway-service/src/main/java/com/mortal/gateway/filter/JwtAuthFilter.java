@@ -64,8 +64,10 @@ public class JwtAuthFilter implements GlobalFilter, Ordered {
         RoleRule.of("/api/regulation/enterprise/", "ENTERPRISE", "REGULATOR_ADMIN", "REGULATOR_ENFORCER"),
         // Enterprise product archive endpoints.
         RoleRule.of("/api/regulation/products", "ENTERPRISE"),
-        // Region tree query for enterprise filing forms and regulators.
-        RoleRule.of("/api/regulation/regions", "ENTERPRISE", "REGULATOR_ADMIN", "REGULATOR_ENFORCER"),
+        // Region tree query for enterprise filing forms and regulator account setup.
+        RoleRule.of("/api/regulation/regions", "ADMIN", "ENTERPRISE", "REGULATOR_ADMIN", "REGULATOR_ENFORCER"),
+        // Regulator profiles are created and maintained by system admins; regulators use /me and /eligible.
+        RoleRule.of("/api/regulation/regulators", "ADMIN", "REGULATOR_ADMIN", "REGULATOR_ENFORCER"),
         RoleRule.of("/api/regulation/", "REGULATOR_ADMIN", "REGULATOR_ENFORCER"),
         RoleRule.of("/api/query/", "ADMIN", "REGULATOR_ADMIN", "REGULATOR_ENFORCER")
     );

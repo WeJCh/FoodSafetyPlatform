@@ -13,7 +13,7 @@
           <span>{{ publicUser.username || "公众用户" }}</span>
           <span>已登录</span>
         </div>
-        <button class="ghost" type="button" @click="$emit('logout')">退出登录</button>
+        <button class="ghost" type="button" @click="handleLogout">退出登录</button>
       </div>
     </header>
 
@@ -23,11 +23,11 @@
         <h1>投诉入口清晰可见，处理进度全程可追踪</h1>
         <p>当前版本聚焦投诉提交与进度查询，确保投诉可追踪、处理可反馈，未开放能力暂不对外展示。</p>
         <div class="hero-actions">
-          <button class="ghost" type="button" @click="$emit('open-bulletins')">监管公告</button>
-          <button class="ghost" type="button" @click="$emit('open-enterprises')">企业公示</button>
-          <button class="ghost" type="button" @click="$emit('open-sampling-results')">抽检结果</button>
-          <button class="primary" type="button" @click="$emit('open-complaint')">我要投诉</button>
-          <button class="ghost" type="button" @click="$emit('open-track')">我的投诉</button>
+          <button class="ghost" type="button" @click="goTo('public-bulletins')">监管公告</button>
+          <button class="ghost" type="button" @click="goTo('public-enterprises')">企业公示</button>
+          <button class="ghost" type="button" @click="goTo('public-sampling-results')">抽检结果</button>
+          <button class="primary" type="button" @click="goTo('public-complaint-create')">我要投诉</button>
+          <button class="ghost" type="button" @click="goTo('public-complaints')">我的投诉</button>
         </div>
         <div class="hero-tips">
           <div>
@@ -60,7 +60,7 @@
             <li>提交后在“我的投诉”查看进度</li>
             <li>随时查询处理进度</li>
           </ol>
-          <button class="primary" type="button" @click="$emit('open-complaint')">立即提交</button>
+          <button class="primary" type="button" @click="goTo('public-complaint-create')">立即提交</button>
         </div>
       </div>
     </section>
@@ -73,8 +73,8 @@
           <p>支持匿名投诉、图片上传、结果反馈，办理全流程可追踪。</p>
         </div>
         <div class="card-actions">
-          <button class="primary" type="button" @click="$emit('open-complaint')">提交投诉</button>
-          <button class="ghost" type="button" @click="$emit('open-track')">查询进度</button>
+          <button class="primary" type="button" @click="goTo('public-complaint-create')">提交投诉</button>
+          <button class="ghost" type="button" @click="goTo('public-complaints')">查询进度</button>
         </div>
       </article>
 
@@ -85,7 +85,7 @@
           <p>已开放公告查询，可查看监管部门发布的食品安全提醒、阶段性通知和公众须知。</p>
         </div>
         <div class="card-actions">
-          <button class="ghost" type="button" @click="$emit('open-bulletins')">查看公告</button>
+          <button class="ghost" type="button" @click="goTo('public-bulletins')">查看公告</button>
         </div>
       </article>
 
@@ -96,7 +96,7 @@
           <p>已开放备案通过企业查询，可查看企业基础备案信息与当前监管状态。</p>
         </div>
         <div class="card-actions">
-          <button class="ghost" type="button" @click="$emit('open-enterprises')">查看企业</button>
+          <button class="ghost" type="button" @click="goTo('public-enterprises')">查看企业</button>
         </div>
       </article>
 
@@ -107,7 +107,7 @@
           <p>已开放抽检结果公示，可查看已发布的企业产品抽检结论和处置建议。</p>
         </div>
         <div class="card-actions">
-          <button class="ghost" type="button" @click="$emit('open-sampling-results')">查看结果</button>
+          <button class="ghost" type="button" @click="goTo('public-sampling-results')">查看结果</button>
         </div>
       </article>
 
@@ -185,14 +185,21 @@
 </template>
 
 <script setup>
-defineProps({
-  publicUser: {
-    type: Object,
-    required: true
-  }
-});
+import { computed } from "vue";
+import { useRouter } from "vue-router";
+import { getActiveSession, performLogout } from "../session/authRuntime";
 
-defineEmits(["logout", "open-complaint", "open-track", "open-enterprises", "open-bulletins", "open-sampling-results"]);
+const router = useRouter();
+const publicUser = computed(() => getActiveSession() || {});
+
+async function handleLogout() {
+  await performLogout();
+  router.replace({ name: "login" }).catch(() => {});
+}
+
+function goTo(name) {
+  router.push({ name }).catch(() => {});
+}
 </script>
 
 <style scoped>

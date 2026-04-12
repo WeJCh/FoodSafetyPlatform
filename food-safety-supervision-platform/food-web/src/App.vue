@@ -1,348 +1,39 @@
 <template>
-  <AuthView
-    v-if="view === 'auth'"
-    @admin-login="handleAdminLogin"
-    @enterprise-login="handleEnterpriseLogin"
-    @public-login="handlePublicLogin"
-    @regulator-login="handleRegulatorLogin"
-  />
-  <PublicHomeView
-    v-else-if="view === 'public'"
-    :public-user="publicUser"
-    @logout="handleLogout"
-    @open-bulletins="handleOpenPublicBulletins"
-    @open-enterprises="handleOpenPublicEnterprises"
-    @open-sampling-results="handleOpenPublicSamplingResults"
-    @open-complaint="handleOpenPublicComplaint"
-    @open-track="handleOpenPublicTrack"
-  />
-  <PublicBulletinListView
-    v-else-if="view === 'public-bulletins'"
-    :public-user="publicUser"
-    :public-token="publicToken"
-    @back="handlePublicHome"
-    @logout="handleLogout"
-    @view-bulletin="handleViewPublicBulletin"
-  />
-  <PublicBulletinDetailView
-    v-else-if="view === 'public-bulletin-detail'"
-    :public-user="publicUser"
-    :public-token="publicToken"
-    :bulletin-id="publicBulletinDetailId"
-    @back="handleBackFromPublicBulletinDetail"
-    @logout="handleLogout"
-  />
-  <PublicEnterpriseListView
-    v-else-if="view === 'public-enterprises'"
-    :public-user="publicUser"
-    :public-token="publicToken"
-    @back="handlePublicHome"
-    @logout="handleLogout"
-    @view-enterprise="handleViewPublicEnterprise"
-  />
-  <PublicEnterpriseDetailView
-    v-else-if="view === 'public-enterprise-detail'"
-    :public-user="publicUser"
-    :public-token="publicToken"
-    :enterprise-id="publicEnterpriseDetailId"
-    @back="handleBackFromPublicEnterpriseDetail"
-    @logout="handleLogout"
-  />
-  <PublicSamplingResultListView
-    v-else-if="view === 'public-sampling-results'"
-    :public-user="publicUser"
-    :public-token="publicToken"
-    @back="handlePublicHome"
-    @logout="handleLogout"
-    @view-result="handleViewPublicSamplingResult"
-  />
-  <PublicSamplingResultDetailView
-    v-else-if="view === 'public-sampling-result-detail'"
-    :public-user="publicUser"
-    :public-token="publicToken"
-    :sampling-result-id="publicSamplingResultDetailId"
-    @back="handleBackFromPublicSamplingResultDetail"
-    @logout="handleLogout"
-  />
-  <PublicComplaintView
-    v-else-if="view === 'public-complaint'"
-    :public-user="publicUser"
-    :public-token="publicToken"
-    @back="handlePublicHome"
-    @logout="handleLogout"
-    @open-track="handleOpenPublicTrack"
-  />
-  <PublicComplaintTrackView
-    v-else-if="view === 'public-track'"
-    :public-user="publicUser"
-    :public-token="publicToken"
-    @back="handlePublicHome"
-    @logout="handleLogout"
-  />
-  <AdminView
-    v-else-if="view === 'admin'"
-    :admin-user="adminUser"
-    :token="adminToken"
-    @logout="handleLogout"
-  />
-  <RegulatorAdminView
-    v-else-if="view === 'regulator-admin'"
-    :regulator-user="regulatorUser"
-    :token="regulatorToken"
-    :initial-section="regulatorReturnSection"
-    @logout="handleLogout"
-    @view-enterprise="handleViewEnterprise"
-    @view-complaint="handleViewComplaint"
-  />
-  <RegulatorAdminComplaintDetailView
-    v-else-if="view === 'regulator-admin-complaint'"
-    :token="regulatorToken"
-    :complaint-id="complaintDetailId"
-    @back="handleBackFromComplaint"
-  />
-  <RegulatorEnforcerView
-    v-else-if="view === 'regulator-enforcer'"
-    :regulator-user="regulatorUser"
-    :token="regulatorToken"
-    :initial-section="regulatorReturnSection"
-    @logout="handleLogout"
-    @view-enterprise="handleViewEnterprise"
-    @view-complaint="handleViewComplaint"
-  />
-  <RegulatorEnforcerComplaintDetailView
-    v-else-if="view === 'regulator-enforcer-complaint'"
-    :token="regulatorToken"
-    :complaint-id="complaintDetailId"
-    @back="handleBackFromComplaint"
-  />
-  <EnterpriseDetailView
-    v-else-if="view === 'enterprise-detail'"
-    :token="regulatorToken"
-    :enterprise-id="enterpriseDetailId"
-    @back="handleBackFromDetail"
-  />
-  <EnterpriseProfileView
-    v-else
-    :enterprise-user="enterpriseUser"
-    :token="enterpriseToken"
-    @logout="handleLogout"
-  />
+  <RouterView />
 </template>
 
 <script setup>
-import { reactive, ref } from "vue";
-import AdminView from "./views/AdminView.vue";
-import AuthView from "./views/AuthView.vue";
-import EnterpriseDetailView from "./views/EnterpriseDetailView.vue";
-import PublicBulletinDetailView from "./views/PublicBulletinDetailView.vue";
-import PublicBulletinListView from "./views/PublicBulletinListView.vue";
-import EnterpriseProfileView from "./views/EnterpriseProfileView.vue";
-import PublicComplaintTrackView from "./views/PublicComplaintTrackView.vue";
-import PublicComplaintView from "./views/PublicComplaintView.vue";
-import PublicEnterpriseDetailView from "./views/PublicEnterpriseDetailView.vue";
-import PublicEnterpriseListView from "./views/PublicEnterpriseListView.vue";
-import PublicHomeView from "./views/PublicHomeView.vue";
-import PublicSamplingResultDetailView from "./views/PublicSamplingResultDetailView.vue";
-import PublicSamplingResultListView from "./views/PublicSamplingResultListView.vue";
-import RegulatorAdminView from "./views/RegulatorAdminView.vue";
-import RegulatorAdminComplaintDetailView from "./views/RegulatorAdminComplaintDetailView.vue";
-import RegulatorEnforcerView from "./views/RegulatorEnforcerView.vue";
-import RegulatorEnforcerComplaintDetailView from "./views/RegulatorEnforcerComplaintDetailView.vue";
-import { fetchRegulatorProfile } from "./api/regulation";
-import { logout as logoutRequest } from "./api/auth";
+import { onBeforeUnmount, onMounted } from "vue";
+import { RouterView, useRoute, useRouter } from "vue-router";
+import { UNAUTHORIZED_EVENT } from "./api/client";
+import {
+  dropResolvedSession,
+  restoreResolvedSession
+} from "./session/authRuntime";
 
-const view = ref("auth");
-const adminToken = ref("");
-const adminUser = reactive({ username: "", userType: "", roles: [] });
-const enterpriseToken = ref("");
-const enterpriseUser = reactive({ username: "", userType: "", roles: [] });
-const publicToken = ref("");
-const publicUser = reactive({ username: "", userType: "", roles: [] });
-const publicBulletinDetailId = ref("");
-const publicEnterpriseDetailId = ref("");
-const publicSamplingResultDetailId = ref("");
-const regulatorToken = ref("");
-const regulatorUser = reactive({ username: "", userType: "", roleType: "", roles: [] });
-const enterpriseDetailId = ref("");
-const complaintDetailId = ref("");
-const returnView = ref("");
-const complaintReturnView = ref("");
-const regulatorReturnSection = ref("");
+const route = useRoute();
+const router = useRouter();
 
-function handleAdminLogin(payload) {
-  adminToken.value = payload.token;
-  adminUser.username = payload.username;
-  adminUser.userType = payload.userType;
-  adminUser.roles = Array.isArray(payload.roles) ? payload.roles : [];
-  view.value = "admin";
-}
+function handleUnauthorized() {
+  dropResolvedSession();
 
-function handleEnterpriseLogin(payload) {
-  enterpriseToken.value = payload.token;
-  enterpriseUser.username = payload.username;
-  enterpriseUser.userType = payload.userType;
-  enterpriseUser.roles = Array.isArray(payload.roles) ? payload.roles : [];
-  view.value = "enterprise";
-}
-
-function handlePublicLogin(payload) {
-  publicToken.value = payload.token;
-  publicUser.username = payload.username;
-  publicUser.userType = payload.userType;
-  publicUser.roles = Array.isArray(payload.roles) ? payload.roles : [];
-  view.value = "public";
-}
-
-function handlePublicHome() {
-  view.value = "public";
-}
-
-function handleOpenPublicBulletins() {
-  view.value = "public-bulletins";
-}
-
-function handleOpenPublicEnterprises() {
-  view.value = "public-enterprises";
-}
-
-function handleOpenPublicSamplingResults() {
-  view.value = "public-sampling-results";
-}
-
-function handleOpenPublicComplaint() {
-  view.value = "public-complaint";
-}
-
-function handleOpenPublicTrack() {
-  view.value = "public-track";
-}
-
-function handleViewPublicEnterprise(payload) {
-  const resolvedId = typeof payload === "object" ? payload?.id : payload;
-  if (!resolvedId) return;
-  publicEnterpriseDetailId.value = resolvedId;
-  view.value = "public-enterprise-detail";
-}
-
-function handleViewPublicBulletin(payload) {
-  const resolvedId = typeof payload === "object" ? payload?.id : payload;
-  if (!resolvedId) return;
-  publicBulletinDetailId.value = resolvedId;
-  view.value = "public-bulletin-detail";
-}
-
-function handleBackFromPublicBulletinDetail() {
-  publicBulletinDetailId.value = "";
-  view.value = "public-bulletins";
-}
-
-function handleBackFromPublicEnterpriseDetail() {
-  publicEnterpriseDetailId.value = "";
-  view.value = "public-enterprises";
-}
-
-function handleViewPublicSamplingResult(payload) {
-  const resolvedId = typeof payload === "object" ? payload?.id : payload;
-  if (!resolvedId) return;
-  publicSamplingResultDetailId.value = resolvedId;
-  view.value = "public-sampling-result-detail";
-}
-
-function handleBackFromPublicSamplingResultDetail() {
-  publicSamplingResultDetailId.value = "";
-  view.value = "public-sampling-results";
-}
-
-async function handleRegulatorLogin(payload) {
-  regulatorToken.value = payload.token;
-  regulatorUser.username = payload.username;
-  regulatorUser.userType = payload.userType;
-  regulatorUser.roles = Array.isArray(payload.roles) ? payload.roles : [];
-  regulatorUser.roleType = "";
-  // 关键注释：优先使用登录返回的 roles 进行页面分流
-  if (regulatorUser.roles.includes("REGULATOR_ADMIN")) {
-    regulatorUser.roleType = "REGULATOR_ADMIN";
-    view.value = "regulator-admin";
-    return;
+  if (!route.meta?.guestOnly) {
+    router.replace({
+      name: "login",
+      query: {
+        reason: "expired",
+        redirect: route.fullPath
+      }
+    });
   }
-  if (regulatorUser.roles.includes("REGULATOR_ENFORCER")) {
-    regulatorUser.roleType = "REGULATOR_ENFORCER";
-    view.value = "regulator-enforcer";
-    return;
-  }
-  // 关键注释：兜底逻辑，兼容旧数据（无 roles 时仍用监管档案判定）
-  const profile = await fetchRegulatorProfile(payload.token).catch(() => null);
-  regulatorUser.roleType = profile?.roleType || "";
-  view.value = profile?.roleType === "REGULATOR_ADMIN" ? "regulator-admin" : "regulator-enforcer";
 }
 
-function handleViewEnterprise(payload) {
-  const resolvedId = typeof payload === "object" ? payload?.id : payload;
-  if (!resolvedId) return;
-  enterpriseDetailId.value = resolvedId;
-  returnView.value = view.value;
-  regulatorReturnSection.value = payload?.fromSection || "";
-  view.value = "enterprise-detail";
-}
+onMounted(async () => {
+  window.addEventListener(UNAUTHORIZED_EVENT, handleUnauthorized);
+  await restoreResolvedSession();
+});
 
-function handleViewComplaint(payload) {
-  const resolvedId = typeof payload === "object" ? payload?.id : payload;
-  if (!resolvedId) return;
-  complaintDetailId.value = resolvedId;
-  complaintReturnView.value = view.value;
-  regulatorReturnSection.value = payload?.fromSection || "complaints";
-  view.value = view.value === "regulator-admin"
-    ? "regulator-admin-complaint"
-    : "regulator-enforcer-complaint";
-}
-
-function handleBackFromDetail() {
-  view.value = returnView.value || "regulator-admin";
-  enterpriseDetailId.value = "";
-  returnView.value = "";
-}
-
-function handleBackFromComplaint() {
-  view.value = complaintReturnView.value || "regulator-admin";
-  complaintDetailId.value = "";
-  complaintReturnView.value = "";
-}
-
-async function handleLogout() {
-  const tokens = [adminToken.value, enterpriseToken.value, publicToken.value, regulatorToken.value].filter(Boolean);
-  if (tokens.length) {
-    try {
-      await Promise.all(tokens.map((token) => logoutRequest(token)));
-    } catch (error) {
-      // Ignore logout errors to avoid blocking UI reset.
-      console.warn("Logout request failed", error);
-    }
-  }
-  adminToken.value = "";
-  adminUser.username = "";
-  adminUser.userType = "";
-  adminUser.roles = [];
-  enterpriseToken.value = "";
-  enterpriseUser.username = "";
-  enterpriseUser.userType = "";
-  enterpriseUser.roles = [];
-  publicToken.value = "";
-  publicUser.username = "";
-  publicUser.userType = "";
-  publicUser.roles = [];
-  publicBulletinDetailId.value = "";
-  publicEnterpriseDetailId.value = "";
-  publicSamplingResultDetailId.value = "";
-  regulatorToken.value = "";
-  regulatorUser.username = "";
-  regulatorUser.userType = "";
-  regulatorUser.roleType = "";
-  regulatorUser.roles = [];
-  enterpriseDetailId.value = "";
-  complaintDetailId.value = "";
-  returnView.value = "";
-  complaintReturnView.value = "";
-  regulatorReturnSection.value = "";
-  view.value = "auth";
-}
+onBeforeUnmount(() => {
+  window.removeEventListener(UNAUTHORIZED_EVENT, handleUnauthorized);
+});
 </script>

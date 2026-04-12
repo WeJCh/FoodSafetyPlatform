@@ -29,7 +29,7 @@
         <button :class="{ active: section === 'rectification' }" @click="handleRectificationEnter">
           整改复核
         </button>
-        <button :class="{ active: section === 'warning' }" @click="handleWarningEnter">
+        <button :class="{ active: section === 'warnings' }" @click="handleWarningEnter">
           风险预警
         </button>
         <button :class="{ active: section === 'bulletins' }" @click="section = 'bulletins'">
@@ -79,7 +79,7 @@
           <button :class="{ active: section === 'complaints' }" @click="handleComplaintEnter">
             投诉流转
           </button>
-          <button :class="{ active: section === 'warning' }" @click="handleWarningEnter">
+          <button :class="{ active: section === 'warnings' }" @click="handleWarningEnter">
             风险预警
           </button>
           <button :class="{ active: section === 'bulletins' }" @click="section = 'bulletins'">
@@ -1018,7 +1018,7 @@
 
         </div>
 
-        <div v-else-if="section === 'warning'">
+        <div v-else-if="section === 'warnings'">
           <div class="section-title">风险预警</div>
           <div class="warning-quick-tools">
             <button
@@ -1252,8 +1252,10 @@
 </template>
 
 <script setup>
-import { computed, onMounted, reactive, ref } from "vue";
+import { computed, onMounted, reactive, ref, watch } from "vue";
+import { useRoute, useRouter } from "vue-router";
 import { acceptComplaint, fetchComplaints } from "../api/complaint";
+import { getActiveSession, performLogout } from "../session/authRuntime";
 import {
   approveEnterprise,
   approveEnterpriseBatch,
@@ -1291,25 +1293,59 @@ import RegulatorBulletinManager from "../components/RegulatorBulletinManager.vue
 import RectificationDetailModal from "../components/RectificationDetailModal.vue";
 import SupervisionOverviewPanel from "../components/SupervisionOverviewPanel.vue";
 import WarningStatsPanel from "../components/WarningStatsPanel.vue";
+import { formatByMap, formatTime } from "../utils/formatters";
+import {
+  approvalStatusMap,
+  complaintStatusMap,
+  enterpriseStatusMap,
+  warningActionMap,
+  warningLevelMap,
+  warningStatusMap
+} from "../utils/statusMaps";
 
-const props = defineProps({
-  token: {
-    type: String,
-    required: true
-  },
-  regulatorUser: {
-    type: Object,
-    required: true
-  },
-  initialSection: {
-    type: String,
-    default: ""
-  }
-});
+const router = useRouter();
+const route = useRoute();
+const session = computed(() => getActiveSession() || {});
+const regulatorUser = computed(() => session.value);
+const token = computed(() => session.value.token || "");
 
-const emit = defineEmits(["logout", "view-enterprise", "view-complaint"]);
+function normalizeSection(value) {
+  const sectionMap = new Set([
+    "enterprises",
+    "approvals",
+    "dispatch",
+    "sampling",
+    "inspections",
+    "complaints",
+    "rectification",
+    "warnings",
+    "bulletins",
+    "stats"
+  ]);
+  return sectionMap.has(value) ? value : "enterprises";
+}
 
-const section = ref(props.initialSection || "enterprises");
+function getSectionRouteName(sectionValue) {
+  const routeNameMap = {
+    enterprises: "regulator-admin-enterprises",
+    approvals: "regulator-admin-approvals",
+    dispatch: "regulator-admin-dispatch",
+    sampling: "regulator-admin-sampling",
+    inspections: "regulator-admin-inspections",
+    complaints: "regulator-admin-complaints",
+    rectification: "regulator-admin-rectifications",
+    warnings: "regulator-admin-warnings",
+    bulletins: "regulator-admin-bulletins",
+    stats: "regulator-admin-stats"
+  };
+  return routeNameMap[sectionValue] || "regulator-admin-enterprises";
+}
+
+function resolveCurrentSection() {
+  return normalizeSection(route.meta?.initialSection);
+}
+
+const section = ref(resolveCurrentSection());
 
 const filters = reactive({
   enterpriseName: "",
@@ -1453,32 +1489,12 @@ const sectionLabelMap = {
   inspections: "检查记录",
   rectification: "整改复核",
   complaints: "投诉流转",
-  warning: "风险预警",
+  warnings: "风险预警",
   bulletins: "公告发布",
   stats: "数据统计"
 };
 
 const sectionLabel = computed(() => sectionLabelMap[section.value] || "当前模块");
-
-const statusMap = {
-  NORMAL: "正常",
-  KEY: "重点监管"
-};
-
-const approvalStatusMap = {
-  PENDING: "待审核",
-  APPROVED: "已通过",
-  REJECTED: "已驳回"
-};
-
-const complaintStatusMap = {
-  SUBMITTED: "已提交",
-  PENDING: "已受理",
-  ASSIGNED: "已派发",
-  PROCESSING: "处理中",
-  FEEDBACKED: "已反馈",
-  REJECTED: "已驳回"
-};
 
 const taskStatusMap = {
   CREATED: "待派发",
@@ -1515,35 +1531,16 @@ const rectificationStatusMap = {
   REWORK: "打回重做",
   CONFIRMED: "已确认"
 };
-const warningStatusMap = {
-  OPEN: "待处理",
-  PROCESSING: "处理中",
-  RESOLVED: "已解决",
-  CLOSED: "已归档"
-};
-const warningLevelMap = {
-  L1: "一级",
-  L2: "二级"
-};
-const warningActionMap = {
-  EVENT_UPSERT: "系统上报",
-  ASSIGN: "派发处理",
-  PROCESS: "进入处理中",
-  RESOLVE: "标记已解决",
-  AUTO_LEVEL_UP: "自动升级",
-  AUTO_ARCHIVE: "系统归档"
-};
-
 function formatStatus(value) {
-  return statusMap[value] || value || "-";
+  return formatByMap(value, enterpriseStatusMap);
 }
 
 function formatApprovalStatus(value) {
-  return approvalStatusMap[value] || value || "-";
+  return formatByMap(value, approvalStatusMap);
 }
 
 function formatComplaintStatus(value) {
-  return complaintStatusMap[value] || value || "-";
+  return formatByMap(value, complaintStatusMap);
 }
 
 function formatTaskStatus(value) {
@@ -1571,15 +1568,15 @@ function formatRectificationStatus(value) {
 }
 
 function formatWarningStatus(value) {
-  return warningStatusMap[value] || value || "-";
+  return formatByMap(value, warningStatusMap);
 }
 
 function formatWarningLevel(value) {
-  return warningLevelMap[value] || value || "-";
+  return formatByMap(value, warningLevelMap);
 }
 
 function formatWarningAction(value) {
-  return warningActionMap[value] || value || "-";
+  return formatByMap(value, warningActionMap);
 }
 
 function warningStatusClass(value) {
@@ -1622,7 +1619,11 @@ function canJumpWarningRectification(warning) {
 
 function jumpToWarningComplaint(warning) {
   if (!canJumpWarningComplaint(warning)) return;
-  emit("view-complaint", { id: Number(warning.bizId), fromSection: "warning" });
+  router.push({
+    name: "regulator-admin-complaint-detail",
+    params: { complaintId: Number(warning.bizId) },
+    query: { from: "warnings" }
+  }).catch(() => {});
   closeWarningDetail();
 }
 
@@ -1645,7 +1646,7 @@ async function jumpToWarningRectification(warning) {
 
 function formatRegionName(regionId) {
   if (!regionId) return "-";
-  return regionNameMap[regionId] || `鍖哄煙 ${regionId}`;
+  return regionNameMap[regionId] || `区域 ${regionId}`;
 }
 
 async function ensureRegionName(regionId) {
@@ -1653,12 +1654,12 @@ async function ensureRegionName(regionId) {
     return;
   }
   try {
-    const path = await fetchRegionPath(props.token, regionId);
+    const path = await fetchRegionPath(token.value, regionId);
     regionNameMap[regionId] = Array.isArray(path) && path.length
       ? path.map((item) => item.name).join("/")
-      : `鍖哄煙 ${regionId}`;
+      : `区域 ${regionId}`;
   } catch {
-    regionNameMap[regionId] = `鍖哄煙 ${regionId}`;
+    regionNameMap[regionId] = `区域 ${regionId}`;
   }
 }
 
@@ -1688,7 +1689,7 @@ async function handleRectificationEnter() {
 }
 
 async function handleWarningEnter() {
-  section.value = "warning";
+  section.value = "warnings";
   await loadWarnings();
 }
 
@@ -1704,7 +1705,7 @@ async function loadComplaints() {
   complaintLoading.value = true;
   setStatus("");
   try {
-    const data = await fetchComplaints(props.token, {
+    const data = await fetchComplaints(token.value, {
       ...complaintFilters,
       page: complaintPage.value,
       size: complaintSize.value
@@ -1724,7 +1725,7 @@ async function loadComplaints() {
 async function loadDispatchEnterprises() {
   dispatchLoading.value = true;
   try {
-    const data = await fetchEnterprises(props.token, {
+    const data = await fetchEnterprises(token.value, {
       approvalStatus: "APPROVED",
       page: 1,
       size: 100
@@ -1740,7 +1741,7 @@ async function loadDispatchEnterprises() {
 async function loadSamplingEnterprises() {
   samplingLoading.value = true;
   try {
-    const data = await fetchEnterprises(props.token, {
+    const data = await fetchEnterprises(token.value, {
       approvalStatus: "APPROVED",
       page: 1,
       size: 100
@@ -1760,7 +1761,7 @@ async function loadSamplingProducts(enterpriseId) {
   }
   samplingProductLoading.value = true;
   try {
-    const data = await fetchEnterpriseProducts(props.token, enterpriseId);
+    const data = await fetchEnterpriseProducts(token.value, enterpriseId);
     samplingProducts.value = Array.isArray(data)
       ? data.filter((item) => item?.status === "ACTIVE")
       : [];
@@ -1781,7 +1782,7 @@ async function loadDispatchTasks() {
   dispatchTaskLoading.value = true;
   setStatus("");
   try {
-    const data = await fetchInspectionTasks(props.token, {
+    const data = await fetchInspectionTasks(token.value, {
       ...dispatchFilters,
       page: dispatchPage.value,
       size: dispatchSize.value
@@ -1806,7 +1807,7 @@ async function loadSamplingTasks() {
   samplingTaskLoading.value = true;
   setStatus("");
   try {
-    const data = await fetchSamplingTasks(props.token, {
+    const data = await fetchSamplingTasks(token.value, {
       ...samplingFilters,
       page: samplingPage.value,
       size: samplingSize.value
@@ -1831,7 +1832,7 @@ async function loadInspections() {
   inspectionLoading.value = true;
   setStatus("");
   try {
-    const data = await fetchInspectionRecords(props.token, {
+    const data = await fetchInspectionRecords(token.value, {
       ...inspectionFilters,
       page: inspectionPage.value,
       size: inspectionSize.value
@@ -1852,7 +1853,7 @@ async function loadRectifications() {
   rectificationLoading.value = true;
   setStatus("");
   try {
-    const data = await fetchRectifications(props.token, {
+    const data = await fetchRectifications(token.value, {
       ...rectificationFilters,
       page: rectificationPage.value,
       size: rectificationSize.value
@@ -1877,7 +1878,7 @@ async function loadWarnings() {
   warningLoading.value = true;
   setStatus("");
   try {
-    const data = await fetchWarningRecords(props.token, {
+    const data = await fetchWarningRecords(token.value, {
       ...warningFilters,
       page: warningPage.value,
       size: warningSize.value
@@ -1901,8 +1902,8 @@ async function loadRectificationDetail(id, silent = false) {
   }
   try {
     const [detail, actions] = await Promise.all([
-      fetchRectificationDetail(props.token, id),
-      fetchRectificationActions(props.token, id)
+      fetchRectificationDetail(token.value, id),
+      fetchRectificationActions(token.value, id)
     ]);
     rectificationDetail.value = detail || rectificationDetail.value;
     rectificationActionLogs.value = Array.isArray(actions) ? actions : [];
@@ -1975,7 +1976,7 @@ async function openWarningDetail(item) {
   warningDetailLoading.value = true;
   warningDetail.value = null;
   try {
-    warningDetail.value = await fetchWarningRecordDetail(props.token, item.id);
+    warningDetail.value = await fetchWarningRecordDetail(token.value, item.id);
   } catch (error) {
     setStatus(error.message || "加载预警详情失败", "error");
     warningDetailVisible.value = false;
@@ -1996,7 +1997,7 @@ async function handleWarningAction(target, actionType) {
   warningActionLoading.value = true;
   setStatus("");
   try {
-    const detail = await processWarningRecord(props.token, warningId, { actionType });
+    const detail = await processWarningRecord(token.value, warningId, { actionType });
     if (warningDetailVisible.value && warningDetail.value?.id === warningId) {
       warningDetail.value = detail;
     }
@@ -2020,7 +2021,7 @@ async function handleReviewRectification(target, payload) {
   rectificationLoading.value = true;
   setStatus("");
   try {
-    await reviewRectification(props.token, item.id, reviewPayload);
+    await reviewRectification(token.value, item.id, reviewPayload);
     setStatus(reviewPayload.action === "REWORK" ? "整改任务已打回重做" : "整改任务已确认复核", "success");
     await loadRectifications();
     if (rectificationDetailVisible.value && rectificationDetail.value?.id === item.id) {
@@ -2054,7 +2055,11 @@ function closeRectificationDetail() {
 
 function handleViewComplaint(item) {
   if (!item?.id) return;
-  emit("view-complaint", { id: item.id, fromSection: section.value });
+  router.push({
+    name: "regulator-admin-complaint-detail",
+    params: { complaintId: item.id },
+    query: { from: section.value }
+  }).catch(() => {});
 }
 
 async function handleAcceptComplaint(item) {
@@ -2062,7 +2067,7 @@ async function handleAcceptComplaint(item) {
   complaintLoading.value = true;
   setStatus("");
   try {
-    await acceptComplaint(props.token, item.id);
+    await acceptComplaint(token.value, item.id);
     setStatus("投诉已受理", "success");
     await loadComplaints();
   } catch (error) {
@@ -2108,7 +2113,7 @@ async function handleCreateTask() {
   dispatchLoading.value = true;
   setStatus("");
   try {
-    await createInspectionTask(props.token, {
+    await createInspectionTask(token.value, {
       enterpriseId: dispatchForm.enterpriseId,
       taskTitle: dispatchForm.taskTitle,
       taskDesc: dispatchForm.taskDesc,
@@ -2148,7 +2153,7 @@ async function handleCreateSamplingTask() {
   samplingLoading.value = true;
   setStatus("");
   try {
-    await createSamplingTask(props.token, {
+    await createSamplingTask(token.value, {
       enterpriseId: samplingForm.enterpriseId,
       productId: samplingForm.productId,
       taskTitle: samplingForm.taskTitle,
@@ -2174,7 +2179,7 @@ async function ensureEnforcers(regionId) {
     return;
   }
   try {
-    const data = await fetchEligibleRegulators(props.token, regionId);
+    const data = await fetchEligibleRegulators(token.value, regionId);
     enforcerMap[regionId] = Array.isArray(data) ? data : [];
   } catch {
     enforcerMap[regionId] = [];
@@ -2214,7 +2219,7 @@ async function handleCloseTask(task) {
   dispatchTaskLoading.value = true;
   setStatus("", "info");
   try {
-    await closeInspectionTask(props.token, task.id);
+    await closeInspectionTask(token.value, task.id);
     setStatus("任务已归档", "success");
     await loadDispatchTasks();
   } catch (error) {
@@ -2229,7 +2234,7 @@ async function handleCloseSamplingTask(task) {
   samplingTaskLoading.value = true;
   setStatus("", "info");
   try {
-    await closeSamplingTask(props.token, task.id);
+    await closeSamplingTask(token.value, task.id);
     setStatus("抽检任务已归档", "success");
     await loadSamplingTasks();
   } catch (error) {
@@ -2252,7 +2257,7 @@ async function handleAssignTask(task) {
   dispatchTaskLoading.value = true;
   setStatus("");
   try {
-    await assignInspectionTask(props.token, task.id, { regulatorId });
+    await assignInspectionTask(token.value, task.id, { regulatorId });
     setStatus("任务已派发", "success");
     await loadDispatchTasks();
   } catch (error) {
@@ -2275,7 +2280,7 @@ async function handleAssignSamplingTask(task) {
   samplingTaskLoading.value = true;
   setStatus("");
   try {
-    await assignSamplingTask(props.token, task.id, { regulatorId });
+    await assignSamplingTask(token.value, task.id, { regulatorId });
     setStatus("抽检任务已派发", "success");
     await loadSamplingTasks();
   } catch (error) {
@@ -2293,7 +2298,7 @@ async function handlePublishSamplingResult(task) {
   samplingTaskLoading.value = true;
   setStatus("");
   try {
-    await publishSamplingResult(props.token, task.samplingResultId);
+    await publishSamplingResult(token.value, task.samplingResultId);
     setStatus("抽检结果已公示", "success");
     await loadSamplingTasks();
   } catch (error) {
@@ -2311,7 +2316,7 @@ async function handleOfflineSamplingResult(task) {
   samplingTaskLoading.value = true;
   setStatus("");
   try {
-    await offlineSamplingResult(props.token, task.samplingResultId);
+    await offlineSamplingResult(token.value, task.samplingResultId);
     setStatus("抽检结果已下线", "success");
     await loadSamplingTasks();
   } catch (error) {
@@ -2330,10 +2335,10 @@ async function openTaskDetail(task) {
 
   detailTaskLoading.value = true;
   try {
-    const enterprise = await fetchEnterpriseDetail(props.token, task.enterpriseId);
+    const enterprise = await fetchEnterpriseDetail(token.value, task.enterpriseId);
     detailTaskEnterprise.value = enterprise || null;
     if (enterprise?.regionId) {
-      const path = await fetchRegionPath(props.token, enterprise.regionId).catch(() => []);
+      const path = await fetchRegionPath(token.value, enterprise.regionId).catch(() => []);
       detailTaskRegionName.value = Array.isArray(path) && path.length
         ? path.map((item) => item.name).join("/")
         : "-";
@@ -2354,10 +2359,10 @@ async function openSamplingTaskDetail(task) {
 
   samplingDetailLoading.value = true;
   try {
-    const enterprise = await fetchEnterpriseDetail(props.token, task.enterpriseId);
+    const enterprise = await fetchEnterpriseDetail(token.value, task.enterpriseId);
     samplingDetailEnterprise.value = enterprise || null;
     if (enterprise?.regionId) {
-      const path = await fetchRegionPath(props.token, enterprise.regionId).catch(() => []);
+      const path = await fetchRegionPath(token.value, enterprise.regionId).catch(() => []);
       samplingDetailRegionName.value = Array.isArray(path) && path.length
         ? path.map((item) => item.name).join("/")
         : "-";
@@ -2387,7 +2392,7 @@ async function openInspectionDetail(record) {
   if (!record?.id) return;
   inspectionLoading.value = true;
   try {
-    inspectionDetail.value = await fetchInspectionRecordDetail(props.token, record.id);
+    inspectionDetail.value = await fetchInspectionRecordDetail(token.value, record.id);
   } catch (error) {
     setStatus(error.message || "加载检查记录失败", "error");
   } finally {
@@ -2408,7 +2413,7 @@ async function loadPending() {
   approvalLoading.value = true;
   setStatus("");
   try {
-    const data = await fetchPendingEnterprises(props.token);
+    const data = await fetchPendingEnterprises(token.value);
     pendingRecords.value = Array.isArray(data) ? data : [];
     selectedIds.value = [];
     const regionIds = pendingRecords.value
@@ -2430,7 +2435,7 @@ async function handleApprove(item) {
   approvalLoading.value = true;
   setStatus("");
   try {
-    await approveEnterprise(props.token, item.id, approvalForm);
+    await approveEnterprise(token.value, item.id, approvalForm);
     setStatus("已通过企业备案", "success");
     await loadPending();
   } catch (error) {
@@ -2448,7 +2453,7 @@ async function handleReject(item) {
   approvalLoading.value = true;
   setStatus("");
   try {
-    await rejectEnterprise(props.token, item.id, approvalForm);
+    await rejectEnterprise(token.value, item.id, approvalForm);
     setStatus("已驳回企业备案", "success");
     await loadPending();
   } catch (error) {
@@ -2470,7 +2475,7 @@ async function handleApproveBatch() {
   approvalLoading.value = true;
   setStatus("");
   try {
-    await approveEnterpriseBatch(props.token, {
+    await approveEnterpriseBatch(token.value, {
       ids: selectedIds.value,
       comment: approvalForm.comment,
       regulatorName: approvalForm.regulatorName
@@ -2496,7 +2501,7 @@ async function handleRejectBatch() {
   approvalLoading.value = true;
   setStatus("");
   try {
-    await rejectEnterpriseBatch(props.token, {
+    await rejectEnterpriseBatch(token.value, {
       ids: selectedIds.value,
       comment: approvalForm.comment,
       regulatorName: approvalForm.regulatorName
@@ -2524,14 +2529,18 @@ function toggleSelectAll(event) {
 }
 
 function handleViewDetail(item) {
-  emit("view-enterprise", { id: item.id, fromSection: section.value });
+  router.push({
+    name: "regulator-admin-enterprise-detail",
+    params: { enterpriseId: item.id },
+    query: { from: section.value }
+  }).catch(() => {});
 }
 
 async function load() {
   loading.value = true;
   setStatus("");
   try {
-    const data = await fetchEnterprises(props.token, {
+    const data = await fetchEnterprises(token.value, {
       ...filters,
       page: page.value,
       size: size.value
@@ -2562,13 +2571,9 @@ async function changePage(nextPage) {
   await load();
 }
 
-function handleLogout() {
-  emit("logout");
-}
-
-function formatTime(value) {
-  if (!value) return "-";
-  return String(value).replace("T", " ").slice(0, 16);
+async function handleLogout() {
+  await performLogout();
+  router.replace({ name: "login" }).catch(() => {});
 }
 
 function formatDurationMinutes(minutes) {
@@ -2607,42 +2612,63 @@ function formatRectificationSla(item) {
   return "已完成";
 }
 
+async function loadSection(sectionValue) {
+  const normalized = normalizeSection(sectionValue);
+
+  if (normalized === "approvals") {
+    await loadPending();
+    return;
+  }
+  if (normalized === "dispatch") {
+    await loadDispatch();
+    return;
+  }
+  if (normalized === "sampling") {
+    await loadSampling();
+    return;
+  }
+  if (normalized === "inspections") {
+    await loadInspections();
+    return;
+  }
+  if (normalized === "rectification") {
+    await loadRectifications();
+    return;
+  }
+  if (normalized === "complaints") {
+    await loadComplaints();
+    return;
+  }
+  if (normalized === "warnings") {
+    await loadWarnings();
+    return;
+  }
+  if (normalized === "stats" || normalized === "bulletins") {
+    return;
+  }
+  await load();
+}
+
 onMounted(() => {
-  if (section.value === "approvals") {
-    loadPending();
-    return;
+  loadSection(section.value);
+});
+
+watch(
+  () => route.name,
+  async () => {
+    const normalized = resolveCurrentSection();
+    if (section.value !== normalized) {
+      section.value = normalized;
+    }
+    await loadSection(normalized);
   }
-  if (section.value === "dispatch") {
-    handleDispatchEnter();
-    return;
+);
+
+watch(section, (nextSection) => {
+  const targetName = getSectionRouteName(nextSection);
+  if (route.name !== targetName) {
+    router.push({ name: targetName }).catch(() => {});
   }
-  if (section.value === "sampling") {
-    handleSamplingEnter();
-    return;
-  }
-  if (section.value === "inspections") {
-    handleInspectionEnter();
-    return;
-  }
-  if (section.value === "rectification") {
-    handleRectificationEnter();
-    return;
-  }
-  if (section.value === "complaints") {
-    handleComplaintEnter();
-    return;
-  }
-  if (section.value === "warning") {
-    handleWarningEnter();
-    return;
-  }
-  if (section.value === "stats") {
-    return;
-  }
-  if (section.value === "bulletins") {
-    return;
-  }
-  load();
 });
 </script>
 

@@ -1,6 +1,10 @@
-﻿<template>
-  <div class="app-shell">
-    <div class="hero-panel">
+<template>
+  <AuthLayout>
+    <template #header>
+      <AuthHeader @navigate="switchView" />
+    </template>
+
+    <template #hero>
       <div class="hero-content">
         <span class="badge">食品安全平台</span>
         <h1>用户中心登录与注册</h1>
@@ -22,130 +26,119 @@
           </div>
         </div>
       </div>
-    </div>
+    </template>
 
-    <div class="form-panel">
-      <div class="card">
-        <div class="tabs">
-          <button :class="{ active: view === 'login' }" @click="switchView('login')">登录</button>
-          <button :class="{ active: view !== 'login' }" @click="switchView('select')">注册</button>
+    <div class="card">
+      <div class="tabs">
+        <button :class="{ active: view === 'login' }" @click="switchView('login')">登录</button>
+        <button :class="{ active: view !== 'login' }" @click="switchView('select')">注册</button>
+      </div>
+
+      <LoginForm v-if="view === 'login'" v-model="loginForm" :loading="loading" @submit="handleLogin" />
+
+      <div v-else-if="view === 'select'" class="type-select">
+        <div class="type-card" @click="switchView('public')">
+          <strong>公众用户</strong>
+          <span>提交投诉与查询信息</span>
         </div>
-
-        <form v-if="view === 'login'" @submit.prevent="handleLogin">
-          <label>
-            用户名
-            <input v-model.trim="loginForm.username" required placeholder="请输入账号" />
-          </label>
-          <label>
-            密码
-            <input v-model.trim="loginForm.password" type="password" required placeholder="请输入密码" />
-          </label>
-          <button class="primary" type="submit" :disabled="loading">
-            {{ loading ? "登录中..." : "登录" }}
-          </button>
-        </form>
-
-        <div v-else-if="view === 'select'" class="type-select">
-          <div class="type-card" @click="switchView('public')">
-            <strong>公众用户</strong>
-            <span>提交投诉与查询信息</span>
-          </div>
-          <div class="type-card" @click="switchView('enterprise')">
-            <strong>企业用户</strong>
-            <span>企业账号注册</span>
-          </div>
-          <div class="type-card note">
-            <strong>监管人员</strong>
-            <span>由系统管理员统一添加</span>
-          </div>
+        <div class="type-card" @click="switchView('enterprise')">
+          <strong>企业用户</strong>
+          <span>企业账号注册</span>
         </div>
-
-        <form v-else-if="view === 'public'" @submit.prevent="handlePublicRegister">
-          <label>
-            用户名
-            <input v-model.trim="publicForm.username" required placeholder="请输入用户名" />
-          </label>
-          <label>
-            密码
-            <input v-model.trim="publicForm.password" type="password" required placeholder="请输入密码" />
-          </label>
-          <label>
-            真实姓名
-            <input v-model.trim="publicForm.realName" placeholder="请输入真实姓名" />
-          </label>
-          <label>
-            手机号
-            <input v-model.trim="publicForm.phone" placeholder="请输入手机号" />
-          </label>
-          <button class="primary" type="submit" :disabled="loading">
-            {{ loading ? "创建中..." : "创建账号" }}
-          </button>
-          <button class="ghost" type="button" @click="switchView('select')">返回</button>
-        </form>
-
-        <form v-else-if="view === 'enterprise'" @submit.prevent="handleEnterpriseRegister">
-          <label>
-            用户名
-            <input v-model.trim="enterpriseForm.username" required placeholder="请输入用户名" />
-          </label>
-          <label>
-            密码
-            <input v-model.trim="enterpriseForm.password" type="password" required placeholder="请输入密码" />
-          </label>
-          <label>
-            真实姓名
-            <input v-model.trim="enterpriseForm.realName" placeholder="请输入真实姓名" />
-          </label>
-          <label>
-            手机号
-            <input v-model.trim="enterpriseForm.phone" placeholder="请输入手机号" />
-          </label>
-          <button class="primary" type="submit" :disabled="loading">
-            {{ loading ? "创建中..." : "创建账号" }}
-          </button>
-          <button class="ghost" type="button" @click="switchView('select')">返回</button>
-        </form>
-
-        <div class="status" :class="status.type" v-if="status.message">
-          {{ status.message }}
-        </div>
-
-        <div class="token-box" v-if="token">
-          <div class="token-header">
-            <span>令牌</span>
-            <button class="ghost" type="button" @click="handleVerify">验证</button>
-          </div>
-          <textarea readonly rows="3">{{ token }}</textarea>
+        <div class="type-card note">
+          <strong>监管人员</strong>
+          <span>由系统管理员统一添加</span>
         </div>
       </div>
+
+      <PublicRegisterForm
+        v-else-if="view === 'public'"
+        v-model="publicForm"
+        :loading="loading"
+        @submit="handlePublicRegister"
+        @back="switchView('select')"
+      />
+
+      <EnterpriseRegisterForm
+        v-else-if="view === 'enterprise'"
+        v-model="enterpriseForm"
+        :loading="loading"
+        @submit="handleEnterpriseRegister"
+        @back="switchView('select')"
+      />
+
+      <div v-if="status.message" class="status" :class="status.type">
+        {{ status.message }}
+      </div>
+
+      <div v-if="token" class="token-box">
+        <div class="token-header">
+          <span>令牌</span>
+          <button class="ghost" type="button" @click="handleVerify">验证</button>
+        </div>
+        <textarea readonly rows="3">{{ token }}</textarea>
+      </div>
     </div>
-  </div>
+
+    <template #footer>
+      <AuthFooter />
+    </template>
+  </AuthLayout>
 </template>
 
 <script setup>
-import { reactive, ref } from "vue";
+import { reactive, ref, watch } from "vue";
+import { useRoute, useRouter } from "vue-router";
+import AuthFooter from "../components/auth/AuthFooter.vue";
+import AuthHeader from "../components/auth/AuthHeader.vue";
+import AuthLayout from "../components/auth/AuthLayout.vue";
+import EnterpriseRegisterForm from "../components/auth/EnterpriseRegisterForm.vue";
+import LoginForm from "../components/auth/LoginForm.vue";
+import PublicRegisterForm from "../components/auth/PublicRegisterForm.vue";
 import { login, register, registerEnterprise, verify } from "../api/auth";
+import { fetchRegulatorProfile } from "../api/regulation";
+import { getDefaultRouteLocation } from "../router";
+import { resolveRegulatorRoleType } from "../session/authSession";
+import { commitResolvedSession } from "../session/authRuntime";
 
-const emit = defineEmits(["admin-login", "enterprise-login", "regulator-login", "public-login"]);
+const router = useRouter();
+const route = useRoute();
 
-const view = ref("login");
+function normalizeView(target) {
+  if (target === "public" || target === "enterprise" || target === "select") {
+    return target;
+  }
+  return "login";
+}
+
+function resolveViewFromRoute(name) {
+  if (name === "public-register") {
+    return "public";
+  }
+  if (name === "enterprise-register") {
+    return "enterprise";
+  }
+  return "login";
+}
+
+const view = ref(normalizeView(resolveViewFromRoute(route.name)));
 const loading = ref(false);
 const token = ref("");
 const status = reactive({ message: "", type: "" });
 
-const loginForm = reactive({
+const loginForm = ref({
   username: "",
   password: ""
 });
 
-const publicForm = reactive({
+const publicForm = ref({
   username: "",
   password: "",
   realName: "",
   phone: ""
 });
 
-const enterpriseForm = reactive({
+const enterpriseForm = ref({
   username: "",
   password: "",
   realName: "",
@@ -158,87 +151,72 @@ function setStatus(message, type = "info") {
 }
 
 function switchView(target) {
-  view.value = target;
+  const nextView = normalizeView(target);
+  view.value = nextView;
   setStatus("");
+
+  if (nextView === "login" && route.name !== "login") {
+    router.push({ name: "login" }).catch(() => {});
+    return;
+  }
+
+  if (nextView === "public" && route.name !== "public-register") {
+    router.push({ name: "public-register" }).catch(() => {});
+    return;
+  }
+
+  if (nextView === "enterprise" && route.name !== "enterprise-register") {
+    router.push({ name: "enterprise-register" }).catch(() => {});
+  }
 }
+
+watch(
+  () => route.name,
+  (nextRouteName) => {
+    view.value = normalizeView(resolveViewFromRoute(nextRouteName));
+    setStatus("");
+  }
+);
 
 async function handleLogin() {
   loading.value = true;
   setStatus("");
   try {
-    const result = await login(loginForm);
+    const result = await login(loginForm.value);
     const roles = Array.isArray(result.roles) ? result.roles : [];
-    if (roles.includes("ADMIN")) {
-      emit("admin-login", {
-        token: result.token,
-        username: result.username,
-        userType: result.userType,
-        roles
-      });
-      setStatus("");
-    } else if (roles.includes("PUBLIC")) {
-      emit("public-login", {
-        token: result.token,
-        username: result.username,
-        userType: result.userType,
-        roles
-      });
-      setStatus("");
-    } else if (roles.includes("REGULATOR_ADMIN") || roles.includes("REGULATOR_ENFORCER")) {
-      emit("regulator-login", {
-        token: result.token,
-        username: result.username,
-        userType: result.userType,
-        roles
-      });
-      setStatus("");
-    } else if (roles.includes("ENTERPRISE")) {
-      emit("enterprise-login", {
-        token: result.token,
-        username: result.username,
-        userType: result.userType,
-        roles
-      });
-      setStatus("");
-    } else {
-      // 兼容旧数据：当 roles 为空时，回退使用 userType
-      if (result.userType === "ADMIN") {
-        emit("admin-login", {
-          token: result.token,
-          username: result.username,
-          userType: result.userType,
-          roles
-        });
-        setStatus("");
-      } else if (result.userType === "REGULATOR") {
-        emit("regulator-login", {
-          token: result.token,
-          username: result.username,
-          userType: result.userType,
-          roles
-        });
-        setStatus("");
-      } else if (result.userType === "PUBLIC") {
-        emit("public-login", {
-          token: result.token,
-          username: result.username,
-          userType: result.userType,
-          roles
-        });
-        setStatus("");
-      } else if (result.userType === "ENTERPRISE") {
-        emit("enterprise-login", {
-          token: result.token,
-          username: result.username,
-          userType: result.userType,
-          roles
-        });
-        setStatus("");
-      } else {
-        token.value = result.token;
-        setStatus("登录成功，令牌已生成。", "success");
+    const sessionPayload = {
+      token: result.token,
+      userId: result.userId ?? null,
+      username: result.username,
+      userType: result.userType,
+      roles
+    };
+
+    if (roles.includes("REGULATOR_ADMIN") || roles.includes("REGULATOR_ENFORCER") || result.userType === "REGULATOR") {
+      let roleType = resolveRegulatorRoleType(sessionPayload);
+      if (!roleType) {
+        const profile = await fetchRegulatorProfile(result.token).catch(() => null);
+        roleType = resolveRegulatorRoleType(profile);
       }
+      if (!roleType) {
+        token.value = result.token;
+        setStatus("登录成功，但未能确认监管角色，请稍后重试或检查监管员资料接口。", "error");
+        return;
+      }
+      sessionPayload.roleType = roleType;
     }
+
+    const session = commitResolvedSession(sessionPayload);
+    const targetLocation = getDefaultRouteLocation(session);
+
+    if (targetLocation.name === "login") {
+      token.value = result.token;
+      setStatus("登录成功，但未识别到可用角色。", "error");
+      return;
+    }
+
+    setStatus("");
+    await router.replace(targetLocation);
   } catch (error) {
     setStatus(error.message || "登录失败", "error");
   } finally {
@@ -250,9 +228,9 @@ async function handlePublicRegister() {
   loading.value = true;
   setStatus("");
   try {
-    await register(publicForm);
+    await register(publicForm.value);
     setStatus("注册完成，现在可以登录。", "success");
-    view.value = "login";
+    switchView("login");
   } catch (error) {
     setStatus(error.message || "注册失败", "error");
   } finally {
@@ -264,9 +242,9 @@ async function handleEnterpriseRegister() {
   loading.value = true;
   setStatus("");
   try {
-    await registerEnterprise(enterpriseForm);
+    await registerEnterprise(enterpriseForm.value);
     setStatus("注册完成，现在可以登录。", "success");
-    view.value = "login";
+    switchView("login");
   } catch (error) {
     setStatus(error.message || "注册失败", "error");
   } finally {

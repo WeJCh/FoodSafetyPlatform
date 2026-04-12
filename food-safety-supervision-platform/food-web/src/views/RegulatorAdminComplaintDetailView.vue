@@ -200,6 +200,7 @@
 
 <script setup>
 import { computed, onMounted, reactive, ref, watch } from "vue";
+import { useRoute, useRouter } from "vue-router";
 import {
   acceptComplaint,
   assignComplaint,
@@ -209,19 +210,13 @@ import {
 import {
   fetchEligibleRegulators
 } from "../api/regulation";
+import { getActiveSession } from "../session/authRuntime";
+import { formatByMap, formatTime } from "../utils/formatters";
+import { complaintStatusMap } from "../utils/statusMaps";
 
-const props = defineProps({
-  token: {
-    type: String,
-    required: true
-  },
-  complaintId: {
-    type: [String, Number],
-    required: true
-  }
-});
-
-const emit = defineEmits(["back"]);
+const router = useRouter();
+const route = useRoute();
+const token = computed(() => getActiveSession()?.token || "");
 
 const loading = ref(false);
 const loadingAction = ref(false);
@@ -256,24 +251,16 @@ const canAccept = computed(() => complaint.value?.status === "SUBMITTED");
 const canAssign = computed(() => ["PENDING", "ASSIGNED", "PROCESSING"].includes(complaint.value?.status || ""));
 const canReject = computed(() => ["SUBMITTED", "PENDING"].includes(complaint.value?.status || ""));
 
-const complaintStatusMap = {
-  SUBMITTED: "已提交",
-  PENDING: "已受理",
-  ASSIGNED: "已派发",
-  PROCESSING: "处理中",
-  FEEDBACKED: "已反馈",
-  REJECTED: "已驳回"
-};
-
 async function loadDetail() {
-  if (!props.complaintId) {
+  const complaintId = route.params.complaintId;
+  if (!complaintId) {
     detail.value = null;
     return;
   }
   loading.value = true;
   setStatus("");
   try {
-    detail.value = await fetchComplaintDetail(props.token, props.complaintId);
+    detail.value = await fetchComplaintDetail(token.value, complaintId);
     assignForm.regulatorId = "";
     assignForm.deadlineTime = "";
     rejectForm.reason = "";
@@ -291,7 +278,7 @@ async function loadEnforcers(regionId) {
   enforcers.value = [];
   if (!regionId) return;
   try {
-    const data = await fetchEligibleRegulators(props.token, regionId);
+    const data = await fetchEligibleRegulators(token.value, regionId);
     enforcers.value = Array.isArray(data) ? data : [];
   } catch (error) {
     enforcers.value = [];
@@ -304,7 +291,7 @@ async function handleAccept() {
   loadingAction.value = true;
   setStatus("");
   try {
-    await acceptComplaint(props.token, complaint.value.id);
+    await acceptComplaint(token.value, complaint.value.id);
     setStatus("投诉已受理", "success");
     await loadDetail();
   } catch (error) {
@@ -323,7 +310,7 @@ async function handleAssign() {
   loadingAction.value = true;
   setStatus("");
   try {
-    await assignComplaint(props.token, complaint.value.id, {
+    await assignComplaint(token.value, complaint.value.id, {
       regulatorId: assignForm.regulatorId,
       deadlineTime: normalizeDateTime(assignForm.deadlineTime)
     });
@@ -345,7 +332,7 @@ async function handleReject() {
   loadingAction.value = true;
   setStatus("");
   try {
-    await rejectComplaint(props.token, complaint.value.id, { reason: rejectForm.reason });
+    await rejectComplaint(token.value, complaint.value.id, { reason: rejectForm.reason });
     setStatus("投诉已驳回", "success");
     await loadDetail();
   } catch (error) {
@@ -381,12 +368,20 @@ function showNextImage() {
 }
 
 function handleBack() {
-  emit("back");
-}
-
-function formatTime(value) {
-  if (!value) return "-";
-  return String(value).replace("T", " ").slice(0, 16);
+  const fromSection = typeof route.query.from === "string" ? route.query.from : "complaints";
+  const routeNameMap = {
+    enterprises: "regulator-admin-enterprises",
+    approvals: "regulator-admin-approvals",
+    dispatch: "regulator-admin-dispatch",
+    sampling: "regulator-admin-sampling",
+    inspections: "regulator-admin-inspections",
+    complaints: "regulator-admin-complaints",
+    rectification: "regulator-admin-rectifications",
+    warnings: "regulator-admin-warnings",
+    bulletins: "regulator-admin-bulletins",
+    stats: "regulator-admin-stats"
+  };
+  router.push({ name: routeNameMap[fromSection] || "regulator-admin-complaints" }).catch(() => {});
 }
 
 function normalizeDateTime(value) {
@@ -395,7 +390,7 @@ function normalizeDateTime(value) {
 }
 
 function formatComplaintStatus(value) {
-  return complaintStatusMap[value] || value || "-";
+  return formatByMap(value, complaintStatusMap);
 }
 
 function setStatus(message = "", type = "") {
@@ -404,7 +399,7 @@ function setStatus(message = "", type = "") {
 }
 
 onMounted(loadDetail);
-watch(() => props.complaintId, loadDetail);
+watch(() => route.params.complaintId, loadDetail);
 </script>
 
 <style scoped>

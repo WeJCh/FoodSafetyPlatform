@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+
+<html lang="zh-CN"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>企业备案 - Sovereign Oversight</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;600;700;800;900&amp;family=Inter:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "primary-container": "#003a8c",
+                    "on-tertiary-fixed": "#370e00",
+                    "on-tertiary-container": "#fb8d60",
+                    "inverse-on-surface": "#eff1f4",
+                    "secondary": "#515e7f",
+                    "error": "#ba1a1a",
+                    "surface-container-lowest": "#ffffff",
+                    "on-primary-fixed-variant": "#124394",
+                    "on-background": "#191c1e",
+                    "on-tertiary-fixed-variant": "#7c2d06",
+                    "outline": "#747783",
+                    "on-secondary-fixed": "#0c1a38",
+                    "surface-variant": "#e0e3e6",
+                    "primary": "#002660",
+                    "on-secondary-fixed-variant": "#394666",
+                    "surface-container": "#eceef1",
+                    "on-error": "#ffffff",
+                    "tertiary-fixed": "#ffdbce",
+                    "surface-bright": "#f7f9fc",
+                    "surface-container-highest": "#e0e3e6",
+                    "on-tertiary": "#ffffff",
+                    "secondary-fixed": "#d9e2ff",
+                    "outline-variant": "#c3c6d3",
+                    "on-surface": "#191c1e",
+                    "background": "#f7f9fc",
+                    "on-primary": "#ffffff",
+                    "tertiary-container": "#722600",
+                    "tertiary-fixed-dim": "#ffb599",
+                    "surface-container-low": "#f2f4f7",
+                    "primary-fixed-dim": "#b0c6ff",
+                    "on-surface-variant": "#434651",
+                    "on-secondary": "#ffffff",
+                    "on-primary-container": "#84a8ff",
+                    "surface-container-high": "#e6e8eb",
+                    "surface-tint": "#335bae",
+                    "primary-fixed": "#d9e2ff",
+                    "surface-dim": "#d8dadd",
+                    "on-error-container": "#93000a",
+                    "on-primary-fixed": "#001945",
+                    "inverse-primary": "#b0c6ff",
+                    "tertiary": "#4e1700",
+                    "on-secondary-container": "#505d7e",
+                    "inverse-surface": "#2d3133",
+                    "secondary-container": "#c9d7fe",
+                    "secondary-fixed-dim": "#b9c6ed",
+                    "surface": "#f7f9fc",
+                    "error-container": "#ffdad6"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.125rem",
+                    "lg": "0.25rem",
+                    "xl": "0.5rem",
+                    "full": "0.75rem"
+            },
+            "fontFamily": {
+                    "headline": ["Public Sans"],
+                    "body": ["Inter"],
+                    "label": ["Inter"]
+            }
+          },
+        },
+      }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        body { font-family: 'Inter', sans-serif; }
+        h1, h2, h3 { font-family: 'Public Sans', sans-serif; }
+    </style>
+</head>
+<body class="bg-surface text-on-background min-h-screen">
+<!-- SideNavBar (Authority Source: JSON) -->
+<aside class="fixed left-0 top-0 h-full flex flex-col py-4 z-40 bg-slate-50 dark:bg-slate-950 h-screen w-64 border-r border-slate-200/50 font-['Inter'] text-sm antialiased">
+<div class="px-6 mb-8">
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 bg-primary flex items-center justify-center rounded-lg">
+<span class="material-symbols-outlined text-white" style="font-variation-settings: 'FILL' 1;">account_balance</span>
+</div>
+<div>
+<div class="text-lg font-black text-[#002660]">企业监管中心</div>
+<div class="text-[10px] uppercase tracking-widest text-slate-500 font-bold">Enterprise Oversight</div>
+</div>
+</div>
+</div>
+<nav class="flex-1 space-y-1 px-3">
+<!-- Active State: 企业备案 -->
+<a class="flex items-center gap-3 px-4 py-3 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all duration-200 ease-in-out active:scale-[0.98]" href="#">
+<span class="material-symbols-outlined" data-icon="dashboard">dashboard</span>
+<span>工作台</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 bg-blue-50 dark:bg-blue-900/20 text-[#002660] dark:text-blue-200 font-medium border-r-4 border-[#002660] transition-all duration-200 ease-in-out active:scale-[0.98]" href="#">
+<span class="material-symbols-outlined" data-icon="domain" style="font-variation-settings: 'FILL' 1;">domain</span>
+<span>企业备案</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all duration-200 ease-in-out active:scale-[0.98]" href="#">
+<span class="material-symbols-outlined" data-icon="inventory_2">inventory_2</span>
+<span>产品档案</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all duration-200 ease-in-out active:scale-[0.98]" href="#">
+<span class="material-symbols-outlined" data-icon="history_edu">history_edu</span>
+<span>检查记录</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all duration-200 ease-in-out active:scale-[0.98]" href="#">
+<span class="material-symbols-outlined" data-icon="task_alt">task_alt</span>
+<span>整改任务</span>
+</a>
+</nav>
+<div class="px-3 pt-4 border-t border-slate-200/50 space-y-1">
+<a class="flex items-center gap-3 px-4 py-3 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all duration-200 ease-in-out active:scale-[0.98]" href="#">
+<span class="material-symbols-outlined" data-icon="settings">settings</span>
+<span>设置</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all duration-200 ease-in-out active:scale-[0.98]" href="#">
+<span class="material-symbols-outlined" data-icon="logout">logout</span>
+<span>退出</span>
+</a>
+</div>
+</aside>
+<!-- Main Content Shell -->
+<main class="ml-64 min-h-screen">
+<!-- TopNavBar (Authority Source: JSON) -->
+<header class="flex justify-between items-center w-full px-8 h-16 sticky top-0 z-50 backdrop-blur-md bg-slate-50 dark:bg-slate-900 border-b border-slate-200/50 font-['Public_Sans'] tracking-tight">
+<div class="flex items-center gap-8">
+<h1 class="text-xl font-bold text-[#002660] dark:text-blue-200">Sovereign Oversight</h1>
+<div class="relative w-64 group">
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">search</span>
+<input class="w-full bg-surface-container-high border-none rounded-lg pl-10 text-xs focus:ring-1 focus:ring-primary transition-all duration-200" placeholder="搜索企业或档案..." type="text"/>
+</div>
+</div>
+<div class="flex items-center gap-4">
+<button class="p-2 text-slate-500 hover:bg-slate-100 rounded-lg transition-colors duration-200">
+<span class="material-symbols-outlined" data-icon="notifications">notifications</span>
+</button>
+<button class="p-2 text-slate-500 hover:bg-slate-100 rounded-lg transition-colors duration-200">
+<span class="material-symbols-outlined" data-icon="help_outline">help_outline</span>
+</button>
+<div class="h-8 w-[1px] bg-slate-200 mx-2"></div>
+<button class="flex items-center gap-2 px-2 py-1 hover:bg-slate-100 rounded-lg transition-colors duration-200">
+<div class="w-8 h-8 rounded-full bg-primary-container flex items-center justify-center text-white text-xs font-bold">JD</div>
+<span class="material-symbols-outlined text-slate-500" data-icon="account_circle">account_circle</span>
+</button>
+</div>
+</header>
+<!-- Content Canvas -->
+<div class="p-8 max-w-6xl mx-auto">
+<!-- Bento Layout for Profile Summary -->
+<div class="grid grid-cols-12 gap-6 mb-8">
+<!-- Status Header Card (Full Width) -->
+<section class="col-span-12 bg-surface-container-lowest rounded-xl overflow-hidden shadow-sm border border-slate-200/30">
+<div class="bg-gradient-to-r from-primary to-primary-container p-8 text-white flex flex-col md:flex-row justify-between items-center gap-6">
+<div class="flex items-center gap-6">
+<div class="w-20 h-20 bg-white/10 backdrop-blur-md rounded-2xl flex items-center justify-center border border-white/20">
+<span class="material-symbols-outlined text-4xl" style="font-variation-settings: 'FILL' 1;">verified</span>
+</div>
+<div>
+<h2 class="text-3xl font-extrabold tracking-tight">企业备案详情</h2>
+<p class="text-blue-100 mt-1 opacity-80 font-medium">统一社会信用代码: 91110108MA01XXXXXX</p>
+</div>
+</div>
+<div class="flex flex-col items-center md:items-end">
+<div class="flex items-center gap-2 bg-emerald-500/20 text-emerald-100 px-4 py-2 rounded-lg border border-emerald-500/30">
+<span class="material-symbols-outlined text-sm" style="font-variation-settings: 'FILL' 1;">check_circle</span>
+<span class="text-sm font-bold uppercase tracking-widest">已批准 (APPROVED)</span>
+</div>
+<p class="text-[10px] text-blue-200 mt-2 font-medium tracking-tighter uppercase">上次审核日期: 2023年11月14日</p>
+</div>
+</div>
+</section>
+<!-- Informational Form Column (7/12) -->
+<section class="col-span-12 lg:col-span-8 space-y-6">
+<div class="bg-surface-container-lowest p-8 rounded-xl shadow-sm border border-slate-200/30">
+<div class="flex items-center justify-between mb-8 border-b border-surface-container-low pb-4">
+<h3 class="text-lg font-bold text-primary flex items-center gap-2">
+<span class="material-symbols-outlined text-primary">info</span>
+                                基础信息表单
+                            </h3>
+<button class="text-xs font-semibold text-primary hover:underline flex items-center gap-1">
+<span class="material-symbols-outlined text-sm">edit</span>
+                                申请修改
+                            </button>
+</div>
+<div class="grid grid-cols-2 gap-x-8 gap-y-6">
+<div class="space-y-2">
+<label class="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider block">企业全称 (Enterprise Name)</label>
+<div class="bg-surface-container-low px-4 py-3 rounded-lg text-sm font-medium text-on-surface">
+                                    北京华源食品制造有限公司
+                                </div>
+</div>
+<div class="space-y-2">
+<label class="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider block">法定代表人 (Legal Representative)</label>
+<div class="bg-surface-container-low px-4 py-3 rounded-lg text-sm font-medium text-on-surface">
+                                    张建立
+                                </div>
+</div>
+<div class="space-y-2 col-span-2">
+<label class="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider block">注册地址 (Registered Address)</label>
+<div class="bg-surface-container-low px-4 py-3 rounded-lg text-sm font-medium text-on-surface flex items-center gap-2">
+<span class="material-symbols-outlined text-slate-400 text-sm">location_on</span>
+                                    北京市海淀区科技创新园 A 座 402 室
+                                </div>
+</div>
+<div class="space-y-2">
+<label class="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider block">成立日期 (Established Date)</label>
+<div class="bg-surface-container-low px-4 py-3 rounded-lg text-sm font-medium text-on-surface">
+                                    2015-08-20
+                                </div>
+</div>
+<div class="space-y-2">
+<label class="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider block">经营状态 (Status)</label>
+<div class="bg-surface-container-low px-4 py-3 rounded-lg text-sm font-medium text-on-surface text-emerald-600">
+                                    在营（开业）
+                                </div>
+</div>
+</div>
+</div>
+<!-- Audit Trail / Timeline -->
+<div class="bg-surface-container-lowest p-8 rounded-xl shadow-sm border border-slate-200/30">
+<h3 class="text-lg font-bold text-primary mb-6 flex items-center gap-2">
+<span class="material-symbols-outlined text-primary">history_edu</span>
+                            备案审计追踪
+                        </h3>
+<div class="relative pl-6 border-l-2 border-surface-container-high space-y-8">
+<div class="relative">
+<div class="absolute -left-[31px] top-1 w-4 h-4 rounded-full bg-primary border-4 border-white"></div>
+<div class="flex justify-between items-start">
+<div>
+<p class="text-sm font-bold text-on-surface">系统自动审核通过</p>
+<p class="text-xs text-on-surface-variant">备案证明文件完整，符合国家监管标准。</p>
+</div>
+<span class="text-[10px] font-bold text-slate-400 uppercase">2023-11-14 09:20</span>
+</div>
+</div>
+<div class="relative opacity-60">
+<div class="absolute -left-[31px] top-1 w-4 h-4 rounded-full bg-outline border-4 border-white"></div>
+<div class="flex justify-between items-start">
+<div>
+<p class="text-sm font-bold text-on-surface">提交备案申请</p>
+<p class="text-xs text-on-surface-variant">由操作员 012 发起初始备案流程。</p>
+</div>
+<span class="text-[10px] font-bold text-slate-400 uppercase">2023-11-12 14:45</span>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- Side Action Panel (4/12) -->
+<section class="col-span-12 lg:col-span-4 space-y-6">
+<!-- Registration Valid Indicator -->
+<div class="bg-emerald-50 border-emerald-100 border p-6 rounded-xl relative overflow-hidden">
+<div class="relative z-10">
+<div class="flex items-center gap-2 text-emerald-700 mb-2">
+<span class="material-symbols-outlined text-xl" style="font-variation-settings: 'FILL' 1;">security</span>
+<span class="font-bold tracking-tight">备案状态有效 (Valid)</span>
+</div>
+<p class="text-sm text-emerald-600/80 leading-relaxed">
+                                该企业已通过本年度年度核验，资质合法有效，可正常开展相关业务。
+                            </p>
+<a class="mt-6 inline-flex items-center justify-center w-full px-4 py-3 bg-primary text-white rounded-lg font-bold text-sm hover:bg-primary-container transition-all" href="#">
+                                查看产品档案 (Product Archives)
+                                <span class="material-symbols-outlined ml-2 text-sm">arrow_forward</span>
+</a>
+</div>
+<span class="material-symbols-outlined absolute -bottom-6 -right-6 text-9xl text-emerald-500/5 rotate-12">verified_user</span>
+</div>
+<!-- Certificate Preview -->
+<div class="bg-surface-container-lowest p-6 rounded-xl border border-slate-200/30">
+<h4 class="text-[10px] font-black text-on-surface-variant uppercase tracking-[0.2em] mb-4">电子证照预览</h4>
+<div class="aspect-[4/3] bg-surface-container-low rounded-lg relative flex items-center justify-center overflow-hidden group cursor-pointer">
+<img class="w-full h-full object-cover opacity-80 group-hover:scale-105 transition-transform duration-500" data-alt="official regulatory certificate document with blue seal and watermark on premium textured paper" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCnegHCREQPKAF74hqH72UFdB9Yf9SLhxGXRMro9dUZ0sjdgiZGImLXtAd10TNBpsQ7FhBe67WOc4nsfcb16FvdBrDfBOtzqTdU5gZH4l560DArW1wFfbUd5mg4fF18fgnALofqTgtg7ElqfX4VidprVsvHlG6YQhUCd2QV0on32O25PvRtMjsNjkcz1XW40AVRnp7KUjTih3Zso4w6_gU4Vf0qhkfH_tofIKCPowXsL2NBaNtGx1g1vGjJXbe9d0kE5kqdNmqYzfA"/>
+<div class="absolute inset-0 bg-primary/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+<span class="text-white font-bold flex items-center gap-2">
+<span class="material-symbols-outlined">zoom_in</span>
+                                    查看大图
+                                </span>
+</div>
+</div>
+</div>
+<!-- Visual Data Points -->
+<div class="grid grid-cols-2 gap-4">
+<div class="bg-surface-container-low p-4 rounded-lg text-center">
+<div class="text-xs text-on-surface-variant mb-1">合规评分</div>
+<div class="text-2xl font-black text-primary">98</div>
+</div>
+<div class="bg-surface-container-low p-4 rounded-lg text-center">
+<div class="text-xs text-on-surface-variant mb-1">历史抽检</div>
+<div class="text-2xl font-black text-primary">12次</div>
+</div>
+</div>
+</section>
+<!-- REJECTED STATE (Hidden by default, used for logic reference) -->
+<!-- 
+                <section class="col-span-12 bg-error-container p-8 rounded-xl border border-error/20 flex items-start gap-6">
+                    <div class="w-16 h-16 bg-error rounded-full flex items-center justify-center text-white flex-shrink-0">
+                        <span class="material-symbols-outlined text-3xl">cancel</span>
+                    </div>
+                    <div class="flex-1">
+                        <h3 class="text-xl font-bold text-on-error-container">备案申请已被驳回 (Registration Rejected)</h3>
+                        <p class="text-on-error-container mt-2 font-medium">驳回理由：提交的企业营业执照副本复印件模糊，无法核实经营范围。请重新上传清晰的证件原件扫描件。</p>
+                        <div class="mt-6 flex gap-4">
+                            <button class="px-6 py-2 bg-error text-white rounded-lg font-bold text-sm hover:opacity-90 transition-opacity">修改并重新提交</button>
+                            <button class="px-6 py-2 bg-transparent border border-error/30 text-error rounded-lg font-bold text-sm">联系审核员</button>
+                        </div>
+                    </div>
+                </section> 
+                -->
+</div>
+</div>
+</main>
+</body></html>

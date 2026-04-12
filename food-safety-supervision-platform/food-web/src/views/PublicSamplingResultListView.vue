@@ -9,8 +9,8 @@
         </div>
       </div>
       <div class="user-area">
-        <button class="ghost" type="button" @click="$emit('back')">返回首页</button>
-        <button class="ghost" type="button" @click="$emit('logout')">退出登录</button>
+        <button class="ghost" type="button" @click="goBack">返回首页</button>
+        <button class="ghost" type="button" @click="handleLogout">退出登录</button>
       </div>
     </header>
 
@@ -44,7 +44,7 @@
       </div>
 
       <div class="list-table">
-        <div class="list-row list-header sampling-header">
+        <div class="list-row list-header">
           <span>企业</span>
           <span>产品</span>
           <span>抽检结果</span>
@@ -52,7 +52,7 @@
           <span>操作</span>
         </div>
         <div v-if="!records.length" class="list-empty">暂无已公示抽检结果</div>
-        <div v-for="item in records" :key="item.id" class="list-row sampling-row">
+        <div v-for="item in records" :key="item.id" class="list-row">
           <div class="primary-cell">
             <strong>{{ item.enterpriseName || "-" }}</strong>
             <span>{{ item.taskNo || "-" }}</span>
@@ -65,9 +65,7 @@
             {{ formatResult(item.result) }}
           </span>
           <span>{{ formatTime(item.publishedTime || item.updateTime) }}</span>
-          <button class="ghost" type="button" @click="$emit('view-result', item)">
-            查看详情
-          </button>
+          <button class="ghost" type="button" @click="viewResult(item)">查看详情</button>
         </div>
       </div>
 
@@ -86,21 +84,13 @@
 
 <script setup>
 import { onMounted, reactive, ref } from "vue";
+import { useRouter } from "vue-router";
 import { fetchPublicSamplingResults } from "../api/regulationOperation";
+import { getActiveSession, performLogout } from "../session/authRuntime";
+import { formatTime } from "../utils/formatters";
 
-const props = defineProps({
-  publicUser: {
-    type: Object,
-    required: true
-  },
-  publicToken: {
-    type: String,
-    required: true
-  }
-});
-
-defineEmits(["back", "logout", "view-result"]);
-
+const router = useRouter();
+const publicToken = getActiveSession()?.token || "";
 const filters = reactive({ enterpriseName: "", result: "" });
 const loading = ref(false);
 const records = ref([]);
@@ -110,18 +100,20 @@ const total = ref(0);
 const pages = ref(1);
 const status = reactive({ message: "", type: "" });
 
+async function handleLogout() {
+  await performLogout();
+  router.replace({ name: "login" }).catch(() => {});
+}
+
 function setStatus(message, type = "info") {
   status.message = message;
   status.type = type;
 }
 
-function formatTime(value) {
-  if (!value) return "-";
-  return String(value).replace("T", " ").slice(0, 16);
-}
-
 function formatResult(value) {
-  return value === "FAIL" ? "不合格" : value === "PASS" ? "合格" : "-";
+  if (value === "FAIL") return "不合格";
+  if (value === "PASS") return "合格";
+  return "-";
 }
 
 function resultClass(value) {
@@ -132,7 +124,7 @@ async function loadResults() {
   loading.value = true;
   setStatus("");
   try {
-    const data = await fetchPublicSamplingResults(props.publicToken, {
+    const data = await fetchPublicSamplingResults(publicToken, {
       enterpriseName: filters.enterpriseName,
       result: filters.result,
       page: page.value,
@@ -159,6 +151,20 @@ function handleSearch() {
 function changePage(nextPage) {
   page.value = nextPage;
   loadResults();
+}
+
+function goBack() {
+  router.push({ name: "public-home" }).catch(() => {});
+}
+
+function viewResult(item) {
+  if (!item?.id) {
+    return;
+  }
+  router.push({
+    name: "public-sampling-result-detail",
+    params: { samplingResultId: item.id }
+  }).catch(() => {});
 }
 
 onMounted(loadResults);
@@ -269,9 +275,32 @@ onMounted(loadResults);
   font-size: 13px;
 }
 
-.sampling-header,
-.sampling-row {
-  --row-columns: 1.4fr 1.3fr 0.8fr 1fr 0.8fr;
+.list-table {
+  display: grid;
+  gap: 10px;
+}
+
+.list-row {
+  display: grid;
+  grid-template-columns: 1.4fr 1.3fr 0.8fr 1fr 0.8fr;
+  gap: 12px;
+  align-items: center;
+  padding: 14px 16px;
+  border-radius: 14px;
+  background: #f8fbff;
+}
+
+.list-header {
+  background: #f1f6fd;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.list-empty {
+  padding: 26px 12px;
+  text-align: center;
+  color: var(--muted);
 }
 
 .primary-cell {
@@ -317,9 +346,8 @@ onMounted(loadResults);
     padding: 22px 20px 36px;
   }
 
-  .sampling-header,
-  .sampling-row {
-    --row-columns: 1fr;
+  .list-row {
+    grid-template-columns: 1fr;
   }
 }
 </style>

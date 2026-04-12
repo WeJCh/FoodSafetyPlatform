@@ -9,8 +9,8 @@
         </div>
       </div>
       <div class="user-area">
-        <button class="ghost" type="button" @click="$emit('back')">返回列表</button>
-        <button class="ghost" type="button" @click="$emit('logout')">退出登录</button>
+        <button class="ghost" type="button" @click="goBack">返回列表</button>
+        <button class="ghost" type="button" @click="handleLogout">退出登录</button>
       </div>
     </header>
 
@@ -70,35 +70,26 @@
 
 <script setup>
 import { onMounted, ref, watch } from "vue";
+import { useRoute, useRouter } from "vue-router";
 import { fetchPublicSamplingResultDetail } from "../api/regulationOperation";
+import { getActiveSession, performLogout } from "../session/authRuntime";
+import { formatTime } from "../utils/formatters";
 
-const props = defineProps({
-  publicUser: {
-    type: Object,
-    required: true
-  },
-  publicToken: {
-    type: String,
-    required: true
-  },
-  samplingResultId: {
-    type: [String, Number],
-    required: true
-  }
-});
-
-defineEmits(["back", "logout"]);
-
+const router = useRouter();
+const route = useRoute();
+const publicToken = getActiveSession()?.token || "";
 const loading = ref(false);
 const detail = ref(null);
 
-function formatTime(value) {
-  if (!value) return "-";
-  return String(value).replace("T", " ").slice(0, 16);
+async function handleLogout() {
+  await performLogout();
+  router.replace({ name: "login" }).catch(() => {});
 }
 
 function formatResult(value) {
-  return value === "FAIL" ? "不合格" : value === "PASS" ? "合格" : "-";
+  if (value === "FAIL") return "不合格";
+  if (value === "PASS") return "合格";
+  return "-";
 }
 
 function resultClass(value) {
@@ -106,13 +97,14 @@ function resultClass(value) {
 }
 
 async function loadDetail() {
-  if (!props.samplingResultId) {
+  const samplingResultId = route.params.samplingResultId;
+  if (!samplingResultId) {
     detail.value = null;
     return;
   }
   loading.value = true;
   try {
-    detail.value = await fetchPublicSamplingResultDetail(props.publicToken, props.samplingResultId);
+    detail.value = await fetchPublicSamplingResultDetail(publicToken, samplingResultId);
   } catch {
     detail.value = null;
   } finally {
@@ -120,8 +112,12 @@ async function loadDetail() {
   }
 }
 
+function goBack() {
+  router.push({ name: "public-sampling-results" }).catch(() => {});
+}
+
 onMounted(loadDetail);
-watch(() => props.samplingResultId, loadDetail);
+watch(() => route.params.samplingResultId, loadDetail);
 </script>
 
 <style scoped>

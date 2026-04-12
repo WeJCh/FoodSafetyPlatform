@@ -9,8 +9,8 @@
         </div>
       </div>
       <div class="user-area">
-        <button class="ghost" type="button" @click="$emit('back')">返回首页</button>
-        <button class="ghost" type="button" @click="$emit('logout')">退出登录</button>
+        <button class="ghost" type="button" @click="goBack">返回首页</button>
+        <button class="ghost" type="button" @click="handleLogout">退出登录</button>
       </div>
     </header>
 
@@ -54,9 +54,7 @@
             {{ formatStatus(item.status) }}
           </span>
           <span>{{ formatTime(item.updateTime) }}</span>
-          <button class="ghost" type="button" @click="$emit('view-enterprise', item)">
-            查看详情
-          </button>
+          <button class="ghost" type="button" @click="viewEnterprise(item)">查看详情</button>
         </div>
       </div>
 
@@ -75,21 +73,13 @@
 
 <script setup>
 import { onMounted, reactive, ref } from "vue";
+import { useRouter } from "vue-router";
 import { fetchPublicEnterprises } from "../api/regulation";
+import { getActiveSession, performLogout } from "../session/authRuntime";
+import { formatTime } from "../utils/formatters";
 
-const props = defineProps({
-  publicUser: {
-    type: Object,
-    required: true
-  },
-  publicToken: {
-    type: String,
-    required: true
-  }
-});
-
-defineEmits(["back", "logout", "view-enterprise"]);
-
+const router = useRouter();
+const publicToken = getActiveSession()?.token || "";
 const filters = reactive({ enterpriseName: "" });
 const loading = ref(false);
 const records = ref([]);
@@ -99,14 +89,14 @@ const total = ref(0);
 const pages = ref(1);
 const status = reactive({ message: "", type: "" });
 
+async function handleLogout() {
+  await performLogout();
+  router.replace({ name: "login" }).catch(() => {});
+}
+
 function setStatus(message, type = "info") {
   status.message = message;
   status.type = type;
-}
-
-function formatTime(value) {
-  if (!value) return "-";
-  return String(value).replace("T", " ").slice(0, 16);
 }
 
 function formatStatus(value) {
@@ -125,7 +115,7 @@ async function loadEnterprises() {
   loading.value = true;
   setStatus("");
   try {
-    const data = await fetchPublicEnterprises(props.publicToken, {
+    const data = await fetchPublicEnterprises(publicToken, {
       enterpriseName: filters.enterpriseName,
       page: page.value,
       size: size.value
@@ -151,6 +141,20 @@ function handleSearch() {
 function changePage(next) {
   page.value = next;
   loadEnterprises();
+}
+
+function goBack() {
+  router.push({ name: "public-home" }).catch(() => {});
+}
+
+function viewEnterprise(item) {
+  if (!item?.id) {
+    return;
+  }
+  router.push({
+    name: "public-enterprise-detail",
+    params: { enterpriseId: item.id }
+  }).catch(() => {});
 }
 
 onMounted(loadEnterprises);

@@ -9,8 +9,8 @@
         </div>
       </div>
       <div class="user-area">
-        <button class="ghost" type="button" @click="$emit('back')">返回首页</button>
-        <button class="ghost" type="button" @click="$emit('logout')">退出登录</button>
+        <button class="ghost" type="button" @click="goBack">返回首页</button>
+        <button class="ghost" type="button" @click="handleLogout">退出登录</button>
       </div>
     </header>
 
@@ -131,20 +131,13 @@
 
 <script setup>
 import { onMounted, reactive, ref } from "vue";
+import { useRouter } from "vue-router";
 import { fetchMyComplaintDetail, fetchMyComplaints } from "../api/complaint";
+import { getActiveSession, performLogout } from "../session/authRuntime";
+import { formatTime } from "../utils/formatters";
 
-const props = defineProps({
-  publicUser: {
-    type: Object,
-    required: true
-  },
-  publicToken: {
-    type: String,
-    required: true
-  }
-});
-
-defineEmits(["back", "logout"]);
+const router = useRouter();
+const publicToken = getActiveSession()?.token || "";
 
 const filters = reactive({ status: "" });
 const loading = ref(false);
@@ -157,6 +150,11 @@ const selected = ref(null);
 const detailOpen = ref(false);
 const detailLoading = ref(false);
 const status = reactive({ message: "", type: "" });
+
+async function handleLogout() {
+  await performLogout();
+  router.replace({ name: "login" }).catch(() => {});
+}
 
 function setStatus(message, type = "info") {
   status.message = message;
@@ -175,11 +173,6 @@ function formatStatus(value) {
   return map[value] || value || "-";
 }
 
-function formatTime(value) {
-  if (!value) return "-";
-  return String(value).replace("T", " ").slice(0, 16);
-}
-
 function resolveFeedbackSummary(item) {
   return item?.feedbackSummary || item?.handleResult || "";
 }
@@ -194,7 +187,7 @@ async function selectComplaint(item) {
   detailLoading.value = true;
   setStatus("");
   try {
-    const data = await fetchMyComplaintDetail(props.publicToken, item.id);
+    const data = await fetchMyComplaintDetail(publicToken, item.id);
     selected.value = data;
   } catch (error) {
     selected.value = null;
@@ -213,7 +206,7 @@ async function loadComplaints() {
   loading.value = true;
   setStatus("");
   try {
-    const data = await fetchMyComplaints(props.publicToken, {
+    const data = await fetchMyComplaints(publicToken, {
       status: filters.status,
       page: page.value,
       size: size.value
@@ -242,6 +235,10 @@ function handleSearch() {
 function changePage(next) {
   page.value = next;
   loadComplaints();
+}
+
+function goBack() {
+  router.push({ name: "public-home" }).catch(() => {});
 }
 
 onMounted(loadComplaints);

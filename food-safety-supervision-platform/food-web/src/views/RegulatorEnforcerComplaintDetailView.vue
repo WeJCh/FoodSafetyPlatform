@@ -158,20 +158,15 @@
 
 <script setup>
 import { computed, onMounted, reactive, ref, watch } from "vue";
+import { useRoute, useRouter } from "vue-router";
 import { fetchComplaintDetail, handleComplaint, startComplaintProcess } from "../api/complaint";
+import { getActiveSession } from "../session/authRuntime";
+import { formatByMap, formatTime } from "../utils/formatters";
+import { complaintStatusMap } from "../utils/statusMaps";
 
-const props = defineProps({
-  token: {
-    type: String,
-    required: true
-  },
-  complaintId: {
-    type: [String, Number],
-    required: true
-  }
-});
-
-const emit = defineEmits(["back"]);
+const router = useRouter();
+const route = useRoute();
+const token = computed(() => getActiveSession()?.token || "");
 
 const loading = ref(false);
 const loadingAction = ref(false);
@@ -197,24 +192,16 @@ const complaintImageRemain = computed(() =>
 const canStart = computed(() => complaint.value?.status === "ASSIGNED");
 const canHandle = computed(() => complaint.value?.status === "PROCESSING");
 
-const complaintStatusMap = {
-  SUBMITTED: "已提交",
-  PENDING: "已受理",
-  ASSIGNED: "已派发",
-  PROCESSING: "处理中",
-  FEEDBACKED: "已反馈",
-  REJECTED: "已驳回"
-};
-
 async function loadDetail() {
-  if (!props.complaintId) {
+  const complaintId = route.params.complaintId;
+  if (!complaintId) {
     detail.value = null;
     return;
   }
   loading.value = true;
   setStatus("");
   try {
-    detail.value = await fetchComplaintDetail(props.token, props.complaintId);
+    detail.value = await fetchComplaintDetail(token.value, complaintId);
     handleForm.feedbackSummary = "";
   } catch (error) {
     detail.value = null;
@@ -229,7 +216,7 @@ async function handleStart() {
   loadingAction.value = true;
   setStatus("");
   try {
-    await startComplaintProcess(props.token, complaint.value.id);
+    await startComplaintProcess(token.value, complaint.value.id);
     setStatus("投诉已开始处理", "success");
     await loadDetail();
   } catch (error) {
@@ -248,7 +235,7 @@ async function handleSubmit() {
   loadingAction.value = true;
   setStatus("");
   try {
-    await handleComplaint(props.token, complaint.value.id, {
+    await handleComplaint(token.value, complaint.value.id, {
       feedbackSummary: handleForm.feedbackSummary
     });
     setStatus("投诉处理已完成", "success");
@@ -282,16 +269,22 @@ function showNextImage() {
 }
 
 function handleBack() {
-  emit("back");
-}
-
-function formatTime(value) {
-  if (!value) return "-";
-  return String(value).replace("T", " ").slice(0, 16);
+  const fromSection = typeof route.query.from === "string" ? route.query.from : "complaints";
+  const routeNameMap = {
+    enterprises: "regulator-enforcer-enterprises",
+    tasks: "regulator-enforcer-tasks",
+    sampling: "regulator-enforcer-sampling",
+    inspections: "regulator-enforcer-inspections",
+    complaints: "regulator-enforcer-complaints",
+    rectification: "regulator-enforcer-rectifications",
+    warnings: "regulator-enforcer-warnings",
+    stats: "regulator-enforcer-stats"
+  };
+  router.push({ name: routeNameMap[fromSection] || "regulator-enforcer-complaints" }).catch(() => {});
 }
 
 function formatComplaintStatus(value) {
-  return complaintStatusMap[value] || value || "-";
+  return formatByMap(value, complaintStatusMap);
 }
 
 function setStatus(message = "", type = "") {
@@ -300,7 +293,7 @@ function setStatus(message = "", type = "") {
 }
 
 onMounted(loadDetail);
-watch(() => props.complaintId, loadDetail);
+watch(() => route.params.complaintId, loadDetail);
 </script>
 
 <style scoped>

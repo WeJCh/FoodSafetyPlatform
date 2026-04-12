@@ -9,8 +9,8 @@
         </div>
       </div>
       <div class="user-area">
-        <button class="ghost" type="button" @click="$emit('back')">返回首页</button>
-        <button class="ghost" type="button" @click="$emit('logout')">退出登录</button>
+        <button class="ghost" type="button" @click="goBack">返回首页</button>
+        <button class="ghost" type="button" @click="handleLogout">退出登录</button>
       </div>
     </header>
 
@@ -173,23 +173,20 @@
 </template>
 
 <script setup>
-import { computed, onMounted, reactive, ref, watch } from "vue";
+import { computed, onMounted, reactive, ref } from "vue";
+import { useRouter } from "vue-router";
 import { submitPublicComplaint } from "../api/complaint";
 import { presignUpload } from "../api/file";
 import { fetchPublicEnterprises } from "../api/regulation";
+import { getActiveSession, performLogout } from "../session/authRuntime";
 
-const props = defineProps({
-  publicUser: {
-    type: Object,
-    required: true
-  },
-  publicToken: {
-    type: String,
-    required: true
-  }
-});
+const router = useRouter();
+const publicToken = getActiveSession()?.token || "";
 
-const emit = defineEmits(["back", "logout", "open-track"]);
+async function handleLogout() {
+  await performLogout();
+  router.replace({ name: "login" }).catch(() => {});
+}
 
 const form = reactive({
   enterpriseName: "",
@@ -273,7 +270,7 @@ async function loadEnterprises(reset) {
   if (enterpriseLoading.value) {
     return;
   }
-  if (!props.publicToken) {
+  if (!publicToken) {
     setStatus("请先登录后再查询企业", "error");
     return;
   }
@@ -282,7 +279,7 @@ async function loadEnterprises(reset) {
     enterprisePage.value = 1;
   }
   try {
-    const data = await fetchPublicEnterprises(props.publicToken, {
+    const data = await fetchPublicEnterprises(publicToken, {
       enterpriseName: enterpriseQuery.value,
       page: enterprisePage.value,
       size: enterpriseSize
@@ -324,7 +321,7 @@ function selectEnterprise(item) {
 }
 
 function handleFileChange(event) {
-  if (!props.publicToken) {
+  if (!publicToken) {
     setStatus("请先登录后再上传图片", "error");
     return;
   }
@@ -395,7 +392,7 @@ async function uploadFile(item) {
       size: item.file.size,
       bizType: "COMPLAINT"
     };
-    const presign = await presignUpload(props.publicToken, payload);
+    const presign = await presignUpload(publicToken, payload);
     const response = await fetch(presign.uploadUrl, {
       method: "PUT",
       headers: {
@@ -467,7 +464,7 @@ async function handleSubmit() {
       complainantName: form.anonymous ? undefined : form.complainantName,
       imageUrls: imageUrls.length ? imageUrls : undefined
     };
-    success.value = await submitPublicComplaint(props.publicToken, payload);
+    success.value = await submitPublicComplaint(publicToken, payload);
     setStatus("投诉提交成功", "success");
   } catch (error) {
     setStatus(error.message || "投诉提交失败", "error");
@@ -487,7 +484,11 @@ async function copyComplaintNo() {
 }
 
 function goTrack() {
-  emit("open-track");
+  router.push({ name: "public-complaints" }).catch(() => {});
+}
+
+function goBack() {
+  router.push({ name: "public-home" }).catch(() => {});
 }
 
 function resetForm() {
@@ -521,19 +522,10 @@ function markAddressEdited() {
 }
 
 onMounted(() => {
-  if (props.publicToken) {
+  if (publicToken) {
     loadEnterprises(true);
   }
 });
-
-watch(
-  () => props.publicToken,
-  (value, prev) => {
-    if (value && value !== prev) {
-      loadEnterprises(true);
-    }
-  }
-);
 </script>
 
 <style scoped>

@@ -112,6 +112,26 @@ class JwtAuthFilterTest {
     }
 
     @Test
+    void filter_shouldAllowEnterpriseToViewOwnInspectionRecords() {
+        JwtAuthFilter filter = newFilter(false, request -> Mono.just(successResponse("ENTERPRISE", List.of("ENTERPRISE"))));
+        AtomicBoolean chainInvoked = new AtomicBoolean(false);
+        GatewayFilterChain chain = exchange -> {
+            chainInvoked.set(true);
+            return Mono.empty();
+        };
+        MockServerWebExchange exchange = MockServerWebExchange.from(
+            MockServerHttpRequest.get("/api/regulation-operation/inspections/enterprise?page=1&size=3")
+                .header(HttpHeaders.AUTHORIZATION, bearerToken())
+                .build()
+        );
+
+        filter.filter(exchange, chain).block();
+
+        assertTrue(chainInvoked.get());
+        assertNull(exchange.getResponse().getStatusCode());
+    }
+
+    @Test
     void filter_shouldAllowAdminToQueryRegionsForRegulatorSetup() {
         JwtAuthFilter filter = newFilter(false, request -> Mono.just(successResponse("ADMIN", List.of("ADMIN"))));
         AtomicBoolean chainInvoked = new AtomicBoolean(false);

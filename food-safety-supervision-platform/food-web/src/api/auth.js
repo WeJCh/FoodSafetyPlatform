@@ -40,6 +40,15 @@ export function verify(token) {
   });
 }
 
+export function introspect(token) {
+  return request("/api/auth/introspect", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`
+    }
+  });
+}
+
 export function logout(token) {
   if (!token) {
     return Promise.resolve({ success: true });

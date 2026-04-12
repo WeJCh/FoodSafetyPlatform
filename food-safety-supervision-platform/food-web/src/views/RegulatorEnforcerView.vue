@@ -717,8 +717,10 @@
 </template>
 
 <script setup>
-import { computed, onMounted, reactive, ref } from "vue";
+import { computed, onMounted, reactive, ref, watch } from "vue";
+import { useRoute, useRouter } from "vue-router";
 import { fetchComplaints, startComplaintProcess } from "../api/complaint";
+import { getActiveSession, performLogout } from "../session/authRuntime";
 import {
   fetchEnterpriseDetail,
   fetchEnterprises,
@@ -742,15 +744,55 @@ import {
 import RectificationDetailModal from "../components/RectificationDetailModal.vue";
 import SupervisionOverviewPanel from "../components/SupervisionOverviewPanel.vue";
 import WarningStatsPanel from "../components/WarningStatsPanel.vue";
+import { formatByMap, formatTime } from "../utils/formatters";
+import {
+  approvalStatusMap,
+  complaintStatusMap,
+  enterpriseStatusMap,
+  warningActionMap,
+  warningLevelMap,
+  warningStatusMap
+} from "../utils/statusMaps";
 
-const props = defineProps({
-  token: { type: String, required: true },
-  regulatorUser: { type: Object, required: true },
-  initialSection: { type: String, default: "" }
-});
+const router = useRouter();
+const route = useRoute();
+const session = computed(() => getActiveSession() || {});
+const regulatorUser = computed(() => session.value);
+const token = computed(() => session.value.token || "");
 
-const emit = defineEmits(["logout", "view-enterprise", "view-complaint"]);
-const section = ref(props.initialSection || "enterprises");
+function normalizeSection(value) {
+  const sectionMap = new Set([
+    "enterprises",
+    "tasks",
+    "sampling",
+    "inspections",
+    "rectification",
+    "complaints",
+    "warnings",
+    "stats"
+  ]);
+  return sectionMap.has(value) ? value : "enterprises";
+}
+
+function getSectionRouteName(sectionValue) {
+  const routeNameMap = {
+    enterprises: "regulator-enforcer-enterprises",
+    tasks: "regulator-enforcer-tasks",
+    sampling: "regulator-enforcer-sampling",
+    inspections: "regulator-enforcer-inspections",
+    rectification: "regulator-enforcer-rectifications",
+    complaints: "regulator-enforcer-complaints",
+    warnings: "regulator-enforcer-warnings",
+    stats: "regulator-enforcer-stats"
+  };
+  return routeNameMap[sectionValue] || "regulator-enforcer-enterprises";
+}
+
+function resolveCurrentSection() {
+  return normalizeSection(route.meta?.initialSection);
+}
+
+const section = ref(resolveCurrentSection());
 
 const filters = reactive({ enterpriseName: "", status: "", approvalStatus: "" });
 const status = reactive({ message: "", type: "" });
@@ -863,8 +905,6 @@ const sectionLabelMap = {
 
 const sectionLabel = computed(() => sectionLabelMap[section.value] || "当前模块");
 
-const statusMap = { NORMAL: "正常", KEY: "重点监管" };
-const approvalStatusMap = { PENDING: "待审核", APPROVED: "已通过", REJECTED: "已驳回" };
 const taskStatusMap = { CREATED: "待派发", ASSIGNED: "待执行", IN_PROGRESS: "执行中", COMPLETED: "已完成", CLOSED: "已归档" };
 const samplingTaskStatusMap = { CREATED: "待派发", ASSIGNED: "待抽检", COMPLETED: "已完成", CLOSED: "已归档" };
 const taskPriorityMap = { LOW: "低", MEDIUM: "中", HIGH: "高" };
@@ -875,41 +915,17 @@ const rectificationStatusMap = {
   REWORK: "打回重做",
   CONFIRMED: "已确认"
 };
-const complaintStatusMap = {
-  SUBMITTED: "已提交",
-  PENDING: "已受理",
-  ASSIGNED: "已派发",
-  PROCESSING: "处理中",
-  FEEDBACKED: "已反馈",
-  REJECTED: "已驳回"
-};
-const warningStatusMap = {
-  OPEN: "待处理",
-  PROCESSING: "处理中",
-  RESOLVED: "已解决",
-  CLOSED: "已归档"
-};
-const warningLevelMap = { L1: "一级", L2: "二级" };
-const warningActionMap = {
-  EVENT_UPSERT: "系统上报",
-  ASSIGN: "派发处理",
-  PROCESS: "进入处理中",
-  RESOLVE: "标记已解决",
-  AUTO_LEVEL_UP: "自动升级",
-  AUTO_ARCHIVE: "系统归档"
-};
-
-function formatStatus(value) { return statusMap[value] || value || "-"; }
-function formatApprovalStatus(value) { return approvalStatusMap[value] || value || "-"; }
+function formatStatus(value) { return formatByMap(value, enterpriseStatusMap); }
+function formatApprovalStatus(value) { return formatByMap(value, approvalStatusMap); }
 function formatTaskStatus(value) { return taskStatusMap[value] || value || "-"; }
 function formatSamplingTaskStatus(value) { return samplingTaskStatusMap[value] || value || "-"; }
 function formatTaskPriority(value) { return taskPriorityMap[value] || value || "-"; }
 function formatInspectionResult(value) { return inspectionResultMap[value] || value || "-"; }
 function formatRectificationStatus(value) { return rectificationStatusMap[value] || value || "-"; }
-function formatComplaintStatus(value) { return complaintStatusMap[value] || value || "-"; }
-function formatWarningStatus(value) { return warningStatusMap[value] || value || "-"; }
-function formatWarningLevel(value) { return warningLevelMap[value] || value || "-"; }
-function formatWarningAction(value) { return warningActionMap[value] || value || "-"; }
+function formatComplaintStatus(value) { return formatByMap(value, complaintStatusMap); }
+function formatWarningStatus(value) { return formatByMap(value, warningStatusMap); }
+function formatWarningLevel(value) { return formatByMap(value, warningLevelMap); }
+function formatWarningAction(value) { return formatByMap(value, warningActionMap); }
 
 function warningStatusClass(value) {
   if (value === "OPEN") return "open";
@@ -951,7 +967,11 @@ function canJumpWarningRectification(warning) {
 
 function jumpToWarningComplaint(warning) {
   if (!canJumpWarningComplaint(warning)) return;
-  emit("view-complaint", { id: Number(warning.bizId), fromSection: "warnings" });
+  router.push({
+    name: "regulator-enforcer-complaint-detail",
+    params: { complaintId: Number(warning.bizId) },
+    query: { from: "warnings" }
+  }).catch(() => {});
   closeWarningDetail();
 }
 
@@ -967,7 +987,7 @@ async function jumpToWarningRectification(warning) {
 async function load() {
   loading.value = true; setStatus("");
   try {
-    const data = await fetchEnterprises(props.token, { ...filters, page: page.value, size: size.value });
+    const data = await fetchEnterprises(token.value, { ...filters, page: page.value, size: size.value });
     records.value = data.records || [];
     total.value = data.total || 0;
     page.value = data.page || 1;
@@ -983,7 +1003,7 @@ async function load() {
 async function loadTasks() {
   taskLoading.value = true; setStatus("");
   try {
-    const data = await fetchMyInspectionTasks(props.token, { ...taskFilters, page: taskPage.value, size: taskSize.value });
+    const data = await fetchMyInspectionTasks(token.value, { ...taskFilters, page: taskPage.value, size: taskSize.value });
     taskRecords.value = data.records || [];
     taskTotal.value = data.total || 0;
     taskPage.value = data.page || 1;
@@ -999,7 +1019,7 @@ async function loadTasks() {
 async function loadSamplingTasks() {
   samplingLoading.value = true; setStatus("");
   try {
-    const data = await fetchMySamplingTasks(props.token, {
+    const data = await fetchMySamplingTasks(token.value, {
       ...samplingFilters,
       page: samplingPage.value,
       size: samplingSize.value
@@ -1031,7 +1051,7 @@ async function changeInspectionPage(nextPage) { inspectionPage.value = nextPage;
 async function loadInspections() {
   inspectionLoading.value = true; setStatus("");
   try {
-    const data = await fetchMyInspectionRecords(props.token, { ...inspectionFilters, page: inspectionPage.value, size: inspectionSize.value });
+    const data = await fetchMyInspectionRecords(token.value, { ...inspectionFilters, page: inspectionPage.value, size: inspectionSize.value });
     inspectionRecords.value = data.records || [];
     inspectionTotal.value = data.total || 0;
     inspectionPage.value = data.page || 1;
@@ -1047,7 +1067,7 @@ async function loadInspections() {
 async function loadComplaints() {
   complaintLoading.value = true; setStatus("");
   try {
-    const data = await fetchComplaints(props.token, { ...complaintFilters, page: complaintPage.value, size: complaintSize.value });
+    const data = await fetchComplaints(token.value, { ...complaintFilters, page: complaintPage.value, size: complaintSize.value });
     complaintRecords.value = data.records || [];
     complaintTotal.value = data.total || 0;
     complaintPage.value = data.page || 1;
@@ -1063,7 +1083,7 @@ async function loadComplaints() {
 async function loadRectifications() {
   rectificationLoading.value = true; setStatus("");
   try {
-    const data = await fetchMyRegulatorRectifications(props.token, {
+    const data = await fetchMyRegulatorRectifications(token.value, {
       ...rectificationFilters,
       page: rectificationPage.value,
       size: rectificationSize.value
@@ -1087,7 +1107,7 @@ async function loadRectifications() {
 async function loadWarnings() {
   warningLoading.value = true; setStatus("");
   try {
-    const data = await fetchMyWarningRecords(props.token, {
+    const data = await fetchMyWarningRecords(token.value, {
       ...warningFilters,
       page: warningPage.value,
       size: warningSize.value
@@ -1127,7 +1147,7 @@ async function handleStartComplaint(item) {
   complaintLoading.value = true;
   setStatus("", "info");
   try {
-    await startComplaintProcess(props.token, item.id);
+    await startComplaintProcess(token.value, item.id);
     setStatus("已开始处理投诉", "success");
     await loadComplaints();
   } catch (error) {
@@ -1143,7 +1163,7 @@ async function openWarningDetail(item) {
   warningDetailLoading.value = true;
   warningDetail.value = null;
   try {
-    warningDetail.value = await fetchMyWarningDetail(props.token, item.id);
+    warningDetail.value = await fetchMyWarningDetail(token.value, item.id);
   } catch (error) {
     setStatus(error.message || "加载预警详情失败", "error");
     warningDetailVisible.value = false;
@@ -1168,8 +1188,8 @@ async function openRectificationDetailById(rectificationId, silent = false) {
   rectificationActionLogs.value = [];
   try {
     const [detail, actions] = await Promise.all([
-      fetchRectificationDetail(props.token, rectificationId),
-      fetchRectificationActions(props.token, rectificationId)
+      fetchRectificationDetail(token.value, rectificationId),
+      fetchRectificationActions(token.value, rectificationId)
     ]);
     rectificationDetail.value = detail || rectificationDetail.value;
     rectificationActionLogs.value = Array.isArray(actions) ? actions : [];
@@ -1203,7 +1223,7 @@ async function handleWarningAction(target, actionType) {
   warningActionLoading.value = true;
   setStatus("");
   try {
-    const detail = await processMyWarning(props.token, warningId, { actionType });
+    const detail = await processMyWarning(token.value, warningId, { actionType });
     if (warningDetailVisible.value && warningDetail.value?.id === warningId) {
       warningDetail.value = detail;
     }
@@ -1218,13 +1238,17 @@ async function handleWarningAction(target, actionType) {
 
 function handleViewComplaint(item) {
   if (!item?.id) return;
-  emit("view-complaint", { id: item.id, fromSection: section.value });
+  router.push({
+    name: "regulator-enforcer-complaint-detail",
+    params: { complaintId: item.id },
+    query: { from: section.value }
+  }).catch(() => {});
 }
 
 async function handleStartTask(task) {
   taskLoading.value = true; setStatus("");
   try {
-    await startInspectionTask(props.token, task.id);
+    await startInspectionTask(token.value, task.id);
     setStatus("任务已开始执行", "success");
     await loadTasks();
   } catch (error) {
@@ -1261,10 +1285,10 @@ async function openTaskDetail(task) {
 
   detailTaskLoading.value = true;
   try {
-    const enterprise = await fetchEnterpriseDetail(props.token, task.enterpriseId);
+    const enterprise = await fetchEnterpriseDetail(token.value, task.enterpriseId);
     detailTaskEnterprise.value = enterprise || null;
     if (enterprise?.regionId) {
-      const path = await fetchRegionPath(props.token, enterprise.regionId).catch(() => []);
+      const path = await fetchRegionPath(token.value, enterprise.regionId).catch(() => []);
       detailTaskRegionName.value = Array.isArray(path) && path.length
         ? path.map((item) => item.name).join("/")
         : "-";
@@ -1285,10 +1309,10 @@ async function openSamplingTaskDetail(task) {
 
   samplingDetailLoading.value = true;
   try {
-    const enterprise = await fetchEnterpriseDetail(props.token, task.enterpriseId);
+    const enterprise = await fetchEnterpriseDetail(token.value, task.enterpriseId);
     samplingDetailEnterprise.value = enterprise || null;
     if (enterprise?.regionId) {
-      const path = await fetchRegionPath(props.token, enterprise.regionId).catch(() => []);
+      const path = await fetchRegionPath(token.value, enterprise.regionId).catch(() => []);
       samplingDetailRegionName.value = Array.isArray(path) && path.length
         ? path.map((item) => item.name).join("/")
         : "-";
@@ -1318,7 +1342,7 @@ async function openInspectionDetail(record) {
   if (!record?.id) return;
   inspectionLoading.value = true;
   try {
-    inspectionDetail.value = await fetchInspectionRecordDetail(props.token, record.id);
+    inspectionDetail.value = await fetchInspectionRecordDetail(token.value, record.id);
   } catch (error) {
     setStatus(error.message || "加载检查记录失败", "error");
   } finally {
@@ -1339,7 +1363,7 @@ async function handleSubmitTask() {
     const items = taskForm.items.filter((item) => item.itemName && item.itemName.trim()).map((item) => ({
       itemName: item.itemName, itemResult: item.itemResult, problemDesc: item.problemDesc
     }));
-    await submitInspectionTask(props.token, activeTask.value.id, {
+    await submitInspectionTask(token.value, activeTask.value.id, {
       inspectionDate: taskForm.inspectionDate,
       result: taskForm.result,
       problemDesc: taskForm.problemDesc,
@@ -1363,7 +1387,7 @@ async function handleSubmitSamplingResult() {
   }
   samplingLoading.value = true; setStatus("");
   try {
-    await submitSamplingResult(props.token, activeSamplingTask.value.id, {
+    await submitSamplingResult(token.value, activeSamplingTask.value.id, {
       sampledTime: normalizeDateTimeInput(samplingForm.sampledTime),
       result: samplingForm.result,
       conclusion: samplingForm.conclusion,
@@ -1382,9 +1406,17 @@ async function handleSubmitSamplingResult() {
 async function handleSearch() { page.value = 1; await load(); }
 async function changePage(nextPage) { page.value = nextPage; await load(); }
 async function handleTaskEnter() { section.value = "tasks"; await loadTasks(); }
-function handleLogout() { emit("logout"); }
-function handleViewDetail(item) { emit("view-enterprise", { id: item.id, fromSection: section.value }); }
-function formatTime(value) { if (!value) return "-"; return String(value).replace("T", " ").slice(0, 16); }
+async function handleLogout() {
+  await performLogout();
+  router.replace({ name: "login" }).catch(() => {});
+}
+function handleViewDetail(item) {
+  router.push({
+    name: "regulator-enforcer-enterprise-detail",
+    params: { enterpriseId: item.id },
+    query: { from: section.value }
+  }).catch(() => {});
+}
 function normalizeDateTimeInput(value) { return value && value.length === 16 ? `${value}:00` : value; }
 
 function formatDurationMinutes(minutes) {
@@ -1423,15 +1455,58 @@ function formatRectificationSla(item) {
   return "已完成";
 }
 
+async function loadSection(sectionValue) {
+  const normalized = normalizeSection(sectionValue);
+
+  if (normalized === "tasks") {
+    await loadTasks();
+    return;
+  }
+  if (normalized === "sampling") {
+    await loadSamplingTasks();
+    return;
+  }
+  if (normalized === "inspections") {
+    await loadInspections();
+    return;
+  }
+  if (normalized === "rectification") {
+    await loadRectifications();
+    return;
+  }
+  if (normalized === "complaints") {
+    await loadComplaints();
+    return;
+  }
+  if (normalized === "warnings" || normalized === "stats") {
+    if (normalized === "warnings") {
+      await loadWarnings();
+    }
+    return;
+  }
+  await load();
+}
+
 onMounted(() => {
-  if (section.value === "tasks") { loadTasks(); return; }
-  if (section.value === "sampling") { loadSamplingTasks(); return; }
-  if (section.value === "inspections") { loadInspections(); return; }
-  if (section.value === "rectification") { loadRectifications(); return; }
-  if (section.value === "complaints") { loadComplaints(); return; }
-  if (section.value === "warnings") { loadWarnings(); return; }
-  if (section.value === "stats") { return; }
-  load();
+  loadSection(section.value);
+});
+
+watch(
+  () => route.name,
+  async () => {
+    const normalized = resolveCurrentSection();
+    if (section.value !== normalized) {
+      section.value = normalized;
+    }
+    await loadSection(normalized);
+  }
+);
+
+watch(section, (nextSection) => {
+  const targetName = getSectionRouteName(nextSection);
+  if (route.name !== targetName) {
+    router.push({ name: targetName }).catch(() => {});
+  }
 });
 </script>
 

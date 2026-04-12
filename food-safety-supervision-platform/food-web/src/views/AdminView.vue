@@ -209,8 +209,10 @@
 </template>
 
 <script setup>
-import { onMounted, reactive, ref } from "vue";
+import { computed, onMounted, reactive, ref, watch } from "vue";
+import { useRoute, useRouter } from "vue-router";
 import { createRegulator } from "../api/auth";
+import { getActiveSession, performLogout } from "../session/authRuntime";
 import {
   createRegulatorProfile,
   fetchRegulatorProfiles,
@@ -218,22 +220,28 @@ import {
   fetchRegions
 } from "../api/regulation";
 
-const props = defineProps({
-  adminUser: {
-    type: Object,
-    required: true
-  },
-  token: {
-    type: String,
-    required: true
-  }
-});
-
-const emit = defineEmits(["logout"]);
+const router = useRouter();
+const route = useRoute();
+const session = computed(() => getActiveSession() || {});
+const adminUser = computed(() => session.value);
+const token = computed(() => session.value.token || "");
 
 const loading = ref(false);
 const status = reactive({ message: "", type: "" });
-const subSection = ref("create");
+
+function normalizeSection(value) {
+  return value === "list" ? "list" : "create";
+}
+
+function getSectionRouteName(section) {
+  return section === "list" ? "admin-regulator-list" : "admin-regulator-create";
+}
+
+function resolveCurrentSection() {
+  return normalizeSection(route.meta?.initialSection);
+}
+
+const subSection = ref(resolveCurrentSection());
 
 const regulatorForm = reactive({
   username: "",
@@ -249,8 +257,9 @@ const listQuery = reactive({
   regionId: ""
 });
 
-function handleLogout() {
-  emit("logout");
+async function handleLogout() {
+  await performLogout();
+  router.replace({ name: "login" }).catch(() => {});
 }
 
 const regulatorRegions = reactive({
@@ -288,7 +297,7 @@ async function loadRegulators() {
   listLoading.value = true;
   setStatus("");
   try {
-    regulatorList.value = await fetchRegulatorProfiles(props.token, listQuery);
+    regulatorList.value = await fetchRegulatorProfiles(token.value, listQuery);
   } catch (error) {
     setStatus(error.message || "加载监管人员失败", "error");
   } finally {
@@ -323,9 +332,9 @@ async function handleCreate() {
         userType: "REGULATOR",
         roleType: regulatorForm.roleType
       },
-      props.token
+      token.value
     );
-    await createRegulatorProfile(props.token, {
+    await createRegulatorProfile(token.value, {
       userId: user.id,
       name: regulatorForm.name,
       phone: regulatorForm.phone,
@@ -345,7 +354,7 @@ async function handleCreate() {
 
 async function loadRegulatorRegions(parentId, targetKey) {
   try {
-    regulatorRegions[targetKey] = await fetchRegions(props.token, parentId);
+    regulatorRegions[targetKey] = await fetchRegions(token.value, parentId);
   } catch (error) {
     setStatus(error.message || "加载行政区失败", "error");
   }
@@ -403,7 +412,7 @@ function resolveRegulatorRegionIdByRole() {
 
 async function loadFilterRegions(parentId, targetKey) {
   try {
-    filterRegions[targetKey] = await fetchRegions(props.token, parentId);
+    filterRegions[targetKey] = await fetchRegions(token.value, parentId);
   } catch (error) {
     setStatus(error.message || "加载行政区失败", "error");
   }
@@ -459,7 +468,7 @@ function resolveFilterRegionId() {
 
 async function loadProvinces() {
   try {
-    const provinces = await fetchRegions(props.token, null);
+    const provinces = await fetchRegions(token.value, null);
     regulatorRegions.provinces = provinces;
     filterRegions.provinces = provinces;
   } catch (error) {
@@ -469,6 +478,29 @@ async function loadProvinces() {
 
 onMounted(async () => {
   await loadProvinces();
+  if (subSection.value === "list") {
+    await loadRegulators();
+  }
+});
+
+watch(
+  () => route.name,
+  async () => {
+    const normalized = resolveCurrentSection();
+    if (subSection.value !== normalized) {
+      subSection.value = normalized;
+    }
+    if (normalized === "list") {
+      await loadRegulators();
+    }
+  }
+);
+
+watch(subSection, (nextSection) => {
+  const targetName = getSectionRouteName(nextSection);
+  if (route.name !== targetName) {
+    router.push({ name: targetName }).catch(() => {});
+  }
 });
 
 async function handleSearch() {
@@ -480,7 +512,7 @@ async function handleSearch() {
 async function handleToggle(regulator) {
   const nextStatus = regulator.status === 1 ? 0 : 1;
   try {
-    await updateRegulatorStatus(props.token, regulator.id, nextStatus);
+    await updateRegulatorStatus(token.value, regulator.id, nextStatus);
     regulator.status = nextStatus;
   } catch (error) {
     setStatus(error.message || "更新状态失败", "error");

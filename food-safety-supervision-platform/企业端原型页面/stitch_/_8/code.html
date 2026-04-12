@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+
+<html lang="zh-CN"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>检查记录详情 - Sovereign Oversight</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;600;700;800;900&amp;family=Inter:wght@400;500;600&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "on-primary-container": "#84a8ff",
+                        "secondary-fixed-dim": "#b9c6ed",
+                        "on-tertiary-fixed-variant": "#7c2d06",
+                        "on-background": "#191c1e",
+                        "surface-container-low": "#f2f4f7",
+                        "surface-tint": "#335bae",
+                        "surface-bright": "#f7f9fc",
+                        "on-surface": "#191c1e",
+                        "on-secondary": "#ffffff",
+                        "on-error-container": "#93000a",
+                        "surface-container-high": "#e6e8eb",
+                        "inverse-surface": "#2d3133",
+                        "on-secondary-fixed-variant": "#394666",
+                        "surface-container": "#eceef1",
+                        "error": "#ba1a1a",
+                        "primary-fixed-dim": "#b0c6ff",
+                        "on-surface-variant": "#434651",
+                        "on-primary-fixed-variant": "#124394",
+                        "tertiary": "#4e1700",
+                        "inverse-on-surface": "#eff1f4",
+                        "background": "#f7f9fc",
+                        "primary-container": "#003a8c",
+                        "surface-container-highest": "#e0e3e6",
+                        "on-primary": "#ffffff",
+                        "on-primary-fixed": "#001945",
+                        "tertiary-container": "#722600",
+                        "primary-fixed": "#d9e2ff",
+                        "surface-dim": "#d8dadd",
+                        "primary": "#002660",
+                        "error-container": "#ffdad6",
+                        "tertiary-fixed": "#ffdbce",
+                        "secondary-fixed": "#d9e2ff",
+                        "outline-variant": "#c3c6d3",
+                        "secondary": "#515e7f",
+                        "tertiary-fixed-dim": "#ffb599",
+                        "surface": "#f7f9fc",
+                        "secondary-container": "#c9d7fe",
+                        "on-tertiary": "#ffffff",
+                        "on-tertiary-fixed": "#370e00",
+                        "surface-variant": "#e0e3e6",
+                        "on-secondary-container": "#505d7e",
+                        "outline": "#747783",
+                        "on-tertiary-container": "#fb8d60",
+                        "inverse-primary": "#b0c6ff",
+                        "surface-container-lowest": "#ffffff",
+                        "on-secondary-fixed": "#0c1a38",
+                        "on-error": "#ffffff"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.125rem",
+                        "lg": "0.25rem",
+                        "xl": "0.5rem",
+                        "full": "0.75rem"
+                    },
+                    "fontFamily": {
+                        "headline": ["Public Sans"],
+                        "body": ["Inter"],
+                        "label": ["Inter"]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        body { font-family: 'Inter', sans-serif; background-color: #f7f9fc; }
+        .font-headline { font-family: 'Public Sans', sans-serif; }
+        .material-symbols-outlined { font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24; }
+    </style>
+</head>
+<body class="text-on-background">
+<!-- TopNavBar -->
+<nav class="fixed top-0 w-full z-50 bg-slate-50/90 dark:bg-slate-900/90 backdrop-blur-md border-b border-slate-200/50 dark:border-slate-800/50 shadow-sm flex justify-between items-center h-14 px-6 w-full font-['Public_Sans'] tracking-tight">
+<div class="flex items-center gap-4">
+<span class="text-xl font-bold text-blue-900 dark:text-blue-500">Sovereign Oversight</span>
+</div>
+<div class="flex items-center gap-4">
+<div class="bg-slate-200/50 dark:bg-slate-800/50 px-3 py-1 rounded flex items-center gap-2">
+<span class="material-symbols-outlined text-slate-500 text-sm">search</span>
+<input class="bg-transparent border-none focus:ring-0 text-sm w-48" placeholder="搜索..." type="text"/>
+</div>
+<span class="material-symbols-outlined text-slate-500 hover:bg-slate-200/50 transition-colors cursor-pointer p-1 rounded">notifications</span>
+<span class="material-symbols-outlined text-slate-500 hover:bg-slate-200/50 transition-colors cursor-pointer p-1 rounded">help_outline</span>
+<div class="w-8 h-8 rounded-full overflow-hidden border border-slate-200">
+<img alt="Administrator Profile" data-alt="Professional administrator profile portrait in a corporate setting with neutral lighting" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCKFoidC5BG2pS-xfPUkLgL6C1Y4Rlp_HlzlndTCSLi56KC-SDSWH5xbdT7GTsiWMOmb-IQYvsU6JXtzzBdr5Yrft5P7tg7KNyQxVTNXuW11tkw3q73jGaKV2Ff6v0ZbFxPxbUz0kg9MDj36-HS1vIZCnfjztgTKfPvkN_g-c3zeJIHxrtqVT5ltnH2tJC-eDzxFGtN-woNtCLRdWxmDHDFWCbYkWhOM9sqD7UxUSHOwQw5n1iqcgYFs7N_OxwBbMS64yjhv93Ay1c"/>
+</div>
+</div>
+</nav>
+<!-- SideNavBar -->
+<aside class="fixed left-0 top-0 h-full w-64 z-40 bg-slate-50 dark:bg-slate-950 flex flex-col pt-16 pb-4 h-full border-r border-slate-200 dark:border-slate-800 font-['Inter'] text-sm font-medium">
+<div class="px-6 py-4 flex items-center gap-3">
+<div class="w-8 h-8 bg-blue-900 flex items-center justify-center rounded">
+<span class="material-symbols-outlined text-white text-lg" data-weight="fill" style="font-variation-settings: 'FILL' 1;">security</span>
+</div>
+<div>
+<p class="text-lg font-black text-blue-900 dark:text-blue-500 leading-tight">Food Safety Ledger</p>
+<p class="text-[10px] text-slate-500 uppercase tracking-widest">Regulatory Authority</p>
+</div>
+</div>
+<div class="mt-6 flex flex-col gap-1 px-3">
+<a class="flex items-center gap-3 px-3 py-2 text-slate-600 dark:text-slate-400 hover:bg-slate-200 transition-all duration-200 rounded" href="#">
+<span class="material-symbols-outlined">dashboard</span>工作台
+            </a>
+<a class="flex items-center gap-3 px-3 py-2 text-slate-600 dark:text-slate-400 hover:bg-slate-200 transition-all duration-200 rounded" href="#">
+<span class="material-symbols-outlined">business</span>企业备案
+            </a>
+<a class="flex items-center gap-3 px-3 py-2 text-slate-600 dark:text-slate-400 hover:bg-slate-200 transition-all duration-200 rounded" href="#">
+<span class="material-symbols-outlined">inventory_2</span>产品档案
+            </a>
+<a class="flex items-center gap-3 px-3 py-2 bg-blue-50 dark:bg-blue-900/20 text-blue-900 dark:text-blue-400 border-r-4 border-blue-900 dark:border-blue-500 transition-all duration-200 rounded" href="#">
+<span class="material-symbols-outlined">fact_check</span>检查记录
+            </a>
+<a class="flex items-center gap-3 px-3 py-2 text-slate-600 dark:text-slate-400 hover:bg-slate-200 transition-all duration-200 rounded" href="#">
+<span class="material-symbols-outlined">assignment_late</span>整改任务
+            </a>
+</div>
+<div class="mt-auto flex flex-col gap-1 px-3">
+<a class="flex items-center gap-3 px-3 py-2 text-slate-600 dark:text-slate-400 hover:bg-slate-200 transition-all duration-200 rounded" href="#">
+<span class="material-symbols-outlined">settings</span>Settings
+            </a>
+<a class="flex items-center gap-3 px-3 py-2 text-slate-600 dark:text-slate-400 hover:bg-slate-200 transition-all duration-200 rounded" href="#">
+<span class="material-symbols-outlined">logout</span>Logout
+            </a>
+</div>
+</aside>
+<!-- Main Content -->
+<main class="pl-64 pt-14 min-h-screen">
+<div class="p-8 max-w-7xl mx-auto">
+<!-- Breadcrumbs & Header -->
+<div class="flex justify-between items-end mb-8">
+<div class="space-y-1">
+<nav class="flex items-center gap-2 text-sm text-on-surface-variant">
+<span>检查记录</span>
+<span class="material-symbols-outlined text-xs">chevron_right</span>
+<span class="text-primary font-medium">详情</span>
+</nav>
+<h1 class="text-3xl font-headline font-extrabold text-primary tracking-tight">检查记录详情</h1>
+</div>
+<button class="bg-surface-container-high text-on-surface px-4 py-2 rounded-lg flex items-center gap-2 hover:bg-surface-container-highest transition-colors font-medium">
+<span class="material-symbols-outlined text-lg">arrow_back</span>
+                    返回列表
+                </button>
+</div>
+<div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+<!-- Left Column: Record Details (8 units) -->
+<div class="lg:col-span-8 space-y-6">
+<!-- Status & Basic Info Bento Grid -->
+<div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+<!-- Status Card -->
+<div class="bg-surface-container-lowest p-6 rounded-xl border-l-4 border-error shadow-sm flex flex-col justify-between">
+<div>
+<p class="text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-2">当前状态</p>
+<div class="flex items-center gap-2">
+<span class="text-2xl font-bold text-error">待整改</span>
+<span class="material-symbols-outlined text-error" data-weight="fill" style="font-variation-settings: 'FILL' 1;">warning</span>
+</div>
+</div>
+<p class="text-sm text-on-surface-variant mt-4">最后更新：2023-11-24 14:20</p>
+</div>
+<!-- Enterprise Card -->
+<div class="md:col-span-2 bg-primary p-6 rounded-xl text-white shadow-lg relative overflow-hidden">
+<div class="relative z-10">
+<p class="text-xs font-bold text-blue-200 uppercase tracking-wider mb-2">受检单位</p>
+<h2 class="text-2xl font-bold tracking-tight">鼎泰丰餐饮管理有限公司 (新天地店)</h2>
+<div class="mt-4 flex items-center gap-4 text-sm text-blue-100">
+<div class="flex items-center gap-1">
+<span class="material-symbols-outlined text-sm">location_on</span>
+<span>上海市黄浦区马当路245号</span>
+</div>
+<div class="flex items-center gap-1">
+<span class="material-symbols-outlined text-sm">badge</span>
+<span>统一社会信用代码: 913101017...</span>
+</div>
+</div>
+</div>
+<!-- Subtle abstract bg pattern -->
+<div class="absolute right-[-20px] top-[-20px] opacity-10">
+<span class="material-symbols-outlined text-[120px]">corporate_fare</span>
+</div>
+</div>
+</div>
+<!-- Details Table Section -->
+<section class="bg-surface-container-lowest rounded-xl overflow-hidden shadow-sm">
+<div class="px-6 py-4 border-b border-surface-container-high bg-surface-container-low flex justify-between items-center">
+<h3 class="font-headline font-bold text-primary">具体检查事项清单</h3>
+<span class="text-xs font-medium bg-surface-container-highest px-2 py-1 rounded text-on-surface-variant">共 12 项检查项目</span>
+</div>
+<div class="overflow-x-auto">
+<table class="w-full text-left border-collapse">
+<thead>
+<tr class="bg-surface-container-low/50">
+<th class="px-6 py-3 text-xs font-bold text-on-surface-variant uppercase tracking-wider">检查项</th>
+<th class="px-6 py-3 text-xs font-bold text-on-surface-variant uppercase tracking-wider">合规状态</th>
+<th class="px-6 py-3 text-xs font-bold text-on-surface-variant uppercase tracking-wider">发现问题</th>
+<th class="px-6 py-3 text-xs font-bold text-on-surface-variant uppercase tracking-wider">检查员说明</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-surface-container-high">
+<tr class="hover:bg-surface-container-low transition-colors">
+<td class="px-6 py-4 font-medium text-on-surface">经营资质</td>
+<td class="px-6 py-4">
+<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-semibold bg-green-100 text-green-800">
+<span class="material-symbols-outlined text-xs">check_circle</span>合格
+                                            </span>
+</td>
+<td class="px-6 py-4 text-sm text-on-surface-variant">-</td>
+<td class="px-6 py-4 text-sm text-on-surface-variant">营业执照及食品经营许可证在有效期内，公示位置正确。</td>
+</tr>
+<tr class="bg-surface-container-low/20">
+<td class="px-6 py-4 font-medium text-on-surface">环境卫生</td>
+<td class="px-6 py-4">
+<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-semibold bg-error-container text-on-error-container">
+<span class="material-symbols-outlined text-xs">cancel</span>不合格
+                                            </span>
+</td>
+<td class="px-6 py-4 text-sm font-bold text-error">后厨地面油污严重</td>
+<td class="px-6 py-4 text-sm text-on-surface-variant">排水沟盖板缺失，洗碗间地面积水严重，存在卫生死角。</td>
+</tr>
+<tr class="hover:bg-surface-container-low transition-colors">
+<td class="px-6 py-4 font-medium text-on-surface">产品质量</td>
+<td class="px-6 py-4">
+<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-semibold bg-green-100 text-green-800">
+<span class="material-symbols-outlined text-xs">check_circle</span>合格
+                                            </span>
+</td>
+<td class="px-6 py-4 text-sm text-on-surface-variant">-</td>
+<td class="px-6 py-4 text-sm text-on-surface-variant">抽样检测均符合标准。</td>
+</tr>
+<tr class="bg-surface-container-low/20">
+<td class="px-6 py-4 font-medium text-on-surface">人员管理</td>
+<td class="px-6 py-4">
+<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-semibold bg-error-container text-on-error-container">
+<span class="material-symbols-outlined text-xs">cancel</span>不合格
+                                            </span>
+</td>
+<td class="px-6 py-4 text-sm font-bold text-error">部分员工健康证过期</td>
+<td class="px-6 py-4 text-sm text-on-surface-variant">2名厨房操作人员健康合格证明已失效超过30天。</td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<!-- Findings Detail Card (Deep Dive) -->
+<div class="bg-error-container/20 rounded-xl p-6 border border-error-container">
+<div class="flex items-center gap-3 mb-4">
+<div class="w-10 h-10 rounded-full bg-error flex items-center justify-center text-white">
+<span class="material-symbols-outlined">gavel</span>
+</div>
+<div>
+<h3 class="font-headline font-bold text-on-error-container text-lg">重点整改项详情</h3>
+<p class="text-xs text-on-error-container opacity-80">根据监管条例第34条，需在 3 个工作日内提交反馈</p>
+</div>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
+<div class="bg-white p-4 rounded shadow-sm">
+<div class="flex justify-between items-start mb-2">
+<p class="text-sm font-bold text-primary">现场取证照片 (后厨地面)</p>
+<span class="text-[10px] text-slate-400">ID: IMG_0921.JPG</span>
+</div>
+<img alt="Evidence Image" class="w-full h-40 object-cover rounded mb-4" data-alt="Close-up of a greasy commercial kitchen floor near a drain showing poor maintenance and hygiene issues" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDJgwFllh9o6JY-ok4xl3LAlBcyzRxmWcyU8KwvSzHOyW_tW9bnYSty1nQh8qt2G-HQ5C-1-RFG6Rkw9WWscay0_7tYLc44p4LbQ4PRuT8b2_g0FoLFkbKDLLklWyJNJxtisEGYC5t8aYcTmRFvTmsAVO1LBPIqvlSO0K3VF6vSFrX2JLFVbTYygVTJvoPM33oGph3ZA9v2IyT74rVuiWe36EVhpn_RGwzlq-EYTVLN6KExS8_7XSKcuI3RTmOn68cm-oUd-VvaRA0"/>
+<p class="text-xs text-on-surface-variant">油垢堆积超过1mm，排水口拦截网缺失，不符合卫生防疫标准。</p>
+</div>
+<div class="flex flex-col justify-between">
+<div class="space-y-4">
+<div class="bg-surface-container-lowest p-3 rounded border-l-4 border-error">
+<p class="text-xs text-slate-500 font-bold uppercase mb-1">整改要求</p>
+<p class="text-sm">立即清理后厨地面油污，更换缺失的排水沟盖板，并提交清理前后的对比照片。</p>
+</div>
+<div class="bg-surface-container-lowest p-3 rounded border-l-4 border-primary">
+<p class="text-xs text-slate-500 font-bold uppercase mb-1">关联整改任务</p>
+<a class="text-sm text-primary font-bold flex items-center gap-1 hover:underline" href="#">
+                                            TASK-20231124-0098 <span class="material-symbols-outlined text-sm">open_in_new</span>
+</a>
+</div>
+</div>
+<button class="w-full mt-4 bg-primary text-white py-3 rounded font-bold text-sm tracking-wide shadow-md active:opacity-80">
+                                    生成整改通知书 (PDF)
+                                </button>
+</div>
+</div>
+</div>
+</div>
+<!-- Right Column: Meta & Audit Trail (4 units) -->
+<div class="lg:col-span-4 space-y-6">
+<!-- Basic Info Side Panel -->
+<div class="bg-surface-container-lowest rounded-xl shadow-sm overflow-hidden">
+<div class="px-6 py-4 border-b border-surface-container-high bg-surface-container-low">
+<h3 class="font-headline font-bold text-primary">基础信息</h3>
+</div>
+<div class="p-6 space-y-4">
+<div class="flex justify-between items-center text-sm py-2 border-b border-surface-container-low">
+<span class="text-on-surface-variant">任务编号</span>
+<span class="font-mono font-bold">INS-2023-112409</span>
+</div>
+<div class="flex justify-between items-center text-sm py-2 border-b border-surface-container-low">
+<span class="text-on-surface-variant">主检人员</span>
+<div class="flex items-center gap-2">
+<span class="w-6 h-6 rounded-full bg-slate-200 overflow-hidden">
+<img alt="Inspector" data-alt="Portrait of a male professional inspector wearing a uniform" src="https://lh3.googleusercontent.com/aida-public/AB6AXuB1T-IRstNPwb4ZaYvH2VuPMbkW0jWOPMAg4CRnUBRPshYMGnzpNFGMiqXXrDpb0O81xHTji0W49kEM_6W2FjTEgY-yFcxK3DPqBrvVaOyIqaGt8Hl99gHjELYjfbjgc0BSyXFQTZPyHGYk6aCobqxYKDR66fFFqDmhKHeCGtDN0MNY6GW00_6-6sXMRQP800KX9x8tx6Un_pfp1lxbFasYB5dTmhDWIM-BVIXiaqpmdpXl-ry021SCZz2cvRXXZK6g-meOIUgN-lM"/>
+</span>
+<span class="font-medium">张建国 (ID: 0882)</span>
+</div>
+</div>
+<div class="flex justify-between items-center text-sm py-2 border-b border-surface-container-low">
+<span class="text-on-surface-variant">检查时间</span>
+<span class="font-medium">2023-11-24 10:30</span>
+</div>
+<div class="flex flex-col gap-2 py-2">
+<span class="text-xs text-on-surface-variant font-bold uppercase">检查地点坐标</span>
+<div class="h-32 bg-slate-200 rounded overflow-hidden relative">
+<img alt="Map" class="w-full h-full object-cover grayscale opacity-50" data-alt="A clean topographic map of an urban area with a red pin location marker" src="https://lh3.googleusercontent.com/aida-public/AB6AXuA9tWQbo5SE7lsxvcBWUZbFKbk_4peR3I16yQLL7Nkm6Qp4u9vyZ-QpuBnAZGvQahg5eGYcfX0rTTwnLI0b_eCuVyWPdpIJOWbnwWo2NFy4_tri57EReWkcgHDqZfZE3hLoGRHunYPLvIzMIv411oxTlo5RZ9ah4WHpjg2BuTwrJ25led2Cc0lAuq4DzqPPD2X5JjKTx29N4CkXqgjX65aWirRaN73yuLSuT7w4t4xlA8Nkq7vgrk2rqQTOiYShSJ1-Y5kiJxDuguk"/>
+<div class="absolute inset-0 flex items-center justify-center">
+<span class="material-symbols-outlined text-primary text-3xl" data-weight="fill" style="font-variation-settings: 'FILL' 1;">location_on</span>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Audit Trail (Timeline) -->
+<div class="bg-surface-container-lowest rounded-xl shadow-sm overflow-hidden">
+<div class="px-6 py-4 border-b border-surface-container-high bg-surface-container-low">
+<h3 class="font-headline font-bold text-primary">流程审计追踪</h3>
+</div>
+<div class="p-8">
+<div class="relative">
+<!-- Vertical Line -->
+<div class="absolute left-[11px] top-0 bottom-0 w-[2px] bg-surface-container-high"></div>
+<ul class="space-y-8 relative">
+<!-- Node 1 -->
+<li class="flex gap-4 items-start">
+<div class="relative z-10 w-[24px] h-[24px] rounded-full bg-green-500 border-4 border-white flex items-center justify-center">
+<span class="material-symbols-outlined text-white text-[10px]">done</span>
+</div>
+<div>
+<p class="text-sm font-bold text-on-surface">任务已下达 (Assigned)</p>
+<p class="text-[10px] text-on-surface-variant uppercase mb-1">2023-11-23 09:00</p>
+<p class="text-xs text-slate-500">通过系统自动指派给黄浦区监管二分队。</p>
+</div>
+</li>
+<!-- Node 2 -->
+<li class="flex gap-4 items-start">
+<div class="relative z-10 w-[24px] h-[24px] rounded-full bg-green-500 border-4 border-white flex items-center justify-center">
+<span class="material-symbols-outlined text-white text-[10px]">done</span>
+</div>
+<div>
+<p class="text-sm font-bold text-on-surface">检查进行中 (In Progress)</p>
+<p class="text-[10px] text-on-surface-variant uppercase mb-1">2023-11-24 10:30</p>
+<p class="text-xs text-slate-500">检查员张建国到达现场，开启移动端记录同步。</p>
+</div>
+</li>
+<!-- Node 3 -->
+<li class="flex gap-4 items-start">
+<div class="relative z-10 w-[24px] h-[24px] rounded-full bg-primary border-4 border-white"></div>
+<div>
+<p class="text-sm font-bold text-primary">结果已发布 (Result Published)</p>
+<p class="text-[10px] text-on-surface-variant uppercase mb-1">2023-11-24 14:20</p>
+<p class="text-xs text-slate-500">检查详情已录入账本，判定结果为“待整改”。</p>
+</div>
+</li>
+<!-- Node 4 -->
+<li class="flex gap-4 items-start opacity-40">
+<div class="relative z-10 w-[24px] h-[24px] rounded-full bg-slate-300 border-4 border-white"></div>
+<div>
+<p class="text-sm font-bold text-on-surface">整改闭环 (Completed)</p>
+<p class="text-[10px] text-on-surface-variant uppercase mb-1">预计 2023-11-27</p>
+<p class="text-xs text-slate-500">等待企业提交整改材料并申请复核。</p>
+</div>
+</li>
+</ul>
+</div>
+</div>
+</div>
+<!-- Actions Panel -->
+<div class="grid grid-cols-2 gap-3">
+<button class="flex flex-col items-center justify-center p-4 bg-surface-container-high rounded-xl hover:bg-surface-container-highest transition-colors group">
+<span class="material-symbols-outlined text-primary mb-1 group-hover:scale-110 transition-transform">print</span>
+<span class="text-xs font-bold text-on-surface-variant">打印报告</span>
+</button>
+<button class="flex flex-col items-center justify-center p-4 bg-surface-container-high rounded-xl hover:bg-surface-container-highest transition-colors group">
+<span class="material-symbols-outlined text-primary mb-1 group-hover:scale-110 transition-transform">share</span>
+<span class="text-xs font-bold text-on-surface-variant">协同共享</span>
+</button>
+</div>
+</div>
+</div>
+</div>
+</main>
+</body></html>

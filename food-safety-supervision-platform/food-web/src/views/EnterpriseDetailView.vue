@@ -70,7 +70,11 @@
             当前企业已纳入重点监管，但历史原因记录暂未补齐。
           </div>
           <div v-else class="key-reason-list">
-            <div v-for="(reason, index) in detail.keyReasons" :key="`${reason.reasonType || 'reason'}-${index}`" class="key-reason-item">
+            <div
+              v-for="(reason, index) in detail.keyReasons"
+              :key="`${reason.reasonType || 'reason'}-${index}`"
+              class="key-reason-item"
+            >
               <div class="key-reason-head">
                 <strong>{{ reason.reasonLabel || formatReasonType(reason.reasonType) }}</strong>
                 <span>{{ formatTime(reason.createTime) }}</span>
@@ -109,21 +113,16 @@
 </template>
 
 <script setup>
-import { onMounted, ref, watch } from "vue";
+import { computed, onMounted, ref, watch } from "vue";
+import { useRoute, useRouter } from "vue-router";
 import { fetchEnterpriseDetail, fetchEnterpriseProducts, fetchRegionPath } from "../api/regulation";
+import { getActiveSession } from "../session/authRuntime";
+import { formatByMap, formatTime } from "../utils/formatters";
+import { approvalStatusMap, enterpriseStatusMap } from "../utils/statusMaps";
 
-const props = defineProps({
-  token: {
-    type: String,
-    required: true
-  },
-  enterpriseId: {
-    type: [String, Number],
-    required: true
-  }
-});
-
-const emit = defineEmits(["back"]);
+const router = useRouter();
+const route = useRoute();
+const token = computed(() => getActiveSession()?.token || "");
 
 const loading = ref(false);
 const detail = ref(null);
@@ -131,42 +130,34 @@ const regionName = ref("");
 const productLoading = ref(false);
 const productRecords = ref([]);
 
-const statusMap = {
-  NORMAL: "正常",
-  KEY: "重点监管"
-};
-
-const approvalStatusMap = {
-  PENDING: "待审核",
-  APPROVED: "已通过",
-  REJECTED: "已驳回"
-};
-
 async function loadDetail() {
-  if (!props.enterpriseId) {
+  const enterpriseId = route.params.enterpriseId;
+  if (!enterpriseId) {
     detail.value = null;
     productRecords.value = [];
     return;
   }
+
   loading.value = true;
   try {
-    detail.value = await fetchEnterpriseDetail(props.token, props.enterpriseId);
+    detail.value = await fetchEnterpriseDetail(token.value, enterpriseId);
     regionName.value = "";
     if (detail.value?.regionId) {
-      const path = await fetchRegionPath(props.token, detail.value.regionId).catch(() => []);
+      const path = await fetchRegionPath(token.value, detail.value.regionId).catch(() => []);
       regionName.value = Array.isArray(path) && path.length
         ? path.map((item) => item.name).join("/")
         : "";
     }
+
     productLoading.value = true;
     try {
-      productRecords.value = await fetchEnterpriseProducts(props.token, props.enterpriseId);
+      productRecords.value = await fetchEnterpriseProducts(token.value, enterpriseId);
     } catch {
       productRecords.value = [];
     } finally {
       productLoading.value = false;
     }
-  } catch (error) {
+  } catch {
     detail.value = null;
     regionName.value = "";
     productRecords.value = [];
@@ -177,20 +168,41 @@ async function loadDetail() {
 }
 
 function handleBack() {
-  emit("back");
-}
-
-function formatTime(value) {
-  if (!value) return "-";
-  return String(value).replace("T", " ").slice(0, 16);
+  const fromSection = typeof route.query.from === "string" ? route.query.from : "enterprises";
+  const isAdminRoute = String(route.name || "").startsWith("regulator-admin");
+  const routeNameMap = isAdminRoute
+    ? {
+        enterprises: "regulator-admin-enterprises",
+        approvals: "regulator-admin-approvals",
+        dispatch: "regulator-admin-dispatch",
+        sampling: "regulator-admin-sampling",
+        inspections: "regulator-admin-inspections",
+        complaints: "regulator-admin-complaints",
+        rectification: "regulator-admin-rectifications",
+        warnings: "regulator-admin-warnings",
+        bulletins: "regulator-admin-bulletins",
+        stats: "regulator-admin-stats"
+      }
+    : {
+        enterprises: "regulator-enforcer-enterprises",
+        tasks: "regulator-enforcer-tasks",
+        sampling: "regulator-enforcer-sampling",
+        inspections: "regulator-enforcer-inspections",
+        complaints: "regulator-enforcer-complaints",
+        rectification: "regulator-enforcer-rectifications",
+        warnings: "regulator-enforcer-warnings",
+        stats: "regulator-enforcer-stats"
+      };
+  const fallbackName = isAdminRoute ? "regulator-admin-enterprises" : "regulator-enforcer-enterprises";
+  router.push({ name: routeNameMap[fromSection] || fallbackName }).catch(() => {});
 }
 
 function formatStatus(value) {
-  return statusMap[value] || value || "-";
+  return formatByMap(value, enterpriseStatusMap);
 }
 
 function formatApprovalStatus(value) {
-  return approvalStatusMap[value] || value || "-";
+  return formatByMap(value, approvalStatusMap);
 }
 
 function formatProductStatus(value) {
@@ -213,7 +225,7 @@ function formatReasonType(value) {
 }
 
 onMounted(loadDetail);
-watch(() => props.enterpriseId, loadDetail);
+watch(() => route.params.enterpriseId, loadDetail);
 </script>
 
 <style scoped>

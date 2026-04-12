@@ -1,9 +1,8 @@
 package com.mortal.gateway.filter;
 
-import com.mortal.platform.common.ApiResponse;
 import com.mortal.gateway.util.ResponseUtil;
-import com.mortal.gateway.filter.TraceIdFilter;
 import com.mortal.gateway.vo.AuthIntrospectVO;
+import com.mortal.platform.common.ApiResponse;
 import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
@@ -20,15 +19,15 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cloud.gateway.filter.GatewayFilterChain;
 import org.springframework.cloud.gateway.filter.GlobalFilter;
 import org.springframework.core.Ordered;
+import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
+import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.server.ServerWebExchange;
 import reactor.core.publisher.Mono;
-import org.springframework.core.ParameterizedTypeReference;
-import org.springframework.web.reactive.function.client.WebClient;
 
 @Component
 public class JwtAuthFilter implements GlobalFilter, Ordered {
@@ -47,26 +46,19 @@ public class JwtAuthFilter implements GlobalFilter, Ordered {
 
     private static final List<RoleRule> ROLE_RULES = List.of(
         RoleRule.of("/api/admin/", "ADMIN"),
-        // File upload presign is used by public complaints and enterprise rectification.
         RoleRule.of("/api/files/", "PUBLIC", "ENTERPRISE"),
         RoleRule.of("/api/complaints/public", "PUBLIC"),
         RoleRule.of("/api/complaints/my", "PUBLIC"),
         RoleRule.of("/api/complaints/", "REGULATOR_ADMIN", "REGULATOR_ENFORCER"),
         RoleRule.of("/api/regulation/public/", "PUBLIC"),
-        // Public sampling-result publication is hosted in regulation-operation-service.
         RoleRule.of("/api/regulation-operation/public/sampling/results", "PUBLIC"),
-        // Execution-domain rectification endpoints for enterprise users.
         RoleRule.of("/api/regulation-operation/rectifications/my", "ENTERPRISE"),
-        // Shared execution-domain rectification detail/action endpoints for enterprise and regulators.
         RoleRule.of("/api/regulation-operation/rectifications/", "ENTERPRISE", "REGULATOR_ADMIN", "REGULATOR_ENFORCER"),
+        RoleRule.of("/api/regulation-operation/inspections/enterprise", "ENTERPRISE"),
         RoleRule.of("/api/regulation-operation/", "REGULATOR_ADMIN", "REGULATOR_ENFORCER"),
-        // Enterprise profile and filing endpoints.
         RoleRule.of("/api/regulation/enterprise/", "ENTERPRISE", "REGULATOR_ADMIN", "REGULATOR_ENFORCER"),
-        // Enterprise product archive endpoints.
         RoleRule.of("/api/regulation/products", "ENTERPRISE"),
-        // Region tree query for enterprise filing forms and regulator account setup.
         RoleRule.of("/api/regulation/regions", "ADMIN", "ENTERPRISE", "REGULATOR_ADMIN", "REGULATOR_ENFORCER"),
-        // Regulator profiles are created and maintained by system admins; regulators use /me and /eligible.
         RoleRule.of("/api/regulation/regulators", "ADMIN", "REGULATOR_ADMIN", "REGULATOR_ENFORCER"),
         RoleRule.of("/api/regulation/", "REGULATOR_ADMIN", "REGULATOR_ENFORCER"),
         RoleRule.of("/api/query/", "ADMIN", "REGULATOR_ADMIN", "REGULATOR_ENFORCER")
@@ -99,15 +91,12 @@ public class JwtAuthFilter implements GlobalFilter, Ordered {
         this.introspectTimeoutMs = introspectTimeoutMs;
     }
 
-    /**
-     * 鏉╁洦鎶?     * @param exchange 娴溿倖宕查張?     * @param chain 闁?     * @return 缁?     */
     @Override
     public Mono<Void> filter(ServerWebExchange exchange, GatewayFilterChain chain) {
         String path = exchange.getRequest().getURI().getPath();
         if (isPreflight(exchange) || isWhitelisted(path)) {
             return chain.filter(exchange);
         }
-        // 中文注释：warning-service 对外入口统一收口到 regulation 代理，网关不直接放行 /api/warning/**。
         if (path.startsWith("/api/warning/")) {
             return forbidden(exchange);
         }
@@ -121,16 +110,17 @@ public class JwtAuthFilter implements GlobalFilter, Ordered {
             .flatMap(identity -> {
                 if (!isActiveIdentity(identity)) {
                     if (identity == null && failOpen) {
-                        // Fail-open: allow request when user-service is unavailable to avoid system-wide 401.
                         log.warn("Gateway introspect unavailable, fail-open enabled. path={}", path);
                         return chain.filter(exchange);
                     }
-                    log.warn("Gateway introspect failed. path={}, userId={}, valid={}, status={}, deleted={}",
+                    log.warn(
+                        "Gateway introspect failed. path={}, userId={}, valid={}, status={}, deleted={}",
                         path,
                         identity == null ? null : identity.getUserId(),
                         identity == null ? null : identity.isValid(),
                         identity == null ? null : identity.getStatus(),
-                        identity == null ? null : identity.getDeleted());
+                        identity == null ? null : identity.getDeleted()
+                    );
                     return unauthorized(exchange);
                 }
 
@@ -138,10 +128,12 @@ public class JwtAuthFilter implements GlobalFilter, Ordered {
                     return forbidden(exchange);
                 }
 
-                log.info("Gateway auth pass. path={}, userId={}, roles={}",
+                log.info(
+                    "Gateway auth pass. path={}, userId={}, roles={}",
                     path,
                     identity.getUserId(),
-                    joinRoles(identity.getRoles()));
+                    joinRoles(identity.getRoles())
+                );
 
                 ServerWebExchange mutatedExchange = exchange.mutate()
                     .request(exchange.getRequest().mutate()
@@ -168,23 +160,14 @@ public class JwtAuthFilter implements GlobalFilter, Ordered {
         return -100;
     }
 
-    /**
-     * 閺勵垰鎯佹０鍕梾
-     * @param exchange 娴溿倖宕查張?     * @return 閺勵垰鎯佹０鍕梾
-     */
     private boolean isPreflight(ServerWebExchange exchange) {
         return HttpMethod.OPTIONS.equals(exchange.getRequest().getMethod());
     }
 
-    /**
-     * 閺勵垰鎯侀惂钘夋倳閸?     * @param path 鐠侯垰绶?     * @return 閺勵垰鎯侀惂钘夋倳閸?     */
     private boolean isWhitelisted(String path) {
         return WHITELIST.stream().anyMatch(path::startsWith);
     }
 
-    /**
-     * 閹绘劕褰囨禒銈囧
-     * @param headers 婢?     * @return 娴犮倗澧?     */
     private String extractToken(HttpHeaders headers) {
         String header = headers.getFirst(HttpHeaders.AUTHORIZATION);
         if (!StringUtils.hasText(header)) {
@@ -196,9 +179,6 @@ public class JwtAuthFilter implements GlobalFilter, Ordered {
         return header;
     }
 
-    /**
-     * 閺勵垰鎯侀張澶嬫櫏缁涙儳鎮?     * @param token 娴犮倗澧?     * @return 閺勵垰鎯侀張澶嬫櫏
-     */
     private boolean isValidSignature(String token) {
         if (!StringUtils.hasText(token) || !StringUtils.hasText(secret)) {
             return false;
@@ -215,16 +195,12 @@ public class JwtAuthFilter implements GlobalFilter, Ordered {
         }
     }
 
-    /**
-     *  introspect
-     * @param token 娴犮倗澧?     * @return 闊偂鍞?     */
     private Mono<AuthIntrospectVO> introspect(String token) {
         return webClient.post()
             .uri("http://user-service/api/auth/introspect")
             .header(HttpHeaders.AUTHORIZATION, token)
             .retrieve()
             .bodyToMono(new ParameterizedTypeReference<ApiResponse<AuthIntrospectVO>>() {})
-            // Timeout protects gateway from hanging when user-service is slow or unavailable.
             .timeout(Duration.ofMillis(introspectTimeoutMs))
             .map(response -> {
                 if (response == null || !response.isSuccess()) {
@@ -235,8 +211,6 @@ public class JwtAuthFilter implements GlobalFilter, Ordered {
             });
     }
 
-    /**
-     * 閺勵垰鎯佸┑鈧ú鏄忛煩娴?     * @param identity 闊偂鍞?     * @return 閺勵垰鎯佸┑鈧ú?     */
     private boolean isActiveIdentity(AuthIntrospectVO identity) {
         if (identity == null || !identity.isValid() || identity.getUserId() == null) {
             return false;
@@ -246,9 +220,6 @@ public class JwtAuthFilter implements GlobalFilter, Ordered {
         return enabled && notDeleted;
     }
 
-    /**
-     * 閹峰吋甯寸憴鎺曞
-     * @param roles 鐟欐帟澹?     * @return 閹峰吋甯撮崥搴ｆ畱鐟欐帟澹?     */
     private String joinRoles(List<String> roles) {
         if (roles == null || roles.isEmpty()) {
             return "";
@@ -258,16 +229,12 @@ public class JwtAuthFilter implements GlobalFilter, Ordered {
             .collect(Collectors.joining(","));
     }
 
-    /**
-     * 姒涙顓荤€涙顑佹稉?     * @param value 閸?     * @return 姒涙顓荤€涙顑佹稉?     */
     private String defaultString(String value) {
         return StringUtils.hasText(value) ? value : "";
     }
 
-    /**
-     * 閺堫亝宸块弶?     * @param exchange 娴溿倖宕查張?     * @return 閺堫亝宸块弶?     */
     private Mono<Void> unauthorized(ServerWebExchange exchange) {
-            return responseUtil.writeJson(
+        return responseUtil.writeJson(
             exchange,
             HttpStatus.UNAUTHORIZED,
             401,
@@ -276,9 +243,6 @@ public class JwtAuthFilter implements GlobalFilter, Ordered {
         );
     }
 
-    /**
-     * 閺勵垰鎯侀崗浣筋啅鐠佸潡妫?     * @param path 鐠侯垰绶?     * @param roles 閻劍鍩涚憴鎺曞
-     * @param userType 閻劍鍩涚猾璇茬€?     * @return 閺勵垰鎯侀崗浣筋啅鐠佸潡妫?     */
     private boolean isAllowedByRole(String path, List<String> roles, String userType) {
         List<String> effectiveRoles = enrichRoles(roles, userType);
         for (RoleRule rule : ROLE_RULES) {
@@ -289,10 +253,6 @@ public class JwtAuthFilter implements GlobalFilter, Ordered {
         return true;
     }
 
-    /**
-     * 鐞涖儱鍘栫憴鎺曞
-     * @param roles 閻劍鍩涚憴鎺曞
-     * @param userType 閻劍鍩涚猾璇茬€?     * @return 鐞涖儱鍘栭崥搴ｆ畱鐟欐帟澹?     */
     private List<String> enrichRoles(List<String> roles, String userType) {
         List<String> result = new ArrayList<>();
         if (roles != null && !roles.isEmpty()) {
@@ -303,10 +263,7 @@ public class JwtAuthFilter implements GlobalFilter, Ordered {
         }
         return result;
     }
-    /**
-     * 缁備焦顒涚拋鍧楁６
-     * @param exchange 娴溿倖宕查張?     * @return 缁備焦顒涚拋鍧楁６
-     */
+
     private Mono<Void> forbidden(ServerWebExchange exchange) {
         return responseUtil.writeJson(
             exchange,
@@ -317,30 +274,17 @@ public class JwtAuthFilter implements GlobalFilter, Ordered {
         );
     }
 
-    /**
-     * 閼惧嘲褰囨潻鍊熼嚋ID
-     * @param exchange 娴溿倖宕查張?     * @return 鏉╁€熼嚋ID
-     */
     private String getTraceId(ServerWebExchange exchange) {
         String traceId = exchange.getRequest().getHeaders().getFirst(TraceIdFilter.TRACE_ID_HEADER);
         return traceId == null ? "" : traceId;
     }
 
-    /**
-     * 鐟欐帟澹婄憴鍕灟
-     * @param pathPrefix 鐠侯垰绶為崜宥囩磻
-     * @param roles 鐟欐帟澹?     */
     private record RoleRule(String pathPrefix, List<String> roles) {
 
         static RoleRule of(String pathPrefix, String... roles) {
             return new RoleRule(pathPrefix, List.of(roles));
         }
 
-        /**
-         * 閸栧綊鍘ょ憴鎺曞
-         * @param userRoles 閻劍鍩涚憴鎺曞
-         * @return 閺勵垰鎯侀崠褰掑帳
-         */
         boolean matches(List<String> userRoles) {
             if (userRoles == null || userRoles.isEmpty()) {
                 return false;
@@ -354,4 +298,3 @@ public class JwtAuthFilter implements GlobalFilter, Ordered {
         }
     }
 }
-

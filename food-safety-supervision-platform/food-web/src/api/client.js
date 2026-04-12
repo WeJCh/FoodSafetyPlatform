@@ -1,5 +1,7 @@
-const DEFAULT_BASE_URL = "http://localhost:8080";
+import { clearStoredSession } from "../session/authSession";
 
+const DEFAULT_BASE_URL = "http://localhost:8080";
+export const UNAUTHORIZED_EVENT = "food-web:unauthorized";
 export const API_BASE_URL = import.meta.env.VITE_API_BASE || DEFAULT_BASE_URL;
 
 export async function request(path, options = {}) {
@@ -13,9 +15,25 @@ export async function request(path, options = {}) {
   });
 
   const text = await response.text();
-  const data = text ? JSON.parse(text) : null;
+  let data = null;
+  try {
+    data = text ? JSON.parse(text) : null;
+  } catch {
+    data = null;
+  }
 
   if (!response.ok) {
+    if (response.status === 401) {
+      clearStoredSession();
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new CustomEvent(UNAUTHORIZED_EVENT, {
+          detail: {
+            path,
+            status: response.status
+          }
+        }));
+      }
+    }
     const message = data?.message || `Request failed (${response.status})`;
     throw new Error(message);
   }

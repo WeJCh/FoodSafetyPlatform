@@ -9,8 +9,8 @@
         </div>
       </div>
       <div class="user-area">
-        <button class="ghost" type="button" @click="$emit('back')">返回首页</button>
-        <button class="ghost" type="button" @click="$emit('logout')">退出登录</button>
+        <button class="ghost" type="button" @click="goBack">返回首页</button>
+        <button class="ghost" type="button" @click="handleLogout">退出登录</button>
       </div>
     </header>
 
@@ -45,7 +45,7 @@
           <h3>{{ item.title || "-" }}</h3>
           <p>{{ item.summary || "暂无摘要" }}</p>
           <div class="bulletin-actions">
-            <button class="ghost" type="button" @click="$emit('view-bulletin', item)">查看详情</button>
+            <button class="ghost" type="button" @click="viewBulletin(item)">查看详情</button>
           </div>
         </article>
       </div>
@@ -65,21 +65,13 @@
 
 <script setup>
 import { onMounted, reactive, ref } from "vue";
+import { useRouter } from "vue-router";
 import { fetchPublicBulletins } from "../api/regulation";
+import { getActiveSession, performLogout } from "../session/authRuntime";
+import { formatTime } from "../utils/formatters";
 
-const props = defineProps({
-  publicUser: {
-    type: Object,
-    required: true
-  },
-  publicToken: {
-    type: String,
-    required: true
-  }
-});
-
-defineEmits(["back", "logout", "view-bulletin"]);
-
+const router = useRouter();
+const publicToken = getActiveSession()?.token || "";
 const filters = reactive({ keyword: "" });
 const loading = ref(false);
 const records = ref([]);
@@ -89,21 +81,21 @@ const total = ref(0);
 const pages = ref(1);
 const status = reactive({ message: "", type: "" });
 
+async function handleLogout() {
+  await performLogout();
+  router.replace({ name: "login" }).catch(() => {});
+}
+
 function setStatus(message, type = "info") {
   status.message = message;
   status.type = type;
-}
-
-function formatTime(value) {
-  if (!value) return "-";
-  return String(value).replace("T", " ").slice(0, 16);
 }
 
 async function loadBulletins() {
   loading.value = true;
   setStatus("");
   try {
-    const data = await fetchPublicBulletins(props.publicToken, {
+    const data = await fetchPublicBulletins(publicToken, {
       keyword: filters.keyword,
       page: page.value,
       size: size.value
@@ -129,6 +121,20 @@ function handleSearch() {
 function changePage(nextPage) {
   page.value = nextPage;
   loadBulletins();
+}
+
+function goBack() {
+  router.push({ name: "public-home" }).catch(() => {});
+}
+
+function viewBulletin(item) {
+  if (!item?.id) {
+    return;
+  }
+  router.push({
+    name: "public-bulletin-detail",
+    params: { bulletinId: item.id }
+  }).catch(() => {});
 }
 
 onMounted(loadBulletins);

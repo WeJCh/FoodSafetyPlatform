@@ -9,8 +9,8 @@
         </div>
       </div>
       <div class="user-area">
-        <button class="ghost" type="button" @click="$emit('back')">返回列表</button>
-        <button class="ghost" type="button" @click="$emit('logout')">退出登录</button>
+        <button class="ghost" type="button" @click="goBack">返回列表</button>
+        <button class="ghost" type="button" @click="handleLogout">退出登录</button>
       </div>
     </header>
 
@@ -42,41 +42,31 @@
 
 <script setup>
 import { onMounted, ref, watch } from "vue";
+import { useRoute, useRouter } from "vue-router";
 import { fetchPublicBulletinDetail } from "../api/regulation";
+import { getActiveSession, performLogout } from "../session/authRuntime";
+import { formatTime } from "../utils/formatters";
 
-const props = defineProps({
-  publicUser: {
-    type: Object,
-    required: true
-  },
-  publicToken: {
-    type: String,
-    required: true
-  },
-  bulletinId: {
-    type: [String, Number],
-    required: true
-  }
-});
-
-defineEmits(["back", "logout"]);
-
+const router = useRouter();
+const route = useRoute();
+const publicToken = getActiveSession()?.token || "";
 const loading = ref(false);
 const detail = ref(null);
 
-function formatTime(value) {
-  if (!value) return "-";
-  return String(value).replace("T", " ").slice(0, 16);
+async function handleLogout() {
+  await performLogout();
+  router.replace({ name: "login" }).catch(() => {});
 }
 
 async function loadDetail() {
-  if (!props.bulletinId) {
+  const bulletinId = route.params.bulletinId;
+  if (!bulletinId) {
     detail.value = null;
     return;
   }
   loading.value = true;
   try {
-    detail.value = await fetchPublicBulletinDetail(props.publicToken, props.bulletinId);
+    detail.value = await fetchPublicBulletinDetail(publicToken, bulletinId);
   } catch {
     detail.value = null;
   } finally {
@@ -84,8 +74,12 @@ async function loadDetail() {
   }
 }
 
+function goBack() {
+  router.push({ name: "public-bulletins" }).catch(() => {});
+}
+
 onMounted(loadDetail);
-watch(() => props.bulletinId, loadDetail);
+watch(() => route.params.bulletinId, loadDetail);
 </script>
 
 <style scoped>

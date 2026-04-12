@@ -471,8 +471,10 @@
 </template>
 
 <script setup>
-import { computed, onBeforeUnmount, onMounted, reactive, ref } from "vue";
+import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from "vue";
+import { useRoute, useRouter } from "vue-router";
 import { presignUpload } from "../api/file";
+import { getActiveSession, performLogout } from "../session/authRuntime";
 import {
   createProduct,
   fetchEnterpriseProfile,
@@ -490,21 +492,33 @@ import {
   submitMyRectification
 } from "../api/regulationOperation";
 import RectificationDetailModal from "../components/RectificationDetailModal.vue";
+import { formatTime } from "../utils/formatters";
 
-const props = defineProps({
-  token: {
-    type: String,
-    required: true
-  },
-  enterpriseUser: {
-    type: Object,
-    required: true
+const router = useRouter();
+const route = useRoute();
+const session = computed(() => getActiveSession() || {});
+const enterpriseUser = computed(() => session.value);
+const token = computed(() => session.value.token || "");
+
+function normalizeSection(value) {
+  if (value === "products" || value === "inspections" || value === "rectification") {
+    return value;
   }
-});
+  return "profile";
+}
 
-const emit = defineEmits(["logout"]);
+function getSectionRouteName(sectionValue) {
+  if (sectionValue === "products") return "enterprise-products";
+  if (sectionValue === "inspections") return "enterprise-inspections";
+  if (sectionValue === "rectification") return "enterprise-rectifications";
+  return "enterprise-profile";
+}
 
-const section = ref("profile");
+function resolveCurrentSection() {
+  return normalizeSection(route.meta?.initialSection);
+}
+
+const section = ref(resolveCurrentSection());
 const loading = ref(false);
 const profileLoaded = ref(false);
 const status = reactive({ message: "", type: "" });
@@ -639,7 +653,7 @@ function resetProductForm(payload = {}) {
 
 async function loadProfile() {
   try {
-    const data = await fetchEnterpriseProfile(props.token);
+    const data = await fetchEnterpriseProfile(token.value);
     profile.approvalStatus = data.approvalStatus || "";
     profile.approvalComment = data.approvalComment || "";
     profile.approvedTime = data.approvedTime || "";
@@ -673,7 +687,7 @@ async function handleSubmit() {
       setStatus("请选择所属行政区", "error");
       return;
     }
-    const data = await submitEnterpriseProfile(props.token, { ...form, regionId });
+    const data = await submitEnterpriseProfile(token.value, { ...form, regionId });
     profile.approvalStatus = data.approvalStatus || "PENDING";
     profile.approvalComment = data.approvalComment || "";
     profile.approvedTime = data.approvedTime || "";
@@ -689,8 +703,9 @@ async function handleSubmit() {
   }
 }
 
-function handleLogout() {
-  emit("logout");
+async function handleLogout() {
+  await performLogout();
+  router.replace({ name: "login" }).catch(() => {});
 }
 
 function formatRectificationStatus(value) {
@@ -703,11 +718,6 @@ function formatInspectionResult(value) {
 
 function formatProductStatus(value) {
   return productStatusMap[value] || value || "-";
-}
-
-function formatTime(value) {
-  if (!value) return "-";
-  return String(value).replace("T", " ").slice(0, 16);
 }
 
 function formatDurationMinutes(minutes) {
@@ -833,7 +843,7 @@ async function uploadRectificationFile(taskId, uploadItem) {
       size: uploadItem.file.size,
       bizType: "RECTIFICATION"
     };
-    const presign = await presignUpload(props.token, payload);
+    const presign = await presignUpload(token.value, payload);
     const response = await fetch(presign.uploadUrl, {
       method: "PUT",
       headers: {
@@ -891,7 +901,7 @@ async function loadRectificationReworkFlags(records) {
     records.map(async (item) => {
       if (!item?.id) return;
       try {
-        const actions = await fetchRectificationActions(props.token, item.id);
+        const actions = await fetchRectificationActions(token.value, item.id);
         rectificationHasReworkMap[item.id] = Array.isArray(actions)
           && actions.some((log) => String(log?.actionType || "").toUpperCase() === "REVIEW_REWORK");
       } catch {
@@ -916,7 +926,7 @@ async function loadProducts() {
   productLoading.value = true;
   setStatus("");
   try {
-    productRecords.value = await fetchMyProducts(props.token);
+    productRecords.value = await fetchMyProducts(token.value);
   } catch (error) {
     setStatus(error.message || "加载产品档案失败", "error");
   } finally {
@@ -940,10 +950,10 @@ async function handleProductSubmit() {
       remark: productForm.remark
     };
     if (editingProductId.value) {
-      await updateProduct(props.token, editingProductId.value, payload);
+      await updateProduct(token.value, editingProductId.value, payload);
       setStatus("产品档案更新成功", "success");
     } else {
-      await createProduct(props.token, payload);
+      await createProduct(token.value, payload);
       setStatus("产品档案新增成功", "success");
     }
     resetProductForm();
@@ -966,7 +976,7 @@ async function handleToggleProductStatus(item) {
   productLoading.value = true;
   setStatus("");
   try {
-    await updateProduct(props.token, item.id, {
+    await updateProduct(token.value, item.id, {
       productName: item.productName,
       category: item.category,
       specification: item.specification,
@@ -992,11 +1002,32 @@ async function handleInspectionEnter() {
   await loadInspections();
 }
 
+async function applySection(sectionValue) {
+  const normalized = normalizeSection(sectionValue);
+  if (section.value !== normalized) {
+    section.value = normalized;
+  }
+
+  if (normalized === "products") {
+    await loadProducts();
+    return;
+  }
+
+  if (normalized === "inspections") {
+    await loadInspections();
+    return;
+  }
+
+  if (normalized === "rectification") {
+    await loadRectifications();
+  }
+}
+
 async function loadInspections() {
   inspectionLoading.value = true;
   setStatus("");
   try {
-    const data = await fetchEnterpriseInspectionRecords(props.token, {
+    const data = await fetchEnterpriseInspectionRecords(token.value, {
       ...inspectionFilters,
       page: inspectionPage.value,
       size: inspectionSize.value
@@ -1017,7 +1048,7 @@ async function loadRectifications() {
   rectificationLoading.value = true;
   setStatus("");
   try {
-    const data = await fetchMyRectifications(props.token, {
+    const data = await fetchMyRectifications(token.value, {
       ...rectificationFilters,
       page: rectificationPage.value,
       size: rectificationSize.value
@@ -1046,8 +1077,8 @@ async function loadRectificationDetail(id, silent = false) {
   }
   try {
     const [detail, actions] = await Promise.all([
-      fetchRectificationDetail(props.token, id),
-      fetchRectificationActions(props.token, id)
+      fetchRectificationDetail(token.value, id),
+      fetchRectificationActions(token.value, id)
     ]);
     rectificationDetail.value = detail || rectificationDetail.value;
     rectificationActionLogs.value = Array.isArray(actions) ? actions : [];
@@ -1081,7 +1112,7 @@ async function openInspectionDetail(record) {
   if (!record?.id) return;
   inspectionLoading.value = true;
   try {
-    inspectionDetail.value = await fetchEnterpriseInspectionRecordDetail(props.token, record.id);
+    inspectionDetail.value = await fetchEnterpriseInspectionRecordDetail(token.value, record.id);
   } catch (error) {
     setStatus(error.message || "加载检查记录失败", "error");
   } finally {
@@ -1118,7 +1149,7 @@ async function handleSubmitRectification(item) {
   rectificationLoading.value = true;
   setStatus("");
   try {
-    await submitMyRectification(props.token, item.id, {
+    await submitMyRectification(token.value, item.id, {
       progress,
       attachmentUrls: attachmentUrls.length ? attachmentUrls : undefined
     });
@@ -1157,7 +1188,7 @@ function closeRectificationDetail() {
 
 async function loadRegions(parentId, targetKey) {
   try {
-    regionOptions[targetKey] = await fetchRegions(props.token, parentId);
+    regionOptions[targetKey] = await fetchRegions(token.value, parentId);
   } catch (error) {
     setStatus(error.message || "加载行政区失败", "error");
   }
@@ -1250,8 +1281,23 @@ onMounted(() => {
   const init = async () => {
     await loadRegions(null, "provinces");
     await loadProfile();
+    await applySection(section.value);
   };
   init();
+});
+
+watch(
+  () => route.name,
+  async () => {
+    await applySection(resolveCurrentSection());
+  }
+);
+
+watch(section, (nextSection) => {
+  const targetName = getSectionRouteName(nextSection);
+  if (route.name !== targetName) {
+    router.push({ name: targetName }).catch(() => {});
+  }
 });
 </script>
 

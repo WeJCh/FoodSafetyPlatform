@@ -24,7 +24,7 @@ class BulletinManageControllerTest {
         when(resolver.resolveUserId("Bearer test")).thenReturn(100L);
         when(resolver.resolveUserType("Bearer test")).thenReturn("PUBLIC");
 
-        ApiResponse<PageResult<BulletinVO>> response = controller.list("Bearer test", null, null, 1, 10);
+        ApiResponse<PageResult<BulletinVO>> response = controller.list("Bearer test", null, null, null, 1, 10);
 
         assertEquals(403, response.getCode());
         assertEquals("regulator only", response.getMessage());
@@ -38,14 +38,14 @@ class BulletinManageControllerTest {
 
         when(resolver.resolveUserId("Bearer test")).thenReturn(100L);
         when(resolver.resolveUserType("Bearer test")).thenReturn("REGULATOR");
-        when(service.listAdmin(100L, "公告", "DRAFT", 1, 10))
+        when(service.listAdmin(100L, "公告", "NOTICE", "DRAFT", 1, 10))
             .thenThrow(new IllegalArgumentException("admin only"));
 
-        ApiResponse<PageResult<BulletinVO>> response = controller.list("Bearer test", "公告", "DRAFT", 1, 10);
+        ApiResponse<PageResult<BulletinVO>> response = controller.list("Bearer test", "公告", "NOTICE", "DRAFT", 1, 10);
 
         assertEquals(403, response.getCode());
         assertEquals("admin only", response.getMessage());
-        verify(service).listAdmin(100L, "公告", "DRAFT", 1, 10);
+        verify(service).listAdmin(100L, "公告", "NOTICE", "DRAFT", 1, 10);
     }
 
     @Test
@@ -60,12 +60,12 @@ class BulletinManageControllerTest {
 
         when(resolver.resolveUserId("Bearer test")).thenReturn(100L);
         when(resolver.resolveUserType("Bearer test")).thenReturn("REGULATOR");
-        when(service.listAdmin(100L, null, null, 1, 10)).thenReturn(page);
+        when(service.listAdmin(100L, null, null, null, 1, 10)).thenReturn(page);
 
-        ApiResponse<PageResult<BulletinVO>> response = controller.list("Bearer test", null, null, 1, 10);
+        ApiResponse<PageResult<BulletinVO>> response = controller.list("Bearer test", null, null, null, 1, 10);
 
         assertEquals(0, response.getCode());
         assertEquals("监管公告", response.getData().getRecords().get(0).getTitle());
-        verify(service).listAdmin(100L, null, null, 1, 10);
+        verify(service).listAdmin(100L, null, null, null, 1, 10);
     }
 }

@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <div class="admin-shell regulator-shell">
     <aside class="admin-sidebar">
       <div class="admin-brand">监管中心</div>
@@ -196,7 +196,7 @@
               </label>
               <div>
                 <div class="primary-text">{{ item.enterpriseName }}</div>
-                <div class="secondary-text">{{ item.licenseNo || "-" }}</div>
+                <div class="secondary-text">食品经营许可证编号：{{ item.licenseNo || "-" }} · 信用代码：{{ item.creditCode || "-" }}</div>
               </div>
               <div>
                 <div class="primary-text">{{ item.principal || "-" }}</div>
@@ -3326,3 +3326,4 @@ watch(section, (nextSection) => {
   }
 }
 </style>
+

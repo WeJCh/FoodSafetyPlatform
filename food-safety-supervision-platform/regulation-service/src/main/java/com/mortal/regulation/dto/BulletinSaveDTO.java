@@ -11,8 +11,9 @@ public class BulletinSaveDTO {
     @Size(max = 120)
     private String title;
 
-    @Size(max = 255)
-    private String summary;
+    @NotBlank
+    @Size(max = 64)
+    private String category;
 
     @NotBlank
     @Size(max = 4000)

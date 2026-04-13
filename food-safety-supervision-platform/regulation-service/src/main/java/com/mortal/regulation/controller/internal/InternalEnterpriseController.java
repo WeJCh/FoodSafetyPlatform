@@ -4,10 +4,13 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.mortal.platform.common.ApiResponse;
 import com.mortal.regulation.dto.EnterpriseKeyReasonUpsertDTO;
 import com.mortal.regulation.entity.AddrLocation;
+import com.mortal.regulation.entity.EnterpriseProfileAttachment;
 import com.mortal.regulation.entity.FoodEnterprise;
 import com.mortal.regulation.mapper.AddrLocationMapper;
+import com.mortal.regulation.mapper.EnterpriseProfileAttachmentMapper;
 import com.mortal.regulation.mapper.FoodEnterpriseMapper;
 import com.mortal.regulation.service.EnterpriseKeyReasonService;
+import com.mortal.regulation.vo.EnterpriseProfileAttachmentVO;
 import com.mortal.regulation.vo.internal.InternalEnterpriseDetailVO;
 import com.mortal.regulation.vo.internal.InternalEnterpriseSummaryVO;
 import java.util.Collections;
@@ -26,40 +29,25 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.util.StringUtils;
+
 /**
- * 内部企业控制器
- */
-/**
-    这个“内部只读能力”，本质上不是给前端用的功能，而是给 complaint-service 用的“内部查询接口”。
-
-    你现在看到的这两个类：
-    InternalEnterpriseController.java
-    InternalRegulatorController.java
-
-    它们的作用是：
-    regulation-service 继续拥有“企业/监管员主数据”的所有权
-    complaint-service 不再直接查 food_enterprise、food_regulator、food_regulator_region、addr_region 这些表
-    complaint-service 需要这些数据时，只能通过这些内部接口来拿
-    这就是“内部只读能力”。
-
-    加 InternalEnterpriseController 和 InternalRegulatorController，不是为了多写两个 Controller，而是为了保证拆分后：
-    投诉服务不再直接碰监管库表
-    企业/监管员/辖区数据仍由监管服务统一拥有
-    数据权限和辖区规则不被复制到投诉服务
-    后续独立拆库仍然成立
+ * 企业内部接口。
  */
 @RestController
 @RequestMapping("/api/internal/regulation/enterprises")
 public class InternalEnterpriseController {
 
     private final FoodEnterpriseMapper foodEnterpriseMapper;
+    private final EnterpriseProfileAttachmentMapper enterpriseProfileAttachmentMapper;
     private final AddrLocationMapper addrLocationMapper;
     private final EnterpriseKeyReasonService enterpriseKeyReasonService;
 
     public InternalEnterpriseController(FoodEnterpriseMapper foodEnterpriseMapper,
+                                        EnterpriseProfileAttachmentMapper enterpriseProfileAttachmentMapper,
                                         AddrLocationMapper addrLocationMapper,
                                         EnterpriseKeyReasonService enterpriseKeyReasonService) {
         this.foodEnterpriseMapper = foodEnterpriseMapper;
+        this.enterpriseProfileAttachmentMapper = enterpriseProfileAttachmentMapper;
         this.addrLocationMapper = addrLocationMapper;
         this.enterpriseKeyReasonService = enterpriseKeyReasonService;
     }
@@ -127,7 +115,7 @@ public class InternalEnterpriseController {
     }
 
     /**
-     * 标记企业为关键企业
+     * 标记企业为关键企业。
      * @param id 企业ID
      * @param dto 企业关键原因插入DTO
      * @return 空响应
@@ -155,6 +143,8 @@ public class InternalEnterpriseController {
         vo.setUserId(enterprise.getUserId());
         vo.setEnterpriseName(enterprise.getEnterpriseName());
         vo.setLicenseNo(enterprise.getLicenseNo());
+        vo.setCreditCode(enterprise.getCreditCode());
+        vo.setLegalRepresentative(enterprise.getLegalRepresentative());
         vo.setRegionId(enterprise.getRegionId());
         vo.setAddressId(enterprise.getAddressId());
         vo.setAddressDetail(addressDetail);
@@ -163,6 +153,7 @@ public class InternalEnterpriseController {
         vo.setRegulatorName(enterprise.getRegulatorName());
         vo.setStatus(enterprise.getStatus());
         vo.setApprovalStatus(enterprise.getApprovalStatus());
+        vo.setAttachments(loadAttachments(enterprise.getId()));
         return vo;
     }
 
@@ -205,6 +196,44 @@ public class InternalEnterpriseController {
         return location.getDetail();
     }
 
+    private List<EnterpriseProfileAttachmentVO> loadAttachments(Long enterpriseId) {
+        if (enterpriseId == null) {
+            return List.of();
+        }
+        return enterpriseProfileAttachmentMapper.selectList(new LambdaQueryWrapper<EnterpriseProfileAttachment>()
+                .eq(EnterpriseProfileAttachment::getEnterpriseId, enterpriseId)
+                .eq(EnterpriseProfileAttachment::getDeleted, 0)
+                .orderByAsc(EnterpriseProfileAttachment::getAttachmentType)
+                .orderByAsc(EnterpriseProfileAttachment::getId))
+            .stream()
+            .map(this::toAttachmentVO)
+            .toList();
+    }
+
+    private EnterpriseProfileAttachmentVO toAttachmentVO(EnterpriseProfileAttachment attachment) {
+        EnterpriseProfileAttachmentVO vo = new EnterpriseProfileAttachmentVO();
+        vo.setId(attachment.getId());
+        vo.setType(attachment.getAttachmentType());
+        vo.setLabel(resolveAttachmentLabel(attachment.getAttachmentType()));
+        vo.setName(attachment.getAttachmentName());
+        vo.setUrl(attachment.getAttachmentUrl());
+        vo.setUploadedBy(attachment.getUploadedBy());
+        vo.setUploadedAt(attachment.getUploadedAt());
+        return vo;
+    }
+
+    private String resolveAttachmentLabel(String type) {
+        if (!StringUtils.hasText(type)) {
+            return null;
+        }
+        return switch (type.trim()) {
+            case "businessLicense" -> "营业执照";
+            case "foodPermit" -> "食品经营许可证";
+            case "onsitePhoto" -> "经营场所照片";
+            default -> type.trim();
+        };
+    }
+
     private List<Long> sanitizeIds(List<Long> ids) {
         if (ids == null || ids.isEmpty()) {
             return List.of();
@@ -222,3 +251,6 @@ public class InternalEnterpriseController {
         return deleted != null && deleted == 1;
     }
 }
+
+
+

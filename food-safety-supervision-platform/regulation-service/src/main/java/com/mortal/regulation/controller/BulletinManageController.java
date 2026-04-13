@@ -34,6 +34,7 @@ public class BulletinManageController {
     @GetMapping
     public ApiResponse<PageResult<BulletinVO>> list(@RequestHeader("Authorization") String token,
                                                     @RequestParam(required = false) String keyword,
+                                                    @RequestParam(required = false) String category,
                                                     @RequestParam(required = false) String status,
                                                     @RequestParam(defaultValue = "1") int page,
                                                     @RequestParam(defaultValue = "10") int size) {
@@ -42,7 +43,7 @@ public class BulletinManageController {
             return ApiResponse.failure(403, "regulator only");
         }
         try {
-            return ApiResponse.success(bulletinService.listAdmin(identity.userId(), keyword, status, page, size));
+            return ApiResponse.success(bulletinService.listAdmin(identity.userId(), keyword, category, status, page, size));
         } catch (IllegalArgumentException ex) {
             if ("admin only".equalsIgnoreCase(ex.getMessage())) {
                 return ApiResponse.failure(403, "admin only");

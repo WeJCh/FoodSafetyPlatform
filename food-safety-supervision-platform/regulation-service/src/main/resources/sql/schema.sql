@@ -9,6 +9,7 @@ USE food_regulation_db;
 DROP TABLE IF EXISTS enterprise_key_reason;
 DROP TABLE IF EXISTS public_bulletin;
 DROP TABLE IF EXISTS food_product;
+DROP TABLE IF EXISTS enterprise_profile_attachment;
 DROP TABLE IF EXISTS food_regulator_region;
 DROP TABLE IF EXISTS addr_location;
 DROP TABLE IF EXISTS addr_region;
@@ -36,6 +37,8 @@ CREATE TABLE IF NOT EXISTS food_enterprise (
   user_id BIGINT NOT NULL COMMENT '对应user-service账号ID',
   enterprise_name VARCHAR(100) NOT NULL COMMENT '企业名称',
   license_no VARCHAR(50) COMMENT '许可证编号',
+  credit_code VARCHAR(18) COMMENT '统一社会信用代码',
+  legal_representative VARCHAR(50) COMMENT '法定代表人',
   region_id BIGINT NOT NULL COMMENT '所属行政区',
   address_id BIGINT NOT NULL COMMENT '地址ID',
   principal VARCHAR(50) COMMENT '负责人',
@@ -52,6 +55,20 @@ CREATE TABLE IF NOT EXISTS food_enterprise (
   UNIQUE KEY uk_enterprise_user (user_id),
   KEY idx_enterprise_region (region_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='食品企业信息表';
+
+CREATE TABLE IF NOT EXISTS enterprise_profile_attachment (
+  id BIGINT PRIMARY KEY AUTO_INCREMENT,
+  enterprise_id BIGINT NOT NULL COMMENT '企业ID',
+  attachment_type VARCHAR(50) NOT NULL COMMENT '附件类型',
+  attachment_name VARCHAR(255) COMMENT '附件名称',
+  attachment_url VARCHAR(500) NOT NULL COMMENT '附件访问地址',
+  uploaded_by BIGINT COMMENT '上传人用户ID',
+  uploaded_at DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '上传时间',
+  deleted TINYINT DEFAULT 0 COMMENT '逻辑删除 1-已删 0-未删',
+  KEY idx_epa_enterprise (enterprise_id),
+  KEY idx_epa_enterprise_type (enterprise_id, attachment_type),
+  KEY idx_epa_deleted (deleted)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='企业备案附件表';
 
 CREATE TABLE IF NOT EXISTS food_product (
   id BIGINT PRIMARY KEY AUTO_INCREMENT,
@@ -104,7 +121,7 @@ CREATE TABLE IF NOT EXISTS enterprise_key_reason (
 CREATE TABLE IF NOT EXISTS public_bulletin (
   id BIGINT PRIMARY KEY AUTO_INCREMENT,
   title VARCHAR(120) NOT NULL COMMENT '公告标题',
-  summary VARCHAR(255) COMMENT '公告摘要',
+  category VARCHAR(64) NOT NULL COMMENT '公告类别',
   content TEXT NOT NULL COMMENT '公告内容',
   status VARCHAR(20) NOT NULL DEFAULT 'DRAFT' COMMENT 'DRAFT / PUBLISHED / OFFLINE',
   created_by BIGINT COMMENT '创建人用户ID',
@@ -116,3 +133,4 @@ CREATE TABLE IF NOT EXISTS public_bulletin (
   KEY idx_bulletin_status (status),
   KEY idx_bulletin_published_time (published_time)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='公众公告表';
+

@@ -23,9 +23,10 @@ public class PublicBulletinController {
 
     @GetMapping
     public ApiResponse<PageResult<BulletinVO>> list(@RequestParam(required = false) String keyword,
+                                                    @RequestParam(required = false) String category,
                                                     @RequestParam(defaultValue = "1") int page,
                                                     @RequestParam(defaultValue = "10") int size) {
-        return ApiResponse.success(bulletinService.listPublic(keyword, page, size));
+        return ApiResponse.success(bulletinService.listPublic(keyword, category, page, size));
     }
 
     @GetMapping("/{id}")

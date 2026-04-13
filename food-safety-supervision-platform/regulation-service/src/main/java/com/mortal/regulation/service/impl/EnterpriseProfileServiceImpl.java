@@ -3,7 +3,11 @@ package com.mortal.regulation.service.impl;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.mortal.regulation.client.UserServiceClient;
+import com.mortal.regulation.common.enums.FileBizType;
+import com.mortal.regulation.config.MinioProperties;
+import com.mortal.regulation.dto.EnterpriseProfileAttachmentDTO;
 import com.mortal.platform.common.PageResult;
+import com.mortal.regulation.entity.EnterpriseProfileAttachment;
 import com.mortal.regulation.dto.EnterpriseApprovalBatchDTO;
 import com.mortal.regulation.dto.EnterpriseApprovalDTO;
 import com.mortal.regulation.dto.EnterpriseProfileDTO;
@@ -14,6 +18,7 @@ import com.mortal.regulation.entity.FoodRegulator;
 import com.mortal.regulation.entity.FoodRegulatorRegion;
 import com.mortal.regulation.mapper.AddrLocationMapper;
 import com.mortal.regulation.mapper.AddrRegionMapper;
+import com.mortal.regulation.mapper.EnterpriseProfileAttachmentMapper;
 import com.mortal.regulation.mapper.FoodEnterpriseMapper;
 import com.mortal.regulation.mapper.FoodRegulatorMapper;
 import com.mortal.regulation.mapper.FoodRegulatorRegionMapper;
@@ -21,6 +26,7 @@ import com.mortal.regulation.service.EnterpriseKeyReasonService;
 import com.mortal.regulation.service.EnterpriseProfileService;
 import com.mortal.regulation.vo.BatchActionResult;
 import com.mortal.regulation.vo.EnterpriseProfileVO;
+import com.mortal.regulation.vo.EnterpriseProfileAttachmentVO;
 import com.mortal.regulation.vo.PublicEnterpriseDetailVO;
 import com.mortal.regulation.vo.PublicEnterpriseVO;
 import com.mortal.regulation.vo.RegionVO;
@@ -45,29 +51,36 @@ public class EnterpriseProfileServiceImpl implements EnterpriseProfileService {
     private static final String APPROVAL_PENDING = "PENDING";
     private static final String APPROVAL_APPROVED = "APPROVED";
     private static final String APPROVAL_REJECTED = "REJECTED";
+    private static final String ENTERPRISE_PROFILE_PREFIX = FileBizType.ENTERPRISE_PROFILE.prefix();
 
     private final FoodEnterpriseMapper foodEnterpriseMapper;
+    private final EnterpriseProfileAttachmentMapper enterpriseProfileAttachmentMapper;
     private final AddrLocationMapper addrLocationMapper;
     private final AddrRegionMapper addrRegionMapper;
     private final FoodRegulatorMapper foodRegulatorMapper;
     private final FoodRegulatorRegionMapper foodRegulatorRegionMapper;
     private final UserServiceClient userServiceClient;
     private final EnterpriseKeyReasonService enterpriseKeyReasonService;
+    private final MinioProperties minioProperties;
 
     public EnterpriseProfileServiceImpl(FoodEnterpriseMapper foodEnterpriseMapper,
+                                        EnterpriseProfileAttachmentMapper enterpriseProfileAttachmentMapper,
                                         AddrLocationMapper addrLocationMapper,
                                         AddrRegionMapper addrRegionMapper,
                                         FoodRegulatorMapper foodRegulatorMapper,
                                         FoodRegulatorRegionMapper foodRegulatorRegionMapper,
                                         UserServiceClient userServiceClient,
-                                        EnterpriseKeyReasonService enterpriseKeyReasonService) {
+                                        EnterpriseKeyReasonService enterpriseKeyReasonService,
+                                        MinioProperties minioProperties) {
         this.foodEnterpriseMapper = foodEnterpriseMapper;
+        this.enterpriseProfileAttachmentMapper = enterpriseProfileAttachmentMapper;
         this.addrLocationMapper = addrLocationMapper;
         this.addrRegionMapper = addrRegionMapper;
         this.foodRegulatorMapper = foodRegulatorMapper;
         this.foodRegulatorRegionMapper = foodRegulatorRegionMapper;
         this.userServiceClient = userServiceClient;
         this.enterpriseKeyReasonService = enterpriseKeyReasonService;
+        this.minioProperties = minioProperties;
     }
 
     @Override
@@ -83,6 +96,8 @@ public class EnterpriseProfileServiceImpl implements EnterpriseProfileService {
         AddrLocation location = upsertLocation(enterprise.getAddressId(), dto.getRegionId(), dto.getAddressDetail());
         enterprise.setEnterpriseName(dto.getEnterpriseName());
         enterprise.setLicenseNo(dto.getLicenseNo());
+        enterprise.setCreditCode(normalizeCreditCode(dto.getCreditCode()));
+        enterprise.setLegalRepresentative(normalizeOptionalText(dto.getLegalRepresentative()));
         enterprise.setRegionId(dto.getRegionId());
         enterprise.setAddressId(location.getId());
         enterprise.setPrincipal(dto.getPrincipal());
@@ -102,7 +117,10 @@ public class EnterpriseProfileServiceImpl implements EnterpriseProfileService {
             foodEnterpriseMapper.updateById(enterprise);
         }
 
-        return toVO(enterprise, location.getDetail(), resolveRegionPath(enterprise.getRegionId()));
+        saveProfileAttachments(enterprise.getId(), userId, dto.getAttachments());
+        EnterpriseProfileVO vo = toVO(enterprise, location.getDetail(), resolveRegionPath(enterprise.getRegionId()));
+        attachAttachments(vo, listAttachmentVOs(enterprise.getId()));
+        return vo;
     }
 
     @Override
@@ -116,6 +134,7 @@ public class EnterpriseProfileServiceImpl implements EnterpriseProfileService {
             resolveAddressDetail(enterprise.getAddressId()),
             resolveRegionPath(enterprise.getRegionId())
         );
+        attachAttachments(vo, listAttachmentVOs(enterprise.getId()));
         attachKeyReasons(vo, enterprise.getId());
         return vo;
     }
@@ -131,6 +150,7 @@ public class EnterpriseProfileServiceImpl implements EnterpriseProfileService {
             resolveAddressDetail(enterprise.getAddressId()),
             resolveRegionPath(enterprise.getRegionId())
         );
+        attachAttachments(vo, listAttachmentVOs(enterprise.getId()));
         attachKeyReasons(vo, enterprise.getId());
         return vo;
     }
@@ -183,9 +203,9 @@ public class EnterpriseProfileServiceImpl implements EnterpriseProfileService {
     }
 
     /**
-     * 获取公众企业详情
-     * @param enterpriseId 企业ID
-     * @return 公众企业详情VO
+     * 鑾峰彇鍏紬浼佷笟璇︽儏
+     * @param enterpriseId 浼佷笟ID
+     * @return 鍏紬浼佷笟璇︽儏VO
      */
     @Override
     public PublicEnterpriseDetailVO getPublicById(Long enterpriseId) {
@@ -203,6 +223,7 @@ public class EnterpriseProfileServiceImpl implements EnterpriseProfileService {
             enterprise,
             resolveRegionPath(enterprise.getRegionId()),
             resolveAddressDetail(enterprise.getAddressId()));
+        attachAttachments(vo, listAttachmentVOs(enterprise.getId()));
         attachKeyReasons(vo, enterprise.getId());
         return vo;
     }
@@ -232,12 +253,14 @@ public class EnterpriseProfileServiceImpl implements EnterpriseProfileService {
         List<FoodEnterprise> enterprises = pageInfo.getRecords();
         Map<Long, String> addressMap = loadAddressDetails(enterprises);
         Map<Long, List<RegionVO>> regionPathMap = loadRegionPaths(enterprises);
+        Map<Long, List<EnterpriseProfileAttachmentVO>> attachmentMap = loadAttachmentMap(enterprises);
         List<EnterpriseProfileVO> records = enterprises.stream()
             .map(enterprise -> toVO(
                 enterprise,
                 addressMap.get(enterprise.getAddressId()),
                 regionPathMap.getOrDefault(enterprise.getRegionId(), List.of())))
             .toList();
+        records.forEach(vo -> attachAttachments(vo, attachmentMap.get(vo.getId())));
         return PageResult.of(records, pageInfo.getTotal(), page, size);
     }
 
@@ -248,11 +271,13 @@ public class EnterpriseProfileServiceImpl implements EnterpriseProfileService {
             .eq(FoodEnterprise::getDeleted, 0));
         Map<Long, String> addressMap = loadAddressDetails(enterprises);
         Map<Long, List<RegionVO>> regionPathMap = loadRegionPaths(enterprises);
+        Map<Long, List<EnterpriseProfileAttachmentVO>> attachmentMap = loadAttachmentMap(enterprises);
         return enterprises.stream()
             .map(enterprise -> toVO(
                 enterprise,
                 addressMap.get(enterprise.getAddressId()),
                 regionPathMap.getOrDefault(enterprise.getRegionId(), List.of())))
+            .peek(vo -> attachAttachments(vo, attachmentMap.get(vo.getId())))
             .toList();
     }
 
@@ -268,11 +293,13 @@ public class EnterpriseProfileServiceImpl implements EnterpriseProfileService {
             .in(FoodEnterprise::getRegionId, regionIds));
         Map<Long, String> addressMap = loadAddressDetails(enterprises);
         Map<Long, List<RegionVO>> regionPathMap = loadRegionPaths(enterprises);
+        Map<Long, List<EnterpriseProfileAttachmentVO>> attachmentMap = loadAttachmentMap(enterprises);
         return enterprises.stream()
             .map(enterprise -> toVO(
                 enterprise,
                 addressMap.get(enterprise.getAddressId()),
                 regionPathMap.getOrDefault(enterprise.getRegionId(), List.of())))
+            .peek(vo -> attachAttachments(vo, attachmentMap.get(vo.getId())))
             .toList();
     }
 
@@ -280,14 +307,26 @@ public class EnterpriseProfileServiceImpl implements EnterpriseProfileService {
     public EnterpriseProfileVO approve(Long enterpriseId, Long operatorId, EnterpriseApprovalDTO dto) {
         FoodEnterprise enterprise = requireEnterprise(enterpriseId);
         applyApproval(enterprise, APPROVAL_APPROVED, operatorId, dto.getComment(), dto.getRegulatorName());
-        return toVO(enterprise, resolveAddressDetail(enterprise.getAddressId()), resolveRegionPath(enterprise.getRegionId()));
+        EnterpriseProfileVO vo = toVO(
+            enterprise,
+            resolveAddressDetail(enterprise.getAddressId()),
+            resolveRegionPath(enterprise.getRegionId())
+        );
+        attachAttachments(vo, listAttachmentVOs(enterprise.getId()));
+        return vo;
     }
 
     @Override
     public EnterpriseProfileVO reject(Long enterpriseId, Long operatorId, EnterpriseApprovalDTO dto) {
         FoodEnterprise enterprise = requireEnterprise(enterpriseId);
         applyApproval(enterprise, APPROVAL_REJECTED, operatorId, dto.getComment(), dto.getRegulatorName());
-        return toVO(enterprise, resolveAddressDetail(enterprise.getAddressId()), resolveRegionPath(enterprise.getRegionId()));
+        EnterpriseProfileVO vo = toVO(
+            enterprise,
+            resolveAddressDetail(enterprise.getAddressId()),
+            resolveRegionPath(enterprise.getRegionId())
+        );
+        attachAttachments(vo, listAttachmentVOs(enterprise.getId()));
+        return vo;
     }
 
     @Override
@@ -307,6 +346,7 @@ public class EnterpriseProfileServiceImpl implements EnterpriseProfileService {
         enterprise.setUpdateTime(LocalDateTime.now());
         foodEnterpriseMapper.updateById(enterprise);
         markAddressDeleted(enterprise.getAddressId());
+        markAttachmentsDeleted(enterprise.getId());
         if (enterprise.getUserId() != null) {
             userServiceClient.deleteUser(enterprise.getUserId());
         }
@@ -418,6 +458,160 @@ public class EnterpriseProfileServiceImpl implements EnterpriseProfileService {
         return location.getDetail();
     }
 
+    private void saveProfileAttachments(Long enterpriseId, Long userId, List<EnterpriseProfileAttachmentDTO> attachments) {
+        if (enterpriseId == null || attachments == null) {
+            return;
+        }
+        List<EnterpriseProfileAttachmentDTO> cleaned = attachments.stream()
+            .filter(Objects::nonNull)
+            .filter(item -> StringUtils.hasText(item.getType()) && StringUtils.hasText(item.getUrl()))
+            .toList();
+        cleaned.forEach(item -> validateAttachmentOwnership(userId, item.getUrl()));
+        markAttachmentsDeleted(enterpriseId);
+        for (EnterpriseProfileAttachmentDTO item : cleaned) {
+            EnterpriseProfileAttachment attachment = new EnterpriseProfileAttachment();
+            attachment.setEnterpriseId(enterpriseId);
+            attachment.setAttachmentType(item.getType().trim());
+            attachment.setAttachmentName(normalizeOptionalText(
+                StringUtils.hasText(item.getName()) ? item.getName() : item.getLabel()
+            ));
+            attachment.setAttachmentUrl(item.getUrl().trim());
+            attachment.setUploadedBy(userId);
+            attachment.setUploadedAt(LocalDateTime.now());
+            attachment.setDeleted(0);
+            enterpriseProfileAttachmentMapper.insert(attachment);
+        }
+    }
+
+    private void validateAttachmentOwnership(Long userId, String attachmentUrl) {
+        if (userId == null) {
+            throw new IllegalArgumentException("attachment uploader required");
+        }
+        String objectKey = extractObjectKey(attachmentUrl);
+        if (!StringUtils.hasText(objectKey)) {
+            throw new IllegalArgumentException("invalid enterprise profile attachment url");
+        }
+        String[] segments = objectKey.split("/");
+        if (segments.length < 6) {
+            throw new IllegalArgumentException("invalid enterprise profile attachment path");
+        }
+        if (!ENTERPRISE_PROFILE_PREFIX.equals(segments[0])) {
+            throw new IllegalArgumentException("attachment must use enterprise profile prefix");
+        }
+        if (!segments[1].matches("\\d{4}") || !segments[2].matches("\\d{2}") || !segments[3].matches("\\d{2}")) {
+            throw new IllegalArgumentException("invalid enterprise profile attachment date path");
+        }
+        if (!String.valueOf(userId).equals(segments[4])) {
+            throw new IllegalArgumentException("attachment does not belong to current enterprise user");
+        }
+    }
+
+    private String extractObjectKey(String attachmentUrl) {
+        if (!StringUtils.hasText(attachmentUrl) || minioProperties == null || !StringUtils.hasText(minioProperties.getBucket())) {
+            return null;
+        }
+        String marker = "/" + minioProperties.getBucket() + "/";
+        int index = attachmentUrl.indexOf(marker);
+        if (index < 0) {
+            return null;
+        }
+        String objectKey = attachmentUrl.substring(index + marker.length()).trim();
+        return StringUtils.hasText(objectKey) ? objectKey : null;
+    }
+
+    private void markAttachmentsDeleted(Long enterpriseId) {
+        if (enterpriseId == null) {
+            return;
+        }
+        List<EnterpriseProfileAttachment> attachments = enterpriseProfileAttachmentMapper.selectList(
+            new LambdaQueryWrapper<EnterpriseProfileAttachment>()
+                .eq(EnterpriseProfileAttachment::getEnterpriseId, enterpriseId)
+                .eq(EnterpriseProfileAttachment::getDeleted, 0)
+        );
+        for (EnterpriseProfileAttachment attachment : attachments) {
+            attachment.setDeleted(1);
+            enterpriseProfileAttachmentMapper.updateById(attachment);
+        }
+    }
+
+    private List<EnterpriseProfileAttachmentVO> listAttachmentVOs(Long enterpriseId) {
+        if (enterpriseId == null) {
+            return List.of();
+        }
+        return enterpriseProfileAttachmentMapper.selectList(
+                new LambdaQueryWrapper<EnterpriseProfileAttachment>()
+                    .eq(EnterpriseProfileAttachment::getEnterpriseId, enterpriseId)
+                    .eq(EnterpriseProfileAttachment::getDeleted, 0)
+                    .orderByAsc(EnterpriseProfileAttachment::getAttachmentType)
+                    .orderByAsc(EnterpriseProfileAttachment::getId))
+            .stream()
+            .map(this::toAttachmentVO)
+            .toList();
+    }
+
+    private Map<Long, List<EnterpriseProfileAttachmentVO>> loadAttachmentMap(List<FoodEnterprise> enterprises) {
+        if (enterprises == null || enterprises.isEmpty()) {
+            return Collections.emptyMap();
+        }
+        List<Long> enterpriseIds = enterprises.stream()
+            .map(FoodEnterprise::getId)
+            .filter(Objects::nonNull)
+            .distinct()
+            .toList();
+        if (enterpriseIds.isEmpty()) {
+            return Collections.emptyMap();
+        }
+        return enterpriseProfileAttachmentMapper.selectList(
+                new LambdaQueryWrapper<EnterpriseProfileAttachment>()
+                    .in(EnterpriseProfileAttachment::getEnterpriseId, enterpriseIds)
+                    .eq(EnterpriseProfileAttachment::getDeleted, 0)
+                    .orderByAsc(EnterpriseProfileAttachment::getAttachmentType)
+                    .orderByAsc(EnterpriseProfileAttachment::getId))
+            .stream()
+            .collect(Collectors.groupingBy(
+                EnterpriseProfileAttachment::getEnterpriseId,
+                Collectors.mapping(this::toAttachmentVO, Collectors.toList())
+            ));
+    }
+
+    private EnterpriseProfileAttachmentVO toAttachmentVO(EnterpriseProfileAttachment attachment) {
+        EnterpriseProfileAttachmentVO vo = new EnterpriseProfileAttachmentVO();
+        vo.setId(attachment.getId());
+        vo.setType(attachment.getAttachmentType());
+        vo.setLabel(resolveAttachmentLabel(attachment.getAttachmentType()));
+        vo.setName(attachment.getAttachmentName());
+        vo.setUrl(attachment.getAttachmentUrl());
+        vo.setUploadedBy(attachment.getUploadedBy());
+        vo.setUploadedAt(attachment.getUploadedAt());
+        return vo;
+    }
+
+    private void attachAttachments(EnterpriseProfileVO vo, List<EnterpriseProfileAttachmentVO> attachments) {
+        if (vo == null) {
+            return;
+        }
+        vo.setAttachments(attachments == null ? List.of() : attachments);
+    }
+
+    private void attachAttachments(PublicEnterpriseDetailVO vo, List<EnterpriseProfileAttachmentVO> attachments) {
+        if (vo == null) {
+            return;
+        }
+        vo.setAttachments(attachments == null ? List.of() : attachments);
+    }
+
+    private String resolveAttachmentLabel(String type) {
+        if (!StringUtils.hasText(type)) {
+            return null;
+        }
+        return switch (type.trim()) {
+            case "businessLicense" -> "营业执照";
+            case "foodPermit" -> "食品经营许可证";
+            case "onsitePhoto" -> "经营场所照片";
+            default -> type.trim();
+        };
+    }
+
     private void markAddressDeleted(Long addressId) {
         if (addressId == null) {
             return;
@@ -501,7 +695,7 @@ public class EnterpriseProfileServiceImpl implements EnterpriseProfileService {
         if (enterprises == null || enterprises.isEmpty()) {
             return Collections.emptyMap();
         }
-        // 关键注释：批量预加载行政区路径，避免列表页重复查询
+        // Batch-load region paths to avoid repeated queries in list views.
         List<Long> regionIds = enterprises.stream()
             .map(FoodEnterprise::getRegionId)
             .filter(Objects::nonNull)
@@ -521,7 +715,7 @@ public class EnterpriseProfileServiceImpl implements EnterpriseProfileService {
         if (regionId == null) {
             return List.of();
         }
-        // 关键注释：从当前行政区向上追溯，拼出完整省市区街道链路
+        // Walk upward from the current region to build the full region path.
         List<RegionVO> path = new ArrayList<>();
         Set<Long> visited = new LinkedHashSet<>();
         Long current = regionId;
@@ -550,12 +744,28 @@ public class EnterpriseProfileServiceImpl implements EnterpriseProfileService {
         return deleted != null && deleted == 1;
     }
 
+    private String normalizeCreditCode(String creditCode) {
+        if (!StringUtils.hasText(creditCode)) {
+            return null;
+        }
+        return creditCode.trim().toUpperCase();
+    }
+
+    private String normalizeOptionalText(String value) {
+        if (!StringUtils.hasText(value)) {
+            return null;
+        }
+        return value.trim();
+    }
+
     private EnterpriseProfileVO toVO(FoodEnterprise enterprise, String addressDetail, List<RegionVO> regionPath) {
         EnterpriseProfileVO vo = new EnterpriseProfileVO();
         vo.setId(enterprise.getId());
         vo.setUserId(enterprise.getUserId());
         vo.setEnterpriseName(enterprise.getEnterpriseName());
         vo.setLicenseNo(enterprise.getLicenseNo());
+        vo.setCreditCode(enterprise.getCreditCode());
+        vo.setLegalRepresentative(enterprise.getLegalRepresentative());
         vo.setRegionId(enterprise.getRegionId());
         vo.setAddressId(enterprise.getAddressId());
         vo.setAddressDetail(addressDetail);
@@ -567,7 +777,7 @@ public class EnterpriseProfileServiceImpl implements EnterpriseProfileService {
         vo.setApprovalComment(enterprise.getApprovalComment());
         vo.setApprovedBy(enterprise.getApprovedBy());
         vo.setApprovedTime(enterprise.getApprovedTime());
-        // 关键注释：前端展示需要“路径名称 + 级联回显”，同时返回文本与路径明细
+        // Return both the structured path and the flattened text for frontend display.
         vo.setRegionPath(regionPath == null ? List.of() : regionPath);
         vo.setRegionPathText(buildRegionPathText(regionPath));
         vo.setCreateTime(enterprise.getCreateTime());
@@ -585,10 +795,9 @@ public class EnterpriseProfileServiceImpl implements EnterpriseProfileService {
             .collect(Collectors.joining("/"));
     }
     /**
-     * 转换为公共企业信息VO
-     * @param enterprise 企业
-     * @param regionPath 行政区路径
-     * @return 公共企业信息VO
+     * 杞崲涓哄叕鍏变紒涓氫俊鎭疺O
+     * @param enterprise 浼佷笟
+     * @param regionPath 琛屾斂鍖鸿矾寰?     * @return 鍏叡浼佷笟淇℃伅VO
      */
     private PublicEnterpriseVO toPublicVO(FoodEnterprise enterprise,
                                           List<RegionVO> regionPath,
@@ -596,6 +805,7 @@ public class EnterpriseProfileServiceImpl implements EnterpriseProfileService {
         PublicEnterpriseVO vo = new PublicEnterpriseVO();
         vo.setId(enterprise.getId());
         vo.setEnterpriseName(enterprise.getEnterpriseName());
+        vo.setCreditCode(enterprise.getCreditCode());
         vo.setRegionId(enterprise.getRegionId());
         vo.setRegionPathText(buildRegionPathText(regionPath));
         vo.setAddressDetail(addressDetail);
@@ -612,6 +822,8 @@ public class EnterpriseProfileServiceImpl implements EnterpriseProfileService {
         vo.setId(enterprise.getId());
         vo.setEnterpriseName(enterprise.getEnterpriseName());
         vo.setLicenseNo(enterprise.getLicenseNo());
+        vo.setCreditCode(enterprise.getCreditCode());
+        vo.setLegalRepresentative(enterprise.getLegalRepresentative());
         vo.setRegionId(enterprise.getRegionId());
         vo.setRegionPathText(buildRegionPathText(regionPath));
         vo.setAddressDetail(addressDetail);
@@ -639,10 +851,7 @@ public class EnterpriseProfileServiceImpl implements EnterpriseProfileService {
     }
 
     /**
-     * 手机号脱敏
-     * @param phone 手机号
-     * @return 脱敏后的手机号
-     */
+     * 鎵嬫満鍙疯劚鏁?     * @param phone 鎵嬫満鍙?     * @return 鑴辨晱鍚庣殑鎵嬫満鍙?     */
     private String maskPhone(String phone) {
         if (!StringUtils.hasText(phone)) {
             return null;
@@ -658,3 +867,5 @@ public class EnterpriseProfileServiceImpl implements EnterpriseProfileService {
         return StringUtils.hasText(value) ? value.trim().toUpperCase() : null;
     }
 }
+
+

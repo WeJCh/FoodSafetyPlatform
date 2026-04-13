@@ -19,8 +19,16 @@
             <strong>{{ detail.enterpriseName }}</strong>
           </div>
           <div>
-            <span>许可证编号</span>
+            <span>食品经营许可证编号</span>
             <strong>{{ detail.licenseNo || "-" }}</strong>
+          </div>
+          <div>
+            <span>统一社会信用代码</span>
+            <strong>{{ detail.creditCode || "-" }}</strong>
+          </div>
+          <div>
+            <span>法定代表人</span>
+            <strong>{{ detail.legalRepresentative || "-" }}</strong>
           </div>
           <div>
             <span>负责人</span>
@@ -61,6 +69,27 @@
           <div>
             <span>更新时间</span>
             <strong>{{ formatTime(detail.updateTime) }}</strong>
+          </div>
+        </div>
+
+        <div v-if="detail" class="attachment-panel">
+          <div class="section-title section-title--sub">备案附件</div>
+          <div v-if="!detail.attachments || !detail.attachments.length" class="status info">
+            当前企业暂无备案附件。
+          </div>
+          <div v-else class="attachment-list">
+            <div
+              v-for="(item, index) in detail.attachments"
+              :key="`${item.type || 'attachment'}-${index}`"
+              class="attachment-item"
+            >
+              <div class="attachment-item__head">
+                <strong>{{ item.label || item.name || "备案附件" }}</strong>
+                <span>{{ item.uploadedAt ? formatTime(item.uploadedAt) : "已上传" }}</span>
+              </div>
+              <p>{{ item.name || "未命名附件" }}</p>
+              <a class="ghost inline-link" :href="item.url" target="_blank" rel="noreferrer">查看附件</a>
+            </div>
           </div>
         </div>
 
@@ -283,6 +312,54 @@ watch(() => route.params.enterpriseId, loadDetail);
   margin-top: 22px;
   padding-top: 18px;
   border-top: 1px solid var(--stroke);
+}
+
+.attachment-panel {
+  margin-top: 22px;
+  padding-top: 18px;
+  border-top: 1px solid var(--stroke);
+}
+
+.attachment-list {
+  display: grid;
+  gap: 12px;
+}
+
+.attachment-item {
+  padding: 14px 16px;
+  border-radius: 14px;
+  border: 1px solid var(--stroke);
+  background: var(--card-strong);
+  display: grid;
+  gap: 8px;
+}
+
+.attachment-item__head {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.attachment-item__head span {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.attachment-item p {
+  margin: 0;
+  color: var(--text);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.inline-link {
+  text-decoration: none;
+}
+
+.inline-link:hover {
+  text-decoration: underline;
 }
 
 .product-list {

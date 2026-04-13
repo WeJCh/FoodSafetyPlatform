@@ -5,7 +5,7 @@ import java.util.List;
 import lombok.Data;
 
 /**
- * 企业概况VO
+ * 浼佷笟姒傚喌VO
  */
 @Data
 public class EnterpriseProfileVO {
@@ -14,6 +14,8 @@ public class EnterpriseProfileVO {
     private Long userId;
     private String enterpriseName;
     private String licenseNo;
+    private String creditCode;
+    private String legalRepresentative;
     private Long regionId;
     private Long addressId;
     private String addressDetail;
@@ -30,3 +32,4 @@ public class EnterpriseProfileVO {
     private LocalDateTime createTime;
     private LocalDateTime updateTime;
 }
+

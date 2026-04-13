@@ -35,7 +35,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
 /**
- * 投诉数据支持
+ * 投诉数据支持。
  */
 @Service
 public class ComplaintDataSupport {
@@ -50,14 +50,6 @@ public class ComplaintDataSupport {
     private final ObjectMapper objectMapper;
     private final String regulationInternalToken;
 
-    /**
-     * 构造函数
-     * @param complaintMapper 投诉Mapper
-     * @param complaintHandleMapper 投诉处理Mapper
-     * @param regulationInternalClient 内部监管系统客户端
-     * @param objectMapper 对象映射器
-     * @param regulationInternalToken 内部监管系统令牌
-     */
     public ComplaintDataSupport(ComplaintMapper complaintMapper,
                                 ComplaintHandleMapper complaintHandleMapper,
                                 RegulationInternalClient regulationInternalClient,
@@ -72,7 +64,7 @@ public class ComplaintDataSupport {
     }
 
     /**
-     * 获取投诉
+     * 获取投诉。
      * @param id 投诉ID
      * @return 投诉
      */
@@ -85,7 +77,7 @@ public class ComplaintDataSupport {
     }
 
     /**
-     * 获取企业详情
+     * 获取企业详情。
      * @param id 企业ID
      * @return 企业详情
      */
@@ -99,10 +91,10 @@ public class ComplaintDataSupport {
     }
 
     /**
-     * 统计企业近一段时间内的有效投诉数量
+     * 统计企业已受理投诉数量。
      * @param enterpriseId 企业ID
      * @param since 统计时间
-     * @return 有效投诉数量
+     * @return 已受理投诉数量
      */
     public long countAcceptedComplaints(Long enterpriseId, LocalDateTime since) {
         if (enterpriseId == null || since == null) {
@@ -117,7 +109,7 @@ public class ComplaintDataSupport {
     }
 
     /**
-     * 标记企业为关键企业
+     * 标记企业为关键企业。
      * @param enterpriseId 企业ID
      * @param reasonType 原因类型
      * @param reasonDetail 原因详情
@@ -145,9 +137,9 @@ public class ComplaintDataSupport {
     }
 
     /**
-     * 获取监管者身份
+     * 获取监管员身份。
      * @param userId 用户ID
-     * @return 监管者身份
+     * @return 监管员身份
      */
     public InternalRegulatorIdentityVO requireRegulatorByUserId(Long userId) {
         if (userId == null) {
@@ -165,10 +157,10 @@ public class ComplaintDataSupport {
         return regulator;
     }
     /**
-     * 获取监管者摘要
-     * @param regulatorId 监管者ID
+     * 获取监管员详情。
+     * @param regulatorId 监管员ID
      * @param notFoundMessage 未找到消息
-     * @return 监管者摘要
+     * @return 监管员详情
      */
     public InternalRegulatorSummaryVO requireRegulatorById(Long regulatorId, String notFoundMessage) {
         ApiResponse<InternalRegulatorSummaryVO> response =
@@ -180,8 +172,8 @@ public class ComplaintDataSupport {
     }
 
     /**
-     * 要求监管者角色
-     * @param regulator 监管者身份
+     * 验证监管员角色。
+     * @param regulator 监管员
      * @param roleType 角色类型
      */
     public void requireRole(InternalRegulatorIdentityVO regulator, String roleType) {
@@ -191,10 +183,10 @@ public class ComplaintDataSupport {
     }
 
     /**
-     * 判断投诉是否在监管者区域内
-     * @param regulator 监管者身份
+     * 检查投诉是否在监管员管辖范围内。
+     * @param regulator 监管员
      * @param enterpriseId 企业ID
-     * @return 是否在监管者区域内
+     * @return 是否在管辖范围内
      */
     public boolean isComplaintInRegion(InternalRegulatorIdentityVO regulator, Long enterpriseId) {
         if (regulator == null || enterpriseId == null) {
@@ -204,7 +196,7 @@ public class ComplaintDataSupport {
     }
 
     /**
-     * 根据企业名称获取企业ID列表
+     * 根据企业名称获取企业ID列表。
      * @param enterpriseName 企业名称
      * @return 企业ID列表
      */
@@ -221,9 +213,9 @@ public class ComplaintDataSupport {
     }
 
     /**
-     * 根据监管者名称获取监管者ID列表
-     * @param regulatorName 监管者名称
-     * @return 监管者ID列表
+     * 根据监管员名称获取监管员ID列表。
+     * @param regulatorName 监管员名称
+     * @return 监管员ID列表
      */
     public List<Long> resolveRegulatorIdsByName(String regulatorName) {
         if (!StringUtils.hasText(regulatorName)) {
@@ -238,8 +230,8 @@ public class ComplaintDataSupport {
     }
 
     /**
-     * 根据监管者ID获取企业ID列表
-     * @param regulator 监管者身份
+     * 根据监管员获取企业ID列表。
+     * @param regulator 监管员
      * @return 企业ID列表
      */
     public List<Long> resolveEnterpriseIdsByRegion(InternalRegulatorIdentityVO regulator) {
@@ -318,7 +310,7 @@ public class ComplaintDataSupport {
     }
 
     /**
-     * 加载处理结果
+     * 加载处理结果。
      * @param complaints 投诉列表
      * @return 处理结果
      */
@@ -348,7 +340,7 @@ public class ComplaintDataSupport {
     }
 
     /**
-     * 加载处理详情
+     * 加载处理详情。
      * @param complaintId 投诉ID
      * @return 处理详情
      */
@@ -379,7 +371,7 @@ public class ComplaintDataSupport {
     }
 
     /**
-     * 加载企业名称
+     * 加载企业名称。
      * @param complaints 投诉列表
      * @return 企业名称
      */
@@ -407,9 +399,9 @@ public class ComplaintDataSupport {
     }
 
     /**
-     * 加载监管者名称
+     * 加载监管员名称。
      * @param complaints 投诉列表
-     * @return 监管者名称
+     * @return 监管员名称
      */
     public Map<Long, String> loadRegulatorNames(List<Complaint> complaints) {
         if (complaints == null || complaints.isEmpty()) {
@@ -437,9 +429,9 @@ public class ComplaintDataSupport {
     }
 
     /**
-     * 加载监管者名称
-     * @param regulatorIds 监管者ID列表
-     * @return 监管者名称
+     * 加载监管员名称。
+     * @param regulatorIds 监管员ID列表
+     * @return 监管员名称
      */
     public Map<Long, String> loadRegulatorNamesByIds(Set<Long> regulatorIds) {
         if (regulatorIds == null || regulatorIds.isEmpty()) {
@@ -456,9 +448,9 @@ public class ComplaintDataSupport {
     }
 
     /**
-     * 转换企业概况VO
+     * 转换企业详情VO。
      * @param enterprise 企业详情
-     * @return 企业概况VO
+     * @return 企业详情VO
      */
     public EnterpriseProfileVO toEnterpriseProfileVO(InternalEnterpriseDetailVO enterprise) {
         EnterpriseProfileVO vo = new EnterpriseProfileVO();
@@ -466,6 +458,8 @@ public class ComplaintDataSupport {
         vo.setUserId(enterprise.getUserId());
         vo.setEnterpriseName(enterprise.getEnterpriseName());
         vo.setLicenseNo(enterprise.getLicenseNo());
+        vo.setCreditCode(enterprise.getCreditCode());
+        vo.setLegalRepresentative(enterprise.getLegalRepresentative());
         vo.setRegionId(enterprise.getRegionId());
         vo.setAddressId(enterprise.getAddressId());
         vo.setAddressDetail(enterprise.getAddressDetail());
@@ -480,9 +474,9 @@ public class ComplaintDataSupport {
     }
 
     /**
-     * 保存单个处理
+     * 保存处理结果。
      * @param complaintId 投诉ID
-     * @param handlerId 处理者ID
+     * @param handlerId 处理员ID
      * @param result 处理结果
      */
     public void saveSingleHandle(Long complaintId, Long handlerId, String result) {
@@ -511,7 +505,7 @@ public class ComplaintDataSupport {
     }
 
     /**
-     * 转移投诉状态
+     * 转移投诉状态。
      * @param complaint 投诉
      * @param target 目标状态
      */
@@ -526,7 +520,7 @@ public class ComplaintDataSupport {
         return "CPT" + time + random;
     }
     /**
-     * 序列化图片URL列表
+     * 序列化图片URL列表。
      * @param imageUrls 图片URL列表
      * @return 序列化后的图片URL列表
      */
@@ -550,7 +544,7 @@ public class ComplaintDataSupport {
     }
 
     /**
-     * 解析图片URL列表
+     * 解析图片URL列表。
      * @param value 图片URL列表
      * @return 解析后的图片URL列表
      */
@@ -577,4 +571,7 @@ public class ComplaintDataSupport {
         return deleted != null && deleted == 1;
     }
 }
+
+
+
 

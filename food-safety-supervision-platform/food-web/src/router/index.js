@@ -16,7 +16,18 @@ const APP_TITLE = "Food Safety Platform";
 const AdminView = () => import("../views/AdminView.vue");
 const EnterpriseDetailView = () => import("../views/EnterpriseDetailView.vue");
 const EnterpriseRegisterView = () => import("../views/EnterpriseRegisterView.vue");
-const EnterpriseProfileView = () => import("../views/EnterpriseProfileView.vue");
+const EnterpriseDashboardView = () => import("../views/enterprise/EnterpriseDashboardView.vue");
+const EnterpriseInspectionDetailView = () => import("../views/enterprise/EnterpriseInspectionDetailView.vue");
+const EnterpriseInspectionsView = () => import("../views/enterprise/EnterpriseInspectionsView.vue");
+const EnterpriseProfileDetailView = () => import("../views/enterprise/EnterpriseProfileDetailView.vue");
+const EnterpriseProductDetailView = () => import("../views/enterprise/EnterpriseProductDetailView.vue");
+const EnterpriseProductFormView = () => import("../views/enterprise/EnterpriseProductFormView.vue");
+const EnterpriseProductsView = () => import("../views/enterprise/EnterpriseProductsView.vue");
+const EnterpriseProfileOverviewView = () => import("../views/enterprise/EnterpriseProfileOverviewView.vue");
+const EnterpriseRectificationDetailView = () => import("../views/enterprise/EnterpriseRectificationDetailView.vue");
+const EnterpriseRectificationSubmitSuccessView = () => import("../views/enterprise/EnterpriseRectificationSubmitSuccessView.vue");
+const EnterpriseRectificationSubmitView = () => import("../views/enterprise/EnterpriseRectificationSubmitView.vue");
+const EnterpriseRectificationsView = () => import("../views/enterprise/EnterpriseRectificationsView.vue");
 const LoginView = () => import("../views/LoginView.vue");
 const PublicBulletinDetailView = () => import("../views/PublicBulletinDetailView.vue");
 const PublicBulletinListView = () => import("../views/PublicBulletinListView.vue");
@@ -24,7 +35,7 @@ const PublicComplaintTrackView = () => import("../views/PublicComplaintTrackView
 const PublicComplaintView = () => import("../views/PublicComplaintView.vue");
 const PublicEnterpriseDetailView = () => import("../views/PublicEnterpriseDetailView.vue");
 const PublicEnterpriseListView = () => import("../views/PublicEnterpriseListView.vue");
-const PublicHomeView = () => import("../views/PublicHomeView.vue");
+const PublicHomeView = () => import("../views/public/PublicHomeView.vue");
 const PublicRegisterView = () => import("../views/PublicRegisterView.vue");
 const PublicSamplingResultDetailView = () => import("../views/PublicSamplingResultDetailView.vue");
 const PublicSamplingResultListView = () => import("../views/PublicSamplingResultListView.vue");
@@ -52,7 +63,7 @@ export function getDefaultRouteLocation(sessionOverride = null) {
   }
 
   if (hasEnterpriseSession(session)) {
-    return { name: "enterprise-profile" };
+    return { name: "enterprise-dashboard" };
   }
 
   if (hasPublicSession(session)) {
@@ -181,28 +192,82 @@ const routes = [
     meta: { title: "监管人员列表", requiresRole: "ADMIN", initialSection: "list" }
   },
   {
+    path: "/enterprise/dashboard",
+    name: "enterprise-dashboard",
+    component: EnterpriseDashboardView,
+    meta: { title: "企业工作台", requiresRole: "ENTERPRISE" }
+  },
+  {
     path: "/enterprise/profile",
     name: "enterprise-profile",
-    component: EnterpriseProfileView,
+    component: EnterpriseProfileOverviewView,
     meta: { title: "企业备案", requiresRole: "ENTERPRISE", initialSection: "profile" }
+  },
+  {
+    path: "/enterprise/profile/detail",
+    name: "enterprise-profile-detail",
+    component: EnterpriseProfileDetailView,
+    meta: { title: "备案详情", requiresRole: "ENTERPRISE" }
   },
   {
     path: "/enterprise/products",
     name: "enterprise-products",
-    component: EnterpriseProfileView,
+    component: EnterpriseProductsView,
     meta: { title: "产品档案", requiresRole: "ENTERPRISE", initialSection: "products" }
+  },
+  {
+    path: "/enterprise/products/new",
+    name: "enterprise-product-create",
+    component: EnterpriseProductFormView,
+    meta: { title: "新增产品", requiresRole: "ENTERPRISE" }
+  },
+  {
+    path: "/enterprise/products/:productId/edit",
+    name: "enterprise-product-edit",
+    component: EnterpriseProductFormView,
+    meta: { title: "编辑产品", requiresRole: "ENTERPRISE" }
+  },
+  {
+    path: "/enterprise/products/:productId",
+    name: "enterprise-product-detail",
+    component: EnterpriseProductDetailView,
+    meta: { title: "产品详情", requiresRole: "ENTERPRISE" }
   },
   {
     path: "/enterprise/inspections",
     name: "enterprise-inspections",
-    component: EnterpriseProfileView,
+    component: EnterpriseInspectionsView,
     meta: { title: "检查记录", requiresRole: "ENTERPRISE", initialSection: "inspections" }
+  },
+  {
+    path: "/enterprise/inspections/:inspectionId",
+    name: "enterprise-inspection-detail",
+    component: EnterpriseInspectionDetailView,
+    meta: { title: "检查记录详情", requiresRole: "ENTERPRISE" }
   },
   {
     path: "/enterprise/rectifications",
     name: "enterprise-rectifications",
-    component: EnterpriseProfileView,
+    component: EnterpriseRectificationsView,
     meta: { title: "整改任务", requiresRole: "ENTERPRISE", initialSection: "rectification" }
+  },
+  {
+    path: "/enterprise/rectifications/:rectificationId",
+    name: "enterprise-rectification-detail",
+    component: EnterpriseRectificationDetailView,
+    meta: { title: "整改任务详情", requiresRole: "ENTERPRISE" }
+  },
+  {
+    path: "/enterprise/rectifications/:rectificationId/submit",
+    name: "enterprise-rectification-submit",
+    component: EnterpriseRectificationSubmitView,
+    meta: { title: "提交整改", requiresRole: "ENTERPRISE" }
+  },
+  {
+    path: "/enterprise/rectifications/:rectificationId/success",
+    name: "enterprise-rectification-submit-success",
+    component: EnterpriseRectificationSubmitSuccessView,
+    meta: { title: "提交成功", requiresRole: "ENTERPRISE" }
   },
   {
     path: "/regulator/admin/enterprises",

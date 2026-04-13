@@ -47,7 +47,7 @@
         <div v-for="item in records" :key="item.id" class="list-row enterprise-row">
           <div class="primary-cell">
             <strong>{{ item.enterpriseName || "-" }}</strong>
-            <span>{{ item.addressDetail || "-" }}</span>
+            <span>{{ item.creditCode || item.addressDetail || "-" }}</span>
           </div>
           <span>{{ item.regionPathText || "-" }}</span>
           <span :class="['status-chip', `status-chip--${statusClass(item.status)}`]">

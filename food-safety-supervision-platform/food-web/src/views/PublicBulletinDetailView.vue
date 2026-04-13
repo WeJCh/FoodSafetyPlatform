@@ -21,20 +21,20 @@
         <div class="detail-head">
           <div>
             <div class="detail-badge">监管公告</div>
-            <h1>{{ detail.title || "-" }}</h1>
+            <h1>{{ detail.title || '-' }}</h1>
             <div class="detail-meta">
               <span>发布时间：{{ formatTime(detail.publishedTime) }}</span>
-              <span>发布人：{{ detail.publishedByName || "监管部门" }}</span>
+              <span>发布人：{{ detail.publishedByName || '监管部门' }}</span>
             </div>
           </div>
         </div>
 
         <div class="detail-summary">
-          <span>公告摘要</span>
-          <strong>{{ detail.summary || "暂无摘要" }}</strong>
+          <span>公告类别</span>
+          <strong>{{ formatCategory(detail.category) }}</strong>
         </div>
 
-        <article class="detail-content">{{ detail.content || "-" }}</article>
+        <article class="detail-content">{{ detail.content || '-' }}</article>
       </template>
     </section>
   </div>
@@ -52,6 +52,17 @@ const route = useRoute();
 const publicToken = getActiveSession()?.token || "";
 const loading = ref(false);
 const detail = ref(null);
+
+const categoryLabelMap = {
+  POLICY: "政策法规",
+  INSPECTION: "监督检查",
+  NOTICE: "消费提示",
+  OTHER: "其他公告"
+};
+
+function formatCategory(value) {
+  return categoryLabelMap[String(value || "").toUpperCase()] || "未分类";
+}
 
 async function handleLogout() {
   await performLogout();

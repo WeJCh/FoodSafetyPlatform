@@ -3,7 +3,7 @@
     <div class="bulletin-layout">
       <article class="bulletin-card bulletin-card--form">
         <div class="section-title">公告管理</div>
-        <p class="section-tip">区域管理员可创建草稿、发布公告和下线历史公告，供公众端查看。</p>
+        <p class="section-tip">监管管理员可创建草稿、选择公告类别并发布公告，发布后公众端即可查看。</p>
 
         <form class="bulletin-form" @submit.prevent="handleSubmit">
           <label>
@@ -11,8 +11,13 @@
             <input v-model.trim="form.title" maxlength="120" placeholder="请输入公告标题" />
           </label>
           <label>
-            公告摘要
-            <input v-model.trim="form.summary" maxlength="255" placeholder="可选，不填时自动截取正文摘要" />
+            公告类别
+            <select v-model="form.category">
+              <option value="">请选择公告类别</option>
+              <option v-for="item in categoryOptions" :key="item.value" :value="item.value">
+                {{ item.label }}
+              </option>
+            </select>
           </label>
           <label>
             公告正文
@@ -36,12 +41,21 @@
         <div class="bulletin-toolbar">
           <div>
             <div class="section-title">公告列表</div>
-            <p class="section-tip">只保留公告最小闭环，不扩展分类、置顶和附件。</p>
+            <p class="section-tip">可按关键词、类别、状态筛选公告草稿与已发布内容。</p>
           </div>
           <form class="bulletin-filter" @submit.prevent="handleSearch">
             <label>
               关键词
-              <input v-model.trim="filters.keyword" placeholder="标题或摘要" />
+              <input v-model.trim="filters.keyword" placeholder="标题或类别" />
+            </label>
+            <label>
+              公告类别
+              <select v-model="filters.category">
+                <option value="">全部类别</option>
+                <option v-for="item in categoryOptions" :key="item.value" :value="item.value">
+                  {{ item.label }}
+                </option>
+              </select>
             </label>
             <label>
               状态
@@ -53,7 +67,7 @@
               </select>
             </label>
             <button class="ghost" type="submit" :disabled="loading">
-              {{ loading ? "刷新中..." : "筛选" }}
+              {{ loading ? "筛选中..." : "筛选" }}
             </button>
           </form>
         </div>
@@ -61,6 +75,7 @@
         <div class="list-table">
           <div class="list-row list-header bulletin-header">
             <span>标题</span>
+            <span>类别</span>
             <span>状态</span>
             <span>发布时间</span>
             <span>发布人</span>
@@ -70,8 +85,9 @@
           <div v-for="item in records" :key="item.id" class="list-row bulletin-row">
             <div class="bulletin-title-cell">
               <strong>{{ item.title || "-" }}</strong>
-              <span>{{ item.summary || "未填写摘要" }}</span>
+              <span>{{ item.createdByName || "监管部门" }}</span>
             </div>
+            <span>{{ formatCategory(item.category) }}</span>
             <span :class="['status-chip', `status-chip--${statusClass(item.status)}`]">
               {{ formatStatus(item.status) }}
             </span>
@@ -139,13 +155,23 @@ const props = defineProps({
   }
 });
 
+const categoryOptions = [
+  { value: "POLICY", label: "政策法规" },
+  { value: "INSPECTION", label: "监督检查" },
+  { value: "NOTICE", label: "消费提示" },
+  { value: "OTHER", label: "其他公告" }
+];
+
+const categoryLabelMap = Object.fromEntries(categoryOptions.map((item) => [item.value, item.label]));
+
 const filters = reactive({
   keyword: "",
+  category: "",
   status: ""
 });
 const form = reactive({
   title: "",
-  summary: "",
+  category: "",
   content: ""
 });
 const status = reactive({
@@ -181,6 +207,10 @@ function formatStatus(value) {
   return map[value] || value || "-";
 }
 
+function formatCategory(value) {
+  return categoryLabelMap[String(value || "").toUpperCase()] || "未分类";
+}
+
 function statusClass(value) {
   if (value === "PUBLISHED") return "normal";
   if (value === "OFFLINE") return "warning";
@@ -190,7 +220,7 @@ function statusClass(value) {
 function resetForm() {
   editingId.value = null;
   form.title = "";
-  form.summary = "";
+  form.category = "";
   form.content = "";
 }
 
@@ -200,6 +230,7 @@ async function loadBulletins() {
   try {
     const data = await fetchBulletins(props.token, {
       keyword: filters.keyword,
+      category: filters.category,
       status: filters.status,
       page: page.value,
       size: size.value
@@ -235,7 +266,7 @@ async function handleEdit(item) {
     const detail = await fetchBulletinDetail(props.token, item.id);
     editingId.value = detail.id;
     form.title = detail.title || "";
-    form.summary = detail.summary || "";
+    form.category = detail.category || "";
     form.content = detail.content || "";
     setStatus("已载入公告内容，可继续编辑", "info");
   } catch (error) {
@@ -250,6 +281,10 @@ async function handleSubmit() {
     setStatus("公告标题不能为空", "error");
     return;
   }
+  if (!form.category) {
+    setStatus("请选择公告类别", "error");
+    return;
+  }
   if (!form.content.trim()) {
     setStatus("公告正文不能为空", "error");
     return;
@@ -258,7 +293,7 @@ async function handleSubmit() {
   setStatus("");
   const payload = {
     title: form.title,
-    summary: form.summary,
+    category: form.category,
     content: form.content
   };
   try {
@@ -361,6 +396,7 @@ onMounted(loadBulletins);
 }
 
 .bulletin-form input,
+.bulletin-form select,
 .bulletin-form textarea,
 .bulletin-filter input,
 .bulletin-filter select {
@@ -393,13 +429,13 @@ onMounted(loadBulletins);
 }
 
 .bulletin-filter {
-  grid-template-columns: minmax(180px, 220px) 140px auto;
+  grid-template-columns: minmax(180px, 220px) 140px 140px auto;
   align-items: end;
 }
 
 .bulletin-header,
 .bulletin-row {
-  --row-columns: 1.8fr 0.8fr 1fr 0.8fr 1fr;
+  --row-columns: 1.8fr 0.8fr 0.8fr 1fr 0.8fr 1fr;
 }
 
 .bulletin-title-cell {

@@ -31,8 +31,16 @@
 
         <div class="detail-grid">
           <div>
-            <span>许可证编号</span>
+            <span>食品经营许可证编号</span>
             <strong>{{ detail.licenseNo || "-" }}</strong>
+          </div>
+          <div>
+            <span>统一社会信用代码</span>
+            <strong>{{ detail.creditCode || "-" }}</strong>
+          </div>
+          <div>
+            <span>法定代表人</span>
+            <strong>{{ detail.legalRepresentative || "-" }}</strong>
           </div>
           <div>
             <span>负责人</span>
@@ -57,6 +65,27 @@
           <div>
             <span>最近更新时间</span>
             <strong>{{ formatTime(detail.updateTime) }}</strong>
+          </div>
+        </div>
+
+        <div class="attachment-panel">
+          <div class="attachment-panel__title">备案附件</div>
+          <div v-if="!detail.attachments || !detail.attachments.length" class="status info">
+            当前暂无备案附件。
+          </div>
+          <div v-else class="attachment-list">
+            <article
+              v-for="(item, index) in detail.attachments"
+              :key="`${item.type || 'attachment'}-${index}`"
+              class="attachment-item"
+            >
+              <div class="attachment-item__head">
+                <strong>{{ item.label || item.name || "备案附件" }}</strong>
+                <span>{{ item.uploadedAt ? formatTime(item.uploadedAt) : "已上传" }}</span>
+              </div>
+              <p>{{ item.name || "未命名附件" }}</p>
+              <a :href="item.url" target="_blank" rel="noreferrer">查看附件</a>
+            </article>
           </div>
         </div>
 
@@ -250,6 +279,59 @@ watch(() => route.params.enterpriseId, loadDetail);
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 18px 24px;
+}
+
+.attachment-panel {
+  margin-top: 24px;
+  padding: 18px;
+  border-radius: 14px;
+  background: linear-gradient(135deg, rgba(15, 23, 42, 0.03), rgba(13, 94, 166, 0.06));
+  border: 1px solid rgba(13, 94, 166, 0.12);
+}
+
+.attachment-panel__title {
+  font-size: 14px;
+  font-weight: 700;
+  margin-bottom: 12px;
+}
+
+.attachment-list {
+  display: grid;
+  gap: 12px;
+}
+
+.attachment-item {
+  padding: 14px 16px;
+  border-radius: 12px;
+  background: #fff;
+  border: 1px solid var(--stroke);
+}
+
+.attachment-item__head {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+}
+
+.attachment-item__head span {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.attachment-item p {
+  margin: 8px 0 10px;
+  color: var(--on-surface-variant);
+}
+
+.attachment-item a {
+  color: var(--primary);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.attachment-item a:hover {
+  text-decoration: underline;
 }
 
 .detail-grid div {

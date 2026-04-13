@@ -8,8 +8,12 @@ import com.mortal.regulation.operation.client.regulation.vo.InternalRegulatorIde
 import com.mortal.regulation.operation.common.OperationErrorMessages;
 import com.mortal.regulation.operation.entity.InspectionItem;
 import com.mortal.regulation.operation.entity.InspectionRecord;
+import com.mortal.regulation.operation.entity.InspectionTask;
+import com.mortal.regulation.operation.entity.RectificationTask;
 import com.mortal.regulation.operation.mapper.InspectionItemMapper;
 import com.mortal.regulation.operation.mapper.InspectionRecordMapper;
+import com.mortal.regulation.operation.mapper.InspectionTaskMapper;
+import com.mortal.regulation.operation.mapper.RectificationTaskMapper;
 import com.mortal.regulation.operation.service.InspectionRecordService;
 import com.mortal.regulation.operation.support.OperationMasterDataSupport;
 import com.mortal.regulation.operation.vo.InspectionItemVO;
@@ -28,13 +32,19 @@ public class InspectionRecordServiceImpl implements InspectionRecordService {
 
     private final InspectionRecordMapper inspectionRecordMapper;
     private final InspectionItemMapper inspectionItemMapper;
+    private final InspectionTaskMapper inspectionTaskMapper;
+    private final RectificationTaskMapper rectificationTaskMapper;
     private final OperationMasterDataSupport masterDataSupport;
 
     public InspectionRecordServiceImpl(InspectionRecordMapper inspectionRecordMapper,
                                        InspectionItemMapper inspectionItemMapper,
+                                       InspectionTaskMapper inspectionTaskMapper,
+                                       RectificationTaskMapper rectificationTaskMapper,
                                        OperationMasterDataSupport masterDataSupport) {
         this.inspectionRecordMapper = inspectionRecordMapper;
         this.inspectionItemMapper = inspectionItemMapper;
+        this.inspectionTaskMapper = inspectionTaskMapper;
+        this.rectificationTaskMapper = rectificationTaskMapper;
         this.masterDataSupport = masterDataSupport;
     }
 
@@ -137,7 +147,7 @@ public class InspectionRecordServiceImpl implements InspectionRecordService {
             throw new IllegalArgumentException(OperationErrorMessages.RECORD_NOT_FOUND);
         }
         InspectionRecordDetailVO detail = new InspectionRecordDetailVO();
-        detail.setRecord(toVO(record, loadEnterpriseNames(List.of(record))));
+        detail.setRecord(toVOs(List.of(record)).get(0));
         detail.setItems(loadItems(record.getId()));
         return detail;
     }
@@ -156,7 +166,7 @@ public class InspectionRecordServiceImpl implements InspectionRecordService {
             throw new IllegalArgumentException(OperationErrorMessages.INVALID_REGULATOR_ROLE);
         }
         InspectionRecordDetailVO detail = new InspectionRecordDetailVO();
-        detail.setRecord(toVO(record, loadEnterpriseNames(List.of(record))));
+        detail.setRecord(toVOs(List.of(record)).get(0));
         detail.setItems(loadItems(record.getId()));
         return detail;
     }
@@ -185,19 +195,42 @@ public class InspectionRecordServiceImpl implements InspectionRecordService {
             return List.of();
         }
         Map<Long, String> enterpriseNames = loadEnterpriseNames(records);
+        Map<Long, InternalEnterpriseDetailVO> enterpriseDetails = loadEnterpriseDetails(records);
+        Map<Long, InspectionTask> taskMap = loadTasks(records);
+        Map<Long, RectificationTask> rectificationMap = loadRectificationTasks(records);
         return records.stream()
-            .map(record -> toVO(record, enterpriseNames))
+            .map(record -> toVO(record, enterpriseNames, enterpriseDetails, taskMap, rectificationMap))
             .toList();
     }
 
-    private InspectionRecordVO toVO(InspectionRecord record, Map<Long, String> enterpriseNames) {
+    private InspectionRecordVO toVO(InspectionRecord record,
+                                    Map<Long, String> enterpriseNames,
+                                    Map<Long, InternalEnterpriseDetailVO> enterpriseDetails,
+                                    Map<Long, InspectionTask> taskMap,
+                                    Map<Long, RectificationTask> rectificationMap) {
+        InternalEnterpriseDetailVO enterprise = enterpriseDetails.get(record.getEnterpriseId());
+        InspectionTask task = record.getTaskId() == null ? null : taskMap.get(record.getTaskId());
+        RectificationTask rectification = rectificationMap.get(record.getId());
         InspectionRecordVO vo = new InspectionRecordVO();
         vo.setId(record.getId());
+        vo.setTaskId(record.getTaskId());
+        if (task != null) {
+            vo.setTaskNo(task.getTaskNo());
+            vo.setTaskTitle(task.getTaskTitle());
+        }
         vo.setEnterpriseId(record.getEnterpriseId());
         vo.setEnterpriseName(enterpriseNames.get(record.getEnterpriseId()));
+        if (enterprise != null) {
+            vo.setCreditCode(enterprise.getCreditCode());
+            vo.setEnterpriseAddress(enterprise.getAddressDetail());
+        }
         vo.setInspectionDate(record.getInspectionDate());
         vo.setResult(record.getResult());
         vo.setProblemDesc(record.getProblemDesc());
+        if (rectification != null) {
+            vo.setRectificationId(rectification.getId());
+            vo.setRectificationStatus(rectification.getStatus());
+        }
         vo.setUpdateTime(record.getUpdateTime());
         return vo;
     }
@@ -220,6 +253,54 @@ public class InspectionRecordServiceImpl implements InspectionRecordService {
             return Collections.emptyMap();
         }
         return masterDataSupport.loadEnterpriseNames(enterpriseIds);
+    }
+
+    private Map<Long, InternalEnterpriseDetailVO> loadEnterpriseDetails(List<InspectionRecord> records) {
+        List<Long> enterpriseIds = records.stream()
+            .map(InspectionRecord::getEnterpriseId)
+            .filter(Objects::nonNull)
+            .distinct()
+            .toList();
+        if (enterpriseIds.isEmpty()) {
+            return Collections.emptyMap();
+        }
+        return enterpriseIds.stream().collect(java.util.stream.Collectors.toMap(
+            id -> id,
+            masterDataSupport::requireEnterprise,
+            (a, b) -> a
+        ));
+    }
+
+    private Map<Long, InspectionTask> loadTasks(List<InspectionRecord> records) {
+        List<Long> taskIds = records.stream()
+            .map(InspectionRecord::getTaskId)
+            .filter(Objects::nonNull)
+            .distinct()
+            .toList();
+        if (taskIds.isEmpty()) {
+            return Collections.emptyMap();
+        }
+        return inspectionTaskMapper.selectList(new LambdaQueryWrapper<InspectionTask>()
+                .in(InspectionTask::getId, taskIds)
+                .eq(InspectionTask::getDeleted, 0))
+            .stream()
+            .collect(java.util.stream.Collectors.toMap(InspectionTask::getId, item -> item, (a, b) -> a));
+    }
+
+    private Map<Long, RectificationTask> loadRectificationTasks(List<InspectionRecord> records) {
+        List<Long> inspectionIds = records.stream()
+            .map(InspectionRecord::getId)
+            .filter(Objects::nonNull)
+            .distinct()
+            .toList();
+        if (inspectionIds.isEmpty()) {
+            return Collections.emptyMap();
+        }
+        return rectificationTaskMapper.selectList(new LambdaQueryWrapper<RectificationTask>()
+                .in(RectificationTask::getInspectionId, inspectionIds)
+                .eq(RectificationTask::getDeleted, 0))
+            .stream()
+            .collect(java.util.stream.Collectors.toMap(RectificationTask::getInspectionId, item -> item, (a, b) -> a));
     }
 
     private String normalize(String value) {

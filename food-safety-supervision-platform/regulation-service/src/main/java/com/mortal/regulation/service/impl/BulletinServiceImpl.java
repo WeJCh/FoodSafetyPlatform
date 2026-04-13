@@ -30,7 +30,6 @@ public class BulletinServiceImpl implements BulletinService {
     private static final String STATUS_PUBLISHED = "PUBLISHED";
     private static final String STATUS_OFFLINE = "OFFLINE";
     private static final int MAX_PAGE_SIZE = 20;
-    private static final int MAX_SUMMARY_LENGTH = 120;
 
     private final PublicBulletinMapper publicBulletinMapper;
     private final FoodRegulatorMapper foodRegulatorMapper;
@@ -42,7 +41,7 @@ public class BulletinServiceImpl implements BulletinService {
     }
 
     @Override
-    public PageResult<BulletinVO> listAdmin(Long userId, String keyword, String status, int page, int size) {
+    public PageResult<BulletinVO> listAdmin(Long userId, String keyword, String category, String status, int page, int size) {
         requireAdmin(userId);
         int safePage = Math.max(1, page);
         int safeSize = Math.max(1, Math.min(size, MAX_PAGE_SIZE));
@@ -52,7 +51,10 @@ public class BulletinServiceImpl implements BulletinService {
             wrapper.and(condition -> condition
                 .like(PublicBulletin::getTitle, keyword.trim())
                 .or()
-                .like(PublicBulletin::getSummary, keyword.trim()));
+                .like(PublicBulletin::getCategory, keyword.trim()));
+        }
+        if (StringUtils.hasText(category)) {
+            wrapper.eq(PublicBulletin::getCategory, normalizeCategory(category));
         }
         if (StringUtils.hasText(status)) {
             wrapper.eq(PublicBulletin::getStatus, normalize(status));
@@ -78,7 +80,7 @@ public class BulletinServiceImpl implements BulletinService {
         requireAdmin(userId);
         PublicBulletin bulletin = new PublicBulletin();
         bulletin.setTitle(dto.getTitle().trim());
-        bulletin.setSummary(resolveSummary(dto));
+        bulletin.setCategory(normalizeCategory(dto.getCategory()));
         bulletin.setContent(normalizeContent(dto.getContent()));
         bulletin.setStatus(STATUS_DRAFT);
         bulletin.setCreatedBy(userId);
@@ -93,7 +95,7 @@ public class BulletinServiceImpl implements BulletinService {
         requireAdmin(userId);
         PublicBulletin bulletin = requireBulletin(bulletinId);
         bulletin.setTitle(dto.getTitle().trim());
-        bulletin.setSummary(resolveSummary(dto));
+        bulletin.setCategory(normalizeCategory(dto.getCategory()));
         bulletin.setContent(normalizeContent(dto.getContent()));
         publicBulletinMapper.updateById(bulletin);
         PublicBulletin saved = publicBulletinMapper.selectById(bulletinId);
@@ -123,7 +125,7 @@ public class BulletinServiceImpl implements BulletinService {
     }
 
     @Override
-    public PageResult<BulletinVO> listPublic(String keyword, int page, int size) {
+    public PageResult<BulletinVO> listPublic(String keyword, String category, int page, int size) {
         int safePage = Math.max(1, page);
         int safeSize = Math.max(1, Math.min(size, MAX_PAGE_SIZE));
         LambdaQueryWrapper<PublicBulletin> wrapper = new LambdaQueryWrapper<PublicBulletin>()
@@ -133,7 +135,10 @@ public class BulletinServiceImpl implements BulletinService {
             wrapper.and(condition -> condition
                 .like(PublicBulletin::getTitle, keyword.trim())
                 .or()
-                .like(PublicBulletin::getSummary, keyword.trim()));
+                .like(PublicBulletin::getCategory, keyword.trim()));
+        }
+        if (StringUtils.hasText(category)) {
+            wrapper.eq(PublicBulletin::getCategory, normalizeCategory(category));
         }
         wrapper.orderByDesc(PublicBulletin::getPublishedTime).orderByDesc(PublicBulletin::getId);
         Page<PublicBulletin> pageInfo = publicBulletinMapper.selectPage(new Page<>(safePage, safeSize), wrapper);
@@ -194,7 +199,7 @@ public class BulletinServiceImpl implements BulletinService {
         BulletinVO vo = new BulletinVO();
         vo.setId(bulletin.getId());
         vo.setTitle(bulletin.getTitle());
-        vo.setSummary(bulletin.getSummary());
+        vo.setCategory(bulletin.getCategory());
         vo.setStatus(bulletin.getStatus());
         vo.setCreatedBy(bulletin.getCreatedBy());
         vo.setCreatedByName(resolveName(regulatorNameMap, bulletin.getCreatedBy()));
@@ -210,7 +215,7 @@ public class BulletinServiceImpl implements BulletinService {
         BulletinDetailVO vo = new BulletinDetailVO();
         vo.setId(bulletin.getId());
         vo.setTitle(bulletin.getTitle());
-        vo.setSummary(bulletin.getSummary());
+        vo.setCategory(bulletin.getCategory());
         vo.setContent(bulletin.getContent());
         vo.setStatus(bulletin.getStatus());
         vo.setCreatedBy(bulletin.getCreatedBy());
@@ -249,23 +254,12 @@ public class BulletinServiceImpl implements BulletinService {
         return deleted != null && deleted == 1;
     }
 
-    private String resolveSummary(BulletinSaveDTO dto) {
-        if (StringUtils.hasText(dto.getSummary())) {
-            return dto.getSummary().trim();
-        }
-        String normalizedContent = normalizeContent(dto.getContent());
-        if (!StringUtils.hasText(normalizedContent)) {
-            return "";
-        }
-        String collapsed = normalizedContent.replaceAll("\\s+", " ").trim();
-        if (collapsed.length() <= MAX_SUMMARY_LENGTH) {
-            return collapsed;
-        }
-        return collapsed.substring(0, MAX_SUMMARY_LENGTH);
-    }
-
     private String normalizeContent(String value) {
         return StringUtils.hasText(value) ? value.trim() : "";
+    }
+
+    private String normalizeCategory(String value) {
+        return StringUtils.hasText(value) ? value.trim().toUpperCase(Locale.ROOT) : null;
     }
 
     private String normalize(String value) {

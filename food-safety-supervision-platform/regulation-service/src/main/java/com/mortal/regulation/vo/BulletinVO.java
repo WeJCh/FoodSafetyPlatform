@@ -8,7 +8,7 @@ public class BulletinVO {
 
     private Long id;
     private String title;
-    private String summary;
+    private String category;
     private String status;
     private Long createdBy;
     private String createdByName;

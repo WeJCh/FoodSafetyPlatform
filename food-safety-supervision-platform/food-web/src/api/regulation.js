@@ -157,6 +157,7 @@ export function fetchPublicEnterpriseDetail(token, id) {
 export function fetchBulletins(token, params = {}) {
   const search = new URLSearchParams();
   if (params.keyword) search.append("keyword", params.keyword);
+  if (params.category) search.append("category", params.category);
   if (params.status) search.append("status", params.status);
   if (params.page) search.append("page", params.page);
   if (params.size) search.append("size", params.size);
@@ -223,6 +224,7 @@ export function offlineBulletin(token, id) {
 export function fetchPublicBulletins(token, params = {}) {
   const search = new URLSearchParams();
   if (params.keyword) search.append("keyword", params.keyword);
+  if (params.category) search.append("category", params.category);
   if (params.page) search.append("page", params.page);
   if (params.size) search.append("size", params.size);
   const query = search.toString();

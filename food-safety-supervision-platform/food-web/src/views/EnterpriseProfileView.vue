@@ -1,42 +1,45 @@
-﻿<template>
-  <div class="admin-shell enterprise-shell">
-    <aside class="admin-sidebar">
-      <div class="admin-brand">企业中心</div>
-      <div class="sidebar-meta">
-        <span>账号：{{ enterpriseUser.username }}</span>
-        <span>类型：{{ enterpriseUser.userType }}</span>
-      </div>
-      <nav class="admin-nav">
-        <button :class="{ active: section === 'profile' }" @click="section = 'profile'">
-          企业备案
-        </button>
-        <button :class="{ active: section === 'products' }" @click="handleProductsEnter">
-          产品档案
-        </button>
-        <button :class="{ active: section === 'inspections' }" @click="handleInspectionEnter">
-          检查记录
-        </button>
-        <button :class="{ active: section === 'rectification' }" @click="handleRectificationEnter">
-          整改任务
-        </button>
-      </nav>
-      <button class="ghost sidebar-ghost" type="button" @click="handleLogout">退出登录</button>
-    </aside>
+<template>
+  <EnterpriseShell>
+    <template #sidebar>
+      <EnterpriseSidebar
+        title="企业中心"
+        subtitle="食品安全企业端工作区"
+        :active-key="section"
+        :nav-items="sidebarNavItems"
+        @navigate="handleSidebarNavigate"
+        @logout="handleLogout"
+      />
+    </template>
 
-    <div class="admin-main">
-      <div class="dashboard-topbar">
-        <div class="dashboard-title">
-          <strong>企业用户工作台</strong>
-          <span>备案维护、产品档案、检查记录与整改跟进</span>
-        </div>
-        <div class="user-chip">
-          <span>{{ enterpriseUser.username }}</span>
-          <span>企业用户</span>
-        </div>
-      </div>
+    <template #topbar>
+      <EnterpriseTopbar
+        :search-placeholder="`在${currentSectionMeta.title}中搜索...`"
+        :username="enterpriseUser.username"
+        :role-label="enterpriseUser.userType || '企业用户'"
+      >
+        <template #actions>
+          <EnterpriseStatusChip :label="statusLabel" :tone="statusChipTone" />
+        </template>
+      </EnterpriseTopbar>
+    </template>
 
-      <div class="dashboard-content">
-        <div class="card dashboard-card">
+    <section class="enterprise-summary-grid">
+      <EnterpriseSummaryCard
+        v-for="card in summaryCards"
+        :key="card.eyebrow"
+        :eyebrow="card.eyebrow"
+        :value="card.value"
+        :title="card.title"
+        :description="card.description"
+        :tone="card.tone"
+      >
+        <template v-if="card.chipLabel" #meta>
+          <EnterpriseStatusChip :label="card.chipLabel" :tone="card.chipTone" small />
+        </template>
+      </EnterpriseSummaryCard>
+    </section>
+
+    <div class="card dashboard-card enterprise-workspace-card">
           <div v-if="section === 'profile'">
             <div class="section-title">企业备案</div>
 
@@ -59,8 +62,12 @@
                 <input v-model.trim="form.enterpriseName" required placeholder="请输入企业名称" />
               </label>
               <label>
-                许可证编号
-                <input v-model.trim="form.licenseNo" placeholder="请输入许可证编号" />
+                食品经营许可证编号
+                <input v-model.trim="form.licenseNo" placeholder="请输入食品经营许可证编号" />
+              </label>
+              <label>
+                统一社会信用代码
+                <input v-model.trim="form.creditCode" maxlength="18" placeholder="18 位统一社会信用代码（选填）" />
               </label>
               <label>
                 省份
@@ -170,18 +177,22 @@
                 </div>
               </form>
 
-              <div class="list-table product-table">
-                <div class="list-row list-header product-header">
-                  <span>产品名称</span>
-                  <span>类别</span>
-                  <span>规格</span>
-                  <span>状态</span>
-                  <span>更新时间</span>
-                  <span>操作</span>
-                </div>
-                <div v-if="!productRecords.length" class="list-empty">
-                  暂无产品档案
-                </div>
+              <EnterpriseListTable
+                class="product-table"
+                :has-data="productRecords.length > 0"
+                empty-title="暂无产品档案"
+                empty-description="新增产品后会展示在这里。"
+              >
+                <template #header>
+                  <div class="list-row list-header product-header">
+                    <span>产品名称</span>
+                    <span>类别</span>
+                    <span>规格</span>
+                    <span>状态</span>
+                    <span>更新时间</span>
+                    <span>操作</span>
+                  </div>
+                </template>
                 <div v-for="item in productRecords" :key="item.id" class="list-row product-row">
                   <div>
                     <div class="primary-text">{{ item.productName || "-" }}</div>
@@ -189,7 +200,11 @@
                   </div>
                   <span>{{ item.category || "-" }}</span>
                   <span>{{ item.specification || "-" }}</span>
-                  <span>{{ formatProductStatus(item.status) }}</span>
+                  <EnterpriseStatusChip
+                    :label="formatProductStatus(item.status)"
+                    :tone="item.status === 'ACTIVE' ? 'success' : 'neutral'"
+                    small
+                  />
                   <span>{{ formatTime(item.updateTime) }}</span>
                   <div class="action-buttons">
                     <button class="ghost" type="button" @click="handleEditProduct(item)">
@@ -200,55 +215,68 @@
                     </button>
                   </div>
                 </div>
-              </div>
+              </EnterpriseListTable>
             </template>
           </div>
 
           <div v-else-if="section === 'inspections'">
             <div class="section-title">检查记录</div>
-            <form class="filter-bar filter-bar--triple" @submit.prevent="handleInspectionSearch">
-              <label>
-                检查结果
-                <select v-model="inspectionFilters.result">
-                  <option value="">全部</option>
-                  <option value="PASS">合格</option>
-                  <option value="FAIL">不合格</option>
-                </select>
-              </label>
-              <label>
-                起始日期
-                <input v-model="inspectionFilters.startDate" type="date" />
-              </label>
-              <label>
-                截止日期
-                <input v-model="inspectionFilters.endDate" type="date" />
-              </label>
-              <button class="primary" type="submit" :disabled="inspectionLoading">
-                {{ inspectionLoading ? "查询中..." : "查询" }}
-              </button>
-            </form>
+            <EnterpriseFilterBar
+              title="检查记录筛选"
+              description="按检查结果与日期范围快速定位历史记录。"
+            >
+              <form class="filter-bar filter-bar--triple" @submit.prevent="handleInspectionSearch">
+                <label>
+                  检查结果
+                  <select v-model="inspectionFilters.result">
+                    <option value="">全部</option>
+                    <option value="PASS">合格</option>
+                    <option value="FAIL">不合格</option>
+                  </select>
+                </label>
+                <label>
+                  起始日期
+                  <input v-model="inspectionFilters.startDate" type="date" />
+                </label>
+                <label>
+                  截止日期
+                  <input v-model="inspectionFilters.endDate" type="date" />
+                </label>
+                <button class="primary" type="submit" :disabled="inspectionLoading">
+                  {{ inspectionLoading ? "查询中..." : "查询" }}
+                </button>
+              </form>
+            </EnterpriseFilterBar>
 
-            <div class="list-table inspection-table">
-              <div class="list-row list-header inspection-header">
-                <span>检查日期</span>
-                <span>检查结果</span>
-                <span>问题描述</span>
-                <span>更新时间</span>
-                <span>操作</span>
-              </div>
-              <div v-if="!inspectionRecords.length" class="list-empty">
-                暂无检查记录
-              </div>
+            <EnterpriseListTable
+              class="inspection-table"
+              :has-data="inspectionRecords.length > 0"
+              empty-title="暂无检查记录"
+              empty-description="检查记录同步后会展示在这里。"
+            >
+              <template #header>
+                <div class="list-row list-header inspection-header">
+                  <span>检查日期</span>
+                  <span>检查结果</span>
+                  <span>问题描述</span>
+                  <span>更新时间</span>
+                  <span>操作</span>
+                </div>
+              </template>
               <div v-for="record in inspectionRecords" :key="record.id" class="list-row inspection-row">
                 <span>{{ record.inspectionDate || "-" }}</span>
-                <span>{{ formatInspectionResult(record.result) }}</span>
+                <EnterpriseStatusChip
+                  :label="formatInspectionResult(record.result)"
+                  :tone="record.result === 'FAIL' ? 'danger' : 'success'"
+                  small
+                />
                 <div class="inspection-problem" :title="record.problemDesc || '-'">
                   {{ record.problemDesc || "-" }}
                 </div>
                 <span>{{ formatTime(record.updateTime) }}</span>
                 <button class="ghost" type="button" @click="openInspectionDetail(record)">查看详情</button>
               </div>
-            </div>
+            </EnterpriseListTable>
 
             <div class="pager">
               <span>共 {{ inspectionTotal }} 条，{{ inspectionPage }}/{{ inspectionPages }} 页</span>
@@ -315,39 +343,51 @@
 
           <div v-else>
             <div class="section-title">整改任务</div>
-            <form class="filter-bar filter-bar--triple" @submit.prevent="handleRectificationSearch">
-              <label>
-                状态
-                <select v-model="rectificationFilters.status">
-                  <option value="">全部</option>
-                  <option value="ONGOING">整改中</option>
-                  <option value="SUBMITTED">待复核</option>
-                  <option value="REWORK">打回重做</option>
-                  <option value="CONFIRMED">已确认</option>
-                </select>
-              </label>
-              <button class="primary" type="submit" :disabled="rectificationLoading">
-                {{ rectificationLoading ? "查询中..." : "查询" }}
-              </button>
-            </form>
+            <EnterpriseFilterBar
+              title="整改任务筛选"
+              description="跟踪当前整改状态与临近时限任务。"
+            >
+              <form class="filter-bar filter-bar--triple" @submit.prevent="handleRectificationSearch">
+                <label>
+                  状态
+                  <select v-model="rectificationFilters.status">
+                    <option value="">全部</option>
+                    <option value="ONGOING">整改中</option>
+                    <option value="SUBMITTED">待复核</option>
+                    <option value="REWORK">打回重做</option>
+                    <option value="CONFIRMED">已确认</option>
+                  </select>
+                </label>
+                <button class="primary" type="submit" :disabled="rectificationLoading">
+                  {{ rectificationLoading ? "查询中..." : "查询" }}
+                </button>
+              </form>
+            </EnterpriseFilterBar>
 
-            <div class="list-table">
-              <div class="list-row list-header rectification-header">
-                <span>整改任务</span>
-                <span>状态</span>
-                <span>整改时限</span>
-                <span>更新时间</span>
-                <span>操作</span>
-              </div>
-              <div v-if="!rectificationRecords.length" class="list-empty">
-                暂无整改任务
-              </div>
+            <EnterpriseListTable
+              :has-data="rectificationRecords.length > 0"
+              empty-title="暂无整改任务"
+              empty-description="监管侧派发后会在这里统一跟进。"
+            >
+              <template #header>
+                <div class="list-row list-header rectification-header">
+                  <span>整改任务</span>
+                  <span>状态</span>
+                  <span>整改时限</span>
+                  <span>更新时间</span>
+                  <span>操作</span>
+                </div>
+              </template>
               <div v-for="item in rectificationRecords" :key="item.id" class="list-row rectification-row">
                 <div class="rectification-desc" :title="item.rectificationDesc || '-'">
                   {{ item.rectificationDesc || "-" }}
                 </div>
                 <div class="rectification-status-cell">
-                  <span>{{ formatRectificationStatus(item.status) }}</span>
+                  <EnterpriseStatusChip
+                    :label="formatRectificationStatus(item.status)"
+                    :tone="item.status === 'CONFIRMED' ? 'success' : item.status === 'REWORK' ? 'danger' : item.status === 'SUBMITTED' ? 'warning' : 'neutral'"
+                    small
+                  />
                   <button
                     v-if="rectificationHasReworkMap[item.id]"
                     class="rework-flag"
@@ -427,7 +467,7 @@
                   <span v-else class="secondary-text">无需操作</span>
                 </div>
               </div>
-            </div>
+            </EnterpriseListTable>
 
             <div class="pager">
               <span>共 {{ rectificationTotal }} 条，{{ rectificationPage }}/{{ rectificationPages }} 页</span>
@@ -464,10 +504,8 @@
             />
           </div>
 
-        </div>
-      </div>
     </div>
-  </div>
+  </EnterpriseShell>
 </template>
 
 <script setup>
@@ -491,7 +529,14 @@ import {
   fetchRectificationDetail,
   submitMyRectification
 } from "../api/regulationOperation";
+import EnterpriseFilterBar from "../components/enterprise/EnterpriseFilterBar.vue";
+import EnterpriseListTable from "../components/enterprise/EnterpriseListTable.vue";
+import EnterpriseSidebar from "../components/enterprise/EnterpriseSidebar.vue";
+import EnterpriseStatusChip from "../components/enterprise/EnterpriseStatusChip.vue";
+import EnterpriseSummaryCard from "../components/enterprise/EnterpriseSummaryCard.vue";
+import EnterpriseTopbar from "../components/enterprise/EnterpriseTopbar.vue";
 import RectificationDetailModal from "../components/RectificationDetailModal.vue";
+import EnterpriseShell from "../layouts/EnterpriseShell.vue";
 import { formatTime } from "../utils/formatters";
 
 const router = useRouter();
@@ -548,6 +593,7 @@ const regionSelection = reactive({
 const form = reactive({
   enterpriseName: "",
   licenseNo: "",
+  creditCode: "",
   addressDetail: "",
   principal: "",
   principalPhone: ""
@@ -610,6 +656,46 @@ const productStatusMap = {
   ACTIVE: "启用",
   INACTIVE: "停用"
 };
+const sectionMetaMap = {
+  profile: {
+    title: "企业备案",
+    subtitle: "维护主体备案信息、负责人资料与属地行政区信息。"
+  },
+  products: {
+    title: "产品档案",
+    subtitle: "统一维护企业产品目录、规格状态与基础说明。"
+  },
+  inspections: {
+    title: "检查记录",
+    subtitle: "按时间与结果快速查看历史检查情况与明细。"
+  },
+  rectification: {
+    title: "整改任务",
+    subtitle: "跟进整改时限、上传凭证，并完成复核前的闭环提交。"
+  }
+};
+const sidebarNavItems = [
+  {
+    key: "profile",
+    label: "企业备案",
+    caption: "主体资料与审核状态"
+  },
+  {
+    key: "products",
+    label: "产品档案",
+    caption: "产品目录与状态维护"
+  },
+  {
+    key: "inspections",
+    label: "检查记录",
+    caption: "历史检查与明细回看"
+  },
+  {
+    key: "rectification",
+    label: "整改任务",
+    caption: "整改提报与复核跟进"
+  }
+];
 
 const statusLabel = computed(() => {
   if (!profileLoaded.value) return "未提交";
@@ -625,6 +711,43 @@ const statusTone = computed(() => {
   if (profile.approvalStatus === "REJECTED") return "error";
   return "pending";
 });
+const currentSectionMeta = computed(() => sectionMetaMap[section.value] || sectionMetaMap.profile);
+const statusChipTone = computed(() => {
+  if (statusTone.value === "success") return "success";
+  if (statusTone.value === "error") return "danger";
+  if (statusTone.value === "pending") return "warning";
+  return "neutral";
+});
+const summaryCards = computed(() => [
+  {
+    eyebrow: "Current Section",
+    value: currentSectionMeta.value.title,
+    title: "当前工作区域",
+    description: currentSectionMeta.value.subtitle,
+    tone: "highlight"
+  },
+  {
+    eyebrow: "Profile Status",
+    value: statusLabel.value,
+    title: "备案审核状态",
+    description: profileLoaded.value ? "企业主体资料已建立，可继续维护后续能力。" : "当前还没有提交企业备案记录。",
+    tone: statusChipTone.value,
+    chipLabel: statusLabel.value,
+    chipTone: statusChipTone.value
+  },
+  {
+    eyebrow: "Products",
+    value: String(productRecords.value.length || 0),
+    title: "产品档案数量",
+    description: profile.approvalStatus === "APPROVED" ? "已接入当前档案记录。" : "备案通过后可继续维护产品档案。"
+  },
+  {
+    eyebrow: "Rectifications",
+    value: String(rectificationTotal.value || rectificationRecords.value.length || 0),
+    title: "整改任务总数",
+    description: "当前页会保留既有整改提交与附件上传逻辑。"
+  }
+]);
 
 const submitLabel = computed(() => (profileLoaded.value ? "更新并重新提交" : "提交备案"));
 const productSubmitLabel = computed(() => (editingProductId.value ? "保存产品" : "新增产品"));
@@ -637,6 +760,7 @@ function setStatus(message, type = "info") {
 function resetForm(payload = {}) {
   form.enterpriseName = payload.enterpriseName || "";
   form.licenseNo = payload.licenseNo || "";
+  form.creditCode = payload.creditCode || "";
   form.addressDetail = payload.addressDetail || "";
   form.principal = payload.principal || "";
   form.principalPhone = payload.principalPhone || "";
@@ -706,6 +830,22 @@ async function handleSubmit() {
 async function handleLogout() {
   await performLogout();
   router.replace({ name: "login" }).catch(() => {});
+}
+
+async function handleSidebarNavigate(nextSection) {
+  if (nextSection === "products") {
+    await handleProductsEnter();
+    return;
+  }
+  if (nextSection === "inspections") {
+    await handleInspectionEnter();
+    return;
+  }
+  if (nextSection === "rectification") {
+    await handleRectificationEnter();
+    return;
+  }
+  section.value = "profile";
 }
 
 function formatRectificationStatus(value) {

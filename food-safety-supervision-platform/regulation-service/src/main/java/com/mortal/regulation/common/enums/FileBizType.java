@@ -7,6 +7,7 @@ import org.springframework.util.StringUtils;
  */
 public enum FileBizType {
     COMPLAINT("complaints"),
+    ENTERPRISE_PROFILE("enterprise-profiles"),
     RECTIFICATION("rectifications"),
     INSPECTION("inspections");
 

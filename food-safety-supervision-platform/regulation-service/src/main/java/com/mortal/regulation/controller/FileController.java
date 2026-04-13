@@ -65,7 +65,7 @@ public class FileController {
     private boolean isAllowedBizType(String userType, FileBizType bizType) {
         return switch (userType) {
             case "PUBLIC" -> FileBizType.COMPLAINT == bizType;
-            case "ENTERPRISE" -> FileBizType.RECTIFICATION == bizType;
+            case "ENTERPRISE" -> FileBizType.RECTIFICATION == bizType || FileBizType.ENTERPRISE_PROFILE == bizType;
             default -> false;
         };
     }

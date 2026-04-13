@@ -13,7 +13,7 @@ public class PublicBulletin {
     @TableId(type = IdType.AUTO)
     private Long id;
     private String title;
-    private String summary;
+    private String category;
     private String content;
     private String status;
     private Long createdBy;

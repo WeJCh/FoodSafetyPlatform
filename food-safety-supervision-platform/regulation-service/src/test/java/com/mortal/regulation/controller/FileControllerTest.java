@@ -76,6 +76,26 @@ class FileControllerTest {
     }
 
     @Test
+    void presign_shouldAllowEnterpriseProfileUploadForEnterprise() {
+        MinioFileService fileService = mock(MinioFileService.class);
+        JwtUserResolver jwtUserResolver = mock(JwtUserResolver.class);
+        FileController controller = new FileController(fileService, jwtUserResolver);
+        FilePresignRequest request = request("ENTERPRISE_PROFILE");
+        FilePresignVO responseBody = new FilePresignVO();
+        responseBody.setFileUrl("http://enterprise-profile-file");
+
+        when(jwtUserResolver.resolveUserId("Bearer enterprise-token")).thenReturn(2002L);
+        when(fileService.presignUpload(eq(2002L), eq(request), eq(FileBizType.ENTERPRISE_PROFILE))).thenReturn(responseBody);
+
+        ApiResponse<FilePresignVO> response = controller.presign("Bearer enterprise-token", "ENTERPRISE", request);
+
+        assertEquals(0, response.getCode());
+        assertNotNull(response.getData());
+        assertEquals("http://enterprise-profile-file", response.getData().getFileUrl());
+        verify(fileService).presignUpload(2002L, request, FileBizType.ENTERPRISE_PROFILE);
+    }
+
+    @Test
     void presign_shouldRejectInspectionUploadForEnterprise() {
         MinioFileService fileService = mock(MinioFileService.class);
         JwtUserResolver jwtUserResolver = mock(JwtUserResolver.class);

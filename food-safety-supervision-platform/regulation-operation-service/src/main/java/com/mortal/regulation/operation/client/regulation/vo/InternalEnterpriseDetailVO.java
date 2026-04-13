@@ -9,6 +9,8 @@ public class InternalEnterpriseDetailVO {
     private Long userId;
     private String enterpriseName;
     private String licenseNo;
+    private String creditCode;
+    private String legalRepresentative;
     private Long regionId;
     private Long addressId;
     private String addressDetail;
@@ -18,3 +20,4 @@ public class InternalEnterpriseDetailVO {
     private String status;
     private String approvalStatus;
 }
+

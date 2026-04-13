@@ -25,14 +25,14 @@ class PublicBulletinControllerTest {
         record.setTitle("食品安全提示");
         PageResult<BulletinVO> page = PageResult.of(List.of(record), 1, 1, 10);
 
-        when(service.listPublic("提示", 1, 10)).thenReturn(page);
+        when(service.listPublic("提示", "NOTICE", 1, 10)).thenReturn(page);
 
-        ApiResponse<PageResult<BulletinVO>> response = controller.list("提示", 1, 10);
+        ApiResponse<PageResult<BulletinVO>> response = controller.list("提示", "NOTICE", 1, 10);
 
         assertEquals(0, response.getCode());
         assertNotNull(response.getData());
         assertEquals("食品安全提示", response.getData().getRecords().get(0).getTitle());
-        verify(service).listPublic("提示", 1, 10);
+        verify(service).listPublic("提示", "NOTICE", 1, 10);
     }
 
     @Test

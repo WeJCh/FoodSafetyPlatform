@@ -198,31 +198,17 @@ async function loadDetail() {
 
 function handleBack() {
   const fromSection = typeof route.query.from === "string" ? route.query.from : "enterprises";
-  const isAdminRoute = String(route.name || "").startsWith("regulator-admin");
-  const routeNameMap = isAdminRoute
-    ? {
-        enterprises: "regulator-admin-enterprises",
-        approvals: "regulator-admin-approvals",
-        dispatch: "regulator-admin-dispatch",
-        sampling: "regulator-admin-sampling",
-        inspections: "regulator-admin-inspections",
-        complaints: "regulator-admin-complaints",
-        rectification: "regulator-admin-rectifications",
-        warnings: "regulator-admin-warnings",
-        bulletins: "regulator-admin-bulletins",
-        stats: "regulator-admin-stats"
-      }
-    : {
-        enterprises: "regulator-enforcer-enterprises",
-        tasks: "regulator-enforcer-tasks",
-        sampling: "regulator-enforcer-sampling",
-        inspections: "regulator-enforcer-inspections",
-        complaints: "regulator-enforcer-complaints",
-        rectification: "regulator-enforcer-rectifications",
-        warnings: "regulator-enforcer-warnings",
-        stats: "regulator-enforcer-stats"
-      };
-  const fallbackName = isAdminRoute ? "regulator-admin-enterprises" : "regulator-enforcer-enterprises";
+  const routeNameMap = {
+    enterprises: "regulator-enforcer-enterprises",
+    tasks: "regulator-enforcer-tasks",
+    sampling: "regulator-enforcer-sampling",
+    inspections: "regulator-enforcer-inspections",
+    complaints: "regulator-enforcer-complaints",
+    rectification: "regulator-enforcer-rectifications",
+    warnings: "regulator-enforcer-warnings",
+    stats: "regulator-enforcer-stats"
+  };
+  const fallbackName = "regulator-enforcer-enterprises";
   router.push({ name: routeNameMap[fromSection] || fallbackName }).catch(() => {});
 }
 

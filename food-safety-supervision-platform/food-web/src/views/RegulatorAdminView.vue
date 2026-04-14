@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div class="admin-shell regulator-shell">
     <aside class="admin-sidebar">
       <div class="admin-brand">监管中心</div>
@@ -8,15 +8,6 @@
         <span>职责：区域管理员</span>
       </div>
       <nav class="admin-nav">
-        <button :class="{ active: section === 'enterprises' }" @click="section = 'enterprises'">
-          企业管理
-        </button>
-        <button :class="{ active: section === 'approvals' }" @click="section = 'approvals'; loadPending()">
-          备案审核
-        </button>
-        <button :class="{ active: section === 'dispatch' }" @click="handleDispatchEnter">
-          任务派发
-        </button>
         <button :class="{ active: section === 'sampling' }" @click="handleSamplingEnter">
           抽检任务
         </button>
@@ -58,15 +49,6 @@
         <div class="card dashboard-card">
 
         <div class="sub-nav">
-          <button :class="{ active: section === 'enterprises' }" @click="section = 'enterprises'">
-            企业管理
-          </button>
-          <button :class="{ active: section === 'approvals' }" @click="section = 'approvals'; loadPending()">
-            备案审核
-          </button>
-          <button :class="{ active: section === 'dispatch' }" @click="handleDispatchEnter">
-            任务派发
-          </button>
           <button :class="{ active: section === 'sampling' }" @click="handleSamplingEnter">
             抽检任务
           </button>
@@ -90,354 +72,7 @@
           </button>
         </div>
 
-        <div v-if="section === 'enterprises'">
-          <div class="section-title">企业管理</div>
-          <form class="filter-bar" @submit.prevent="handleSearch">
-            <label>
-              企业名称
-              <input v-model.trim="filters.enterpriseName" placeholder="输入企业名称" />
-            </label>
-            <label>
-              企业状态
-              <select v-model="filters.status">
-                <option value="">全部</option>
-                <option value="NORMAL">正常</option>
-                <option value="KEY">重点监管</option>
-              </select>
-            </label>
-            <label>
-              审核状态
-              <select v-model="filters.approvalStatus">
-                <option value="">全部</option>
-                <option value="PENDING">待审核</option>
-                <option value="APPROVED">已通过</option>
-                <option value="REJECTED">已驳回</option>
-              </select>
-            </label>
-            <button class="primary" type="submit" :disabled="loading">
-              {{ loading ? "查询中..." : "查询" }}
-            </button>
-          </form>
-
-          <div class="list-table">
-            <div class="list-row list-header">
-              <span>企业名称</span>
-              <span>状态</span>
-              <span>审核</span>
-              <span>负责人</span>
-              <span>更新时间</span>
-              <span>操作</span>
-            </div>
-            <div v-if="!records.length" class="list-empty">
-              暂无企业数据
-            </div>
-            <div v-for="item in records" :key="item.id" class="list-row">
-              <span>{{ item.enterpriseName }}</span>
-              <span>{{ formatStatus(item.status) }}</span>
-              <span>{{ formatApprovalStatus(item.approvalStatus) }}</span>
-              <span>{{ item.principal || "-" }}</span>
-              <span>{{ formatTime(item.updateTime) }}</span>
-              <button class="ghost" type="button" @click="handleViewDetail(item)">查看详情</button>
-            </div>
-          </div>
-
-          <div class="pager">
-            <span>共 {{ total }} 条，{{ page }}/{{ pages }} 页</span>
-            <div class="pager-actions">
-              <button class="ghost" type="button" :disabled="page <= 1" @click="changePage(page - 1)">
-                上一页
-              </button>
-              <button class="ghost" type="button" :disabled="page >= pages" @click="changePage(page + 1)">
-                下一页
-              </button>
-            </div>
-          </div>
-        </div>
-
-        <div v-else-if="section === 'approvals'">
-          <div class="section-title">待审核企业</div>
-          <div class="approval-toolbar">
-            <label>
-              审核人姓名
-              <input v-model.trim="approvalForm.regulatorName" placeholder="可选填写" />
-            </label>
-            <label class="approval-comment">
-              审批意见
-              <input v-model.trim="approvalForm.comment" required placeholder="必填" />
-            </label>
-            <div class="approval-actions">
-              <button class="primary" type="button" :disabled="approvalLoading" @click="handleApproveBatch">
-                批量通过
-              </button>
-              <button class="ghost" type="button" :disabled="approvalLoading" @click="handleRejectBatch">
-                批量驳回
-              </button>
-            </div>
-          </div>
-
-          <div class="list-table">
-            <div class="list-row list-header approvals-header">
-              <label class="checkbox-cell">
-                <input type="checkbox" :checked="allSelected" @change="toggleSelectAll" />
-                <span>全选</span>
-              </label>
-              <span>企业</span>
-              <span>负责人</span>
-              <span>地址</span>
-              <span>操作</span>
-            </div>
-            <div v-if="!pendingRecords.length" class="list-empty">
-              暂无待审核企业
-            </div>
-            <div v-for="item in pendingRecords" :key="item.id" class="list-row approvals-row">
-              <label class="checkbox-cell">
-                <input type="checkbox" :value="item.id" v-model="selectedIds" />
-                <span>选择</span>
-              </label>
-              <div>
-                <div class="primary-text">{{ item.enterpriseName }}</div>
-                <div class="secondary-text">食品经营许可证编号：{{ item.licenseNo || "-" }} · 信用代码：{{ item.creditCode || "-" }}</div>
-              </div>
-              <div>
-                <div class="primary-text">{{ item.principal || "-" }}</div>
-                <div class="secondary-text">{{ item.principalPhone || "-" }}</div>
-              </div>
-              <div>
-                <div class="primary-text">{{ item.addressDetail || "-" }}</div>
-                <div class="secondary-text">区域：{{ formatRegionName(item.regionId) }}</div>
-              </div>
-              <div class="action-buttons">
-                <button class="ghost" type="button" @click="handleViewDetail(item)">查看详情</button>
-                <button class="primary" type="button" :disabled="approvalLoading" @click="handleApprove(item)">
-                  通过
-                </button>
-                <button class="ghost" type="button" :disabled="approvalLoading" @click="handleReject(item)">
-                  驳回
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div v-else-if="section === 'dispatch'">
-          <div class="section-title">任务派发</div>
-          <div class="dispatch-grid">
-            <div class="dispatch-form">
-              <div class="section-subtitle">创建检查任务</div>
-              <form class="dispatch-form-grid" @submit.prevent="handleCreateTask">
-                <label>
-                  选择企业
-                  <select v-model="dispatchForm.enterpriseId" :disabled="dispatchLoading">
-                    <option value="">请选择企业</option>
-                    <option v-for="item in dispatchEnterprises" :key="item.id" :value="item.id">
-                      {{ item.enterpriseName }}
-                    </option>
-                  </select>
-                </label>
-                <label>
-                  任务标题
-                  <input v-model.trim="dispatchForm.taskTitle" required placeholder="例：季度检查" />
-                </label>
-                <label class="span-all">
-                  任务描述
-                  <textarea v-model.trim="dispatchForm.taskDesc" rows="3" placeholder="任务要求说明"></textarea>
-                </label>
-                <label>
-                  优先级
-                  <select v-model="dispatchForm.priority">
-                    <option value="MEDIUM">中</option>
-                    <option value="LOW">低</option>
-                    <option value="HIGH">高</option>
-                  </select>
-                </label>
-                <label>
-                  截止时间
-                  <input v-model="dispatchForm.deadline" type="datetime-local" required />
-                </label>
-                <button class="primary dispatch-submit span-all" type="submit" :disabled="dispatchLoading">
-                  {{ dispatchLoading ? "创建中..." : "创建任务" }}
-                </button>
-              </form>
-            </div>
-
-            <div class="dispatch-list">
-              <div class="section-subtitle">任务列表</div>
-              <form class="filter-bar filter-bar--triple" @submit.prevent="handleDispatchSearch">
-                <label>
-                  企业名称
-                  <input v-model.trim="dispatchFilters.enterpriseName" placeholder="输入企业名称" />
-                </label>
-                <label>
-                  任务状态
-                  <select v-model="dispatchFilters.status">
-                    <option value="">全部</option>
-                    <option value="CREATED">待派发</option>
-                    <option value="ASSIGNED">已派发</option>
-                    <option value="IN_PROGRESS">执行中</option>
-                    <option value="COMPLETED">已完成</option>
-                    <option value="CLOSED">已归档</option>
-                  </select>
-                </label>
-                <button class="primary" type="submit" :disabled="dispatchTaskLoading">
-                  {{ dispatchTaskLoading ? "查询中..." : "查询" }}
-                </button>
-              </form>
-
-              <div class="list-table task-table">
-                <div class="list-row list-header task-header">
-                  <span>任务号</span>
-                  <span>企业</span>
-                  <span>优先级</span>
-                  <span>状态</span>
-                  <span>负责人</span>
-                  <span>截止时间</span>
-                  <span>操作</span>
-                </div>
-                <div v-if="!dispatchTasks.length" class="list-empty">
-                  暂无任务
-                </div>
-                <div v-for="task in dispatchTasks" :key="task.id" class="list-row task-row">
-                  <span>{{ task.taskNo }}</span>
-                  <span>{{ task.enterpriseName || "-" }}</span>
-                  <span>{{ formatTaskPriority(task.priority) }}</span>
-                  <span>{{ formatTaskStatus(task.status) }}</span>
-                  <span>{{ task.assignedToName || "-" }}</span>
-                  <span>{{ formatTime(task.deadline) }}</span>
-                  <div class="action-buttons">
-                    <button class="ghost" type="button" @click="openTaskDetail(task)">
-                      查看详情
-                    </button>
-                    <select
-                      v-if="isTaskAssignable(task)"
-                      v-model="taskAssignments[task.id]"
-                      :disabled="dispatchTaskLoading || isTaskDeadlineExceeded(task.deadline)"
-                    >
-                      <option value="">选择执法人员</option>
-                      <option
-                        v-for="item in getEnforcers(task.regionId)"
-                        :key="item.id"
-                        :value="item.id"
-                      >
-                        {{ item.name }}
-                      </option>
-                    </select>
-                    <button
-                      v-if="isTaskAssignable(task)"
-                      class="ghost"
-                      type="button"
-                      :disabled="dispatchTaskLoading || isTaskDeadlineExceeded(task.deadline)"
-                      @click="handleAssignTask(task)"
-                    >
-                      派发
-                    </button>
-                    <span
-                      v-if="isTaskAssignable(task) && isTaskDeadlineExceeded(task.deadline)"
-                      class="secondary-text"
-                    >
-                      已超期，不可派发
-                    </span>
-                    <button
-                      v-if="isTaskClosable(task)"
-                      class="ghost"
-                      type="button"
-                      :disabled="dispatchTaskLoading"
-                      @click="handleCloseTask(task)"
-                    >
-                      归档
-                    </button>
-                  </div>
-                </div>
-              </div>
-
-              <div class="pager">
-                <span>共 {{ dispatchTotal }} 条，{{ dispatchPage }}/{{ dispatchPages }} 页</span>
-                <div class="pager-actions">
-                  <button
-                    class="ghost"
-                    type="button"
-                    :disabled="dispatchPage <= 1"
-                    @click="changeDispatchPage(dispatchPage - 1)"
-                  >
-                    上一页
-                  </button>
-                  <button
-                    class="ghost"
-                    type="button"
-                    :disabled="dispatchPage >= dispatchPages"
-                    @click="changeDispatchPage(dispatchPage + 1)"
-                  >
-                    下一页
-                  </button>
-                </div>
-              </div>
-
-              <div v-if="detailTask" class="modal-mask" @click.self="closeTaskDetail">
-                <div class="modal-card task-detail-modal">
-                  <div class="modal-title">任务详情</div>
-                  <div class="task-detail-header">
-                    <span class="task-chip task-chip--status">{{ formatTaskStatus(detailTask.status) }}</span>
-                    <span class="task-chip task-chip--priority">{{ formatTaskPriority(detailTask.priority) }}</span>
-                    <span class="task-chip">{{ detailTask.taskNo || "-" }}</span>
-                  </div>
-                  <div class="task-detail-grid">
-                    <section class="task-detail-section">
-                      <div class="task-detail-section-title">企业信息</div>
-                      <div v-if="detailTaskLoading" class="task-detail-loading">加载企业信息中...</div>
-                      <div v-else class="task-detail-fields">
-                        <div class="task-detail-field">
-                          <span>企业名称</span>
-                          <strong>{{ detailTaskEnterprise?.enterpriseName || detailTask.enterpriseName || "-" }}</strong>
-                        </div>
-                        <div class="task-detail-field">
-                          <span>负责人姓名</span>
-                          <strong>{{ detailTaskEnterprise?.principal || "-" }}</strong>
-                        </div>
-                        <div class="task-detail-field">
-                          <span>所属区域</span>
-                          <strong>{{ detailTaskRegionName || "-" }}</strong>
-                        </div>
-                        <div class="task-detail-field task-detail-field--full">
-                          <span>详细地址</span>
-                          <strong>{{ detailTaskEnterprise?.addressDetail || "-" }}</strong>
-                        </div>
-                      </div>
-                    </section>
-                    <section class="task-detail-section">
-                      <div class="task-detail-section-title">任务信息</div>
-                      <div class="task-detail-fields">
-                        <div class="task-detail-field">
-                          <span>任务标题</span>
-                          <strong>{{ detailTask.taskTitle || "-" }}</strong>
-                        </div>
-                        <div class="task-detail-field">
-                          <span>当前执行人</span>
-                          <strong>{{ detailTask.assignedToName || "-" }}</strong>
-                        </div>
-                        <div class="task-detail-field">
-                          <span>截止时间</span>
-                          <strong>{{ formatTime(detailTask.deadline) }}</strong>
-                        </div>
-                        <div class="task-detail-field">
-                          <span>派发时间</span>
-                          <strong>{{ formatTime(detailTask.assignedTime) }}</strong>
-                        </div>
-                        <div class="task-detail-field task-detail-field--full">
-                          <span>任务描述</span>
-                          <strong>{{ detailTask.taskDesc || "暂无任务描述" }}</strong>
-                        </div>
-                      </div>
-                    </section>
-                  </div>
-                  <div class="modal-actions">
-                    <button class="ghost" type="button" @click="closeTaskDetail">关闭</button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div v-else-if="section === 'sampling'">
+        <div v-if="section === 'sampling'">
           <div class="section-title">抽检任务</div>
           <div class="dispatch-grid">
             <div class="dispatch-form">
@@ -1257,30 +892,21 @@ import { useRoute, useRouter } from "vue-router";
 import { acceptComplaint, fetchComplaints } from "../api/complaint";
 import { getActiveSession, performLogout } from "../session/authRuntime";
 import {
-  approveEnterprise,
-  approveEnterpriseBatch,
   fetchEnterpriseDetail,
   fetchEnterpriseProducts,
   fetchEligibleRegulators,
   fetchEnterprises,
-  fetchPendingEnterprises,
   fetchWarningRecordDetail,
   fetchWarningRecords,
   fetchRegionPath,
   processWarningRecord,
-  rejectEnterprise,
-  rejectEnterpriseBatch
 } from "../api/regulation";
 import {
   assignSamplingTask,
-  assignInspectionTask,
   closeSamplingTask,
-  closeInspectionTask,
   createSamplingTask,
-  createInspectionTask,
   fetchInspectionRecordDetail,
   fetchInspectionRecords,
-  fetchInspectionTasks,
   fetchSamplingTasks,
   offlineSamplingResult,
   publishSamplingResult,
@@ -1295,9 +921,7 @@ import SupervisionOverviewPanel from "../components/SupervisionOverviewPanel.vue
 import WarningStatsPanel from "../components/WarningStatsPanel.vue";
 import { formatByMap, formatTime } from "../utils/formatters";
 import {
-  approvalStatusMap,
   complaintStatusMap,
-  enterpriseStatusMap,
   warningActionMap,
   warningLevelMap,
   warningStatusMap
@@ -1311,9 +935,6 @@ const token = computed(() => session.value.token || "");
 
 function normalizeSection(value) {
   const sectionMap = new Set([
-    "enterprises",
-    "approvals",
-    "dispatch",
     "sampling",
     "inspections",
     "complaints",
@@ -1322,14 +943,11 @@ function normalizeSection(value) {
     "bulletins",
     "stats"
   ]);
-  return sectionMap.has(value) ? value : "enterprises";
+  return sectionMap.has(value) ? value : "sampling";
 }
 
 function getSectionRouteName(sectionValue) {
   const routeNameMap = {
-    enterprises: "regulator-admin-enterprises",
-    approvals: "regulator-admin-approvals",
-    dispatch: "regulator-admin-dispatch",
     sampling: "regulator-admin-sampling",
     inspections: "regulator-admin-inspections",
     complaints: "regulator-admin-complaints",
@@ -1338,7 +956,7 @@ function getSectionRouteName(sectionValue) {
     bulletins: "regulator-admin-bulletins",
     stats: "regulator-admin-stats"
   };
-  return routeNameMap[sectionValue] || "regulator-admin-enterprises";
+  return routeNameMap[sectionValue] || "regulator-admin-sampling";
 }
 
 function resolveCurrentSection() {
@@ -1347,44 +965,7 @@ function resolveCurrentSection() {
 
 const section = ref(resolveCurrentSection());
 
-const filters = reactive({
-  enterpriseName: "",
-  status: "",
-  approvalStatus: ""
-});
-
 const status = reactive({ message: "", type: "" });
-const loading = ref(false);
-const records = ref([]);
-const page = ref(1);
-const size = ref(8);
-const total = ref(0);
-const pages = ref(1);
-const approvalLoading = ref(false);
-const pendingRecords = ref([]);
-const approvalForm = reactive({ regulatorName: "", comment: "" });
-const selectedIds = ref([]);
-const regionNameMap = reactive({});
-const dispatchLoading = ref(false);
-const dispatchTaskLoading = ref(false);
-const dispatchEnterprises = ref([]);
-const dispatchForm = reactive({
-  enterpriseId: "",
-  taskTitle: "",
-  taskDesc: "",
-  priority: "MEDIUM",
-  deadline: ""
-});
-const dispatchFilters = reactive({
-  enterpriseName: "",
-  status: ""
-});
-const dispatchTasks = ref([]);
-const dispatchPage = ref(1);
-const dispatchSize = ref(8);
-const dispatchTotal = ref(0);
-const dispatchPages = ref(1);
-const taskAssignments = reactive({});
 const samplingLoading = ref(false);
 const samplingTaskLoading = ref(false);
 const samplingProductLoading = ref(false);
@@ -1413,10 +994,6 @@ const samplingDetailEnterprise = ref(null);
 const samplingDetailRegionName = ref("-");
 const samplingDetailLoading = ref(false);
 const enforcerMap = reactive({});
-const detailTask = ref(null);
-const detailTaskEnterprise = ref(null);
-const detailTaskRegionName = ref("-");
-const detailTaskLoading = ref(false);
 const inspectionFilters = reactive({
   enterpriseName: "",
   result: "",
@@ -1483,8 +1060,6 @@ function setStatus(message, type = "info") {
 }
 
 const sectionLabelMap = {
-  approvals: "备案审核",
-  dispatch: "任务派发",
   sampling: "抽检任务",
   inspections: "检查记录",
   rectification: "整改复核",
@@ -1531,14 +1106,6 @@ const rectificationStatusMap = {
   REWORK: "打回重做",
   CONFIRMED: "已确认"
 };
-function formatStatus(value) {
-  return formatByMap(value, enterpriseStatusMap);
-}
-
-function formatApprovalStatus(value) {
-  return formatByMap(value, approvalStatusMap);
-}
-
 function formatComplaintStatus(value) {
   return formatByMap(value, complaintStatusMap);
 }
@@ -1644,30 +1211,6 @@ async function jumpToWarningRectification(warning) {
   }
 }
 
-function formatRegionName(regionId) {
-  if (!regionId) return "-";
-  return regionNameMap[regionId] || `区域 ${regionId}`;
-}
-
-async function ensureRegionName(regionId) {
-  if (!regionId || regionNameMap[regionId]) {
-    return;
-  }
-  try {
-    const path = await fetchRegionPath(token.value, regionId);
-    regionNameMap[regionId] = Array.isArray(path) && path.length
-      ? path.map((item) => item.name).join("/")
-      : `区域 ${regionId}`;
-  } catch {
-    regionNameMap[regionId] = `区域 ${regionId}`;
-  }
-}
-
-async function handleDispatchEnter() {
-  section.value = "dispatch";
-  await loadDispatch();
-}
-
 async function handleSamplingEnter() {
   section.value = "sampling";
   await loadSampling();
@@ -1693,10 +1236,6 @@ async function handleWarningEnter() {
   await loadWarnings();
 }
 
-async function loadDispatch() {
-  await Promise.all([loadDispatchEnterprises(), loadDispatchTasks()]);
-}
-
 async function loadSampling() {
   await Promise.all([loadSamplingEnterprises(), loadSamplingTasks()]);
 }
@@ -1719,22 +1258,6 @@ async function loadComplaints() {
     setStatus(error.message || "加载投诉列表失败", "error");
   } finally {
     complaintLoading.value = false;
-  }
-}
-
-async function loadDispatchEnterprises() {
-  dispatchLoading.value = true;
-  try {
-    const data = await fetchEnterprises(token.value, {
-      approvalStatus: "APPROVED",
-      page: 1,
-      size: 100
-    });
-    dispatchEnterprises.value = data.records || [];
-  } catch (error) {
-    setStatus(error.message || "加载企业列表失败", "error");
-  } finally {
-    dispatchLoading.value = false;
   }
 }
 
@@ -1776,31 +1299,6 @@ async function loadSamplingProducts(enterpriseId) {
 async function handleSamplingEnterpriseChange() {
   samplingForm.productId = "";
   await loadSamplingProducts(samplingForm.enterpriseId);
-}
-
-async function loadDispatchTasks() {
-  dispatchTaskLoading.value = true;
-  setStatus("");
-  try {
-    const data = await fetchInspectionTasks(token.value, {
-      ...dispatchFilters,
-      page: dispatchPage.value,
-      size: dispatchSize.value
-    });
-    dispatchTasks.value = data.records || [];
-    dispatchTotal.value = data.total || 0;
-    dispatchPage.value = data.page || 1;
-    dispatchSize.value = data.size || dispatchSize.value;
-    dispatchPages.value = data.pages || 1;
-    const regionIds = dispatchTasks.value
-      .map((task) => task.regionId)
-      .filter((value) => value);
-    await Promise.all(regionIds.map((id) => ensureEnforcers(id)));
-  } catch (error) {
-    setStatus(error.message || "加载任务列表失败", "error");
-  } finally {
-    dispatchTaskLoading.value = false;
-  }
 }
 
 async function loadSamplingTasks() {
@@ -2077,16 +1575,6 @@ async function handleAcceptComplaint(item) {
   }
 }
 
-async function handleDispatchSearch() {
-  dispatchPage.value = 1;
-  await loadDispatchTasks();
-}
-
-async function changeDispatchPage(nextPage) {
-  dispatchPage.value = nextPage;
-  await loadDispatchTasks();
-}
-
 async function handleSamplingSearch() {
   samplingPage.value = 1;
   await loadSamplingTasks();
@@ -2095,42 +1583,6 @@ async function handleSamplingSearch() {
 async function changeSamplingPage(nextPage) {
   samplingPage.value = nextPage;
   await loadSamplingTasks();
-}
-
-async function handleCreateTask() {
-  if (!dispatchForm.enterpriseId) {
-    setStatus("请选择企业后再创建任务", "error");
-    return;
-  }
-  if (!dispatchForm.taskTitle.trim()) {
-    setStatus("请填写任务标题", "error");
-    return;
-  }
-  if (!dispatchForm.deadline) {
-    setStatus("请填写截止时间", "error");
-    return;
-  }
-  dispatchLoading.value = true;
-  setStatus("");
-  try {
-    await createInspectionTask(token.value, {
-      enterpriseId: dispatchForm.enterpriseId,
-      taskTitle: dispatchForm.taskTitle,
-      taskDesc: dispatchForm.taskDesc,
-      priority: dispatchForm.priority,
-      deadline: normalizeDeadline(dispatchForm.deadline)
-    });
-    setStatus("任务已创建", "success");
-    dispatchForm.taskTitle = "";
-    dispatchForm.taskDesc = "";
-    dispatchForm.priority = "MEDIUM";
-    dispatchForm.deadline = "";
-    await loadDispatchTasks();
-  } catch (error) {
-    setStatus(error.message || "创建任务失败", "error");
-  } finally {
-    dispatchLoading.value = false;
-  }
 }
 
 async function handleCreateSamplingTask() {
@@ -2191,19 +1643,11 @@ function getEnforcers(regionId) {
   return enforcerMap[regionId] || [];
 }
 
-function isTaskAssignable(task) {
-  return ["CREATED", "ASSIGNED"].includes(task.status);
-}
-
 function isTaskDeadlineExceeded(deadline) {
   if (!deadline) return false;
   const deadlineMs = new Date(deadline).getTime();
   if (Number.isNaN(deadlineMs)) return false;
   return deadlineMs <= Date.now();
-}
-
-function isTaskClosable(task) {
-  return task.status === "COMPLETED";
 }
 
 function isSamplingTaskAssignable(task) {
@@ -2212,21 +1656,6 @@ function isSamplingTaskAssignable(task) {
 
 function isSamplingTaskClosable(task) {
   return task.status === "COMPLETED";
-}
-
-async function handleCloseTask(task) {
-  if (!task?.id) return;
-  dispatchTaskLoading.value = true;
-  setStatus("", "info");
-  try {
-    await closeInspectionTask(token.value, task.id);
-    setStatus("任务已归档", "success");
-    await loadDispatchTasks();
-  } catch (error) {
-    setStatus(error.message || "关闭任务失败", "error");
-  } finally {
-    dispatchTaskLoading.value = false;
-  }
 }
 
 async function handleCloseSamplingTask(task) {
@@ -2241,29 +1670,6 @@ async function handleCloseSamplingTask(task) {
     setStatus(error.message || "归档抽检任务失败", "error");
   } finally {
     samplingTaskLoading.value = false;
-  }
-}
-
-async function handleAssignTask(task) {
-  if (isTaskDeadlineExceeded(task?.deadline)) {
-    setStatus("任务已超期，无法派发", "error");
-    return;
-  }
-  const regulatorId = taskAssignments[task.id];
-  if (!regulatorId) {
-    setStatus("请选择执法人员后再派发", "error");
-    return;
-  }
-  dispatchTaskLoading.value = true;
-  setStatus("");
-  try {
-    await assignInspectionTask(token.value, task.id, { regulatorId });
-    setStatus("任务已派发", "success");
-    await loadDispatchTasks();
-  } catch (error) {
-    setStatus(error.message || "任务派发失败", "error");
-  } finally {
-    dispatchTaskLoading.value = false;
   }
 }
 
@@ -2326,30 +1732,6 @@ async function handleOfflineSamplingResult(task) {
   }
 }
 
-async function openTaskDetail(task) {
-  if (!task) return;
-  detailTask.value = task;
-  detailTaskEnterprise.value = null;
-  detailTaskRegionName.value = "-";
-  if (!task.enterpriseId) return;
-
-  detailTaskLoading.value = true;
-  try {
-    const enterprise = await fetchEnterpriseDetail(token.value, task.enterpriseId);
-    detailTaskEnterprise.value = enterprise || null;
-    if (enterprise?.regionId) {
-      const path = await fetchRegionPath(token.value, enterprise.regionId).catch(() => []);
-      detailTaskRegionName.value = Array.isArray(path) && path.length
-        ? path.map((item) => item.name).join("/")
-        : "-";
-    }
-  } catch (error) {
-    setStatus(error.message || "加载企业信息失败", "error");
-  } finally {
-    detailTaskLoading.value = false;
-  }
-}
-
 async function openSamplingTaskDetail(task) {
   if (!task) return;
   samplingDetailTask.value = task;
@@ -2372,13 +1754,6 @@ async function openSamplingTaskDetail(task) {
   } finally {
     samplingDetailLoading.value = false;
   }
-}
-
-function closeTaskDetail() {
-  detailTask.value = null;
-  detailTaskEnterprise.value = null;
-  detailTaskRegionName.value = "-";
-  detailTaskLoading.value = false;
 }
 
 function closeSamplingTaskDetail() {
@@ -2407,168 +1782,6 @@ function closeInspectionDetail() {
 function normalizeDeadline(value) {
   if (!value) return null;
   return value.includes(":") && value.length === 16 ? `${value}:00` : value;
-}
-
-async function loadPending() {
-  approvalLoading.value = true;
-  setStatus("");
-  try {
-    const data = await fetchPendingEnterprises(token.value);
-    pendingRecords.value = Array.isArray(data) ? data : [];
-    selectedIds.value = [];
-    const regionIds = pendingRecords.value
-      .map((item) => item.regionId)
-      .filter((value) => value);
-    await Promise.all(regionIds.map((id) => ensureRegionName(id)));
-  } catch (error) {
-    setStatus(error.message || "加载待审核企业失败", "error");
-  } finally {
-    approvalLoading.value = false;
-  }
-}
-
-async function handleApprove(item) {
-  if (!approvalForm.comment.trim()) {
-    setStatus("审批意见必填", "error");
-    return;
-  }
-  approvalLoading.value = true;
-  setStatus("");
-  try {
-    await approveEnterprise(token.value, item.id, approvalForm);
-    setStatus("已通过企业备案", "success");
-    await loadPending();
-  } catch (error) {
-    setStatus(error.message || "审核通过失败", "error");
-  } finally {
-    approvalLoading.value = false;
-  }
-}
-
-async function handleReject(item) {
-  if (!approvalForm.comment.trim()) {
-    setStatus("审批意见必填", "error");
-    return;
-  }
-  approvalLoading.value = true;
-  setStatus("");
-  try {
-    await rejectEnterprise(token.value, item.id, approvalForm);
-    setStatus("已驳回企业备案", "success");
-    await loadPending();
-  } catch (error) {
-    setStatus(error.message || "驳回失败", "error");
-  } finally {
-    approvalLoading.value = false;
-  }
-}
-
-async function handleApproveBatch() {
-  if (!selectedIds.value.length) {
-    setStatus("请选择需要审批的企业", "error");
-    return;
-  }
-  if (!approvalForm.comment.trim()) {
-    setStatus("审批意见必填", "error");
-    return;
-  }
-  approvalLoading.value = true;
-  setStatus("");
-  try {
-    await approveEnterpriseBatch(token.value, {
-      ids: selectedIds.value,
-      comment: approvalForm.comment,
-      regulatorName: approvalForm.regulatorName
-    });
-    setStatus("批量通过成功", "success");
-    await loadPending();
-  } catch (error) {
-    setStatus(error.message || "批量通过失败", "error");
-  } finally {
-    approvalLoading.value = false;
-  }
-}
-
-async function handleRejectBatch() {
-  if (!selectedIds.value.length) {
-    setStatus("请选择需要审批的企业", "error");
-    return;
-  }
-  if (!approvalForm.comment.trim()) {
-    setStatus("审批意见必填", "error");
-    return;
-  }
-  approvalLoading.value = true;
-  setStatus("");
-  try {
-    await rejectEnterpriseBatch(token.value, {
-      ids: selectedIds.value,
-      comment: approvalForm.comment,
-      regulatorName: approvalForm.regulatorName
-    });
-    setStatus("批量驳回成功", "success");
-    await loadPending();
-  } catch (error) {
-    setStatus(error.message || "批量驳回失败", "error");
-  } finally {
-    approvalLoading.value = false;
-  }
-}
-
-const allSelected = computed(() => {
-  if (!pendingRecords.value.length) return false;
-  return selectedIds.value.length === pendingRecords.value.length;
-});
-
-function toggleSelectAll(event) {
-  if (event.target.checked) {
-    selectedIds.value = pendingRecords.value.map((item) => item.id);
-  } else {
-    selectedIds.value = [];
-  }
-}
-
-function handleViewDetail(item) {
-  router.push({
-    name: "regulator-admin-enterprise-detail",
-    params: { enterpriseId: item.id },
-    query: { from: section.value }
-  }).catch(() => {});
-}
-
-async function load() {
-  loading.value = true;
-  setStatus("");
-  try {
-    const data = await fetchEnterprises(token.value, {
-      ...filters,
-      page: page.value,
-      size: size.value
-    });
-    records.value = data.records || [];
-    const regionIds = records.value
-      .map((item) => item.regionId)
-      .filter((value) => value);
-    await Promise.all(regionIds.map((id) => ensureRegionName(id)));
-    total.value = data.total || 0;
-    page.value = data.page || 1;
-    size.value = data.size || size.value;
-    pages.value = data.pages || 1;
-  } catch (error) {
-    setStatus(error.message || "加载企业列表失败", "error");
-  } finally {
-    loading.value = false;
-  }
-}
-
-async function handleSearch() {
-  page.value = 1;
-  await load();
-}
-
-async function changePage(nextPage) {
-  page.value = nextPage;
-  await load();
 }
 
 async function handleLogout() {
@@ -2615,14 +1828,6 @@ function formatRectificationSla(item) {
 async function loadSection(sectionValue) {
   const normalized = normalizeSection(sectionValue);
 
-  if (normalized === "approvals") {
-    await loadPending();
-    return;
-  }
-  if (normalized === "dispatch") {
-    await loadDispatch();
-    return;
-  }
   if (normalized === "sampling") {
     await loadSampling();
     return;
@@ -2646,7 +1851,6 @@ async function loadSection(sectionValue) {
   if (normalized === "stats" || normalized === "bulletins") {
     return;
   }
-  await load();
 }
 
 onMounted(() => {
@@ -2751,11 +1955,6 @@ watch(section, (nextSection) => {
   --row-columns: 1.6fr 0.9fr 0.9fr 1fr 1.2fr 0.8fr;
 }
 
-.approvals-header,
-.approvals-row {
-  --row-columns: 0.7fr 1.1fr 1.1fr 1.4fr 1.6fr;
-}
-
 .primary-text {
   font-weight: 600;
 }
@@ -2822,19 +2021,6 @@ watch(section, (nextSection) => {
   margin-top: 8px;
 }
 
-.task-header,
-.task-row {
-  /* Use minmax to prevent long task numbers from overflowing into other columns. */
-  grid-template-columns:
-    minmax(200px, 1.6fr)
-    minmax(140px, 1.3fr)
-    minmax(72px, 0.7fr)
-    minmax(88px, 0.8fr)
-    minmax(96px, 0.9fr)
-    minmax(140px, 1.1fr)
-    minmax(200px, 1.6fr);
-}
-
 .sampling-header,
 .sampling-row {
   grid-template-columns:
@@ -2848,34 +2034,22 @@ watch(section, (nextSection) => {
     minmax(200px, 1.6fr);
 }
 
-.task-row > span,
-.task-row > div,
 .sampling-row > span,
 .sampling-row > div {
   min-width: 0;
 }
 
-.task-row > span,
 .sampling-row > span {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.task-row > span:first-child,
 .sampling-row > span:first-child {
   /* Task numbers are long and unbroken; allow wrapping to avoid overlap. */
   white-space: normal;
   word-break: break-all;
   line-height: 1.35;
-}
-
-.approval-toolbar {
-  --approval-columns: 1fr 2fr auto;
-}
-
-.approval-comment input {
-  width: 100%;
 }
 
 .complaint-header,
@@ -3239,19 +2413,7 @@ watch(section, (nextSection) => {
   color: var(--muted);
 }
 
-.checkbox-cell {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 12px;
-  color: var(--muted);
-}
-
 @media (max-width: 900px) {
-  .approval-toolbar {
-    grid-template-columns: 1fr;
-  }
-
   .dispatch-grid {
     grid-template-columns: 1fr;
   }
@@ -3265,8 +2427,6 @@ watch(section, (nextSection) => {
     width: 100%;
   }
 
-  .task-header,
-  .task-row,
   .sampling-header,
   .sampling-row {
     grid-template-columns: 1fr;
@@ -3284,14 +2444,6 @@ watch(section, (nextSection) => {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  .approvals-header,
-  .approvals-row {
-    --row-columns: 1fr;
-  }
-
-  .checkbox-cell span {
-    display: none;
-  }
 }
 
 @media (max-width: 1200px) {

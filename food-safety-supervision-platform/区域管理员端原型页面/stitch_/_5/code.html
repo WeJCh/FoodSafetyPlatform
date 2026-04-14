@@ -1,0 +1,420 @@
+<!DOCTYPE html>
+
+<html class="light" lang="zh-CN"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;600;700;800;900&amp;family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "tertiary-fixed": "#ffdbce",
+                    "surface-container-highest": "#e0e3e6",
+                    "inverse-primary": "#b0c6ff",
+                    "error": "#ba1a1a",
+                    "inverse-on-surface": "#eff1f4",
+                    "on-surface-variant": "#434651",
+                    "error-container": "#ffdad6",
+                    "on-background": "#191c1e",
+                    "on-secondary": "#ffffff",
+                    "background": "#f7f9fc",
+                    "on-error": "#ffffff",
+                    "secondary-fixed-dim": "#b9c6ed",
+                    "surface": "#f7f9fc",
+                    "on-primary": "#ffffff",
+                    "secondary-fixed": "#d9e2ff",
+                    "surface-bright": "#f7f9fc",
+                    "on-primary-fixed-variant": "#124394",
+                    "surface-container": "#eceef1",
+                    "surface-tint": "#335bae",
+                    "on-secondary-container": "#505d7e",
+                    "on-secondary-fixed": "#0c1a38",
+                    "on-tertiary-fixed-variant": "#7c2d06",
+                    "primary-fixed": "#d9e2ff",
+                    "on-primary-container": "#84a8ff",
+                    "on-error-container": "#93000a",
+                    "tertiary-fixed-dim": "#ffb599",
+                    "surface-container-lowest": "#ffffff",
+                    "on-secondary-fixed-variant": "#394666",
+                    "outline-variant": "#c3c6d3",
+                    "tertiary": "#4e1700",
+                    "primary-fixed-dim": "#b0c6ff",
+                    "secondary-container": "#c9d7fe",
+                    "secondary": "#515e7f",
+                    "primary-container": "#003a8c",
+                    "inverse-surface": "#2d3133",
+                    "surface-container-low": "#f2f4f7",
+                    "on-surface": "#191c1e",
+                    "tertiary-container": "#722600",
+                    "on-tertiary-fixed": "#370e00",
+                    "primary": "#002660",
+                    "surface-dim": "#d8dadd",
+                    "on-tertiary": "#ffffff",
+                    "on-tertiary-container": "#fb8d60",
+                    "surface-variant": "#e0e3e6",
+                    "outline": "#747783",
+                    "surface-container-high": "#e6e8eb",
+                    "on-primary-fixed": "#001945"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.125rem",
+                    "lg": "0.25rem",
+                    "xl": "0.5rem",
+                    "full": "0.75rem"
+            },
+            "fontFamily": {
+                    "headline": ["Public Sans"],
+                    "body": ["Inter"],
+                    "label": ["Inter"]
+            }
+          },
+        },
+      }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        body { font-family: 'Inter', sans-serif; }
+        h1, h2, h3 { font-family: 'Public Sans', sans-serif; }
+    </style>
+</head>
+<body class="bg-surface text-on-surface overflow-hidden">
+<!-- SideNavBar Anchor -->
+<aside class="bg-slate-900 h-full w-64 fixed left-0 top-0 shadow-xl flex flex-col h-screen z-50">
+<div class="p-6">
+<div class="text-lg font-bold text-white tracking-widest uppercase mb-1">Food Safety Oversight</div>
+<div class="text-[10px] text-slate-400 font-['Public_Sans'] tracking-widest uppercase opacity-60">The Digital Ledger</div>
+</div>
+<nav class="flex-1 px-4 space-y-1">
+<div class="flex items-center gap-3 px-3 py-2.5 rounded text-slate-400 hover:text-white hover:bg-slate-800/50 transition-colors duration-200 ease-in-out cursor-pointer group">
+<span class="material-symbols-outlined group-active:scale-95">dashboard</span>
+<span class="font-['Public_Sans'] text-sm tracking-tight">工作台</span>
+</div>
+<div class="flex items-center gap-3 px-3 py-2.5 rounded text-slate-400 hover:text-white hover:bg-slate-800/50 transition-colors duration-200 ease-in-out cursor-pointer group">
+<span class="material-symbols-outlined group-active:scale-95">business</span>
+<span class="font-['Public_Sans'] text-sm tracking-tight">企业管理</span>
+</div>
+<div class="flex items-center gap-3 px-3 py-2.5 rounded bg-blue-900/40 text-blue-100 border-l-4 border-blue-500 transition-colors duration-200 ease-in-out cursor-pointer group">
+<span class="material-symbols-outlined group-active:scale-95">fact_check</span>
+<span class="font-['Public_Sans'] text-sm tracking-tight">企业备案审核</span>
+</div>
+<div class="flex items-center gap-3 px-3 py-2.5 rounded text-slate-400 hover:text-white hover:bg-slate-800/50 transition-colors duration-200 ease-in-out cursor-pointer group">
+<span class="material-symbols-outlined group-active:scale-95">assignment</span>
+<span class="font-['Public_Sans'] text-sm tracking-tight">检查任务</span>
+</div>
+<div class="flex items-center gap-3 px-3 py-2.5 rounded text-slate-400 hover:text-white hover:bg-slate-800/50 transition-colors duration-200 ease-in-out cursor-pointer group">
+<span class="material-symbols-outlined group-active:scale-95">biotech</span>
+<span class="font-['Public_Sans'] text-sm tracking-tight">抽检任务</span>
+</div>
+<div class="flex items-center gap-3 px-3 py-2.5 rounded text-slate-400 hover:text-white hover:bg-slate-800/50 transition-colors duration-200 ease-in-out cursor-pointer group">
+<span class="material-symbols-outlined group-active:scale-95">assignment_return</span>
+<span class="font-['Public_Sans'] text-sm tracking-tight">投诉流转</span>
+</div>
+<div class="flex items-center gap-3 px-3 py-2.5 rounded text-slate-400 hover:text-white hover:bg-slate-800/50 transition-colors duration-200 ease-in-out cursor-pointer group">
+<span class="material-symbols-outlined group-active:scale-95">task_alt</span>
+<span class="font-['Public_Sans'] text-sm tracking-tight">整改复核</span>
+</div>
+<div class="flex items-center gap-3 px-3 py-2.5 rounded text-slate-400 hover:text-white hover:bg-slate-800/50 transition-colors duration-200 ease-in-out cursor-pointer group">
+<span class="material-symbols-outlined group-active:scale-95">warning</span>
+<span class="font-['Public_Sans'] text-sm tracking-tight">风险预警</span>
+</div>
+<div class="flex items-center gap-3 px-3 py-2.5 rounded text-slate-400 hover:text-white hover:bg-slate-800/50 transition-colors duration-200 ease-in-out cursor-pointer group">
+<span class="material-symbols-outlined group-active:scale-95">campaign</span>
+<span class="font-['Public_Sans'] text-sm tracking-tight">公告管理</span>
+</div>
+<div class="flex items-center gap-3 px-3 py-2.5 rounded text-slate-400 hover:text-white hover:bg-slate-800/50 transition-colors duration-200 ease-in-out cursor-pointer group">
+<span class="material-symbols-outlined group-active:scale-95">analytics</span>
+<span class="font-['Public_Sans'] text-sm tracking-tight">统计分析</span>
+</div>
+</nav>
+<div class="p-6 mt-auto border-t border-slate-800 flex items-center gap-3">
+<div class="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center text-white text-xs font-bold">AD</div>
+<div class="overflow-hidden">
+<p class="text-xs font-semibold text-white truncate">监管管理员</p>
+<p class="text-[10px] text-slate-500 truncate">ID: 884920</p>
+</div>
+</div>
+</aside>
+<!-- Main Content Area -->
+<main class="ml-64 flex-1 h-screen flex flex-col relative">
+<!-- TopNavBar Anchor -->
+<header class="fixed top-0 right-0 w-[calc(100%-16rem)] h-16 z-40 bg-white/80 backdrop-blur-md flex justify-between items-center px-8 border-none">
+<div class="flex items-center gap-8">
+<span class="text-xl font-black text-[#002660]">监管管理平台</span>
+<div class="flex gap-6">
+<a class="text-slate-500 font-['Inter'] text-xs font-semibold hover:text-[#003a8c] transition-all cursor-pointer" href="#">首页</a>
+<a class="text-[#002660] font-bold border-b-2 border-[#002660] font-['Inter'] text-xs cursor-pointer" href="#">工作流</a>
+</div>
+</div>
+<div class="flex items-center gap-6">
+<div class="flex items-center gap-4 text-slate-500">
+<span class="material-symbols-outlined cursor-pointer hover:text-[#003a8c] transition-all">notifications</span>
+<span class="material-symbols-outlined cursor-pointer hover:text-[#003a8c] transition-all">help_outline</span>
+<span class="material-symbols-outlined cursor-pointer hover:text-[#003a8c] transition-all">settings</span>
+</div>
+<div class="flex items-center gap-2">
+<span class="text-xs font-semibold text-[#002660]">监管管理员</span>
+<img alt="Administrator Profile" class="w-8 h-8 rounded-full bg-surface-container" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBJr7tMVsRJCKR8yacQcnHp4hHfQ1rCRc05MRHG9uXuxkR3dXSzHodKNMAjsyWi1-2CxmwB-vkMHY5gAB-1ztjCZzDDkZ0SDMIbEcBp6DmZhPkZG2vvevyvJKkNdwzfvzcdh1KK3BSxHuLpYQBFb0k-n2Hk0e3-t8E_0c8yEWiR-hoZprD0OZXsqZUOUaowccylOWvvD3PWXUEHM97n_-YSp1GdwPiq0md6pNouiduyz5DhLlBw3ws8YgyT3YbNhpT_RJd_c3RyMRo"/>
+</div>
+</div>
+</header>
+<!-- Content Canvas -->
+<div class="mt-16 p-8 overflow-y-auto bg-surface h-full">
+<!-- Page Header & Bulk Actions -->
+<div class="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-8">
+<div>
+<h1 class="text-2xl font-black text-primary flex items-center gap-3">
+                        企业备案审核
+                        <span class="px-2 py-0.5 bg-primary-container text-on-primary-container text-[10px] uppercase font-bold tracking-tighter rounded">Pending Only</span>
+</h1>
+<p class="text-on-surface-variant text-sm mt-1">当前有 12 个待处理的备案申请，请及时审核。</p>
+</div>
+<div class="flex items-center gap-3">
+<button class="flex items-center gap-2 bg-surface-container-high text-on-surface px-4 py-2 text-xs font-bold rounded-lg hover:bg-surface-container-highest transition-all group">
+<span class="material-symbols-outlined text-sm">close</span>
+                        批量驳回
+                    </button>
+<button class="flex items-center gap-2 bg-primary text-on-primary px-4 py-2 text-xs font-bold rounded-lg hover:shadow-lg transition-all">
+<span class="material-symbols-outlined text-sm">done_all</span>
+                        批量通过
+                    </button>
+</div>
+</div>
+<!-- Dashboard Grid -->
+<div class="grid grid-cols-1 gap-6">
+<!-- Audit Ledger Table -->
+<div class="bg-surface-container-lowest rounded-xl overflow-hidden shadow-sm">
+<div class="bg-surface-container-low px-6 py-4 flex justify-between items-center">
+<div class="flex items-center gap-2 text-primary">
+<span class="material-symbols-outlined text-lg">list_alt</span>
+<span class="text-sm font-bold uppercase tracking-wider">待审核名录</span>
+</div>
+<div class="text-[10px] text-on-surface-variant font-medium">更新于: 2024-05-20 14:30</div>
+</div>
+<div class="overflow-x-auto">
+<table class="w-full text-left border-collapse">
+<thead>
+<tr class="bg-surface-container-high">
+<th class="px-6 py-4 text-[10px] font-black text-on-surface-variant uppercase tracking-widest">
+<input class="rounded-sm border-outline-variant focus:ring-primary" type="checkbox"/>
+</th>
+<th class="px-6 py-4 text-[10px] font-black text-on-surface-variant uppercase tracking-widest">申请时间</th>
+<th class="px-6 py-4 text-[10px] font-black text-on-surface-variant uppercase tracking-widest">企业名称</th>
+<th class="px-6 py-4 text-[10px] font-black text-on-surface-variant uppercase tracking-widest">备案类型</th>
+<th class="px-6 py-4 text-[10px] font-black text-on-surface-variant uppercase tracking-widest">证照预览</th>
+<th class="px-6 py-4 text-[10px] font-black text-on-surface-variant uppercase tracking-widest">申请备注</th>
+<th class="px-6 py-4 text-[10px] font-black text-on-surface-variant uppercase tracking-widest text-right">操作动作</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-surface-container">
+<!-- Row 1 -->
+<tr class="hover:bg-surface-container-low transition-colors group">
+<td class="px-6 py-4"><input class="rounded-sm border-outline-variant" type="checkbox"/></td>
+<td class="px-6 py-4">
+<div class="text-xs font-mono font-semibold text-on-surface">2024-05-20</div>
+<div class="text-[10px] text-on-surface-variant">09:15:33</div>
+</td>
+<td class="px-6 py-4">
+<div class="text-xs font-bold text-primary">上海源味食品科技有限公司</div>
+<div class="text-[10px] text-on-surface-variant">统一社会信用代码: 9131011...</div>
+</td>
+<td class="px-6 py-4">
+<span class="inline-block px-2 py-1 bg-surface-container-high text-[10px] font-bold rounded">冷链运输资质</span>
+</td>
+<td class="px-6 py-4">
+<div class="relative w-12 h-12 bg-surface-container-high rounded-lg overflow-hidden border border-outline-variant cursor-zoom-in group/img">
+<img alt="License Preview" class="w-full h-full object-cover" data-alt="Close-up of a professional government business license document with official red seals and structured text on parchment paper" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCDv0UD2RFyooDpq47OZtnfv6HGKUw8tIQYh7MrTtSdlOsKp3Q7E22WA8MyZX9wP3vQkepKB6kSKHlj4gLMSJB1p1-GmMXgtJy92gb-9ZlAgyTDYPFtFZIxIFwUcxhlR9dJWdiDdNcWX_t3Lr8XuSS-TlwdxDM5K5RI1Qw8rwC4WjcUspL7GE6B4GAJXQP9sXlZ9kVGc6BS-s0y36Rfu40JZmNvoWOY6H0B2-3hGOy3NmZiPZA_N_ULmneWhn0DTl-tz72CsBrsb2U"/>
+<div class="absolute inset-0 bg-primary/20 opacity-0 group-hover/img:opacity-100 flex items-center justify-center transition-opacity">
+<span class="material-symbols-outlined text-white text-sm">visibility</span>
+</div>
+</div>
+</td>
+<td class="px-6 py-4">
+<p class="text-xs text-on-surface-variant max-w-xs truncate">由于业务扩展，新增5辆冷藏物流车，申请证书增项...</p>
+</td>
+<td class="px-6 py-4 text-right">
+<div class="flex justify-end gap-2">
+<button class="px-3 py-1 text-[10px] font-bold text-primary hover:bg-primary/5 rounded transition-all">详情</button>
+<button class="px-3 py-1 text-[10px] font-bold bg-error-container text-on-error-container rounded-sm hover:opacity-80">驳回</button>
+<button class="px-3 py-1 text-[10px] font-bold bg-[#e8f5e9] text-[#2e7d32] rounded-sm hover:opacity-80">通过</button>
+</div>
+</td>
+</tr>
+<!-- Row 2 -->
+<tr class="bg-surface-container-low/30 hover:bg-surface-container-low transition-colors group">
+<td class="px-6 py-4"><input class="rounded-sm border-outline-variant" type="checkbox"/></td>
+<td class="px-6 py-4">
+<div class="text-xs font-mono font-semibold text-on-surface">2024-05-19</div>
+<div class="text-[10px] text-on-surface-variant">16:42:10</div>
+</td>
+<td class="px-6 py-4">
+<div class="text-xs font-bold text-primary">杭州悦动生鲜配送有限公司</div>
+<div class="text-[10px] text-on-surface-variant">统一社会信用代码: 9133010...</div>
+</td>
+<td class="px-6 py-4">
+<span class="inline-block px-2 py-1 bg-surface-container-high text-[10px] font-bold rounded">餐饮服务B类</span>
+</td>
+<td class="px-6 py-4">
+<div class="relative w-12 h-12 bg-surface-container-high rounded-lg overflow-hidden border border-outline-variant cursor-zoom-in group/img">
+<img alt="License Preview" class="w-full h-full object-cover" data-alt="Official food safety certification stamp on a clean white document with blue ink signatures and official watermarks" src="https://lh3.googleusercontent.com/aida-public/AB6AXuB8BulfOZk9V2YJOceeqoY82X9DsjlsCjM-vkqti4eNhfNFBjlq8csjwVBbzmVarYZlpMOIgkxVDy2ydWBvSORoHk81jg5_oprh9WY2CprurfjGf4gl2YCedATPmkVWO3imjBcZ_te97G9WvgC6mWEvf6xWTZ45IwSok1Zg8N61GAOfCQTuTIzKbRNQmhD9ap2vMnDyRtRMLzurJMY_zHKAFT-mwJU9eoUn5zcMbvuNiyBUFiO8EmTDdXSLphQlVlUHf37aQztGUPE"/>
+<div class="absolute inset-0 bg-primary/20 opacity-0 group-hover/img:opacity-100 flex items-center justify-center transition-opacity">
+<span class="material-symbols-outlined text-white text-sm">visibility</span>
+</div>
+</div>
+</td>
+<td class="px-6 py-4">
+<p class="text-xs text-on-surface-variant max-w-xs truncate">新设网点备案，材料已补齐。</p>
+</td>
+<td class="px-6 py-4 text-right">
+<div class="flex justify-end gap-2">
+<button class="px-3 py-1 text-[10px] font-bold text-primary hover:bg-primary/5 rounded transition-all">详情</button>
+<button class="px-3 py-1 text-[10px] font-bold bg-error-container text-on-error-container rounded-sm hover:opacity-80">驳回</button>
+<button class="px-3 py-1 text-[10px] font-bold bg-[#e8f5e9] text-[#2e7d32] rounded-sm hover:opacity-80">通过</button>
+</div>
+</td>
+</tr>
+<!-- Row 3 -->
+<tr class="hover:bg-surface-container-low transition-colors group">
+<td class="px-6 py-4"><input class="rounded-sm border-outline-variant" type="checkbox"/></td>
+<td class="px-6 py-4">
+<div class="text-xs font-mono font-semibold text-on-surface">2024-05-19</div>
+<div class="text-[10px] text-on-surface-variant">10:05:55</div>
+</td>
+<td class="px-6 py-4">
+<div class="text-xs font-bold text-primary">北京宏利进出口贸易行</div>
+<div class="text-[10px] text-on-surface-variant">统一社会信用代码: 9111010...</div>
+</td>
+<td class="px-6 py-4">
+<span class="inline-block px-2 py-1 bg-surface-container-high text-[10px] font-bold rounded">进口备案</span>
+</td>
+<td class="px-6 py-4">
+<div class="relative w-12 h-12 bg-surface-container-high rounded-lg overflow-hidden border border-outline-variant cursor-zoom-in group/img">
+<img alt="License Preview" class="w-full h-full object-cover" data-alt="Close up view of a legal contract with many signatures and official government seals on high quality paper" src="https://lh3.googleusercontent.com/aida-public/AB6AXuC_jq-XVDUuz2CihICrKvUObMoZ6eU2v2jfGWNg3gYluFJKb6hH2YTletglvxo3ZoW38MgivM_kDcW2g0NiR_gusITtM3M9uC5pfiBBTUx183TwZfapkx42X3T_uMp9SfDxer-VukpPSwVPrO0xTXGwZeWMAVGNhYKm7FTYJG8gGHoW_384u_ZWl_D5UAzDOsqKOdZbHs8hRwQSi4Lu7bDdDvkH3kqM0h4DVhT4Gj7x0dhvT2QLr8w0BgrDFTZo7EidPo_Z7FWLf34"/>
+<div class="absolute inset-0 bg-primary/20 opacity-0 group-hover/img:opacity-100 flex items-center justify-center transition-opacity">
+<span class="material-symbols-outlined text-white text-sm">visibility</span>
+</div>
+</div>
+</td>
+<td class="px-6 py-4">
+<p class="text-xs text-on-surface-variant max-w-xs truncate">年度审核更新，无违规记录。</p>
+</td>
+<td class="px-6 py-4 text-right">
+<div class="flex justify-end gap-2">
+<button class="px-3 py-1 text-[10px] font-bold text-primary hover:bg-primary/5 rounded transition-all">详情</button>
+<button class="px-3 py-1 text-[10px] font-bold bg-error-container text-on-error-container rounded-sm hover:opacity-80">驳回</button>
+<button class="px-3 py-1 text-[10px] font-bold bg-[#e8f5e9] text-[#2e7d32] rounded-sm hover:opacity-80">通过</button>
+</div>
+</td>
+</tr>
+<!-- Row 4 -->
+<tr class="bg-surface-container-low/30 hover:bg-surface-container-low transition-colors group">
+<td class="px-6 py-4"><input class="rounded-sm border-outline-variant" type="checkbox"/></td>
+<td class="px-6 py-4">
+<div class="text-xs font-mono font-semibold text-on-surface">2024-05-18</div>
+<div class="text-[10px] text-on-surface-variant">14:20:00</div>
+</td>
+<td class="px-6 py-4">
+<div class="text-xs font-bold text-primary">深圳绿源生态农业园</div>
+<div class="text-[10px] text-on-surface-variant">统一社会信用代码: 9144030...</div>
+</td>
+<td class="px-6 py-4">
+<span class="inline-block px-2 py-1 bg-surface-container-high text-[10px] font-bold rounded">产地备案</span>
+</td>
+<td class="px-6 py-4">
+<div class="relative w-12 h-12 bg-surface-container-high rounded-lg overflow-hidden border border-outline-variant cursor-zoom-in group/img">
+<img alt="License Preview" class="w-full h-full object-cover" data-alt="Macro photo of textured security paper used for official government documents with subtle color fibers and intricate patterns" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBxcTT8BXY77V8momDaHmZoMczoPQcyGWInV-0DnWa5yDyIOGPzmMqDbNowJfAqyWiKNKw4zznWG3Ij66cQnQ-7DqBnHBzV0uInRZuL0FPILvjNBNExR0ihY_xnUtAL5EqvcOhHQK4Jd_x35EXWNr3BPSQ_61pqnMJvHvTuHmOFkAYgnBPe_RbMw7mZr65YHm2WvjaMNc3QMoVCIeTZyrvdPEKLPm4DpY_WuzeARxrydtXeef5lSm2rKSbbo5mw6ZLWqaFsLK6qRRg"/>
+<div class="absolute inset-0 bg-primary/20 opacity-0 group-hover/img:opacity-100 flex items-center justify-center transition-opacity">
+<span class="material-symbols-outlined text-white text-sm">visibility</span>
+</div>
+</div>
+</td>
+<td class="px-6 py-4">
+<p class="text-xs text-on-surface-variant max-w-xs truncate">新增有机蔬菜种植区域，申请实地考察备案。</p>
+</td>
+<td class="px-6 py-4 text-right">
+<div class="flex justify-end gap-2">
+<button class="px-3 py-1 text-[10px] font-bold text-primary hover:bg-primary/5 rounded transition-all">详情</button>
+<button class="px-3 py-1 text-[10px] font-bold bg-error-container text-on-error-container rounded-sm hover:opacity-80">驳回</button>
+<button class="px-3 py-1 text-[10px] font-bold bg-[#e8f5e9] text-[#2e7d32] rounded-sm hover:opacity-80">通过</button>
+</div>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="px-6 py-4 bg-surface-container-low border-t border-surface-container flex justify-between items-center">
+<div class="text-[10px] font-bold text-on-surface-variant uppercase tracking-widest">Page 1 of 3</div>
+<div class="flex gap-1">
+<button class="w-8 h-8 flex items-center justify-center rounded bg-surface-container-lowest text-on-surface hover:bg-surface-container-high transition-colors">
+<span class="material-symbols-outlined text-sm">chevron_left</span>
+</button>
+<button class="w-8 h-8 flex items-center justify-center rounded bg-primary text-on-primary text-[10px] font-bold">1</button>
+<button class="w-8 h-8 flex items-center justify-center rounded bg-surface-container-lowest text-on-surface hover:bg-surface-container-high transition-colors text-[10px] font-bold">2</button>
+<button class="w-8 h-8 flex items-center justify-center rounded bg-surface-container-lowest text-on-surface hover:bg-surface-container-high transition-colors text-[10px] font-bold">3</button>
+<button class="w-8 h-8 flex items-center justify-center rounded bg-surface-container-lowest text-on-surface hover:bg-surface-container-high transition-colors">
+<span class="material-symbols-outlined text-sm">chevron_right</span>
+</button>
+</div>
+</div>
+</div>
+<!-- Bento Style Secondary Panel -->
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+<!-- Audit Statistics -->
+<div class="lg:col-span-2 bg-primary p-6 rounded-xl relative overflow-hidden flex flex-col justify-between">
+<div class="absolute -right-12 -top-12 w-48 h-48 bg-primary-container rounded-full opacity-20 blur-3xl"></div>
+<div class="relative z-10">
+<h3 class="text-on-primary text-lg font-black tracking-tight mb-2 uppercase">审核效能看板</h3>
+<div class="grid grid-cols-3 gap-4 mt-4">
+<div class="bg-white/10 backdrop-blur-md p-4 rounded-lg border border-white/10">
+<div class="text-[10px] font-bold text-primary-container uppercase tracking-widest mb-1">今日待审</div>
+<div class="text-3xl font-black text-white">12</div>
+</div>
+<div class="bg-white/10 backdrop-blur-md p-4 rounded-lg border border-white/10">
+<div class="text-[10px] font-bold text-primary-container uppercase tracking-widest mb-1">平均耗时</div>
+<div class="text-3xl font-black text-white">4.2<span class="text-xs ml-1 font-normal opacity-60">h</span></div>
+</div>
+<div class="bg-white/10 backdrop-blur-md p-4 rounded-lg border border-white/10">
+<div class="text-[10px] font-bold text-primary-container uppercase tracking-widest mb-1">本周已结</div>
+<div class="text-3xl font-black text-white">156</div>
+</div>
+</div>
+</div>
+<div class="mt-6 flex items-center gap-2 text-[10px] font-bold text-on-primary/60 uppercase">
+<span class="material-symbols-outlined text-sm">trending_up</span>
+                            本月效率提升 15.4% 相比上月
+                        </div>
+</div>
+<!-- Guidelines Card -->
+<div class="bg-surface-container-highest p-6 rounded-xl border border-outline-variant/20 flex flex-col">
+<h3 class="text-primary text-xs font-black uppercase tracking-widest mb-4 flex items-center gap-2">
+<span class="material-symbols-outlined text-sm">gavel</span> 审核准则
+                        </h3>
+<ul class="space-y-3">
+<li class="flex items-start gap-2">
+<span class="w-1.5 h-1.5 rounded-full bg-primary mt-1 shrink-0"></span>
+<span class="text-xs text-on-surface-variant font-medium">证照图像必须清晰，公章完整。</span>
+</li>
+<li class="flex items-start gap-2">
+<span class="w-1.5 h-1.5 rounded-full bg-primary mt-1 shrink-0"></span>
+<span class="text-xs text-on-surface-variant font-medium">信用代码必须与全国企业信息库一致。</span>
+</li>
+<li class="flex items-start gap-2">
+<span class="w-1.5 h-1.5 rounded-full bg-primary mt-1 shrink-0"></span>
+<span class="text-xs text-on-surface-variant font-medium">经营范围需符合申请的备案类型。</span>
+</li>
+</ul>
+<div class="mt-auto pt-4 border-t border-outline-variant/30 text-center">
+<a class="text-[10px] font-black text-primary uppercase tracking-widest hover:underline" href="#">查看完整审核条例</a>
+</div>
+</div>
+</div>
+</div>
+</div>
+</main>
+</body></html>

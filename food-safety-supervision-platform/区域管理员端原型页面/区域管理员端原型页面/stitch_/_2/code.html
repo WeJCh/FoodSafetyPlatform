@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+
+<html class="light" lang="zh-CN"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>投诉流转中心 - Food Safety Oversight</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;700;900&amp;family=Inter:wght@400;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "tertiary-fixed": "#ffdbce",
+                        "surface-container-highest": "#e0e3e6",
+                        "inverse-primary": "#b0c6ff",
+                        "error": "#ba1a1a",
+                        "inverse-on-surface": "#eff1f4",
+                        "on-surface-variant": "#434651",
+                        "error-container": "#ffdad6",
+                        "on-background": "#191c1e",
+                        "on-secondary": "#ffffff",
+                        "background": "#f7f9fc",
+                        "on-error": "#ffffff",
+                        "secondary-fixed-dim": "#b9c6ed",
+                        "surface": "#f7f9fc",
+                        "on-primary": "#ffffff",
+                        "secondary-fixed": "#d9e2ff",
+                        "surface-bright": "#f7f9fc",
+                        "on-primary-fixed-variant": "#124394",
+                        "surface-container": "#eceef1",
+                        "surface-tint": "#335bae",
+                        "on-secondary-container": "#505d7e",
+                        "on-secondary-fixed": "#0c1a38",
+                        "on-tertiary-fixed-variant": "#7c2d06",
+                        "primary-fixed": "#d9e2ff",
+                        "on-primary-container": "#84a8ff",
+                        "on-error-container": "#93000a",
+                        "tertiary-fixed-dim": "#ffb599",
+                        "surface-container-lowest": "#ffffff",
+                        "on-secondary-fixed-variant": "#394666",
+                        "outline-variant": "#c3c6d3",
+                        "tertiary": "#4e1700",
+                        "primary-fixed-dim": "#b0c6ff",
+                        "secondary-container": "#c9d7fe",
+                        "secondary": "#515e7f",
+                        "primary-container": "#003a8c",
+                        "inverse-surface": "#2d3133",
+                        "surface-container-low": "#f2f4f7",
+                        "on-surface": "#191c1e",
+                        "tertiary-container": "#722600",
+                        "on-tertiary-fixed": "#370e00",
+                        "primary": "#002660",
+                        "surface-dim": "#d8dadd",
+                        "on-tertiary": "#ffffff",
+                        "on-tertiary-container": "#fb8d60",
+                        "surface-variant": "#e0e3e6",
+                        "outline": "#747783",
+                        "surface-container-high": "#e6e8eb",
+                        "on-primary-fixed": "#001945"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.125rem",
+                        "lg": "0.25rem",
+                        "xl": "0.5rem",
+                        "full": "0.75rem"
+                    },
+                    "fontFamily": {
+                        "headline": ["Public Sans"],
+                        "body": ["Inter"],
+                        "label": ["Inter"]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+            vertical-align: middle;
+        }
+        body { font-family: 'Inter', sans-serif; }
+        h1, h2, h3 { font-family: 'Public Sans', sans-serif; }
+    </style>
+</head>
+<body class="bg-surface text-on-surface">
+<!-- SideNavBar -->
+<aside class="bg-slate-900 dark:bg-black h-full w-64 fixed left-0 top-0 flex flex-col h-screen shadow-xl z-50">
+<div class="p-6">
+<div class="text-lg font-bold text-white tracking-widest uppercase mb-1">FOOD SAFETY OVERSIGHT</div>
+<div class="text-[10px] text-slate-500 tracking-widest uppercase">The Digital Ledger</div>
+</div>
+<nav class="flex-1 px-4 space-y-1 font-['Public_Sans'] text-sm tracking-tight overflow-y-auto">
+<a class="flex items-center px-4 py-3 text-slate-400 hover:text-white hover:bg-slate-800/50 transition-colors duration-200 ease-in-out rounded-lg" href="#">
+<span class="material-symbols-outlined mr-3" data-icon="dashboard">dashboard</span>工作台
+            </a>
+<a class="flex items-center px-4 py-3 text-slate-400 hover:text-white hover:bg-slate-800/50 transition-colors duration-200 ease-in-out rounded-lg" href="#">
+<span class="material-symbols-outlined mr-3" data-icon="business">business</span>企业管理
+            </a>
+<a class="flex items-center px-4 py-3 text-slate-400 hover:text-white hover:bg-slate-800/50 transition-colors duration-200 ease-in-out rounded-lg" href="#">
+<span class="material-symbols-outlined mr-3" data-icon="fact_check">fact_check</span>企业备案审核
+            </a>
+<a class="flex items-center px-4 py-3 text-slate-400 hover:text-white hover:bg-slate-800/50 transition-colors duration-200 ease-in-out rounded-lg" href="#">
+<span class="material-symbols-outlined mr-3" data-icon="assignment">assignment</span>检查任务
+            </a>
+<a class="flex items-center px-4 py-3 text-slate-400 hover:text-white hover:bg-slate-800/50 transition-colors duration-200 ease-in-out rounded-lg" href="#">
+<span class="material-symbols-outlined mr-3" data-icon="biotech">biotech</span>抽检任务
+            </a>
+<!-- Active State: 投诉流转 -->
+<a class="flex items-center px-4 py-3 bg-blue-900/40 text-blue-100 border-l-4 border-blue-500 transition-colors duration-200 ease-in-out rounded-r-lg" href="#">
+<span class="material-symbols-outlined mr-3" data-icon="assignment_return">assignment_return</span>投诉流转
+            </a>
+<a class="flex items-center px-4 py-3 text-slate-400 hover:text-white hover:bg-slate-800/50 transition-colors duration-200 ease-in-out rounded-lg" href="#">
+<span class="material-symbols-outlined mr-3" data-icon="task_alt">task_alt</span>整改复核
+            </a>
+<a class="flex items-center px-4 py-3 text-slate-400 hover:text-white hover:bg-slate-800/50 transition-colors duration-200 ease-in-out rounded-lg" href="#">
+<span class="material-symbols-outlined mr-3" data-icon="warning">warning</span>风险预警
+            </a>
+<a class="flex items-center px-4 py-3 text-slate-400 hover:text-white hover:bg-slate-800/50 transition-colors duration-200 ease-in-out rounded-lg" href="#">
+<span class="material-symbols-outlined mr-3" data-icon="campaign">campaign</span>公告管理
+            </a>
+<a class="flex items-center px-4 py-3 text-slate-400 hover:text-white hover:bg-slate-800/50 transition-colors duration-200 ease-in-out rounded-lg" href="#">
+<span class="material-symbols-outlined mr-3" data-icon="analytics">analytics</span>统计分析
+            </a>
+</nav>
+<div class="p-4 border-t border-slate-800">
+<div class="flex items-center gap-3">
+<img alt="Regulatory Administrator Avatar" class="w-10 h-10 rounded-full border-2 border-slate-700" data-alt="close-up professional portrait of a government official in a sharp suit with neutral background" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAZ-6Z3s_ypS7dtEsIc1tfHyeydAOIwrhoyf-olxtfkJrbEqR3Ke2zUae8vmMpxzOqinD0KExvIDt2XLfLlLcCImZX6H2rwbnumQ2b4IXZ1SfBmXlWAgdizu-GjMtB9VwTjnjoa9pB_AMJX3PpT10Gz7zFjxcZSYk8bUhlXsOV6BHXigBxl-XFGKIacc2mQhU1Ir5bSqYmND9k9IlxONLPUZAlP5bz819Q07CCggujGahISraw1AUqo2YT_faS09OYlQetfPZBMVCk"/>
+<div class="flex flex-col">
+<span class="text-sm font-bold text-white">管理员</span>
+<span class="text-xs text-slate-500">监管审计室</span>
+</div>
+</div>
+</div>
+</aside>
+<!-- TopNavBar -->
+<header class="fixed top-0 right-0 w-[calc(100%-16rem)] h-16 z-40 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md flex justify-between items-center px-8">
+<div class="flex items-center gap-6 flex-1">
+<div class="text-xl font-black text-[#002660] dark:text-blue-100">监管管理平台</div>
+<div class="relative w-72">
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">search</span>
+<input class="w-full pl-10 pr-4 py-1.5 bg-surface-container-high border-none rounded-lg text-xs focus:ring-1 focus:ring-primary" placeholder="搜索投诉编号或企业..." type="text"/>
+</div>
+</div>
+<div class="flex items-center gap-6">
+<div class="flex gap-4 font-['Inter'] text-xs font-semibold">
+<a class="text-slate-500 dark:text-slate-400 hover:text-[#003a8c] transition-all" href="#">首页</a>
+<a class="text-[#002660] font-bold border-b-2 border-[#002660]" href="#">工作流</a>
+</div>
+<div class="flex items-center gap-4 border-l border-slate-200 pl-6">
+<span class="material-symbols-outlined text-slate-500 cursor-pointer hover:opacity-100 opacity-90" data-icon="notifications">notifications</span>
+<span class="material-symbols-outlined text-slate-500 cursor-pointer hover:opacity-100 opacity-90" data-icon="help_outline">help_outline</span>
+<span class="material-symbols-outlined text-slate-500 cursor-pointer hover:opacity-100 opacity-90" data-icon="settings">settings</span>
+<div class="flex items-center gap-2 ml-2">
+<span class="text-xs font-bold text-[#002660]">监管管理员</span>
+</div>
+</div>
+</div>
+</header>
+<!-- Main Content Canvas -->
+<main class="ml-64 mt-16 p-8 min-h-screen">
+<!-- Page Header -->
+<div class="mb-8 flex justify-between items-end">
+<div>
+<h1 class="text-3xl font-bold text-primary tracking-tight">投诉流转中心</h1>
+<p class="text-on-surface-variant text-sm mt-1 font-body">受理、指派及反馈全流程数字化闭环管理系统</p>
+</div>
+<div class="flex gap-3">
+<button class="bg-surface-container-high text-on-surface px-4 py-2 text-sm font-semibold rounded-lg flex items-center gap-2 hover:bg-surface-container-highest transition-colors">
+<span class="material-symbols-outlined text-sm">download</span> 导出数据报告
+                </button>
+<button class="bg-primary text-on-primary px-4 py-2 text-sm font-semibold rounded-lg flex items-center gap-2 hover:bg-primary-container transition-colors shadow-sm">
+<span class="material-symbols-outlined text-sm">add_task</span> 手工录入投诉
+                </button>
+</div>
+</div>
+<!-- Filter Area -->
+<section class="bg-surface-container-low rounded-xl p-6 mb-8">
+<div class="grid grid-cols-1 md:grid-cols-4 gap-6">
+<div>
+<label class="block text-[10px] font-bold uppercase tracking-wider text-on-surface-variant mb-2">投诉类型</label>
+<select class="w-full bg-surface-container-lowest border-none text-sm rounded-lg py-2 focus:ring-1 focus:ring-primary">
+<option>全部类型</option>
+<option>食品变质</option>
+<option>虚假宣传</option>
+<option>卫生环境</option>
+<option>价格违规</option>
+</select>
+</div>
+<div>
+<label class="block text-[10px] font-bold uppercase tracking-wider text-on-surface-variant mb-2">当前状态</label>
+<div class="flex flex-wrap gap-1">
+<select class="w-full bg-surface-container-lowest border-none text-sm rounded-lg py-2 focus:ring-1 focus:ring-primary">
+<option>全部状态</option>
+<option>SUBMITTED (待受理)</option>
+<option>PENDING (挂起)</option>
+<option>ASSIGNED (已指派)</option>
+<option>PROCESSING (处理中)</option>
+<option>FEEDBACKED (已反馈)</option>
+<option>REJECTED (已驳回)</option>
+</select>
+</div>
+</div>
+<div>
+<label class="block text-[10px] font-bold uppercase tracking-wider text-on-surface-variant mb-2">紧急程度</label>
+<div class="flex gap-2">
+<button class="flex-1 py-2 text-xs font-bold rounded-lg border border-outline-variant hover:bg-primary-fixed transition-colors">低</button>
+<button class="flex-1 py-2 text-xs font-bold rounded-lg bg-orange-100 text-orange-800 border border-orange-200">中</button>
+<button class="flex-1 py-2 text-xs font-bold rounded-lg border border-outline-variant hover:bg-primary-fixed transition-colors">高</button>
+</div>
+</div>
+<div class="flex items-end">
+<button class="w-full bg-primary-container text-on-primary-container py-2 text-sm font-bold rounded-lg hover:brightness-90 transition-all">
+                        执行筛选
+                    </button>
+</div>
+</div>
+</section>
+<!-- Data Table (The Digital Ledger Layout) -->
+<div class="bg-surface-container-lowest rounded-xl overflow-hidden shadow-sm border border-surface-container-high">
+<table class="w-full text-left border-collapse">
+<thead>
+<tr class="bg-surface-container-high">
+<th class="px-6 py-4 text-[11px] font-bold uppercase tracking-widest text-on-surface-variant">投诉时间</th>
+<th class="px-6 py-4 text-[11px] font-bold uppercase tracking-widest text-on-surface-variant">编号</th>
+<th class="px-6 py-4 text-[11px] font-bold uppercase tracking-widest text-on-surface-variant">涉及企业</th>
+<th class="px-6 py-4 text-[11px] font-bold uppercase tracking-widest text-on-surface-variant w-1/4">投诉简述</th>
+<th class="px-6 py-4 text-[11px] font-bold uppercase tracking-widest text-on-surface-variant">责任人</th>
+<th class="px-6 py-4 text-[11px] font-bold uppercase tracking-widest text-on-surface-variant">状态</th>
+<th class="px-6 py-4 text-[11px] font-bold uppercase tracking-widest text-on-surface-variant text-right">操作项</th>
+</tr>
+</thead>
+<tbody class="text-sm font-body">
+<!-- Row 1 -->
+<tr class="hover:bg-surface-container-low transition-colors border-b border-surface-container">
+<td class="px-6 py-5 whitespace-nowrap text-on-surface-variant">2023-10-24 14:20</td>
+<td class="px-6 py-5 font-mono font-bold text-primary">CMP-8902-X</td>
+<td class="px-6 py-5 font-bold">鲜享餐饮连锁有限公司</td>
+<td class="px-6 py-5">
+<p class="truncate max-w-xs text-on-surface" title="在购买的速冻饺子中发现异物，且包装标识生产日期模糊不清。">在购买的速冻饺子中发现异物，且包装标识...</p>
+</td>
+<td class="px-6 py-5 flex items-center gap-2">
+<div class="w-6 h-6 rounded-full bg-slate-200 flex items-center justify-center text-[10px]">张</div>
+<span>张建国</span>
+</td>
+<td class="px-6 py-5">
+<span class="inline-flex items-center px-2 py-0.5 rounded-sm bg-blue-100 text-blue-800 text-[10px] font-bold uppercase tracking-tighter">SUBMITTED</span>
+</td>
+<td class="px-6 py-5 text-right space-x-2">
+<button class="text-primary font-bold hover:underline">受理</button>
+<button class="text-on-surface-variant font-bold hover:text-primary">指派</button>
+</td>
+</tr>
+<!-- Row 2 -->
+<tr class="bg-surface-container-low hover:bg-surface-container transition-colors border-b border-surface-container">
+<td class="px-6 py-5 whitespace-nowrap text-on-surface-variant">2023-10-24 09:15</td>
+<td class="px-6 py-5 font-mono font-bold text-primary">CMP-7741-A</td>
+<td class="px-6 py-5 font-bold">惠民生鲜超市 (长春路店)</td>
+<td class="px-6 py-5">
+<p class="truncate max-w-xs text-on-surface" title="超市售卖过期牛奶，多名消费者反馈饮用后出现腹泻症状。">超市售卖过期牛奶，多名消费者反馈饮用后...</p>
+</td>
+<td class="px-6 py-5 flex items-center gap-2">
+<div class="w-6 h-6 rounded-full bg-slate-200 flex items-center justify-center text-[10px]">李</div>
+<span>李明华</span>
+</td>
+<td class="px-6 py-5">
+<span class="inline-flex items-center px-2 py-0.5 rounded-sm bg-orange-100 text-orange-800 text-[10px] font-bold uppercase tracking-tighter">PROCESSING</span>
+</td>
+<td class="px-6 py-5 text-right space-x-2">
+<button class="text-primary font-bold hover:underline">反馈</button>
+<button class="text-on-surface-variant font-bold hover:text-primary">详情</button>
+</td>
+</tr>
+<!-- Row 3 -->
+<tr class="hover:bg-surface-container-low transition-colors border-b border-surface-container">
+<td class="px-6 py-5 whitespace-nowrap text-on-surface-variant">2023-10-23 18:40</td>
+<td class="px-6 py-5 font-mono font-bold text-primary">CMP-6650-D</td>
+<td class="px-6 py-5 font-bold">香溢食品加工厂</td>
+<td class="px-6 py-5">
+<p class="truncate max-w-xs text-on-surface" title="疑似无证经营添加剂，生产车间异味严重，废水直排。">疑似无证经营添加剂，生产车间异味严重...</p>
+</td>
+<td class="px-6 py-5 flex items-center gap-2 text-slate-400 italic">
+<span>未分配</span>
+</td>
+<td class="px-6 py-5">
+<span class="inline-flex items-center px-2 py-0.5 rounded-sm bg-green-100 text-green-800 text-[10px] font-bold uppercase tracking-tighter">FEEDBACKED</span>
+</td>
+<td class="px-6 py-5 text-right space-x-2">
+<button class="text-on-surface-variant font-bold hover:text-primary">归档</button>
+</td>
+</tr>
+<!-- Row 4 -->
+<tr class="bg-surface-container-low hover:bg-surface-container transition-colors border-b border-surface-container">
+<td class="px-6 py-5 whitespace-nowrap text-on-surface-variant">2023-10-23 11:30</td>
+<td class="px-6 py-5 font-mono font-bold text-primary">CMP-5521-E</td>
+<td class="px-6 py-5 font-bold">快乐炸鸡加盟店</td>
+<td class="px-6 py-5">
+<p class="truncate max-w-xs text-on-surface" title="投诉人称食用后呕吐，但拒绝提供消费凭证及医疗证明。">投诉人称食用后呕吐，但拒绝提供消费凭证...</p>
+</td>
+<td class="px-6 py-5 flex items-center gap-2">
+<div class="w-6 h-6 rounded-full bg-slate-200 flex items-center justify-center text-[10px]">王</div>
+<span>王思齐</span>
+</td>
+<td class="px-6 py-5">
+<span class="inline-flex items-center px-2 py-0.5 rounded-sm bg-error-container text-on-error-container text-[10px] font-bold uppercase tracking-tighter">REJECTED</span>
+</td>
+<td class="px-6 py-5 text-right space-x-2">
+<button class="text-primary font-bold hover:underline">驳回理由</button>
+</td>
+</tr>
+</tbody>
+</table>
+<!-- Pagination Overlay -->
+<div class="px-6 py-4 bg-surface-container-low flex justify-between items-center text-xs text-on-surface-variant font-bold">
+<div>显示 1 至 4 条，共 1,240 条记录</div>
+<div class="flex gap-2">
+<button class="px-3 py-1 border border-outline-variant rounded bg-white hover:bg-surface-container-high">上一页</button>
+<button class="px-3 py-1 bg-primary text-white rounded">1</button>
+<button class="px-3 py-1 border border-outline-variant rounded bg-white hover:bg-surface-container-high">2</button>
+<button class="px-3 py-1 border border-outline-variant rounded bg-white hover:bg-surface-container-high">3</button>
+<span class="px-2">...</span>
+<button class="px-3 py-1 border border-outline-variant rounded bg-white hover:bg-surface-container-high">下一页</button>
+</div>
+</div>
+</div>
+<!-- Asymmetric Summary Bento Grid -->
+<div class="mt-8 grid grid-cols-1 md:grid-cols-12 gap-6">
+<!-- Left Panel: Flow Visualization -->
+<div class="md:col-span-8 bg-surface-container-lowest p-6 rounded-xl border border-surface-container-high">
+<h3 class="text-sm font-bold text-primary mb-6 flex items-center gap-2">
+<span class="material-symbols-outlined text-lg">schema</span> 流转处理进度分布
+                </h3>
+<div class="flex items-center justify-between relative py-8">
+<div class="absolute top-1/2 left-0 w-full h-0.5 bg-surface-container-high -translate-y-1/2 -z-0"></div>
+<div class="relative z-10 flex flex-col items-center">
+<div class="w-8 h-8 rounded-full bg-primary text-white flex items-center justify-center font-bold text-xs mb-2">12</div>
+<span class="text-[10px] font-bold uppercase">提交</span>
+</div>
+<div class="relative z-10 flex flex-col items-center">
+<div class="w-8 h-8 rounded-full bg-primary-container text-white flex items-center justify-center font-bold text-xs mb-2">45</div>
+<span class="text-[10px] font-bold uppercase">受理</span>
+</div>
+<div class="relative z-10 flex flex-col items-center">
+<div class="w-8 h-8 rounded-full bg-secondary text-white flex items-center justify-center font-bold text-xs mb-2">89</div>
+<span class="text-[10px] font-bold uppercase">指派</span>
+</div>
+<div class="relative z-10 flex flex-col items-center">
+<div class="w-8 h-8 rounded-full bg-orange-500 text-white flex items-center justify-center font-bold text-xs mb-2">31</div>
+<span class="text-[10px] font-bold uppercase">处理</span>
+</div>
+<div class="relative z-10 flex flex-col items-center">
+<div class="w-8 h-8 rounded-full bg-green-600 text-white flex items-center justify-center font-bold text-xs mb-2">912</div>
+<span class="text-[10px] font-bold uppercase">反馈</span>
+</div>
+</div>
+</div>
+<!-- Right Panel: High Risk Alert List -->
+<div class="md:col-span-4 bg-primary text-on-primary p-6 rounded-xl shadow-lg flex flex-col justify-between">
+<div>
+<div class="flex justify-between items-start mb-4">
+<span class="text-[10px] font-black uppercase tracking-[0.2em] opacity-70">Sovereign Oversight</span>
+<span class="material-symbols-outlined text-error-container" data-icon="priority_high" style="font-variation-settings: 'FILL' 1;">priority_high</span>
+</div>
+<h3 class="text-xl font-bold leading-tight mb-2">高风险投诉监测</h3>
+<p class="text-xs opacity-80 font-body mb-6">当前有 3 起涉及群体性健康的投诉未在 2 小时内响应，需立即介入。</p>
+</div>
+<button class="w-full bg-white text-primary py-2 text-xs font-bold rounded-lg hover:bg-opacity-90 transition-all uppercase tracking-widest">
+                    紧急指派
+                </button>
+</div>
+</div>
+</main>
+<!-- FAB Suppression: This is a management list, suppression logic applied -->
+</body></html>

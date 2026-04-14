@@ -99,9 +99,9 @@
 <script setup>
 import { computed, onMounted, reactive, ref } from "vue";
 import { useRouter } from "vue-router";
-import { fetchPublicBulletins } from "../api/regulation";
-import { getActiveSession, performLogout } from "../session/authRuntime";
-import { formatTime } from "../utils/formatters";
+import { fetchPublicBulletins } from "../../api/regulation";
+import { getActiveSession, performLogout } from "../../session/authRuntime";
+import { formatTime } from "../../utils/formatters";
 
 const router = useRouter();
 const publicToken = getActiveSession()?.token || "";
@@ -401,20 +401,21 @@ onMounted(loadBulletins);
 
 .public-bulletins-page__list-card {
   overflow: hidden;
+  box-shadow: 0 18px 40px -34px rgba(0, 38, 96, 0.32);
 }
 
 .public-bulletins-page__table-head,
 .public-bulletins-page__row {
-  padding: 14px 20px;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 140px 140px;
+  grid-template-columns: minmax(0, 1fr) 120px 140px;
   align-items: center;
   gap: 12px;
 }
 
 .public-bulletins-page__table-head {
+  padding: 16px 24px;
   border-bottom: 1px solid rgba(195, 198, 211, 0.34);
-  background: var(--surface-container-low);
+  background: rgba(242, 244, 247, 0.78);
 }
 
 .public-bulletins-page__table-head span {
@@ -425,12 +426,30 @@ onMounted(loadBulletins);
   color: var(--on-surface-variant);
 }
 
+.public-bulletins-page__table-head span:nth-child(2) {
+  text-align: center;
+}
+
+.public-bulletins-page__table-head span:nth-child(3) {
+  text-align: right;
+}
+
 .public-bulletins-page__row {
   width: 100%;
   border: none;
   border-bottom: 1px solid rgba(195, 198, 211, 0.22);
   background: transparent;
+  padding: 18px 24px;
   cursor: pointer;
+  transition: background-color 140ms ease;
+}
+
+.public-bulletins-page__row:hover {
+  background: rgba(242, 244, 247, 0.6);
+}
+
+.public-bulletins-page__row:nth-of-type(even) {
+  background: rgba(248, 250, 253, 0.55);
 }
 
 .public-bulletins-page__row-main {
@@ -440,13 +459,20 @@ onMounted(loadBulletins);
 .public-bulletins-page__row-main strong {
   display: block;
   color: var(--primary);
-  font-size: 14px;
+  font-size: 15px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
 }
 
 .public-bulletins-page__row-main p {
   margin: 6px 0 0;
   color: var(--on-surface-variant);
   font-size: 11px;
+  line-height: 1.45;
+  display: -webkit-box;
+  -webkit-line-clamp: 1;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
 .public-bulletins-page__row-status {
@@ -458,14 +484,16 @@ onMounted(loadBulletins);
   align-items: center;
   justify-content: center;
   border-radius: 4px;
-  padding: 2px 8px;
+  padding: 3px 10px;
   font-size: 10px;
   font-weight: 800;
+  border: 1px solid transparent;
 }
 
 .public-bulletins-page__status-chip.is-published {
   background: rgba(26, 127, 90, 0.1);
   color: #1a7f5a;
+  border-color: rgba(26, 127, 90, 0.18);
 }
 
 .public-bulletins-page__row-time {
@@ -482,10 +510,13 @@ onMounted(loadBulletins);
 }
 
 .public-bulletins-page__pager {
-  padding: 18px 20px;
+  padding: 18px 24px;
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 12px;
+  background: rgba(242, 244, 247, 0.55);
+  border-top: 1px solid rgba(195, 198, 211, 0.22);
 }
 
 .public-bulletins-page__pager p {
@@ -501,19 +532,27 @@ onMounted(loadBulletins);
 }
 
 .public-bulletins-page__pager button {
-  width: 30px;
-  height: 30px;
-  border: 1px solid transparent;
+  width: 32px;
+  height: 32px;
+  border: 1px solid rgba(195, 198, 211, 0.35);
   border-radius: 6px;
-  background: transparent;
+  background: rgba(255, 255, 255, 0.7);
   color: var(--on-surface-variant);
   display: grid;
   place-items: center;
   cursor: pointer;
+  transition: background-color 120ms ease, border-color 120ms ease, color 120ms ease;
+}
+
+.public-bulletins-page__pager button:hover:not(:disabled):not(.is-active) {
+  border-color: rgba(0, 38, 96, 0.22);
+  color: var(--primary);
+  background: #fff;
 }
 
 .public-bulletins-page__pager button.is-active {
   background: var(--primary);
+  border-color: rgba(0, 38, 96, 0.5);
   color: #fff;
 }
 

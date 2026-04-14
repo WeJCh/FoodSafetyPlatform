@@ -29,17 +29,25 @@ const EnterpriseRectificationSubmitSuccessView = () => import("../views/enterpri
 const EnterpriseRectificationSubmitView = () => import("../views/enterprise/EnterpriseRectificationSubmitView.vue");
 const EnterpriseRectificationsView = () => import("../views/enterprise/EnterpriseRectificationsView.vue");
 const LoginView = () => import("../views/LoginView.vue");
-const PublicBulletinDetailView = () => import("../views/PublicBulletinDetailView.vue");
-const PublicBulletinListView = () => import("../views/PublicBulletinListView.vue");
-const PublicComplaintTrackView = () => import("../views/PublicComplaintTrackView.vue");
-const PublicComplaintView = () => import("../views/PublicComplaintView.vue");
-const PublicEnterpriseDetailView = () => import("../views/PublicEnterpriseDetailView.vue");
-const PublicEnterpriseListView = () => import("../views/PublicEnterpriseListView.vue");
+const PublicBulletinDetailView = () => import("../views/public/PublicBulletinDetailView.vue");
+const PublicBulletinListView = () => import("../views/public/PublicBulletinListView.vue");
+const PublicComplaintTrackView = () => import("../views/public/PublicComplaintTrackView.vue");
+const PublicComplaintView = () => import("../views/public/PublicComplaintView.vue");
+const PublicComplaintDetailView = () => import("../views/public/PublicComplaintDetailView.vue");
+const PublicComplaintSubmitSuccessView = () => import("../views/public/PublicComplaintSubmitSuccessView.vue");
+const PublicEnterpriseDetailView = () => import("../views/public/PublicEnterpriseDetailView.vue");
+const PublicEnterpriseListView = () => import("../views/public/PublicEnterpriseListView.vue");
 const PublicHomeView = () => import("../views/public/PublicHomeView.vue");
 const PublicRegisterView = () => import("../views/PublicRegisterView.vue");
 const PublicSamplingResultDetailView = () => import("../views/PublicSamplingResultDetailView.vue");
 const PublicSamplingResultListView = () => import("../views/PublicSamplingResultListView.vue");
 const RegulatorAdminComplaintDetailView = () => import("../views/RegulatorAdminComplaintDetailView.vue");
+const RegulatorAdminApprovalsView = () => import("../views/regulatorAdmin/RegulatorAdminApprovalsView.vue");
+const RegulatorAdminDispatchCreateView = () => import("../views/regulatorAdmin/RegulatorAdminDispatchCreateView.vue");
+const RegulatorAdminEnterpriseDetailView = () => import("../views/regulatorAdmin/RegulatorAdminEnterpriseDetailView.vue");
+const RegulatorAdminDispatchTasksView = () => import("../views/regulatorAdmin/RegulatorAdminDispatchTasksView.vue");
+const RegulatorAdminEnterpriseListView = () => import("../views/regulatorAdmin/RegulatorAdminEnterpriseListView.vue");
+const RegulatorAdminOverviewView = () => import("../views/regulatorAdmin/RegulatorAdminOverviewView.vue");
 const RegulatorAdminView = () => import("../views/RegulatorAdminView.vue");
 const RegulatorEnforcerComplaintDetailView = () => import("../views/RegulatorEnforcerComplaintDetailView.vue");
 const RegulatorEnforcerView = () => import("../views/RegulatorEnforcerView.vue");
@@ -71,7 +79,7 @@ export function getDefaultRouteLocation(sessionOverride = null) {
   }
 
   if (hasRegulatorAdminSession(session)) {
-    return { name: "regulator-admin-enterprises" };
+    return { name: "regulator-admin-overview" };
   }
 
   if (hasRegulatorEnforcerSession(session)) {
@@ -174,10 +182,22 @@ const routes = [
     meta: { title: "我要投诉", requiresRole: "PUBLIC" }
   },
   {
+    path: "/public/complaints/success",
+    name: "public-complaint-submit-success",
+    component: PublicComplaintSubmitSuccessView,
+    meta: { title: "投诉提交成功", requiresRole: "PUBLIC" }
+  },
+  {
     path: "/public/complaints",
     name: "public-complaints",
     component: PublicComplaintTrackView,
     meta: { title: "我的投诉", requiresRole: "PUBLIC" }
+  },
+  {
+    path: "/public/complaints/:complaintId",
+    name: "public-complaint-detail",
+    component: PublicComplaintDetailView,
+    meta: { title: "投诉详情", requiresRole: "PUBLIC" }
   },
   {
     path: "/admin/regulators/create",
@@ -270,22 +290,34 @@ const routes = [
     meta: { title: "提交成功", requiresRole: "ENTERPRISE" }
   },
   {
+    path: "/regulator/admin/overview",
+    name: "regulator-admin-overview",
+    component: RegulatorAdminOverviewView,
+    meta: { title: "监管概述", requiresRole: "REGULATOR_ADMIN" }
+  },
+  {
     path: "/regulator/admin/enterprises",
     name: "regulator-admin-enterprises",
-    component: RegulatorAdminView,
-    meta: { title: "企业管理", requiresRole: "REGULATOR_ADMIN", initialSection: "enterprises" }
+    component: RegulatorAdminEnterpriseListView,
+    meta: { title: "企业管理", requiresRole: "REGULATOR_ADMIN" }
   },
   {
     path: "/regulator/admin/approvals",
     name: "regulator-admin-approvals",
-    component: RegulatorAdminView,
-    meta: { title: "备案审核", requiresRole: "REGULATOR_ADMIN", initialSection: "approvals" }
+    component: RegulatorAdminApprovalsView,
+    meta: { title: "备案审核", requiresRole: "REGULATOR_ADMIN" }
   },
   {
     path: "/regulator/admin/dispatch",
     name: "regulator-admin-dispatch",
-    component: RegulatorAdminView,
-    meta: { title: "任务派发", requiresRole: "REGULATOR_ADMIN", initialSection: "dispatch" }
+    component: RegulatorAdminDispatchTasksView,
+    meta: { title: "任务派发", requiresRole: "REGULATOR_ADMIN" }
+  },
+  {
+    path: "/regulator/admin/dispatch/create",
+    name: "regulator-admin-dispatch-create",
+    component: RegulatorAdminDispatchCreateView,
+    meta: { title: "发起检查任务", requiresRole: "REGULATOR_ADMIN" }
   },
   {
     path: "/regulator/admin/sampling",
@@ -338,7 +370,7 @@ const routes = [
   {
     path: "/regulator/admin/enterprises/:enterpriseId",
     name: "regulator-admin-enterprise-detail",
-    component: EnterpriseDetailView,
+    component: RegulatorAdminEnterpriseDetailView,
     meta: { title: "企业详情", requiresRole: "REGULATOR_ADMIN" }
   },
   {

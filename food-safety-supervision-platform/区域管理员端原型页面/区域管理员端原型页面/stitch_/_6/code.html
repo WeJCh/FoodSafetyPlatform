@@ -1,0 +1,368 @@
+<!DOCTYPE html>
+
+<html class="light" lang="zh-CN"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;700;900&amp;family=Inter:wght@400;600;800&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                "on-secondary-fixed-variant": "#394666",
+                "surface-bright": "#f7f9fc",
+                "on-secondary-fixed": "#0c1a38",
+                "tertiary-fixed-dim": "#ffb599",
+                "surface-container-low": "#f2f4f7",
+                "secondary-container": "#c9d7fe",
+                "on-primary-fixed": "#001945",
+                "on-error": "#ffffff",
+                "primary": "#002660",
+                "surface-container-lowest": "#ffffff",
+                "on-secondary": "#ffffff",
+                "on-background": "#191c1e",
+                "error-container": "#ffdad6",
+                "error": "#ba1a1a",
+                "on-tertiary-fixed-variant": "#7c2d06",
+                "on-primary-fixed-variant": "#124394",
+                "surface-dim": "#d8dadd",
+                "outline-variant": "#c3c6d3",
+                "background": "#f7f9fc",
+                "primary-fixed": "#d9e2ff",
+                "surface-tint": "#335bae",
+                "tertiary": "#4e1700",
+                "surface-container-high": "#e6e8eb",
+                "tertiary-fixed": "#ffdbce",
+                "surface": "#f7f9fc",
+                "surface-container": "#eceef1",
+                "on-tertiary-fixed": "#370e00",
+                "on-surface-variant": "#434651",
+                "on-primary-container": "#84a8ff",
+                "inverse-primary": "#b0c6ff",
+                "surface-variant": "#e0e3e6",
+                "secondary-fixed-dim": "#b9c6ed",
+                "on-tertiary-container": "#fb8d60",
+                "surface-container-highest": "#e0e3e6",
+                "inverse-on-surface": "#eff1f4",
+                "outline": "#747783",
+                "secondary-fixed": "#d9e2ff",
+                "on-error-container": "#93000a",
+                "inverse-surface": "#2d3133",
+                "tertiary-container": "#722600",
+                "secondary": "#515e7f",
+                "primary-container": "#003a8c",
+                "on-tertiary": "#ffffff",
+                "primary-fixed-dim": "#b0c6ff",
+                "on-surface": "#191c1e",
+                "on-secondary-container": "#505d7e",
+                "on-primary": "#ffffff"
+            },
+            "borderRadius": {
+                "DEFAULT": "0.125rem",
+                "lg": "0.25rem",
+                "xl": "0.5rem",
+                "full": "0.75rem"
+            },
+            "fontFamily": {
+                "headline": ["Public Sans"],
+                "body": ["Inter"],
+                "label": ["Inter"]
+            }
+          }
+        }
+      }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        body { font-family: 'Inter', sans-serif; }
+        .headline-text { font-family: 'Public Sans', sans-serif; }
+    </style>
+</head>
+<body class="bg-surface text-on-background">
+<!-- SideNavBar -->
+<aside class="h-full w-64 fixed left-0 top-0 bg-slate-900 flex flex-col h-screen shadow-xl z-50 font-['Public_Sans'] text-sm tracking-tight">
+<div class="p-6">
+<div class="text-lg font-bold text-white tracking-widest uppercase mb-1">Food Safety Oversight</div>
+<div class="text-xs text-slate-400">The Digital Ledger</div>
+</div>
+<nav class="flex-1 px-4 space-y-1">
+<div class="flex items-center px-3 py-3 text-slate-400 hover:text-white hover:bg-slate-800/50 transition-colors duration-200 ease-in-out cursor-pointer group">
+<span class="material-symbols-outlined mr-3">dashboard</span> 工作台
+            </div>
+<div class="flex items-center px-3 py-3 text-slate-400 hover:text-white hover:bg-slate-800/50 transition-colors duration-200 ease-in-out cursor-pointer">
+<span class="material-symbols-outlined mr-3">business</span> 企业管理
+            </div>
+<div class="flex items-center px-3 py-3 text-slate-400 hover:text-white hover:bg-slate-800/50 transition-colors duration-200 ease-in-out cursor-pointer">
+<span class="material-symbols-outlined mr-3">fact_check</span> 企业备案审核
+            </div>
+<div class="flex items-center px-3 py-3 bg-blue-900/40 text-blue-100 border-l-4 border-blue-500 transition-colors duration-200 ease-in-out cursor-pointer">
+<span class="material-symbols-outlined mr-3">assignment</span> 检查任务
+            </div>
+<div class="flex items-center px-3 py-3 text-slate-400 hover:text-white hover:bg-slate-800/50 transition-colors duration-200 ease-in-out cursor-pointer">
+<span class="material-symbols-outlined mr-3">biotech</span> 抽检任务
+            </div>
+<div class="flex items-center px-3 py-3 text-slate-400 hover:text-white hover:bg-slate-800/50 transition-colors duration-200 ease-in-out cursor-pointer">
+<span class="material-symbols-outlined mr-3">assignment_return</span> 投诉流转
+            </div>
+<div class="flex items-center px-3 py-3 text-slate-400 hover:text-white hover:bg-slate-800/50 transition-colors duration-200 ease-in-out cursor-pointer">
+<span class="material-symbols-outlined mr-3">task_alt</span> 整改复核
+            </div>
+<div class="flex items-center px-3 py-3 text-slate-400 hover:text-white hover:bg-slate-800/50 transition-colors duration-200 ease-in-out cursor-pointer">
+<span class="material-symbols-outlined mr-3">warning</span> 风险预警
+            </div>
+<div class="flex items-center px-3 py-3 text-slate-400 hover:text-white hover:bg-slate-800/50 transition-colors duration-200 ease-in-out cursor-pointer">
+<span class="material-symbols-outlined mr-3">campaign</span> 公告管理
+            </div>
+<div class="flex items-center px-3 py-3 text-slate-400 hover:text-white hover:bg-slate-800/50 transition-colors duration-200 ease-in-out cursor-pointer">
+<span class="material-symbols-outlined mr-3">analytics</span> 统计分析
+            </div>
+</nav>
+<div class="p-4 border-t border-slate-800 flex items-center gap-3">
+<img alt="Regulatory Administrator Avatar" class="w-8 h-8 rounded-full" data-alt="professional profile photo of a regulatory official in formal attire, clean studio lighting, neutral background" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBzpFzCl1aaq7QckmRdpjTbVyURhClQJxMSJamMTI0YdVtQZt7_GSNFkiFggLTyGDMEhHzAQqgqy-04O3yNi7uh_O0R-6rD0MSdkVtdvmFA2fEa8lCivbcq7m4lESOh8QQ_OCAI0qj6O9Z-484YExfunICLWKQLm1tWF_ciPF3RR5A9K2cpyJ1mf7Vj9J1L81IC0iAUA9qwbzKG9xcWJHsHOlBKt1w25bHSPuJQbHsfPsfUfiOnWo-_XhXDzwGXjieguYyFJAORnU0"/>
+<div class="text-white text-xs font-semibold">监管管理员</div>
+</div>
+</aside>
+<!-- TopNavBar -->
+<header class="fixed top-0 right-0 w-[calc(100%-16rem)] h-16 z-40 bg-white/80 backdrop-blur-md flex justify-between items-center px-8 font-['Inter'] text-xs font-semibold">
+<div class="flex items-center gap-8">
+<div class="text-xl font-black text-[#002660]">监管管理平台</div>
+<nav class="flex gap-6">
+<a class="text-slate-500 hover:text-[#003a8c] transition-all" href="#">首页</a>
+<a class="text-[#002660] font-bold border-b-2 border-[#002660]" href="#">工作流</a>
+</nav>
+</div>
+<div class="flex items-center gap-6">
+<div class="relative">
+<span class="material-symbols-outlined text-slate-500 cursor-pointer hover:text-[#003a8c]">notifications</span>
+<span class="absolute -top-1 -right-1 w-2 h-2 bg-error rounded-full"></span>
+</div>
+<span class="material-symbols-outlined text-slate-500 cursor-pointer hover:text-[#003a8c]">help_outline</span>
+<span class="material-symbols-outlined text-slate-500 cursor-pointer hover:text-[#003a8c]">settings</span>
+<div class="h-6 w-[1px] bg-outline-variant/30 mx-2"></div>
+<span class="text-[#002660]">监管管理员</span>
+</div>
+</header>
+<!-- Main Content -->
+<main class="ml-64 pt-16 min-h-screen p-8">
+<!-- Breadcrumbs & Header -->
+<div class="mb-8 flex justify-between items-end">
+<div>
+<nav class="flex text-on-surface-variant text-xs mb-2">
+<span>检查任务</span>
+<span class="mx-2 text-outline-variant">/</span>
+<span class="font-bold text-primary">任务详情 - INS-2023-8842</span>
+</nav>
+<h1 class="text-3xl font-black text-primary headline-text tracking-tight uppercase">任务生命周期详情</h1>
+</div>
+<div class="flex gap-3">
+<button class="px-5 py-2 bg-surface-container-high text-on-surface text-xs font-bold rounded hover:bg-surface-container-highest transition-all uppercase">
+                    导出审计日志
+                </button>
+<button class="px-5 py-2 bg-primary text-on-primary text-xs font-bold rounded shadow-lg hover:shadow-xl transition-all uppercase">
+                    关闭任务
+                </button>
+</div>
+</div>
+<!-- Bento Grid Layout -->
+<div class="grid grid-cols-12 gap-6">
+<!-- Progress Tracker Card -->
+<div class="col-span-12 bg-surface-container-lowest p-8 rounded-lg shadow-sm border border-outline-variant/10">
+<div class="flex justify-between items-center mb-10">
+<h2 class="text-xs font-black text-on-surface-variant uppercase tracking-widest">检查生命周期</h2>
+<div class="px-3 py-1 bg-primary text-on-primary text-[10px] font-bold rounded">阶段: 已完成</div>
+</div>
+<div class="relative flex justify-between items-start w-full px-12">
+<!-- Progress Line -->
+<div class="absolute top-5 left-[calc(10%+2.5rem)] right-[calc(10%+2.5rem)] h-[2px] bg-surface-container-high z-0">
+<div class="h-full bg-primary w-[75%] transition-all"></div>
+</div>
+<!-- Stages -->
+<div class="relative z-10 flex flex-col items-center">
+<div class="w-10 h-10 rounded-full bg-primary text-on-primary flex items-center justify-center border-4 border-surface-container-lowest">
+<span class="material-symbols-outlined text-sm">check</span>
+</div>
+<span class="mt-2 text-[10px] font-bold text-primary">已创建</span>
+<span class="text-[9px] text-on-surface-variant">2023-10-24</span>
+</div>
+<div class="relative z-10 flex flex-col items-center">
+<div class="w-10 h-10 rounded-full bg-primary text-on-primary flex items-center justify-center border-4 border-surface-container-lowest">
+<span class="material-symbols-outlined text-sm">check</span>
+</div>
+<span class="mt-2 text-[10px] font-bold text-primary">已指派</span>
+<span class="text-[9px] text-on-surface-variant">2023-10-25</span>
+</div>
+<div class="relative z-10 flex flex-col items-center">
+<div class="w-10 h-10 rounded-full bg-primary text-on-primary flex items-center justify-center border-4 border-surface-container-lowest">
+<span class="material-symbols-outlined text-sm">check</span>
+</div>
+<span class="mt-2 text-[10px] font-bold text-primary">执行中</span>
+<span class="text-[9px] text-on-surface-variant">2023-10-27</span>
+</div>
+<div class="relative z-10 flex flex-col items-center">
+<div class="w-10 h-10 rounded-full bg-primary text-on-primary flex items-center justify-center border-4 border-surface-container-lowest ring-4 ring-primary/20">
+<span class="material-symbols-outlined text-sm">flag</span>
+</div>
+<span class="mt-2 text-[10px] font-bold text-primary">已完成</span>
+<span class="text-[9px] text-on-surface-variant">2023-10-30</span>
+</div>
+<div class="relative z-10 flex flex-col items-center">
+<div class="w-10 h-10 rounded-full bg-surface-container-high text-on-surface-variant flex items-center justify-center border-4 border-surface-container-lowest">
+<span class="material-symbols-outlined text-sm">lock</span>
+</div>
+<span class="mt-2 text-[10px] font-bold text-on-surface-variant">已关闭</span>
+<span class="text-[9px] text-outline">待定</span>
+</div>
+</div>
+</div>
+<!-- Task Basic Info Card -->
+<div class="col-span-12 lg:col-span-8 space-y-6">
+<div class="bg-surface-container-lowest p-6 rounded-lg shadow-sm">
+<div class="flex items-center gap-2 mb-6">
+<span class="w-2 h-6 bg-primary rounded-full"></span>
+<h2 class="text-sm font-black text-primary uppercase tracking-tight">任务详情与企业信息</h2>
+</div>
+<div class="grid grid-cols-2 gap-y-6 gap-x-12">
+<div class="space-y-1">
+<label class="text-[10px] font-bold text-on-surface-variant uppercase tracking-widest">企业名称</label>
+<p class="text-sm font-semibold text-on-surface">盛京美食广场有限公司 (Shengjing Food Court Ltd.)</p>
+</div>
+<div class="space-y-1">
+<label class="text-[10px] font-bold text-on-surface-variant uppercase tracking-widest">营业执照号</label>
+<p class="text-sm font-semibold text-on-surface">91210103MA1098X21L</p>
+</div>
+<div class="space-y-1">
+<label class="text-[10px] font-bold text-on-surface-variant uppercase tracking-widest">任务类别</label>
+<div class="flex items-center gap-2">
+<span class="px-2 py-0.5 bg-surface-container-high text-on-surface text-[10px] font-bold rounded">Routine Inspection</span>
+</div>
+</div>
+<div class="space-y-1">
+<label class="text-[10px] font-bold text-on-surface-variant uppercase tracking-widest">主执法人员</label>
+<div class="flex items-center gap-2 text-sm font-semibold text-on-surface">
+<img alt="Inspector Avatar" class="w-5 h-5 rounded-full" data-alt="close up headshot of a professional male field inspector in safety vest, outdoor daylight" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCW31_mxKXnaTvxWU8wVGEpIgW9baO4EObeiyeGfx040MkeqRqRC38hs3Lkrhkl2NvDBuiHkvs3ZJ-ctHBNRvkakAKhW1brpzgmAG8Zci-n4LQGZHyWqyssQAfyqfefPWLpYbXDVY2VMojJuQY5LaSUEHU-Qu6KvAHpk3HVQ03CTEMcJznWLEuHkYAUzHulEFqVs_tNXhUJaixinyCofw7RK-UOW2IY7-S7CVCTfADrzG9Vb7EEkgkmkG52HjyNd7p7qyE5Hd8dIDE"/>
+<span>张伟 (Zhang Wei)</span>
+</div>
+</div>
+<div class="col-span-2 space-y-1">
+<label class="text-[10px] font-bold text-on-surface-variant uppercase tracking-widest">检查范围</label>
+<p class="text-xs leading-relaxed text-on-surface-variant">Verification of cold chain storage temperatures, employee health certification validity, and pest control documentation for the Q4 period. Compliance with National Standard GB/T 27341-2009.</p>
+</div>
+</div>
+</div>
+<!-- Inspection Results (Appears if COMPLETED) -->
+<div class="bg-surface-container-lowest p-6 rounded-lg shadow-sm border-2 border-error-container/30">
+<div class="flex justify-between items-start mb-6">
+<div class="flex items-center gap-2">
+<span class="w-2 h-6 bg-error rounded-full"></span>
+<h2 class="text-sm font-black text-error uppercase tracking-tight">检查发现 - 不合格</h2>
+</div>
+<div class="flex gap-2">
+<button class="flex items-center gap-1 px-3 py-1 bg-error text-on-error text-[10px] font-black rounded uppercase tracking-tighter">
+<span class="material-symbols-outlined text-xs">gavel</span>
+                                发起整改
+                            </button>
+</div>
+</div>
+<div class="bg-surface-container-low p-4 rounded mb-6 border-l-4 border-error">
+<div class="flex items-start gap-4">
+<span class="material-symbols-outlined text-error" style="font-variation-settings: 'FILL' 1;">warning</span>
+<div>
+<h4 class="text-xs font-bold text-on-surface mb-1">发现违规项</h4>
+<p class="text-xs text-on-surface-variant leading-relaxed">Storage freezer C-04 operating at 4°C above safety threshold. Documentation missing for the week of Oct 21st. High risk of biological contamination.</p>
+</div>
+</div>
+</div>
+<div class="grid grid-cols-3 gap-4">
+<div class="aspect-square bg-surface-container-high rounded overflow-hidden relative group">
+<img alt="Inspection Finding Evidence" class="w-full h-full object-cover" data-alt="close up photo of a commercial digital thermometer showing incorrect temperature in a professional kitchen setting, dramatic shadows" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAUtvlVhB-waG_hYqWs_V0Ux1vFhFm8TEz-HZ_KsvHBdooTBvXo3bC7Z88Sq9dB7n6dsrc9_7PR2-ktBkvsD7d4D6Kgu1hOCg51wm3OgrUXBTeyxGddhLPSDA3xfvAGJzAPTnkF337NwoXYmI6dnlOmPaIsLxG5wP0OGcN8wTz3pGPPsPCBbDmof_FlRCmkqR4df6CQYwJm4lrSb1BGjCI-oGFvcM7nBHizxx5yfSCvndOZMJUdn19aUEcBSmOZ39H31kN91pjq7Vc"/>
+<div class="absolute inset-0 bg-primary/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+<span class="material-symbols-outlined text-white">zoom_in</span>
+</div>
+</div>
+<div class="aspect-square bg-surface-container-high rounded overflow-hidden relative group">
+<img alt="Inspection Finding Evidence" class="w-full h-full object-cover" data-alt="photo of messy handwritten paper logs for temperature tracking in a restaurant kitchen, blurred background" src="https://lh3.googleusercontent.com/aida-public/AB6AXuByd9agIUkN65mh3Pr_0KYpUAR6BvtQoTPucipQgelvXYI4aFTlwcd1gspbDCnHmaGWaMvHZGJ-YUJUb3zrpXeGJK0-f_miETZd18uhkAbQ8zUoad66GZthOmLAy-SSqpopScjnWYfcuUtLfY3WRhOa5eb-ZhotfnhwZHWCF-zZdAmJMQ4C965tP36tnKT-qV4WoLb9QkUVANQVyIc55KG-EQ1sHi5nRZUi_vmPeeBpMaZUKJzpqemgnGZru-5_UZOsNP8BqmPu3VI"/>
+<div class="absolute inset-0 bg-primary/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+<span class="material-symbols-outlined text-white">zoom_in</span>
+</div>
+</div>
+<div class="aspect-square bg-surface-container-high rounded overflow-hidden border-2 border-dashed border-outline-variant flex items-center justify-center">
+<span class="text-[10px] font-bold text-outline uppercase">EVIDENCE 03</span>
+</div>
+</div>
+</div>
+</div>
+<!-- Audit Trail / Sidebar -->
+<div class="col-span-12 lg:col-span-4 space-y-6">
+<div class="bg-surface-container-lowest p-6 rounded-lg shadow-sm min-h-[400px]">
+<div class="flex items-center gap-2 mb-8">
+<span class="material-symbols-outlined text-primary text-xl">history</span>
+<h2 class="text-xs font-black text-on-surface uppercase tracking-widest">审计追踪</h2>
+</div>
+<div class="relative space-y-8 pl-6">
+<!-- Timeline Line -->
+<div class="absolute left-[7px] top-2 bottom-2 w-[1px] bg-outline-variant/30"></div>
+<!-- Timeline Item 1 -->
+<div class="relative">
+<div class="absolute -left-[23px] top-1 w-4 h-4 bg-primary rounded-full border-4 border-surface-container-lowest"></div>
+<div class="space-y-1">
+<div class="flex justify-between items-center">
+<span class="text-[10px] font-black text-primary uppercase">Inspection Completed</span>
+<span class="text-[9px] text-on-surface-variant font-mono">10-30 14:20</span>
+</div>
+<p class="text-[11px] text-on-surface-variant">Report submitted by Enforcer Zhang Wei. Status updated to <span class="font-bold text-on-surface">COMPLETED</span>.</p>
+</div>
+</div>
+<!-- Timeline Item 2 -->
+<div class="relative">
+<div class="absolute -left-[23px] top-1 w-4 h-4 bg-outline rounded-full border-4 border-surface-container-lowest"></div>
+<div class="space-y-1">
+<div class="flex justify-between items-center">
+<span class="text-[10px] font-black text-on-surface uppercase">On-site Check Started</span>
+<span class="text-[9px] text-on-surface-variant font-mono">10-27 09:00</span>
+</div>
+<p class="text-[11px] text-on-surface-variant">Inspector arrived at Shengjing Food Court. Geolocation verified.</p>
+</div>
+</div>
+<!-- Timeline Item 3 -->
+<div class="relative">
+<div class="absolute -left-[23px] top-1 w-4 h-4 bg-outline rounded-full border-4 border-surface-container-lowest"></div>
+<div class="space-y-1">
+<div class="flex justify-between items-center">
+<span class="text-[10px] font-black text-on-surface uppercase">Task Assigned</span>
+<span class="text-[9px] text-on-surface-variant font-mono">10-25 11:45</span>
+</div>
+<p class="text-[11px] text-on-surface-variant">Administrator Li assigned task to Team Bravo.</p>
+</div>
+</div>
+<!-- Timeline Item 4 -->
+<div class="relative">
+<div class="absolute -left-[23px] top-1 w-4 h-4 bg-outline rounded-full border-4 border-surface-container-lowest"></div>
+<div class="space-y-1">
+<div class="flex justify-between items-center">
+<span class="text-[10px] font-black text-on-surface uppercase">System Entry</span>
+<span class="text-[9px] text-on-surface-variant font-mono">10-24 16:30</span>
+</div>
+<p class="text-[11px] text-on-surface-variant">Routine task generated by Q4 Batching Logic.</p>
+</div>
+</div>
+</div>
+</div>
+<!-- Supplemental Panel -->
+<div class="bg-primary p-6 rounded-lg text-on-primary">
+<h3 class="text-[10px] font-black uppercase tracking-widest mb-4 opacity-70">执法备注</h3>
+<p class="text-xs italic leading-relaxed mb-4">"The enterprise was cooperative, but the infrastructure in the cold storage area seems dated. Recommended for higher frequency monitoring in the next cycle."</p>
+<div class="h-[1px] bg-on-primary/20 mb-4"></div>
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-sm">verified_user</span>
+<span class="text-[10px] font-bold">电子签名已验证</span>
+</div>
+</div>
+</div>
+</div>
+</main>
+</body></html>

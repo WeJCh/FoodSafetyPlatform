@@ -206,8 +206,25 @@ function formatRisk(value) {
 
 function normalizeDeadline(dateValue) {
   if (!dateValue) return "";
-  const date = new Date(`${dateValue}T18:00:00`);
-  return Number.isNaN(date.getTime()) ? "" : date.toISOString();
+  const normalized = String(dateValue).trim();
+  if (!normalized) return "";
+
+  if (/^\d{4}-\d{2}-\d{2}$/.test(normalized)) {
+    return `${normalized}T18:00:00`;
+  }
+
+  if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(normalized)) {
+    return `${normalized}:00`;
+  }
+
+  if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}$/.test(normalized)) {
+    return normalized;
+  }
+
+  const date = new Date(normalized);
+  if (Number.isNaN(date.getTime())) return "";
+  const pad = (n) => String(n).padStart(2, "0");
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
 }
 
 async function loadOptions() {

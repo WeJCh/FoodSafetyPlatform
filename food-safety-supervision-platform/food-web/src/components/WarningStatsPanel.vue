@@ -4,7 +4,7 @@
       <div>
         <div class="warning-stats-title">预警统计</div>
         <div class="warning-stats-subtitle">
-          {{ mode === "enforcer" ? "默认按本人权限范围统计" : "默认按辖区权限范围统计" }}
+          {{ mode === "enforcer" ? "默认按本人权限范围统计风险预警数据" : "默认按辖区权限范围统计风险预警数据" }}
         </div>
       </div>
       <form class="warning-stats-filters" @submit.prevent="handleSearch">
@@ -53,7 +53,8 @@
 
     <div class="distribution-grid">
       <section class="panel-block distribution-block">
-        <div class="panel-title">状态分布</div>
+        <div class="panel-title">风险预警状态分布</div>
+        <div class="panel-subtitle">按待处理、处理中、已解决、已归档展示风险预警数量占比</div>
         <div class="distribution-list">
           <div v-for="item in statusDistribution" :key="item.key" class="distribution-item">
             <div class="distribution-head">
@@ -72,7 +73,8 @@
       </section>
 
       <section class="panel-block distribution-block">
-        <div class="panel-title">等级分布</div>
+        <div class="panel-title">风险预警等级分布</div>
+        <div class="panel-subtitle">按风险预警等级（L1/L2）展示当前预警分层情况</div>
         <div class="level-grid">
           <article v-for="item in levelDistribution" :key="item.key" class="level-card" :class="`level-card--${item.key.toLowerCase()}`">
             <span>{{ item.label }}</span>
@@ -85,7 +87,8 @@
 
     <div class="warning-stats-body">
       <section class="panel-block trend-block">
-        <div class="panel-title">趋势变化</div>
+        <div class="panel-title">风险预警趋势变化</div>
+        <div class="panel-subtitle">统计周期内每日新增风险预警数量变化</div>
         <div v-if="!trend.length" class="panel-empty">暂无趋势数据</div>
         <div v-else class="trend-line-panel">
           <div class="trend-scroll">
@@ -123,7 +126,8 @@
       </section>
 
       <section class="panel-block type-block">
-        <div class="panel-title">类型 Top{{ filters.topN }}</div>
+        <div class="panel-title">风险预警类型 Top{{ filters.topN }}</div>
+        <div class="panel-subtitle">按风险预警规则类型统计出现频次最高的前 {{ filters.topN }} 项</div>
         <div v-if="!types.length" class="panel-empty">暂无类型统计</div>
         <div v-else class="type-list">
           <div v-for="(item, index) in types" :key="`${item.warningType}-${index}`" class="type-item">
@@ -135,7 +139,8 @@
       </section>
 
       <section class="panel-block efficiency-block">
-        <div class="panel-title">处置效率</div>
+        <div class="panel-title">风险预警处置效率</div>
+        <div class="panel-subtitle">基于风险预警工单的处理时长与超时情况评估处置效率</div>
         <div class="efficiency-grid">
           <article class="efficiency-card">
             <span>平均处置时长</span>
@@ -185,7 +190,9 @@ const warningTypeLabelMap = {
   SLA_OVERDUE_SUBMIT: "企业提交整改超时",
   SLA_OVERDUE_REVIEW: "监管复核整改超时",
   SLA_DUE_SOON_SUBMIT: "企业提交整改即将超时",
-  SLA_DUE_SOON_REVIEW: "监管复核整改即将超时"
+  SLA_DUE_SOON_REVIEW: "监管复核整改即将超时",
+  INSPECTION_CONSECUTIVE_FAIL: "企业连续检查不合格",
+  SAMPLING_FAIL: "抽检发现不合格产品"
 };
 const filters = reactive({
   rangePreset: "7d",
@@ -197,10 +204,10 @@ const filters = reactive({
 });
 
 const cards = computed(() => ([
-  { key: "total", label: "预警总数", value: Number(overview.value.totalCount) || 0 },
-  { key: "open", label: "待处理", value: Number(overview.value.openCount) || 0 },
-  { key: "processing", label: "处理中", value: Number(overview.value.processingCount) || 0 },
-  { key: "completed", label: "已处理完成", value: Number(overview.value.completedCount) || 0 }
+  { key: "total", label: "风险预警总数", value: Number(overview.value.totalCount) || 0 },
+  { key: "open", label: "风险预警待处理", value: Number(overview.value.openCount) || 0 },
+  { key: "processing", label: "风险预警处理中", value: Number(overview.value.processingCount) || 0 },
+  { key: "completed", label: "风险预警已处理完成", value: Number(overview.value.completedCount) || 0 }
 ]));
 
 const statusDistribution = computed(() => {
@@ -676,6 +683,13 @@ onMounted(() => {
   font-size: 14px;
   font-weight: 600;
   color: var(--ink);
+}
+
+.panel-subtitle {
+  margin-top: -4px;
+  font-size: 12px;
+  color: var(--muted);
+  line-height: 1.5;
 }
 
 .panel-empty {

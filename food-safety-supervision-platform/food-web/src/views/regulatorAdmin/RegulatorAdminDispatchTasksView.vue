@@ -7,12 +7,16 @@
     @pending-feature="onPendingFeature"
   >
     <section class="dispatch-page">
+      <nav class="dispatch-subnav">
+        <button type="button" class="active">任务列表</button>
+        <button type="button" @click="goToDispatchRecords">检查记录</button>
+      </nav>
+
       <header class="dispatch-page__head">
         <div>
           <h1>检查任务列表</h1>
           <p>发起并派发检查任务，跟踪执行进度与归档状态。</p>
         </div>
-        <button class="primary head-create-btn" type="button" @click="goToCreateTask">新建检查任务</button>
       </header>
 
       <section class="filter-panel">
@@ -124,29 +128,36 @@
                   </td>
                   <td>
                     <div class="action-row">
-                      <button class="ghost" type="button" @click="openTaskDetail(task)">详情</button>
-                      <select
-                        v-if="isTaskAssignable(task)"
-                        v-model="taskAssignments[task.id]"
-                        :disabled="dispatchTaskLoading || isTaskDeadlineExceeded(task.deadline)"
+                      <button class="op-btn op-btn--detail" type="button" @click="openTaskDetail(task)">详情</button>
+                      <template v-if="isTaskAssignable(task) && !isTaskDeadlineExceeded(task.deadline)">
+                        <select
+                          class="op-select"
+                          v-model="taskAssignments[task.id]"
+                          :disabled="dispatchTaskLoading"
+                        >
+                          <option value="">选择执法人员</option>
+                          <option v-for="item in getEnforcers(task.regionId)" :key="item.id" :value="item.id">
+                            {{ item.name }}
+                          </option>
+                        </select>
+                        <button
+                          class="op-btn op-btn--assign"
+                          type="button"
+                          :disabled="dispatchTaskLoading"
+                          @click="handleAssignTask(task)"
+                        >
+                          派发
+                        </button>
+                      </template>
+                      <span
+                        v-else-if="isTaskAssignable(task) && isTaskDeadlineExceeded(task.deadline)"
+                        class="op-expired-tip"
                       >
-                        <option value="">选择执法人员</option>
-                        <option v-for="item in getEnforcers(task.regionId)" :key="item.id" :value="item.id">
-                          {{ item.name }}
-                        </option>
-                      </select>
-                      <button
-                        v-if="isTaskAssignable(task)"
-                        class="ghost"
-                        type="button"
-                        :disabled="dispatchTaskLoading || isTaskDeadlineExceeded(task.deadline)"
-                        @click="handleAssignTask(task)"
-                      >
-                        派发
-                      </button>
+                        已截止
+                      </span>
                       <button
                         v-if="isTaskClosable(task)"
-                        class="ghost"
+                        class="op-btn op-btn--archive"
                         type="button"
                         :disabled="dispatchTaskLoading"
                         @click="handleCloseTask(task)"
@@ -257,8 +268,8 @@ function onPendingFeature(title) {
   regulatorFeaturePendingNotice(title);
 }
 
-function goToCreateTask() {
-  router.push({ name: "regulator-admin-dispatch-create" });
+function goToDispatchRecords() {
+  router.push({ name: "regulator-admin-dispatch-records" });
 }
 
 function setStatus(message, type = "info") {
@@ -427,10 +438,22 @@ onMounted(async () => {
 
 <style scoped>
 .dispatch-page { display: grid; gap: 16px; }
+.dispatch-subnav { display: inline-flex; align-items: center; gap: 8px; }
+.dispatch-subnav button {
+  min-height: 30px;
+  border-radius: 4px;
+  border: 1px solid #d7e1ec;
+  background: #fff;
+  color: #516377;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 0 12px;
+  cursor: pointer;
+}
+.dispatch-subnav button.active { border-color: #bfd2ea; background: #eaf2fd; color: #0f3a72; }
 .dispatch-page__head { display: flex; justify-content: space-between; align-items: end; gap: 10px; }
 .dispatch-page__head h1 { margin: 0; color: #002660; font-size: 30px; font-weight: 800; }
 .dispatch-page__head p { margin: 6px 0 0; color: #64748b; }
-.head-create-btn { min-height: 42px; min-width: 140px; border-radius: 8px; box-shadow: 0 12px 24px rgba(0, 38, 96, 0.2); }
 .filter-panel { background: #edf2f7; border-radius: 10px; padding: 12px; display: grid; grid-template-columns: 1fr 1.4fr 1fr auto auto; gap: 10px; align-items: end; }
 .filter-panel label { display: grid; gap: 6px; font-size: 12px; color: #64748b; font-weight: 700; }
 .filter-panel input, .filter-panel select { border: 0; background: #fff; border-radius: 8px; padding: 9px 10px; color: #1e293b; }
@@ -465,10 +488,62 @@ td { padding: 10px; border-top: 1px solid #edf2f7; font-size: 13px; color: #1e29
 .progress-track { width: 80px; height: 6px; background: #e2e8f0; border-radius: 999px; overflow: hidden; }
 .progress-fill { height: 100%; background: #2563eb; }
 .progress-wrap span { font-size: 11px; font-weight: 700; color: #334155; }
-.action-row { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+.action-row {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  flex-wrap: wrap;
+  padding: 4px;
+  border-radius: 8px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+}
+.op-btn {
+  border: 1px solid #cbd5e1;
+  background: #fff;
+  color: #334155;
+  border-radius: 6px;
+  padding: 5px 10px;
+  min-height: 28px;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.op-btn:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 4px 10px rgba(15, 23, 42, 0.08); }
+.op-btn:disabled { cursor: not-allowed; opacity: 0.55; }
+.op-btn--detail { color: #1e3a8a; border-color: #bfdbfe; background: #eff6ff; }
+.op-btn--detail:hover:not(:disabled) { background: #dbeafe; }
+.op-btn--assign { color: #fff; border-color: #1d4ed8; background: #1d4ed8; }
+.op-btn--assign:hover:not(:disabled) { background: #1e40af; border-color: #1e40af; }
+.op-btn--archive { color: #166534; border-color: #86efac; background: #f0fdf4; }
+.op-btn--archive:hover:not(:disabled) { background: #dcfce7; }
+.op-expired-tip {
+  display: inline-flex;
+  align-items: center;
+  min-height: 28px;
+  padding: 0 10px;
+  border-radius: 6px;
+  border: 1px solid #fecaca;
+  background: #fef2f2;
+  color: #b91c1c;
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.op-select {
+  border: 1px solid #cbd5e1;
+  background: #fff;
+  border-radius: 6px;
+  padding: 5px 8px;
+  min-height: 28px;
+  min-width: 118px;
+  font-size: 12px;
+  color: #334155;
+}
 .ghost { border: 1px solid #d1d5db; background: #fff; color: #334155; border-radius: 6px; padding: 6px 10px; font-size: 12px; cursor: pointer; }
 .link-reset { border-color: transparent; background: transparent; color: #475569; text-decoration: underline; text-underline-offset: 3px; }
-.action-row select { border: 1px solid #d1d5db; background: #fff; border-radius: 6px; padding: 5px 8px; font-size: 12px; color: #334155; }
 .pager { margin-top: 10px; display: flex; justify-content: space-between; align-items: center; font-size: 12px; color: #64748b; }
 .pager-actions { display: flex; gap: 8px; }
 .empty { padding: 14px; color: #64748b; font-size: 13px; }

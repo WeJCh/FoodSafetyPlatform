@@ -67,7 +67,7 @@
               </div>
             </div>
 
-            <div class="public-bulletin-detail-page__article-body">{{ detail.content || "-" }}</div>
+            <div class="public-bulletin-detail-page__article-body" v-html="sanitizedArticleHtml"></div>
 
             <div v-if="attachmentList.length" class="public-bulletin-detail-page__attachments">
               <h3>附件下载</h3>
@@ -129,6 +129,7 @@ const categoryLabelMap = {
 };
 
 const bulletinCode = computed(() => `GG-${String(detail.value?.id || "0000").padStart(4, "0")}`);
+const sanitizedArticleHtml = computed(() => sanitizeBulletinHtml(detail.value?.content || ""));
 
 const attachmentList = computed(() => {
   const raw = detail.value?.attachments;
@@ -151,6 +152,39 @@ function formatDate(value) {
 function formatDateTime(value) {
   const text = String(formatTime(value || ""));
   return text && text !== "-" ? text : "-";
+}
+
+function sanitizeBulletinHtml(html) {
+  const source = String(html || "").trim();
+  if (!source) return "<p>-</p>";
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(source, "text/html");
+  const allowedTags = new Set(["P", "BR", "STRONG", "B", "EM", "I", "U", "H2", "H3", "UL", "OL", "LI", "A", "BLOCKQUOTE"]);
+  const walkers = doc.body.querySelectorAll("*");
+  walkers.forEach((el) => {
+    const tag = el.tagName.toUpperCase();
+    if (!allowedTags.has(tag)) {
+      const text = doc.createTextNode(el.textContent || "");
+      el.replaceWith(text);
+      return;
+    }
+    [...el.attributes].forEach((attr) => {
+      const name = attr.name.toLowerCase();
+      if (tag === "A" && name === "href") return;
+      el.removeAttribute(attr.name);
+    });
+    if (tag === "A") {
+      const href = el.getAttribute("href") || "";
+      if (!/^https?:\/\//i.test(href)) {
+        el.replaceWith(doc.createTextNode(el.textContent || ""));
+        return;
+      }
+      el.setAttribute("target", "_blank");
+      el.setAttribute("rel", "noopener noreferrer");
+    }
+  });
+  const result = doc.body.innerHTML.trim();
+  return result || "<p>-</p>";
 }
 
 async function handleLogout() {
@@ -215,7 +249,15 @@ watch(() => route.params.bulletinId, loadDetail);
 .public-bulletin-detail-page__meta-grid { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: 10px; padding: 12px; border-radius: 10px; background: rgba(242,244,247,.75); }
 .public-bulletin-detail-page__meta-grid span { display: block; font-size: 10px; font-weight: 700; letter-spacing: .08em; color: var(--on-surface-variant); text-transform: uppercase; }
 .public-bulletin-detail-page__meta-grid strong { margin-top: 4px; display: block; font-size: 13px; color: var(--primary); }
-.public-bulletin-detail-page__article-body { margin-top: 18px; white-space: pre-wrap; line-height: 1.8; color: var(--on-surface); }
+.public-bulletin-detail-page__article-body { margin-top: 18px; line-height: 1.8; color: var(--on-surface); font-size: 14px; }
+.public-bulletin-detail-page__article-body :deep(p) { margin: 0 0 12px; text-indent: 2em; }
+.public-bulletin-detail-page__article-body :deep(h2),
+.public-bulletin-detail-page__article-body :deep(h3) { margin: 16px 0 10px; color: var(--primary); line-height: 1.4; text-indent: 0; }
+.public-bulletin-detail-page__article-body :deep(ul),
+.public-bulletin-detail-page__article-body :deep(ol) { margin: 10px 0 10px 24px; padding: 0; }
+.public-bulletin-detail-page__article-body :deep(li) { margin: 4px 0; }
+.public-bulletin-detail-page__article-body :deep(a) { color: #1d4ed8; text-decoration: underline; word-break: break-all; }
+.public-bulletin-detail-page__article-body :deep(blockquote) { margin: 12px 0; padding: 8px 12px; border-left: 3px solid rgba(0,38,96,.35); background: rgba(242,244,247,.7); }
 .public-bulletin-detail-page__attachments { margin-top: 18px; padding-top: 14px; border-top: 1px solid rgba(195,198,211,.35); display: grid; gap: 8px; }
 .public-bulletin-detail-page__attachments h3 { margin: 0; font-size: 12px; color: var(--primary); }
 .public-bulletin-detail-page__attachments button { border: 1px solid rgba(195,198,211,.5); background: var(--surface-container-low); min-height: 36px; padding: 0 10px; display: inline-flex; align-items: center; gap: 6px; justify-content: flex-start; cursor: pointer; }

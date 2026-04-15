@@ -1,0 +1,425 @@
+<!DOCTYPE html>
+
+<html lang="zh-CN"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>整改跟进列表 - 监管管理平台</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;500;600;700;800&amp;family=Inter:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "on-tertiary-fixed": "#370e00",
+                    "on-error-container": "#93000a",
+                    "on-error": "#ffffff",
+                    "outline": "#747783",
+                    "on-secondary-fixed": "#0c1a38",
+                    "on-surface-variant": "#434651",
+                    "on-background": "#191c1e",
+                    "background": "#f7f9fc",
+                    "on-tertiary-fixed-variant": "#7c2d06",
+                    "on-secondary-container": "#505d7e",
+                    "on-primary": "#ffffff",
+                    "error": "#ba1a1a",
+                    "outline-variant": "#c3c6d3",
+                    "on-tertiary-container": "#fb8d60",
+                    "surface-container-highest": "#e0e3e6",
+                    "surface-container": "#eceef1",
+                    "on-primary-fixed": "#001945",
+                    "secondary-fixed": "#d9e2ff",
+                    "primary-fixed": "#d9e2ff",
+                    "on-tertiary": "#ffffff",
+                    "error-container": "#ffdad6",
+                    "inverse-primary": "#b0c6ff",
+                    "tertiary-fixed": "#ffdbce",
+                    "surface-tint": "#335bae",
+                    "primary": "#002660",
+                    "tertiary-fixed-dim": "#ffb599",
+                    "primary-container": "#003a8c",
+                    "on-primary-fixed-variant": "#124394",
+                    "surface": "#f7f9fc",
+                    "on-surface": "#191c1e",
+                    "surface-container-high": "#e6e8eb",
+                    "secondary": "#515e7f",
+                    "surface-container-low": "#f2f4f7",
+                    "tertiary": "#4e1700",
+                    "secondary-container": "#c9d7fe",
+                    "inverse-on-surface": "#eff1f4",
+                    "primary-fixed-dim": "#b0c6ff",
+                    "on-primary-container": "#84a8ff",
+                    "on-secondary-fixed-variant": "#394666",
+                    "tertiary-container": "#722600",
+                    "surface-dim": "#d8dadd",
+                    "surface-container-lowest": "#ffffff",
+                    "surface-bright": "#f7f9fc",
+                    "on-secondary": "#ffffff",
+                    "inverse-surface": "#2d3133",
+                    "surface-variant": "#e0e3e6",
+                    "secondary-fixed-dim": "#b9c6ed"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.125rem",
+                    "lg": "0.25rem",
+                    "xl": "0.5rem",
+                    "full": "0.75rem"
+            },
+            "fontFamily": {
+                    "headline": ["Public Sans"],
+                    "body": ["Inter"],
+                    "label": ["Inter"]
+            }
+          },
+        }
+      }
+    </script>
+<style>
+        body { font-family: 'Inter', sans-serif; }
+        .font-headline { font-family: 'Public Sans', sans-serif; }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+    </style>
+</head>
+<body class="bg-background text-on-background min-h-screen">
+<!-- TopNavBar -->
+<header class="fixed top-0 w-full z-50 bg-slate-50/80 dark:bg-slate-900/80 backdrop-blur-md shadow-sm flex justify-between items-center px-6 py-3 w-full">
+<div class="flex items-center gap-8">
+<div class="text-xl font-bold tracking-tight text-blue-900 dark:text-blue-100 font-headline">监管管理平台</div>
+<div class="hidden md:flex items-center bg-surface-container-high px-3 py-1.5 rounded-lg w-80">
+<span class="material-symbols-outlined text-on-surface-variant text-sm mr-2">search</span>
+<input class="bg-transparent border-none focus:ring-0 text-sm w-full placeholder:text-on-surface-variant" placeholder="搜索企业名称或整改编号..." type="text"/>
+</div>
+</div>
+<div class="flex items-center gap-4">
+<button class="p-2 rounded-full hover:bg-slate-200/50 transition-colors">
+<span class="material-symbols-outlined text-slate-600">notifications</span>
+</button>
+<div class="flex items-center gap-2 border-l border-outline-variant pl-4">
+<div class="text-right hidden sm:block">
+<p class="text-xs font-bold text-blue-900">执法人员</p>
+<p class="text-[10px] text-slate-500">ID: 882910</p>
+</div>
+<img class="w-8 h-8 rounded-full object-cover border border-outline-variant" data-alt="professional portrait of a law enforcement officer in a clean uniform against a neutral office background" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCk_umX0AnwekmsXhfqE2FFhRcnu07JXKg8x0-tbYlSCBBaMqyxbKmBOARsz5NNItQfBrXdCumlMhteJWQsdsDBYvTyf7xAuglPpJ4s3xTWU8Jr5k-fc7xosu5-f1nfILv9MNBLlx4jmzHIxdrgioOAfS-3pucQB1pWtpwHdQfL7yCSVaVjaNRTx7UUsLjwXqi-srGoJeXO7bRGWm4WIrE6GJF9PEWUBnUE5rtrW1FcLpYscRJSbqzimoenoW45QgJvKsGrPxW4kQc"/>
+</div>
+</div>
+</header>
+<!-- SideNavBar -->
+<aside class="fixed left-0 top-0 h-full flex flex-col pt-16 h-screen w-64 bg-slate-50 dark:bg-slate-950 font-['Inter'] text-sm antialiased z-40">
+<div class="px-6 py-6">
+<div class="flex items-center gap-3 mb-8">
+<div class="w-10 h-10 bg-primary-container rounded-lg flex items-center justify-center">
+<span class="material-symbols-outlined text-on-primary-container" style="font-variation-settings: 'FILL' 1;">policy</span>
+</div>
+<div>
+<h2 class="font-bold text-blue-900 dark:text-blue-50">执法人员</h2>
+<p class="text-[10px] text-slate-500 uppercase tracking-wider">REGULATOR_ENFORCER</p>
+</div>
+</div>
+<nav class="space-y-1">
+<a class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-500 hover:bg-slate-100 transition-all duration-200" href="#">
+<span class="material-symbols-outlined">dashboard</span>
+<span>工作台</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-500 hover:bg-slate-100 transition-all duration-200" href="#">
+<span class="material-symbols-outlined">assignment</span>
+<span>我的检查任务</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-500 hover:bg-slate-100 transition-all duration-200" href="#">
+<span class="material-symbols-outlined">biotech</span>
+<span>我的抽检任务</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-500 hover:bg-slate-100 transition-all duration-200" href="#">
+<span class="material-symbols-outlined">assignment_return</span>
+<span>投诉处理</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2.5 rounded-lg bg-white dark:bg-slate-800 text-blue-900 dark:text-blue-400 font-semibold shadow-sm translate-x-1 duration-200" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">task_alt</span>
+<span>整改跟进</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-500 hover:bg-slate-100 transition-all duration-200" href="#">
+<span class="material-symbols-outlined">warning</span>
+<span>我的风险预警</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-500 hover:bg-slate-100 transition-all duration-200" href="#">
+<span class="material-symbols-outlined">analytics</span>
+<span>检查记录</span>
+</a>
+</nav>
+</div>
+<div class="mt-auto px-6 py-6 border-t border-slate-200/50">
+<button class="flex items-center gap-3 text-slate-400 hover:text-error transition-colors text-xs">
+<span class="material-symbols-outlined text-sm">logout</span>
+<span>退出登录</span>
+</button>
+</div>
+</aside>
+<!-- Main Content -->
+<main class="ml-64 pt-16 p-8 min-h-screen">
+<div class="max-w-6xl mx-auto">
+<!-- Header Section -->
+<div class="flex flex-col md:flex-row md:items-end justify-between mb-8 gap-4">
+<div>
+<h1 class="text-2xl font-bold text-primary font-headline tracking-tight">整改跟进列表</h1>
+<p class="text-on-surface-variant text-sm mt-1">跟踪并确认辖区内企业的违规整改落实情况</p>
+</div>
+<div class="flex items-center gap-3">
+<div class="flex bg-surface-container rounded-lg p-1">
+<button class="px-4 py-1.5 text-xs font-semibold bg-surface-container-lowest rounded shadow-sm text-primary">全部任务</button>
+<button class="px-4 py-1.5 text-xs font-medium text-on-surface-variant hover:text-primary transition-colors">待我确认</button>
+<button class="px-4 py-1.5 text-xs font-medium text-on-surface-variant hover:text-primary transition-colors">已超期</button>
+</div>
+</div>
+</div>
+<!-- Filters & Search -->
+<div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+<div class="md:col-span-2 relative">
+<span class="absolute left-3 top-1/2 -translate-y-1/2 material-symbols-outlined text-outline text-lg">search</span>
+<input class="w-full pl-10 pr-4 py-2.5 bg-surface-container-highest border-none rounded-lg text-sm focus:bg-surface-container-lowest focus:ring-1 focus:ring-primary/20 transition-all" placeholder="输入企业名称或法人代表查询..." type="text"/>
+</div>
+<select class="bg-surface-container-highest border-none rounded-lg text-sm px-4 py-2.5 focus:ring-1 focus:ring-primary/20">
+<option value="">所有整改状态</option>
+<option value="ONGOING">ONGOING (进行中)</option>
+<option value="SUBMITTED">SUBMITTED (待复核)</option>
+<option value="REWORK">REWORK (被打回)</option>
+<option value="CONFIRMED">CONFIRMED (已结项)</option>
+</select>
+<select class="bg-surface-container-highest border-none rounded-lg text-sm px-4 py-2.5 focus:ring-1 focus:ring-primary/20">
+<option value="">风险等级</option>
+<option value="high">高风险</option>
+<option value="medium">中风险</option>
+<option value="low">低风险</option>
+</select>
+</div>
+<!-- List Section -->
+<div class="bg-surface-container-lowest rounded-xl shadow-sm overflow-hidden">
+<table class="w-full text-left border-collapse">
+<thead>
+<tr class="bg-surface-container-low">
+<th class="px-6 py-4 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest font-label">企业信息与整改摘要</th>
+<th class="px-6 py-4 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest font-label text-center">当前状态</th>
+<th class="px-6 py-4 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest font-label">进度跟进</th>
+<th class="px-6 py-4 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest font-label">截止日期</th>
+<th class="px-6 py-4 text-right"></th>
+</tr>
+</thead>
+<tbody class="divide-y divide-surface-container">
+<!-- Item 1: Overdue/High Risk -->
+<tr class="hover:bg-slate-50 transition-colors group">
+<td class="px-6 py-5">
+<div class="flex flex-col">
+<span class="text-sm font-bold text-primary mb-1">香满园餐饮管理有限公司</span>
+<span class="text-xs text-on-surface-variant line-clamp-1 italic">厨房卫生不达标，冷链储存温度记录缺失</span>
+</div>
+</td>
+<td class="px-6 py-5 text-center">
+<span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-error-container text-on-error-container">
+<span class="material-symbols-outlined text-[12px] mr-1">history_edu</span>
+                                    REWORK
+                                </span>
+</td>
+<td class="px-6 py-5">
+<div class="w-32">
+<div class="flex justify-between items-end mb-1">
+<span class="text-[10px] text-error font-bold uppercase tracking-tight">超期 3 天</span>
+<span class="text-[10px] text-on-surface-variant">25%</span>
+</div>
+<div class="h-1.5 w-full bg-surface-container-high rounded-full overflow-hidden">
+<div class="h-full bg-error rounded-full" style="width: 25%"></div>
+</div>
+</div>
+</td>
+<td class="px-6 py-5">
+<div class="flex flex-col">
+<span class="text-xs font-semibold text-error">2023-11-20</span>
+<span class="text-[10px] text-on-surface-variant">逾期强制预警已触发</span>
+</div>
+</td>
+<td class="px-6 py-5 text-right">
+<button class="p-2 hover:bg-primary-container/10 rounded text-primary transition-all">
+<span class="material-symbols-outlined">arrow_forward_ios</span>
+</button>
+</td>
+</tr>
+<!-- Item 2: Submitted -->
+<tr class="bg-surface-container-low/30 hover:bg-slate-50 transition-colors group">
+<td class="px-6 py-5">
+<div class="flex flex-col">
+<span class="text-sm font-bold text-primary mb-1">清风阁茶叶商行</span>
+<span class="text-xs text-on-surface-variant line-clamp-1 italic">进货查验记录不全，缺少供应商资质证照</span>
+</div>
+</td>
+<td class="px-6 py-5 text-center">
+<span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-secondary-container text-on-secondary-container">
+<span class="material-symbols-outlined text-[12px] mr-1">rule</span>
+                                    SUBMITTED
+                                </span>
+</td>
+<td class="px-6 py-5">
+<div class="w-32">
+<div class="flex justify-between items-end mb-1">
+<span class="text-[10px] text-on-primary-fixed-variant font-bold uppercase tracking-tight">待执法核验</span>
+<span class="text-[10px] text-on-surface-variant">100%</span>
+</div>
+<div class="h-1.5 w-full bg-surface-container-high rounded-full overflow-hidden">
+<div class="h-full bg-primary-container rounded-full" style="width: 100%"></div>
+</div>
+</div>
+</td>
+<td class="px-6 py-5">
+<div class="flex flex-col">
+<span class="text-xs font-semibold text-on-surface">2023-11-28</span>
+<span class="text-[10px] text-on-surface-variant">剩余 5 天</span>
+</div>
+</td>
+<td class="px-6 py-5 text-right">
+<button class="px-3 py-1.5 bg-primary text-on-primary text-[10px] font-bold rounded shadow-sm hover:bg-primary-container transition-all">去核验</button>
+</td>
+</tr>
+<!-- Item 3: Ongoing -->
+<tr class="hover:bg-slate-50 transition-colors group">
+<td class="px-6 py-5">
+<div class="flex flex-col">
+<span class="text-sm font-bold text-primary mb-1">金麦穗面点坊</span>
+<span class="text-xs text-on-surface-variant line-clamp-1 italic">从业人员健康证明过期，未按规定佩戴口罩</span>
+</div>
+</td>
+<td class="px-6 py-5 text-center">
+<span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-blue-100 text-blue-900">
+<span class="material-symbols-outlined text-[12px] mr-1">sync</span>
+                                    ONGOING
+                                </span>
+</td>
+<td class="px-6 py-5">
+<div class="w-32">
+<div class="flex justify-between items-end mb-1">
+<span class="text-[10px] text-on-surface-variant font-bold uppercase tracking-tight">正常推进</span>
+<span class="text-[10px] text-on-surface-variant">60%</span>
+</div>
+<div class="h-1.5 w-full bg-surface-container-high rounded-full overflow-hidden">
+<div class="h-full bg-blue-500 rounded-full" style="width: 60%"></div>
+</div>
+</div>
+</td>
+<td class="px-6 py-5">
+<div class="flex flex-col">
+<span class="text-xs font-semibold text-on-surface">2023-12-05</span>
+<span class="text-[10px] text-on-surface-variant">剩余 12 天</span>
+</div>
+</td>
+<td class="px-6 py-5 text-right">
+<button class="p-2 hover:bg-primary-container/10 rounded text-primary transition-all">
+<span class="material-symbols-outlined">arrow_forward_ios</span>
+</button>
+</td>
+</tr>
+<!-- Item 4: Confirmed -->
+<tr class="bg-surface-container-low/30 hover:bg-slate-50 transition-colors group">
+<td class="px-6 py-5">
+<div class="flex flex-col opacity-60">
+<span class="text-sm font-bold text-primary mb-1">好邻居生鲜超市</span>
+<span class="text-xs text-on-surface-variant line-clamp-1 italic">散装食品未标明生产日期及保质期</span>
+</div>
+</td>
+<td class="px-6 py-5 text-center">
+<span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-green-100 text-green-800">
+<span class="material-symbols-outlined text-[12px] mr-1" style="font-variation-settings: 'FILL' 1;">check_circle</span>
+                                    CONFIRMED
+                                </span>
+</td>
+<td class="px-6 py-5">
+<div class="w-32 opacity-50">
+<div class="flex justify-between items-end mb-1">
+<span class="text-[10px] text-on-surface-variant font-bold uppercase tracking-tight">已完成</span>
+<span class="text-[10px] text-on-surface-variant">100%</span>
+</div>
+<div class="h-1.5 w-full bg-surface-container-high rounded-full overflow-hidden">
+<div class="h-full bg-green-500 rounded-full" style="width: 100%"></div>
+</div>
+</div>
+</td>
+<td class="px-6 py-5">
+<div class="flex flex-col opacity-50">
+<span class="text-xs font-semibold text-on-surface">2023-11-15</span>
+<span class="text-[10px] text-on-surface-variant">提前 2 天完成</span>
+</div>
+</td>
+<td class="px-6 py-5 text-right">
+<button class="p-2 hover:bg-primary-container/10 rounded text-primary transition-all">
+<span class="material-symbols-outlined">visibility</span>
+</button>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+<!-- Pagination -->
+<div class="flex items-center justify-between mt-6 px-2">
+<p class="text-xs text-on-surface-variant">显示 1 到 10 项，共 42 项整改任务</p>
+<div class="flex gap-2">
+<button class="w-8 h-8 flex items-center justify-center rounded border border-outline-variant hover:bg-surface-container transition-colors disabled:opacity-30" disabled="">
+<span class="material-symbols-outlined text-sm">chevron_left</span>
+</button>
+<button class="w-8 h-8 flex items-center justify-center rounded bg-primary text-on-primary text-xs font-bold">1</button>
+<button class="w-8 h-8 flex items-center justify-center rounded border border-outline-variant text-xs hover:bg-surface-container transition-colors">2</button>
+<button class="w-8 h-8 flex items-center justify-center rounded border border-outline-variant text-xs hover:bg-surface-container transition-colors">3</button>
+<button class="w-8 h-8 flex items-center justify-center rounded border border-outline-variant hover:bg-surface-container transition-colors">
+<span class="material-symbols-outlined text-sm">chevron_right</span>
+</button>
+</div>
+</div>
+</div>
+</main>
+<!-- Audit Trail Sidebar (Asymmetric Detail) -->
+<div class="fixed right-0 top-16 bottom-0 w-80 bg-surface-container-lowest border-l border-outline-variant p-6 hidden lg:flex flex-col shadow-[-4px_0_12px_rgba(0,0,0,0.02)]">
+<h3 class="font-headline font-bold text-primary flex items-center gap-2 mb-6">
+<span class="material-symbols-outlined text-xl">timeline</span>
+            整改动态速览
+        </h3>
+<div class="space-y-6 overflow-y-auto pr-2 custom-scrollbar">
+<!-- Trail Item 1 -->
+<div class="relative pl-6 border-l-2 border-primary/20 pb-4">
+<div class="absolute -left-[9px] top-0 w-4 h-4 rounded-full bg-primary flex items-center justify-center border-2 border-surface-container-lowest">
+<div class="w-1.5 h-1.5 bg-white rounded-full"></div>
+</div>
+<div class="flex flex-col">
+<span class="text-[10px] font-bold text-primary uppercase">刚刚</span>
+<p class="text-xs font-semibold text-on-surface mt-0.5">金麦穗面点坊</p>
+<p class="text-[11px] text-on-surface-variant leading-relaxed">提交了 3 张新现场照片，正在处理健康证明扫描件。</p>
+</div>
+</div>
+<!-- Trail Item 2 -->
+<div class="relative pl-6 border-l-2 border-primary/20 pb-4">
+<div class="absolute -left-[9px] top-0 w-4 h-4 rounded-full bg-secondary flex items-center justify-center border-2 border-surface-container-lowest">
+<div class="w-1.5 h-1.5 bg-white rounded-full"></div>
+</div>
+<div class="flex flex-col">
+<span class="text-[10px] font-bold text-secondary uppercase">2 小时前</span>
+<p class="text-xs font-semibold text-on-surface mt-0.5">清风阁茶叶商行</p>
+<p class="text-[11px] text-on-surface-variant leading-relaxed">正式提交了整改结项申请，等待您核验。</p>
+</div>
+</div>
+<!-- Trail Item 3 -->
+<div class="relative pl-6 border-l-2 border-primary/20 pb-4">
+<div class="absolute -left-[9px] top-0 w-4 h-4 rounded-full bg-error flex items-center justify-center border-2 border-surface-container-lowest">
+<div class="w-1.5 h-1.5 bg-white rounded-full"></div>
+</div>
+<div class="flex flex-col">
+<span class="text-[10px] font-bold text-error uppercase">昨天 16:20</span>
+<p class="text-xs font-semibold text-on-surface mt-0.5">系统预警</p>
+<p class="text-[11px] text-on-surface-variant leading-relaxed">香满园餐饮管理有限公司整改期限到期，企业未响应。</p>
+</div>
+</div>
+</div>
+<div class="mt-auto pt-6 border-t border-outline-variant">
+<button class="w-full py-2.5 bg-surface-container-high text-on-surface text-xs font-bold rounded-lg hover:bg-surface-container-highest transition-colors flex items-center justify-center gap-2">
+<span class="material-symbols-outlined text-sm">print</span>
+                生成辖区整改月报
+            </button>
+</div>
+</div>
+</body></html>

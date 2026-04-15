@@ -41,14 +41,31 @@ const PublicHomeView = () => import("../views/public/PublicHomeView.vue");
 const PublicRegisterView = () => import("../views/PublicRegisterView.vue");
 const PublicSamplingResultDetailView = () => import("../views/PublicSamplingResultDetailView.vue");
 const PublicSamplingResultListView = () => import("../views/PublicSamplingResultListView.vue");
-const RegulatorAdminComplaintDetailView = () => import("../views/RegulatorAdminComplaintDetailView.vue");
+const RegulatorAdminComplaintDetailView = () =>
+  import("../views/regulatorAdmin/RegulatorAdminComplaintDetailView.vue");
 const RegulatorAdminApprovalsView = () => import("../views/regulatorAdmin/RegulatorAdminApprovalsView.vue");
 const RegulatorAdminDispatchCreateView = () => import("../views/regulatorAdmin/RegulatorAdminDispatchCreateView.vue");
+const RegulatorAdminDispatchRecordsView = () => import("../views/regulatorAdmin/RegulatorAdminDispatchRecordsView.vue");
 const RegulatorAdminEnterpriseDetailView = () => import("../views/regulatorAdmin/RegulatorAdminEnterpriseDetailView.vue");
 const RegulatorAdminDispatchTasksView = () => import("../views/regulatorAdmin/RegulatorAdminDispatchTasksView.vue");
+const RegulatorAdminComplaintFlowView = () =>
+  import("../views/regulatorAdmin/RegulatorAdminComplaintFlowView.vue");
+const RegulatorAdminRectificationReviewView = () =>
+  import("../views/regulatorAdmin/RegulatorAdminRectificationReviewView.vue");
+const RegulatorAdminRectificationDetailView = () =>
+  import("../views/regulatorAdmin/RegulatorAdminRectificationDetailView.vue");
+const RegulatorAdminBulletinManagementView = () =>
+  import("../views/regulatorAdmin/RegulatorAdminBulletinManagementView.vue");
+const RegulatorAdminBulletinEditView = () =>
+  import("../views/regulatorAdmin/RegulatorAdminBulletinEditView.vue");
 const RegulatorAdminEnterpriseListView = () => import("../views/regulatorAdmin/RegulatorAdminEnterpriseListView.vue");
 const RegulatorAdminOverviewView = () => import("../views/regulatorAdmin/RegulatorAdminOverviewView.vue");
-const RegulatorAdminView = () => import("../views/RegulatorAdminView.vue");
+const RegulatorAdminSamplingCreateView = () => import("../views/regulatorAdmin/RegulatorAdminSamplingCreateView.vue");
+const RegulatorAdminSamplingTaskDetailView = () =>
+  import("../views/regulatorAdmin/RegulatorAdminSamplingTaskDetailView.vue");
+const RegulatorAdminSamplingTasksView = () => import("../views/regulatorAdmin/RegulatorAdminSamplingTasksView.vue");
+const RegulatorAdminWarningCenterView = () => import("../views/regulatorAdmin/RegulatorAdminWarningCenterView.vue");
+const RegulatorAdminStatisticsView = () => import("../views/regulatorAdmin/RegulatorAdminStatisticsView.vue");
 const RegulatorEnforcerComplaintDetailView = () => import("../views/RegulatorEnforcerComplaintDetailView.vue");
 const RegulatorEnforcerView = () => import("../views/RegulatorEnforcerView.vue");
 
@@ -322,20 +339,38 @@ const routes = [
   {
     path: "/regulator/admin/sampling",
     name: "regulator-admin-sampling",
-    component: RegulatorAdminView,
-    meta: { title: "抽检任务", requiresRole: "REGULATOR_ADMIN", initialSection: "sampling" }
+    component: RegulatorAdminSamplingTasksView,
+    meta: { title: "抽检任务", requiresRole: "REGULATOR_ADMIN" }
+  },
+  {
+    path: "/regulator/admin/sampling/create",
+    name: "regulator-admin-sampling-create",
+    component: RegulatorAdminSamplingCreateView,
+    meta: { title: "新建抽检任务", requiresRole: "REGULATOR_ADMIN" }
+  },
+  {
+    path: "/regulator/admin/sampling/tasks/:taskId",
+    name: "regulator-admin-sampling-detail",
+    component: RegulatorAdminSamplingTaskDetailView,
+    meta: { title: "抽检结果详情", requiresRole: "REGULATOR_ADMIN" }
   },
   {
     path: "/regulator/admin/inspections",
     name: "regulator-admin-inspections",
-    component: RegulatorAdminView,
-    meta: { title: "检查记录", requiresRole: "REGULATOR_ADMIN", initialSection: "inspections" }
+    redirect: { name: "regulator-admin-dispatch-records" },
+    meta: { title: "检查记录", requiresRole: "REGULATOR_ADMIN" }
+  },
+  {
+    path: "/regulator/admin/dispatch/records",
+    name: "regulator-admin-dispatch-records",
+    component: RegulatorAdminDispatchRecordsView,
+    meta: { title: "检查记录", requiresRole: "REGULATOR_ADMIN" }
   },
   {
     path: "/regulator/admin/complaints",
     name: "regulator-admin-complaints",
-    component: RegulatorAdminView,
-    meta: { title: "投诉流转", requiresRole: "REGULATOR_ADMIN", initialSection: "complaints" }
+    component: RegulatorAdminComplaintFlowView,
+    meta: { title: "投诉流转", requiresRole: "REGULATOR_ADMIN" }
   },
   {
     path: "/regulator/admin/complaints/:complaintId",
@@ -346,26 +381,44 @@ const routes = [
   {
     path: "/regulator/admin/rectifications",
     name: "regulator-admin-rectifications",
-    component: RegulatorAdminView,
-    meta: { title: "整改复核", requiresRole: "REGULATOR_ADMIN", initialSection: "rectification" }
+    component: RegulatorAdminRectificationReviewView,
+    meta: { title: "整改复核", requiresRole: "REGULATOR_ADMIN" }
+  },
+  {
+    path: "/regulator/admin/rectifications/:rectificationId",
+    name: "regulator-admin-rectification-detail",
+    component: RegulatorAdminRectificationDetailView,
+    meta: { title: "整改复核详情", requiresRole: "REGULATOR_ADMIN" }
   },
   {
     path: "/regulator/admin/warnings",
     name: "regulator-admin-warnings",
-    component: RegulatorAdminView,
-    meta: { title: "风险预警", requiresRole: "REGULATOR_ADMIN", initialSection: "warnings" }
+    component: RegulatorAdminWarningCenterView,
+    meta: { title: "风险预警", requiresRole: "REGULATOR_ADMIN" }
   },
   {
     path: "/regulator/admin/bulletins",
     name: "regulator-admin-bulletins",
-    component: RegulatorAdminView,
-    meta: { title: "公告发布", requiresRole: "REGULATOR_ADMIN", initialSection: "bulletins" }
+    component: RegulatorAdminBulletinManagementView,
+    meta: { title: "公告管理", requiresRole: "REGULATOR_ADMIN" }
+  },
+  {
+    path: "/regulator/admin/bulletins/create",
+    name: "regulator-admin-bulletin-create",
+    component: RegulatorAdminBulletinEditView,
+    meta: { title: "新建公告", requiresRole: "REGULATOR_ADMIN" }
+  },
+  {
+    path: "/regulator/admin/bulletins/:bulletinId/edit",
+    name: "regulator-admin-bulletin-edit",
+    component: RegulatorAdminBulletinEditView,
+    meta: { title: "编辑公告", requiresRole: "REGULATOR_ADMIN" }
   },
   {
     path: "/regulator/admin/stats",
     name: "regulator-admin-stats",
-    component: RegulatorAdminView,
-    meta: { title: "数据统计", requiresRole: "REGULATOR_ADMIN", initialSection: "stats" }
+    component: RegulatorAdminStatisticsView,
+    meta: { title: "数据统计", requiresRole: "REGULATOR_ADMIN" }
   },
   {
     path: "/regulator/admin/enterprises/:enterpriseId",

@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+
+<html class="light" lang="zh-CN"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>我的风险预警 - 监管管理平台</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;500;700;800&amp;family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "secondary-fixed": "#d9e2ff",
+                    "on-primary": "#ffffff",
+                    "surface-bright": "#f7f9fc",
+                    "inverse-on-surface": "#eff1f4",
+                    "primary-fixed-dim": "#b0c6ff",
+                    "surface-container-low": "#f2f4f7",
+                    "on-surface": "#191c1e",
+                    "inverse-primary": "#b0c6ff",
+                    "on-primary-container": "#84a8ff",
+                    "tertiary-fixed-dim": "#ffb599",
+                    "background": "#f7f9fc",
+                    "outline": "#747783",
+                    "surface-container-highest": "#e0e3e6",
+                    "surface-container": "#eceef1",
+                    "error": "#ba1a1a",
+                    "on-secondary-container": "#505d7e",
+                    "tertiary-container": "#722600",
+                    "on-tertiary-fixed": "#370e00",
+                    "on-error": "#ffffff",
+                    "on-tertiary": "#ffffff",
+                    "tertiary-fixed": "#ffdbce",
+                    "on-error-container": "#93000a",
+                    "secondary-fixed-dim": "#b9c6ed",
+                    "surface-container-high": "#e6e8eb",
+                    "secondary": "#515e7f",
+                    "primary": "#002660",
+                    "surface-tint": "#335bae",
+                    "surface-container-lowest": "#ffffff",
+                    "on-secondary-fixed-variant": "#394666",
+                    "on-surface-variant": "#434651",
+                    "on-tertiary-fixed-variant": "#7c2d06",
+                    "on-primary-fixed-variant": "#124394",
+                    "inverse-surface": "#2d3133",
+                    "primary-container": "#003a8c",
+                    "surface": "#f7f9fc",
+                    "error-container": "#ffdad6",
+                    "on-secondary": "#ffffff",
+                    "tertiary": "#4e1700",
+                    "on-tertiary-container": "#fb8d60",
+                    "surface-dim": "#d8dadd",
+                    "outline-variant": "#c3c6d3",
+                    "secondary-container": "#c9d7fe",
+                    "on-primary-fixed": "#001945",
+                    "on-background": "#191c1e",
+                    "surface-variant": "#e0e3e6",
+                    "primary-fixed": "#d9e2ff",
+                    "on-secondary-fixed": "#0c1a38"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.125rem",
+                    "lg": "0.25rem",
+                    "xl": "0.5rem",
+                    "full": "0.75rem"
+            },
+            "fontFamily": {
+                    "headline": ["Public Sans"],
+                    "body": ["Inter"],
+                    "label": ["Inter"]
+            }
+          },
+        },
+      }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        body { font-family: 'Inter', sans-serif; }
+        h1, h2, .brand-font { font-family: 'Public Sans', sans-serif; }
+    </style>
+</head>
+<body class="bg-surface text-on-surface antialiased">
+<nav class="fixed top-0 w-full z-50 bg-slate-50/80 dark:bg-slate-900/80 backdrop-blur-md shadow-sm flex justify-between items-center px-6 py-3 w-full">
+<div class="flex items-center gap-8">
+<div class="text-xl font-bold tracking-tight text-blue-900 dark:text-blue-100">监管管理平台</div>
+<div class="hidden md:flex gap-6 items-center">
+<div class="text-slate-600 dark:text-slate-400 hover:bg-slate-200/50 dark:hover:bg-slate-800/50 transition-colors px-3 py-1 cursor-pointer">首页</div>
+<div class="text-slate-600 dark:text-slate-400 hover:bg-slate-200/50 dark:hover:bg-slate-800/50 transition-colors px-3 py-1 cursor-pointer">监管大屏</div>
+</div>
+</div>
+<div class="flex items-center gap-4">
+<div class="relative flex items-center bg-slate-100 dark:bg-slate-800 rounded-lg px-3 py-1.5">
+<span class="material-symbols-outlined text-slate-500 text-lg">search</span>
+<input class="bg-transparent border-none focus:ring-0 text-sm w-64 text-on-surface ml-2" placeholder="搜索预警、企业..." type="text"/>
+</div>
+<button class="p-2 text-slate-600 hover:bg-slate-200/50 rounded-full transition-colors relative">
+<span class="material-symbols-outlined">notifications</span>
+<span class="absolute top-2 right-2 w-2 h-2 bg-error rounded-full"></span>
+</button>
+<div class="flex items-center gap-3 pl-4 border-l border-slate-200">
+<div class="text-right">
+<p class="text-xs font-bold text-blue-900">执法人员</p>
+<p class="text-[10px] text-slate-500">ID: 882910</p>
+</div>
+<img alt="执法人员" class="w-8 h-8 rounded-full border border-slate-200 object-cover" data-alt="professional portrait of a middle-aged man in a formal dark suit, soft studio lighting, clean gray background" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDkU8PpzOTt8HZsByL9xRbnqTWts2uS2175k6hPZFdeesZ1eykSBDHreYvaDu5KM1dE_B11ePGDVCAHyo4k5AAo2ZjiWhZWuSJ-nxwIzuYXrclZDIcJbB5-zWbUUEvDJXRlqhS0ubZD-xhu9Ku4e6GvK0zu9lHS5jje70QN8NUWM2YKqbllAOqzKKTVgzo9OOrltmdK2yscv6r2WRevprQ0jQCVTIJVNsxAoggAce3-Lx82J6MMZg3iiZ6h7LUFIcf4d_1QdfQK64M"/>
+</div>
+</div>
+</nav>
+<aside class="fixed left-0 top-0 h-full flex flex-col pt-16 h-screen w-64 bg-slate-50 dark:bg-slate-950 font-['Inter'] text-sm antialiased z-40">
+<div class="px-6 py-6 border-b border-surface-container">
+<h2 class="font-bold text-blue-900 dark:text-blue-50">执法人员</h2>
+<p class="text-[10px] text-slate-400 tracking-widest mt-1">REGULATOR_ENFORCER</p>
+</div>
+<nav class="flex-1 px-3 py-4 space-y-1">
+<a class="flex items-center gap-3 px-4 py-3 text-slate-500 dark:text-slate-400 hover:text-blue-800 hover:bg-slate-100 dark:hover:bg-slate-900 transition-all duration-200 rounded-lg" href="#">
+<span class="material-symbols-outlined">dashboard</span>工作台
+            </a>
+<a class="flex items-center gap-3 px-4 py-3 text-slate-500 dark:text-slate-400 hover:text-blue-800 hover:bg-slate-100 dark:hover:bg-slate-900 transition-all duration-200 rounded-lg" href="#">
+<span class="material-symbols-outlined">assignment</span>我的检查任务
+            </a>
+<a class="flex items-center gap-3 px-4 py-3 text-slate-500 dark:text-slate-400 hover:text-blue-800 hover:bg-slate-100 dark:hover:bg-slate-900 transition-all duration-200 rounded-lg" href="#">
+<span class="material-symbols-outlined">biotech</span>我的抽检任务
+            </a>
+<a class="flex items-center gap-3 px-4 py-3 text-slate-500 dark:text-slate-400 hover:text-blue-800 hover:bg-slate-100 dark:hover:bg-slate-900 transition-all duration-200 rounded-lg" href="#">
+<span class="material-symbols-outlined">assignment_return</span>投诉处理
+            </a>
+<a class="flex items-center gap-3 px-4 py-3 text-slate-500 dark:text-slate-400 hover:text-blue-800 hover:bg-slate-100 dark:hover:bg-slate-900 transition-all duration-200 rounded-lg" href="#">
+<span class="material-symbols-outlined">task_alt</span>整改跟进
+            </a>
+<a class="flex items-center gap-3 px-4 py-3 bg-white dark:bg-slate-800 text-blue-900 dark:text-blue-400 font-semibold shadow-sm translate-x-1 duration-200 rounded-lg" href="#">
+<span class="material-symbols-outlined">warning</span>我的风险预警
+            </a>
+<a class="flex items-center gap-3 px-4 py-3 text-slate-500 dark:text-slate-400 hover:text-blue-800 hover:bg-slate-100 dark:hover:bg-slate-900 transition-all duration-200 rounded-lg" href="#">
+<span class="material-symbols-outlined">analytics</span>检查记录
+            </a>
+</nav>
+<div class="p-4 bg-primary-container text-on-primary-container mx-4 mb-6 rounded-xl flex items-center gap-3">
+<span class="material-symbols-outlined text-on-primary-container">shield</span>
+<div>
+<p class="text-xs font-bold">合规守护中</p>
+<p class="text-[10px] opacity-80">已处理预警 24 件</p>
+</div>
+</div>
+</aside>
+<main class="ml-64 pt-16 min-h-screen bg-surface">
+<div class="max-w-[1400px] mx-auto p-8">
+<header class="mb-8 flex justify-between items-end">
+<div>
+<nav class="flex gap-2 text-xs text-on-surface-variant mb-2">
+<span>管理系统</span>
+<span>/</span>
+<span class="text-primary font-medium">风险预警中心</span>
+</nav>
+<h1 class="text-3xl font-extrabold text-primary tracking-tight">我的风险预警</h1>
+<p class="text-on-surface-variant mt-1">当前待处理的高风险预警共 <span class="text-error font-bold">8</span> 项，请及时跟进处理。</p>
+</div>
+<div class="flex gap-3">
+<button class="bg-surface-container-high text-on-surface px-4 py-2 text-sm font-medium hover:bg-surface-container-highest transition-colors flex items-center gap-2">
+<span class="material-symbols-outlined text-base">file_download</span> 导出报表
+                    </button>
+<button class="bg-primary text-on-primary px-4 py-2 text-sm font-medium hover:opacity-90 transition-opacity flex items-center gap-2">
+<span class="material-symbols-outlined text-base" style="font-variation-settings: 'FILL' 1;">add</span> 手动触发预警
+                    </button>
+</div>
+</header>
+<div class="bg-surface-container-low p-6 mb-8 flex flex-wrap gap-6 items-center">
+<div class="flex-1 min-w-[200px]">
+<label class="block text-[10px] font-bold text-on-surface-variant uppercase tracking-wider mb-2">风险等级</label>
+<div class="flex gap-2">
+<button class="bg-surface-container-lowest border border-primary text-primary px-4 py-2 text-xs font-bold">ALL</button>
+<button class="bg-surface-container-lowest text-on-surface-variant px-4 py-2 text-xs font-bold hover:bg-error-container hover:text-on-error-container transition-colors">L1 (极高)</button>
+<button class="bg-surface-container-lowest text-on-surface-variant px-4 py-2 text-xs font-bold hover:bg-tertiary-fixed hover:text-on-tertiary-fixed-variant transition-colors">L2 (较高)</button>
+</div>
+</div>
+<div class="w-48">
+<label class="block text-[10px] font-bold text-on-surface-variant uppercase tracking-wider mb-2">当前状态</label>
+<select class="w-full bg-surface-container-highest border-none text-xs font-medium py-2 focus:ring-1 focus:ring-primary">
+<option>所有状态</option>
+<option>OPEN (待处理)</option>
+<option>PROCESSING (处理中)</option>
+<option>RESOLVED (已解决)</option>
+<option>CLOSED (已关闭)</option>
+</select>
+</div>
+<div class="w-48">
+<label class="block text-[10px] font-bold text-on-surface-variant uppercase tracking-wider mb-2">生成时间</label>
+<div class="flex items-center bg-surface-container-highest px-3 py-2 text-xs">
+<span class="material-symbols-outlined text-sm mr-2">calendar_today</span>
+<span>近 7 天</span>
+</div>
+</div>
+<div class="flex items-end h-full pt-6">
+<button class="text-primary text-xs font-bold flex items-center gap-1 hover:underline">
+<span class="material-symbols-outlined text-sm">filter_alt_off</span> 重置筛选条件
+                    </button>
+</div>
+</div>
+<div class="space-y-4">
+<div class="bg-surface-container-lowest p-6 flex items-center gap-6 group hover:shadow-lg transition-shadow border-l-4 border-error">
+<div class="flex flex-col items-center justify-center w-16 h-16 bg-error-container text-error rounded-lg">
+<span class="material-symbols-outlined text-3xl" style="font-variation-settings: 'FILL' 1;">priority_high</span>
+<span class="text-[10px] font-black mt-1">P0</span>
+</div>
+<div class="flex-1 grid grid-cols-4 gap-6 items-center">
+<div>
+<div class="flex items-center gap-2 mb-1">
+<span class="text-[10px] font-bold px-1.5 py-0.5 bg-error text-on-error rounded-sm">L1 极高风险</span>
+<span class="text-[10px] font-bold px-1.5 py-0.5 bg-surface-container-high text-on-surface-variant rounded-sm">WRN-20240801-001</span>
+</div>
+<h3 class="font-bold text-on-surface group-hover:text-primary transition-colors">冷链温度传感器持续离线预警</h3>
+<p class="text-xs text-on-surface-variant mt-1">检测到 3 台传感器 60min 未上报数据</p>
+</div>
+<div>
+<p class="text-[10px] font-bold text-on-surface-variant uppercase mb-1">关联对象</p>
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-sm text-primary">domain</span>
+<span class="text-xs font-medium">盛世物流冷链中心 (西区)</span>
+</div>
+<p class="text-[10px] text-on-surface-variant mt-1">关联投诉：TS-998122-C</p>
+</div>
+<div>
+<p class="text-[10px] font-bold text-on-surface-variant uppercase mb-1">生成时间</p>
+<p class="text-xs font-medium">2024-08-01 14:30:21</p>
+<p class="text-[10px] text-error font-bold mt-1">已逾期 2 小时</p>
+</div>
+<div class="flex flex-col items-end gap-2">
+<span class="text-[10px] font-black uppercase text-on-error-container px-2 py-1 bg-error-container rounded-sm">OPEN · 待处理</span>
+<div class="flex gap-2">
+<button class="text-xs font-bold text-primary hover:underline">查看详情</button>
+<button class="bg-primary text-on-primary px-4 py-1.5 text-xs font-bold hover:bg-primary-container transition-colors">立即处理</button>
+</div>
+</div>
+</div>
+</div>
+<div class="bg-surface-container-lowest p-6 flex items-center gap-6 group hover:shadow-lg transition-shadow border-l-4 border-tertiary">
+<div class="flex flex-col items-center justify-center w-16 h-16 bg-tertiary-fixed text-on-tertiary-fixed-variant rounded-lg">
+<span class="material-symbols-outlined text-3xl">bolt</span>
+<span class="text-[10px] font-black mt-1">P1</span>
+</div>
+<div class="flex-1 grid grid-cols-4 gap-6 items-center">
+<div>
+<div class="flex items-center gap-2 mb-1">
+<span class="text-[10px] font-bold px-1.5 py-0.5 bg-tertiary-container text-on-tertiary-container rounded-sm">L2 较高风险</span>
+<span class="text-[10px] font-bold px-1.5 py-0.5 bg-surface-container-high text-on-surface-variant rounded-sm">WRN-20240801-042</span>
+</div>
+<h3 class="font-bold text-on-surface group-hover:text-primary transition-colors">原材料供应商证照到期预警</h3>
+<p class="text-xs text-on-surface-variant mt-1">核心供应商《生产许可证》即将过期</p>
+</div>
+<div>
+<p class="text-[10px] font-bold text-on-surface-variant uppercase mb-1">关联对象</p>
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-sm text-primary">factory</span>
+<span class="text-xs font-medium">康泰食品加工厂</span>
+</div>
+</div>
+<div>
+<p class="text-[10px] font-bold text-on-surface-variant uppercase mb-1">生成时间</p>
+<p class="text-xs font-medium">2024-08-01 09:12:00</p>
+<p class="text-[10px] text-on-surface-variant mt-1">由系统自动生成</p>
+</div>
+<div class="flex flex-col items-end gap-2">
+<span class="text-[10px] font-black uppercase text-on-secondary-container px-2 py-1 bg-secondary-container rounded-sm">PROCESSING · 处理中</span>
+<div class="flex gap-2">
+<button class="text-xs font-bold text-primary hover:underline">查看详情</button>
+<button class="bg-surface-container-high text-on-surface px-4 py-1.5 text-xs font-bold hover:bg-surface-container-highest transition-colors">跟进进度</button>
+</div>
+</div>
+</div>
+</div>
+<div class="bg-surface-container-low/50 p-6 flex items-center gap-6 opacity-80 border-l-4 border-outline grayscale-[0.5]">
+<div class="flex flex-col items-center justify-center w-16 h-16 bg-surface-container-highest text-outline rounded-lg">
+<span class="material-symbols-outlined text-3xl">check_circle</span>
+<span class="text-[10px] font-black mt-1">P2</span>
+</div>
+<div class="flex-1 grid grid-cols-4 gap-6 items-center">
+<div>
+<div class="flex items-center gap-2 mb-1">
+<span class="text-[10px] font-bold px-1.5 py-0.5 bg-outline text-white rounded-sm">L2 较高风险</span>
+<span class="text-[10px] font-bold px-1.5 py-0.5 bg-surface-container-high text-on-surface-variant rounded-sm">WRN-20240731-109</span>
+</div>
+<h3 class="font-bold text-on-surface">突发舆情关注度异常升高</h3>
+<p class="text-xs text-on-surface-variant mt-1">社交平台关于“食品添加剂”讨论激增</p>
+</div>
+<div>
+<p class="text-[10px] font-bold text-on-surface-variant uppercase mb-1">关联对象</p>
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-sm text-primary">public</span>
+<span class="text-xs font-medium">全网实时监测</span>
+</div>
+</div>
+<div>
+<p class="text-[10px] font-bold text-on-surface-variant uppercase mb-1">完成时间</p>
+<p class="text-xs font-medium">2024-07-31 22:00:00</p>
+</div>
+<div class="flex flex-col items-end gap-2">
+<span class="text-[10px] font-black uppercase text-outline px-2 py-1 bg-surface-container-high rounded-sm">RESOLVED · 已解决</span>
+<div class="flex gap-2">
+<button class="text-xs font-bold text-primary hover:underline">查看归档报告</button>
+</div>
+</div>
+</div>
+</div>
+</div>
+<footer class="mt-12 flex justify-between items-center py-6 border-t border-surface-container-high">
+<div class="text-xs text-on-surface-variant">
+                    显示 1-3 条，共 48 条记录
+                </div>
+<div class="flex gap-1">
+<button class="w-8 h-8 flex items-center justify-center bg-surface-container-lowest border border-surface-container-high text-on-surface-variant hover:bg-primary hover:text-on-primary transition-colors">
+<span class="material-symbols-outlined text-sm">chevron_left</span>
+</button>
+<button class="w-8 h-8 flex items-center justify-center bg-primary text-on-primary font-bold text-xs">1</button>
+<button class="w-8 h-8 flex items-center justify-center bg-surface-container-lowest border border-surface-container-high text-on-surface-variant hover:bg-primary hover:text-on-primary transition-colors text-xs">2</button>
+<button class="w-8 h-8 flex items-center justify-center bg-surface-container-lowest border border-surface-container-high text-on-surface-variant hover:bg-primary hover:text-on-primary transition-colors text-xs">3</button>
+<button class="w-8 h-8 flex items-center justify-center bg-surface-container-lowest border border-surface-container-high text-on-surface-variant hover:bg-primary hover:text-on-primary transition-colors text-xs">...</button>
+<button class="w-8 h-8 flex items-center justify-center bg-surface-container-lowest border border-surface-container-high text-on-surface-variant hover:bg-primary hover:text-on-primary transition-colors">
+<span class="material-symbols-outlined text-sm">chevron_right</span>
+</button>
+</div>
+</footer>
+</div>
+</main>
+<div class="fixed bottom-8 right-8 z-50">
+<button class="w-14 h-14 bg-primary text-on-primary rounded-full shadow-2xl flex items-center justify-center hover:scale-105 transition-transform active:scale-95 group">
+<span class="material-symbols-outlined text-2xl group-hover:rotate-12 transition-transform">support_agent</span>
+<span class="absolute right-16 bg-primary text-on-primary px-3 py-1 rounded text-xs whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity">智能助手</span>
+</button>
+</div>
+</body></html>

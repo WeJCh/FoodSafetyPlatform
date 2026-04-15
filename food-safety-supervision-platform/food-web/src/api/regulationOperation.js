@@ -127,6 +127,26 @@ export function fetchSamplingTasks(token, params = {}) {
   );
 }
 
+/**
+ * 后端暂无单条任务查询接口：分页拉取直至找到目标 ID（管理端列表数据量可控）。
+ */
+export async function findSamplingTaskById(token, id) {
+  const target = String(id);
+  let page = 1;
+  const size = 50;
+  const maxPages = 40;
+  while (page <= maxPages) {
+    const data = await fetchSamplingTasks(token, { page, size });
+    const records = data?.records || [];
+    const found = records.find((t) => String(t.id) === target);
+    if (found) return found;
+    const pages = data?.pages || 1;
+    if (page >= pages || !records.length) break;
+    page += 1;
+  }
+  return null;
+}
+
 export function fetchMySamplingTasks(token, params = {}) {
   const search = new URLSearchParams();
   if (params.status) search.append("status", params.status);

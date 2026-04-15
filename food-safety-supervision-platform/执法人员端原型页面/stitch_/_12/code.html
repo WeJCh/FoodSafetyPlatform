@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+
+<html lang="zh-CN"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;500;600;700&amp;family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                "on-tertiary-fixed": "#370e00",
+                "on-error-container": "#93000a",
+                "on-error": "#ffffff",
+                "outline": "#747783",
+                "on-secondary-fixed": "#0c1a38",
+                "on-surface-variant": "#434651",
+                "on-background": "#191c1e",
+                "background": "#f7f9fc",
+                "on-tertiary-fixed-variant": "#7c2d06",
+                "on-secondary-container": "#505d7e",
+                "on-primary": "#ffffff",
+                "error": "#ba1a1a",
+                "outline-variant": "#c3c6d3",
+                "on-tertiary-container": "#fb8d60",
+                "surface-container-highest": "#e0e3e6",
+                "surface-container": "#eceef1",
+                "on-primary-fixed": "#001945",
+                "secondary-fixed": "#d9e2ff",
+                "primary-fixed": "#d9e2ff",
+                "on-tertiary": "#ffffff",
+                "error-container": "#ffdad6",
+                "inverse-primary": "#b0c6ff",
+                "tertiary-fixed": "#ffdbce",
+                "surface-tint": "#335bae",
+                "primary": "#002660",
+                "tertiary-fixed-dim": "#ffb599",
+                "primary-container": "#003a8c",
+                "on-primary-fixed-variant": "#124394",
+                "surface": "#f7f9fc",
+                "on-surface": "#191c1e",
+                "surface-container-high": "#e6e8eb",
+                "secondary": "#515e7f",
+                "surface-container-low": "#f2f4f7",
+                "tertiary": "#4e1700",
+                "secondary-container": "#c9d7fe",
+                "inverse-on-surface": "#eff1f4",
+                "primary-fixed-dim": "#b0c6ff",
+                "on-primary-container": "#84a8ff",
+                "on-secondary-fixed-variant": "#394666",
+                "tertiary-container": "#722600",
+                "surface-dim": "#d8dadd",
+                "surface-container-lowest": "#ffffff",
+                "surface-bright": "#f7f9fc",
+                "on-secondary": "#ffffff",
+                "inverse-surface": "#2d3133",
+                "surface-variant": "#e0e3e6",
+                "secondary-fixed-dim": "#b9c6ed"
+            },
+            "borderRadius": {
+                "DEFAULT": "0.125rem",
+                "lg": "0.25rem",
+                "xl": "0.5rem",
+                "full": "0.75rem"
+            },
+            "fontFamily": {
+                "headline": ["Public Sans"],
+                "body": ["Inter"],
+                "label": ["Inter"]
+            }
+          },
+        },
+      }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        body { font-family: 'Inter', sans-serif; }
+        h1, h2, h3 { font-family: 'Public Sans', sans-serif; }
+    </style>
+</head>
+<body class="bg-surface text-on-surface antialiased">
+<!-- TopNavBar -->
+<header class="fixed top-0 w-full z-50 bg-slate-50/80 backdrop-blur-md shadow-sm flex justify-between items-center px-6 py-3 w-full">
+<div class="flex items-center gap-4">
+<span class="text-xl font-bold tracking-tight text-blue-900">监管管理平台</span>
+<div class="hidden md:flex ml-8 space-x-6">
+<a class="text-slate-600 hover:bg-slate-200/50 transition-colors px-3 py-1 rounded" href="#">概览</a>
+<a class="text-blue-900 font-bold border-b-2 border-blue-900 px-3 py-1" href="#">预警处置</a>
+<a class="text-slate-600 hover:bg-slate-200/50 transition-colors px-3 py-1 rounded" href="#">核查统计</a>
+</div>
+</div>
+<div class="flex items-center gap-4">
+<button class="p-2 hover:bg-slate-200/50 rounded-full transition-colors">
+<span class="material-symbols-outlined text-slate-600">notifications</span>
+</button>
+<div class="flex items-center gap-2 pl-4 border-l border-slate-200">
+<img alt="执法人员" class="w-8 h-8 rounded-full bg-slate-200" data-alt="Professional portrait of a government regulatory official in a neat uniform, neutral background, soft studio lighting" src="https://lh3.googleusercontent.com/aida-public/AB6AXuA9yb6SI1_yV9TJk7GQkNKZui90Tmz1G_BlIowWdCEOqz4Wnz7XmxCs4BPy2NGTu-3VtQXrpHohqsnxuT3MbURsJu1IfvCDj4D6yYDCVxCDUKRMdCxZEC6cVtgc90jF_loD9b3rVsuaVQvT3BCZ7g-hJgmBOJevxu6RMKlEVFq5RzlKrkr903C2t69lXEPpPq2wUP79cK7B5fxa0hVGQgH5fVwRZl8_XcNEymO93np0iWow94vHNATKDOtbirHo2M85WC-lO3b8y9E"/>
+<span class="text-sm font-medium text-blue-900">执法人员</span>
+</div>
+</div>
+</header>
+<!-- SideNavBar -->
+<aside class="fixed left-0 top-0 h-full w-64 bg-slate-50 flex flex-col pt-16 z-40 border-r-0">
+<div class="px-6 py-8">
+<div class="flex items-center gap-3 mb-8">
+<div class="w-10 h-10 rounded bg-primary flex items-center justify-center text-on-primary">
+<span class="material-symbols-outlined">security</span>
+</div>
+<div>
+<div class="font-bold text-blue-900">执法人员</div>
+<div class="text-[10px] text-slate-500 tracking-widest">REGULATOR_ENFORCER</div>
+</div>
+</div>
+<nav class="space-y-1">
+<a class="flex items-center gap-3 px-4 py-3 text-slate-500 hover:text-blue-800 hover:bg-slate-100 transition-all duration-200 rounded" href="#">
+<span class="material-symbols-outlined">dashboard</span>
+<span>工作台</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 text-slate-500 hover:text-blue-800 hover:bg-slate-100 transition-all duration-200 rounded" href="#">
+<span class="material-symbols-outlined">assignment</span>
+<span>我的检查任务</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 text-slate-500 hover:text-blue-800 hover:bg-slate-100 transition-all duration-200 rounded" href="#">
+<span class="material-symbols-outlined">biotech</span>
+<span>我的抽检任务</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 text-slate-500 hover:text-blue-800 hover:bg-slate-100 transition-all duration-200 rounded" href="#">
+<span class="material-symbols-outlined">assignment_return</span>
+<span>投诉处理</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 text-slate-500 hover:text-blue-800 hover:bg-slate-100 transition-all duration-200 rounded" href="#">
+<span class="material-symbols-outlined">task_alt</span>
+<span>整改跟进</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 bg-white text-blue-900 font-semibold shadow-sm translate-x-1 duration-200 rounded" href="#">
+<span class="material-symbols-outlined">warning</span>
+<span>我的风险预警</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 text-slate-500 hover:text-blue-800 hover:bg-slate-100 transition-all duration-200 rounded" href="#">
+<span class="material-symbols-outlined">analytics</span>
+<span>检查记录</span>
+</a>
+</nav>
+</div>
+</aside>
+<!-- Main Content Canvas -->
+<main class="ml-64 pt-20 p-8 min-h-screen">
+<div class="max-w-6xl mx-auto">
+<!-- Breadcrumb & Title Area -->
+<div class="mb-8 flex justify-between items-end">
+<div>
+<div class="flex items-center gap-2 text-sm text-on-surface-variant mb-2">
+<span>我的风险预警</span>
+<span class="material-symbols-outlined text-xs">chevron_right</span>
+<span class="text-primary font-medium">预警详情 #WRN-20231027-042</span>
+</div>
+<h1 class="text-2xl font-bold text-primary flex items-center gap-3">
+                        食品生产环境温度异常预警
+                        <span class="bg-error-container text-on-error-container text-xs px-2 py-0.5 rounded-sm">L2 重大风险</span>
+<span class="bg-surface-container-highest text-on-surface text-xs px-2 py-0.5 rounded-sm border border-outline-variant/30">OPEN</span>
+</h1>
+</div>
+<div class="flex gap-3">
+<button class="bg-surface-container-high text-on-surface px-4 py-2 text-sm font-medium hover:bg-surface-container-highest transition-colors rounded-lg flex items-center gap-2">
+<span class="material-symbols-outlined text-sm">print</span>
+                        打印单据
+                    </button>
+<button class="bg-primary text-on-primary px-6 py-2 text-sm font-bold hover:opacity-90 transition-opacity rounded-lg flex items-center gap-2">
+<span class="material-symbols-outlined text-sm">play_arrow</span>
+                        开始处理
+                    </button>
+</div>
+</div>
+<!-- Bento Grid Layout -->
+<div class="grid grid-cols-12 gap-6">
+<!-- Left Column: Summary & Progress (Col 8) -->
+<div class="col-span-12 lg:col-span-8 space-y-6">
+<!-- Progress Bar Section -->
+<section class="bg-surface-container-lowest p-6 rounded shadow-sm border-l-4 border-primary">
+<div class="flex justify-between items-center mb-6">
+<h3 class="font-bold text-primary flex items-center gap-2">
+<span class="material-symbols-outlined">trending_up</span>
+                                处置进度
+                            </h3>
+<span class="text-sm font-medium text-primary">当前阶段：预警确认中</span>
+</div>
+<div class="relative">
+<div class="overflow-hidden h-2 mb-4 text-xs flex rounded bg-surface-container-high">
+<div class="shadow-none flex flex-col text-center whitespace-nowrap text-white justify-center bg-primary" style="width:25%"></div>
+</div>
+<div class="flex justify-between text-[10px] text-on-surface-variant font-medium uppercase tracking-wider">
+<div class="text-primary font-bold">待处理 (OPEN)</div>
+<div>处理中 (PROCESSING)</div>
+<div>已核查 (RESOLVED)</div>
+<div>已结案 (CLOSED)</div>
+</div>
+</div>
+</section>
+<!-- Warning Summary Card -->
+<section class="bg-surface-container-lowest p-6 rounded shadow-sm">
+<h3 class="font-bold text-primary mb-6 border-b border-surface-container pb-2">预警摘要</h3>
+<div class="grid grid-cols-2 gap-y-6">
+<div>
+<label class="text-xs text-on-surface-variant font-bold uppercase tracking-tighter">预警触发时间</label>
+<div class="text-sm mt-1">2023-10-27 09:14:22</div>
+</div>
+<div>
+<label class="text-xs text-on-surface-variant font-bold uppercase tracking-tighter">风险类型</label>
+<div class="text-sm mt-1">关键环节环境失控 - 恒温室</div>
+</div>
+<div class="col-span-2">
+<label class="text-xs text-on-surface-variant font-bold uppercase tracking-tighter">详细描述</label>
+<div class="text-sm mt-1 leading-relaxed bg-surface-container-low p-3 rounded">
+                                    传感器 [ID: SN-8821] 检测到二号车间冷却库温度持续超过 8°C 已达 45 分钟。该库内存放有大宗肉制品半成品，存在严重的细菌超标及变质风险。需立即现场核实冷链系统运行状况并评估产品安全性。
+                                </div>
+</div>
+<div class="col-span-2">
+<label class="text-xs text-on-surface-variant font-bold uppercase tracking-tighter">历史相似预警</label>
+<div class="flex gap-2 mt-2">
+<span class="text-[10px] bg-surface-container-high px-2 py-1 rounded">2023-08-12 相似触发</span>
+<span class="text-[10px] bg-surface-container-high px-2 py-1 rounded">2023-05-30 相似触发</span>
+</div>
+</div>
+</div>
+</section>
+<!-- Audit Trail / Logs -->
+<section class="bg-surface-container-lowest p-6 rounded shadow-sm">
+<h3 class="font-bold text-primary mb-6 flex items-center gap-2">
+<span class="material-symbols-outlined">history</span>
+                            处理日志
+                        </h3>
+<div class="space-y-0 relative before:absolute before:left-2 before:top-2 before:bottom-2 before:w-[2px] before:bg-outline-variant/30">
+<!-- Log Entry 1 -->
+<div class="relative pl-8 pb-6">
+<div class="absolute left-0 top-1.5 w-4 h-4 rounded-full bg-primary flex items-center justify-center">
+<div class="w-1.5 h-1.5 rounded-full bg-white"></div>
+</div>
+<div class="text-xs text-on-surface-variant">2023-10-27 09:15:00</div>
+<div class="text-sm font-bold text-on-surface mt-1">系统自动分派</div>
+<div class="text-xs text-on-surface-variant mt-0.5">任务已指派给执法一组（执法人员 A）</div>
+</div>
+<!-- Log Entry 2 -->
+<div class="relative pl-8 pb-6">
+<div class="absolute left-0 top-1.5 w-4 h-4 rounded-full bg-outline flex items-center justify-center">
+<div class="w-1.5 h-1.5 rounded-full bg-white"></div>
+</div>
+<div class="text-xs text-on-surface-variant">2023-10-27 09:14:22</div>
+<div class="text-sm font-bold text-on-surface mt-1">风险触发</div>
+<div class="text-xs text-on-surface-variant mt-0.5">IoT 监测点：二号车间 02 号传感器。温度峰值：12.5°C</div>
+</div>
+</div>
+</section>
+</div>
+<!-- Right Column: Associated Objects & Quick Actions (Col 4) -->
+<div class="col-span-12 lg:col-span-4 space-y-6">
+<!-- Associated Objects Section -->
+<section class="bg-surface-container-lowest rounded shadow-sm overflow-hidden">
+<div class="bg-primary-container p-4">
+<h3 class="font-bold text-white text-sm flex items-center gap-2">
+<span class="material-symbols-outlined text-lg">link</span>
+                                关联实体与任务
+                            </h3>
+</div>
+<div class="p-2">
+<!-- Linked Item 1 -->
+<a class="flex items-center justify-between p-3 hover:bg-surface-container-low transition-colors group" href="#">
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 rounded bg-blue-50 flex items-center justify-center text-primary">
+<span class="material-symbols-outlined">factory</span>
+</div>
+<div>
+<div class="text-sm font-bold text-on-surface">大诚食品加工有限公司</div>
+<div class="text-[10px] text-on-surface-variant">统一信用代码：91320500MA1XXX</div>
+</div>
+</div>
+<span class="material-symbols-outlined text-outline-variant group-hover:text-primary transition-colors">open_in_new</span>
+</a>
+<!-- Linked Item 2 -->
+<a class="flex items-center justify-between p-3 hover:bg-surface-container-low transition-colors group" href="#">
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 rounded bg-blue-50 flex items-center justify-center text-primary">
+<span class="material-symbols-outlined">rule</span>
+</div>
+<div>
+<div class="text-sm font-bold text-on-surface">待办现场检查任务</div>
+<div class="text-[10px] text-on-surface-variant">任务号：TSK-2023-1022</div>
+</div>
+</div>
+<span class="material-symbols-outlined text-outline-variant group-hover:text-primary transition-colors">open_in_new</span>
+</a>
+<!-- Linked Item 3 -->
+<a class="flex items-center justify-between p-3 hover:bg-surface-container-low transition-colors group" href="#">
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 rounded bg-blue-50 flex items-center justify-center text-primary">
+<span class="material-symbols-outlined">forum</span>
+</div>
+<div>
+<div class="text-sm font-bold text-on-surface">历史相关投诉 (2)</div>
+<div class="text-[10px] text-on-surface-variant">包含 1 起温度控制相关投诉</div>
+</div>
+</div>
+<span class="material-symbols-outlined text-outline-variant group-hover:text-primary transition-colors">open_in_new</span>
+</a>
+</div>
+</section>
+<!-- Action Zone -->
+<section class="bg-surface-container-lowest p-6 rounded shadow-sm">
+<h3 class="font-bold text-primary mb-4 text-sm">快速处置动作</h3>
+<div class="space-y-3">
+<button class="w-full text-left p-3 rounded border border-outline-variant/30 hover:bg-primary hover:text-white transition-all group">
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined group-hover:text-white">edit_note</span>
+<div>
+<div class="text-sm font-bold">填写核查报告</div>
+<div class="text-[10px] opacity-70">记录现场检查结果与温控数据</div>
+</div>
+</div>
+</button>
+<button class="w-full text-left p-3 rounded border border-outline-variant/30 hover:bg-primary hover:text-white transition-all group">
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined group-hover:text-white">gavel</span>
+<div>
+<div class="text-sm font-bold">下达责令整改</div>
+<div class="text-[10px] opacity-70">对违规生产行为启动法律程序</div>
+</div>
+</div>
+</button>
+<button class="w-full text-left p-3 rounded border border-outline-variant/30 hover:bg-error hover:text-white transition-all group">
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined group-hover:text-white text-error group-hover:text-white">report_off</span>
+<div>
+<div class="text-sm font-bold">标记为误报</div>
+<div class="text-[10px] opacity-70">排除设备故障导致的虚假预警</div>
+</div>
+</div>
+</button>
+</div>
+</section>
+<!-- Map/Location Context -->
+<section class="bg-surface-container-lowest rounded shadow-sm overflow-hidden">
+<div class="aspect-video bg-surface-container-high relative">
+<img class="w-full h-full object-cover grayscale opacity-60" data-alt="Digital map interface showing enterprise location pin in an industrial park, clean vector style with blue accents" data-location="Suzhou, China" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBIESWeMELqHrwaN_QIK1Yx6aOQTaYeLiwvg1Wc5ZODqkT_-v0FmSvJNwmfpEHKw2kLZudLdfWu5FVZRA-2HUskFGl7OU8GxW1S7Viv_S7lOx0byITORnDMXSb5s88PCjpOamUV2vxWBaM5BgVvGo9LK6J-Yz8aFuoTRv5nrTGxVsuahssoxHD7YsrWH6hpoQUU3iVDiviVcgBqyx0yDKUes13FJt_k2B5ygeLFs9NGYcfoICftTeQdUL_gWZGNbixfyhsTuyb4Fhs"/>
+<div class="absolute inset-0 flex items-center justify-center">
+<span class="material-symbols-outlined text-primary text-3xl" style="font-variation-settings: 'FILL' 1;">location_on</span>
+</div>
+</div>
+<div class="p-3 bg-surface-container-lowest border-t border-surface-container">
+<div class="text-[10px] text-on-surface-variant font-bold uppercase tracking-widest">企业地址</div>
+<div class="text-xs mt-1">江苏省苏州市工业园区星湖街 328 号 2 号车间</div>
+</div>
+</section>
+</div>
+</div>
+<!-- Sticky Bottom Action Bar (Mobile/Narrow only or extra focus) -->
+<div class="mt-8 pt-6 border-t border-surface-container-high flex items-center justify-between">
+<div class="flex items-center gap-4 text-xs text-on-surface-variant">
+<div class="flex items-center gap-1">
+<span class="material-symbols-outlined text-sm">person</span>
+                        当前处理人：李明 (执法一组)
+                    </div>
+<div class="flex items-center gap-1">
+<span class="material-symbols-outlined text-sm">schedule</span>
+                        SLR 时限：还剩 18 小时
+                    </div>
+</div>
+<div class="flex gap-2">
+<button class="text-sm px-4 py-2 text-on-surface-variant font-medium hover:text-primary transition-colors">标记解决</button>
+<button class="text-sm px-4 py-2 bg-primary-container text-white font-bold rounded-lg shadow-sm">提交处置报告</button>
+</div>
+</div>
+</div>
+</main>
+</body></html>

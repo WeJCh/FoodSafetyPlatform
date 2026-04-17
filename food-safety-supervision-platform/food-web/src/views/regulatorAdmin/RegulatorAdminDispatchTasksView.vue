@@ -17,6 +17,7 @@
           <h1>检查任务列表</h1>
           <p>发起并派发检查任务，跟踪执行进度与归档状态。</p>
         </div>
+        <button class="primary head-create-btn" type="button" @click="goToDispatchCreate">新建检查任务</button>
       </header>
 
       <section class="filter-panel">
@@ -272,6 +273,10 @@ function goToDispatchRecords() {
   router.push({ name: "regulator-admin-dispatch-records" });
 }
 
+function goToDispatchCreate() {
+  router.push({ name: "regulator-admin-dispatch-create" });
+}
+
 function setStatus(message, type = "info") {
   status.message = message;
   status.type = type;
@@ -454,6 +459,7 @@ onMounted(async () => {
 .dispatch-page__head { display: flex; justify-content: space-between; align-items: end; gap: 10px; }
 .dispatch-page__head h1 { margin: 0; color: #002660; font-size: 30px; font-weight: 800; }
 .dispatch-page__head p { margin: 6px 0 0; color: #64748b; }
+.head-create-btn { min-height: 40px; padding: 0 16px; border-radius: 8px; white-space: nowrap; }
 .filter-panel { background: #edf2f7; border-radius: 10px; padding: 12px; display: grid; grid-template-columns: 1fr 1.4fr 1fr auto auto; gap: 10px; align-items: end; }
 .filter-panel label { display: grid; gap: 6px; font-size: 12px; color: #64748b; font-weight: 700; }
 .filter-panel input, .filter-panel select { border: 0; background: #fff; border-radius: 8px; padding: 9px 10px; color: #1e293b; }

@@ -44,7 +44,10 @@ export function fetchInspectionTasks(token, params = {}) {
 
 export function fetchMyInspectionTasks(token, params = {}) {
   const search = new URLSearchParams();
+  if (params.enterpriseName) search.append("enterpriseName", params.enterpriseName);
   if (params.status) search.append("status", params.status);
+  if (params.startDate) search.append("startDate", params.startDate);
+  if (params.endDate) search.append("endDate", params.endDate);
   if (params.page) search.append("page", params.page);
   if (params.size) search.append("size", params.size);
   const query = search.toString();
@@ -58,6 +61,26 @@ export function fetchMyInspectionTasks(token, params = {}) {
       }
     }
   );
+}
+
+/**
+ * 后端暂无“我的检查任务详情”接口：分页拉取我的任务并按 ID 定位。
+ */
+export async function findMyInspectionTaskById(token, id) {
+  const target = String(id);
+  let page = 1;
+  const size = 50;
+  const maxPages = 40;
+  while (page <= maxPages) {
+    const data = await fetchMyInspectionTasks(token, { page, size });
+    const records = data?.records || [];
+    const found = records.find((task) => String(task.id) === target);
+    if (found) return found;
+    const pages = data?.pages || 1;
+    if (page >= pages || !records.length) break;
+    page += 1;
+  }
+  return null;
 }
 
 export function startInspectionTask(token, id) {
@@ -139,6 +162,27 @@ export async function findSamplingTaskById(token, id) {
     const data = await fetchSamplingTasks(token, { page, size });
     const records = data?.records || [];
     const found = records.find((t) => String(t.id) === target);
+    if (found) return found;
+    const pages = data?.pages || 1;
+    if (page >= pages || !records.length) break;
+    page += 1;
+  }
+  return null;
+}
+
+/**
+ * 执法端抽检详情查询：后端暂无单条“我的抽检任务详情”接口时，
+ * 通过“我的抽检任务”分页列表按 ID 定位，避免误用管理端接口导致角色校验失败。
+ */
+export async function findMySamplingTaskById(token, id) {
+  const target = String(id);
+  let page = 1;
+  const size = 50;
+  const maxPages = 40;
+  while (page <= maxPages) {
+    const data = await fetchMySamplingTasks(token, { page, size });
+    const records = data?.records || [];
+    const found = records.find((task) => String(task.id) === target);
     if (found) return found;
     const pages = data?.pages || 1;
     if (page >= pages || !records.length) break;
@@ -362,6 +406,32 @@ export function fetchInspectionRecordDetail(token, id) {
       Authorization: `Bearer ${token}`
     }
   });
+}
+
+export async function findMyInspectionRecordByTaskId(token, taskId) {
+  const target = String(taskId);
+  let page = 1;
+  const size = 50;
+  const maxPages = 40;
+  let latest = null;
+
+  while (page <= maxPages) {
+    const data = await fetchMyInspectionRecords(token, { page, size });
+    const records = data?.records || [];
+    const matched = records.filter((record) => String(record?.taskId) === target);
+    if (matched.length) {
+      matched.sort((a, b) =>
+        String(b?.inspectionDate || b?.updateTime || "").localeCompare(String(a?.inspectionDate || a?.updateTime || ""))
+      );
+      latest = matched[0];
+      break;
+    }
+    const pages = data?.pages || 1;
+    if (page >= pages || !records.length) break;
+    page += 1;
+  }
+
+  return latest;
 }
 
 export function fetchEnterpriseInspectionRecords(token, params = {}) {

@@ -31,6 +31,17 @@ export function createRegulator(payload, token) {
   });
 }
 
+export function fetchUserById(id, token) {
+  return request(`/api/users/${id}`, {
+    method: "GET",
+    headers: token
+      ? {
+          Authorization: `Bearer ${token}`
+        }
+      : {}
+  });
+}
+
 export function verify(token) {
   return request("/api/auth/verify", {
     method: "POST",

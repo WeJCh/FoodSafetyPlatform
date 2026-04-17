@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+
+<html lang="zh-CN"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@700;800&amp;family=Inter:wght@400;500;600&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "surface-dim": "#d8dadd",
+                    "on-error-container": "#93000a",
+                    "on-primary-fixed": "#001945",
+                    "primary-fixed": "#d9e2ff",
+                    "inverse-primary": "#b0c6ff",
+                    "secondary-container": "#c9d7fe",
+                    "tertiary": "#4e1700",
+                    "on-secondary-container": "#505d7e",
+                    "inverse-surface": "#2d3133",
+                    "secondary-fixed-dim": "#b9c6ed",
+                    "surface": "#f7f9fc",
+                    "error-container": "#ffdad6",
+                    "on-primary": "#ffffff",
+                    "tertiary-container": "#722600",
+                    "background": "#f7f9fc",
+                    "surface-container-high": "#e6e8eb",
+                    "surface-tint": "#335bae",
+                    "tertiary-fixed-dim": "#ffb599",
+                    "surface-container-low": "#f2f4f7",
+                    "primary-fixed-dim": "#b0c6ff",
+                    "on-surface-variant": "#434651",
+                    "on-secondary": "#ffffff",
+                    "on-primary-container": "#84a8ff",
+                    "surface-bright": "#f7f9fc",
+                    "on-error": "#ffffff",
+                    "tertiary-fixed": "#ffdbce",
+                    "surface-container-highest": "#e0e3e6",
+                    "on-tertiary": "#ffffff",
+                    "secondary-fixed": "#d9e2ff",
+                    "outline-variant": "#c3c6d3",
+                    "on-surface": "#191c1e",
+                    "inverse-on-surface": "#eff1f4",
+                    "secondary": "#515e7f",
+                    "primary-container": "#003a8c",
+                    "on-tertiary-fixed": "#370e00",
+                    "on-tertiary-container": "#fb8d60",
+                    "surface-container-lowest": "#ffffff",
+                    "on-primary-fixed-variant": "#124394",
+                    "on-background": "#191c1e",
+                    "error": "#ba1a1a",
+                    "outline": "#747783",
+                    "on-secondary-fixed": "#0c1a38",
+                    "surface-variant": "#e0e3e6",
+                    "primary": "#002660",
+                    "on-secondary-fixed-variant": "#394666",
+                    "on-tertiary-fixed-variant": "#7c2d06",
+                    "surface-container": "#eceef1"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.125rem",
+                    "lg": "0.25rem",
+                    "xl": "0.5rem",
+                    "full": "0.75rem"
+            },
+            "fontFamily": {
+                    "headline": ["Public Sans"],
+                    "body": ["Inter"],
+                    "label": ["Inter"]
+            }
+          },
+        },
+      }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+            display: inline-block;
+            vertical-align: middle;
+        }
+        body { font-family: 'Inter', sans-serif; }
+        h1, h2, h3 { font-family: 'Public Sans', sans-serif; }
+    </style>
+</head>
+<body class="bg-surface text-on-surface antialiased min-h-screen flex items-center justify-center p-6">
+<!-- Sidebar (Suppressed per Rules for Focused Task) -->
+<!-- TopAppBar (Suppressed per Rules for Transactional Confirmation) -->
+<main class="w-full max-w-2xl">
+<!-- Main Confirmation Container -->
+<div class="bg-surface-container-lowest rounded-lg shadow-sm overflow-hidden border border-outline-variant/15">
+<!-- Header Section -->
+<div class="p-8 border-b border-surface-container-high">
+<div class="flex items-center gap-3 mb-2">
+<span class="material-symbols-outlined text-primary text-2xl" data-icon="manage_accounts">manage_accounts</span>
+<h1 class="text-xl font-bold tracking-tight text-primary">账号状态切换确认</h1>
+</div>
+<p class="text-sm text-on-surface-variant">您正在修改受监管人员的系统访问权限，此操作将被记录在审核日志中。</p>
+</div>
+<!-- Content Canvas -->
+<div class="p-8 space-y-8">
+<!-- Personnel Summary: Bento-style info block -->
+<section>
+<h2 class="text-xs font-bold uppercase tracking-widest text-on-surface-variant mb-4 font-label">人员摘要</h2>
+<div class="grid grid-cols-3 gap-4">
+<div class="bg-surface-container-low p-4 rounded-lg">
+<p class="text-[10px] text-on-surface-variant mb-1 uppercase font-bold">姓名</p>
+<p class="font-semibold text-on-surface">张建国</p>
+</div>
+<div class="bg-surface-container-low p-4 rounded-lg">
+<p class="text-[10px] text-on-surface-variant mb-1 uppercase font-bold">员工编号</p>
+<p class="font-semibold text-on-surface">FSA-992831</p>
+</div>
+<div class="bg-surface-container-low p-4 rounded-lg">
+<p class="text-[10px] text-on-surface-variant mb-1 uppercase font-bold">当前角色</p>
+<p class="font-semibold text-on-surface">高级食品检验员</p>
+</div>
+</div>
+</section>
+<!-- Status Transition Visualizer -->
+<section>
+<h2 class="text-xs font-bold uppercase tracking-widest text-on-surface-variant mb-4 font-label">状态对比</h2>
+<div class="flex items-center justify-between bg-surface-container-highest/30 p-6 rounded-lg relative overflow-hidden">
+<!-- Left: Current -->
+<div class="flex flex-col items-center gap-2 z-10">
+<span class="text-[10px] font-bold text-on-surface-variant">当前状态</span>
+<div class="px-4 py-2 bg-on-primary-container/10 border border-on-primary-container/20 rounded-sm text-on-primary-container flex items-center gap-2">
+<span class="material-symbols-outlined text-sm" data-icon="check_circle" style="font-variation-settings: 'FILL' 1;">check_circle</span>
+<span class="text-sm font-bold">在岗 (ACTIVE)</span>
+</div>
+</div>
+<!-- Arrow -->
+<div class="flex-1 flex justify-center">
+<span class="material-symbols-outlined text-outline-variant text-3xl" data-icon="trending_flat">trending_flat</span>
+</div>
+<!-- Right: Target -->
+<div class="flex flex-col items-center gap-2 z-10">
+<span class="text-[10px] font-bold text-on-surface-variant text-error">目标状态</span>
+<div class="px-4 py-2 bg-error-container text-on-error-container border border-error/20 rounded-sm flex items-center gap-2">
+<span class="material-symbols-outlined text-sm" data-icon="cancel" style="font-variation-settings: 'FILL' 1;">cancel</span>
+<span class="text-sm font-bold">停用 (INACTIVE)</span>
+</div>
+</div>
+<!-- Atmospheric Texture -->
+<div class="absolute inset-0 opacity-5 pointer-events-none">
+<div class="absolute right-0 top-0 w-32 h-32 bg-primary rounded-full blur-3xl"></div>
+</div>
+</div>
+</section>
+<!-- Risk Alert Block -->
+<section class="bg-error-container/20 border-l-4 border-error p-5">
+<div class="flex gap-4">
+<span class="material-symbols-outlined text-error" data-icon="warning">warning</span>
+<div>
+<h3 class="text-sm font-bold text-on-error-container mb-1">风险提示与影响确认</h3>
+<ul class="text-sm text-on-surface-variant space-y-1 list-disc ml-4">
+<li>停用后，该人员将<strong>立即无法登录</strong> Sovereign Oversight 系统。</li>
+<li>所有关联的待处理审批任务和现场检查单将被<strong>自动挂起</strong>。</li>
+<li>该操作将触发自动合规通知，发送至所属部门主管。</li>
+</ul>
+</div>
+</div>
+</section>
+</div>
+<!-- Actions: Precision Buttons -->
+<div class="p-8 bg-surface-container-low flex justify-end items-center gap-4">
+<button class="px-6 py-2.5 text-sm font-semibold text-on-surface hover:bg-surface-container-high transition-colors rounded-lg flex items-center gap-2">
+                    取消操作
+                </button>
+<button class="px-8 py-2.5 text-sm font-bold bg-error text-on-error hover:opacity-90 transition-all rounded-lg flex items-center gap-2 shadow-sm">
+<span class="material-symbols-outlined text-sm" data-icon="block">block</span>
+                    确认停用账号
+                </button>
+</div>
+</div>
+<!-- Footer / Identity Anchor -->
+<div class="mt-8 flex flex-col items-center">
+<div class="flex items-center gap-2 mb-2 opacity-40">
+<div class="w-8 h-[2px] bg-outline"></div>
+<span class="text-[10px] font-bold tracking-[0.2em] text-on-surface-variant uppercase">Sentinel Governance Protocol</span>
+<div class="w-8 h-[2px] bg-outline"></div>
+</div>
+<p class="text-[10px] text-on-surface-variant opacity-60">ID: SEC-LOG-2024-8829 | 监管合规部</p>
+</div>
+</main>
+</body></html>

@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+
+<html lang="zh-CN"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;600;700;800;900&amp;family=Inter:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "surface": "#f7f9fc",
+                        "tertiary-fixed-dim": "#ffb599",
+                        "inverse-surface": "#2d3133",
+                        "error-container": "#ffdad6",
+                        "surface-dim": "#d8dadd",
+                        "on-error": "#ffffff",
+                        "on-tertiary-container": "#fb8d60",
+                        "outline-variant": "#c3c6d3",
+                        "on-secondary": "#ffffff",
+                        "surface-container-lowest": "#ffffff",
+                        "surface-bright": "#f7f9fc",
+                        "on-primary-fixed-variant": "#124394",
+                        "on-primary-container": "#84a8ff",
+                        "on-tertiary-fixed": "#370e00",
+                        "on-secondary-fixed-variant": "#394666",
+                        "on-primary": "#ffffff",
+                        "tertiary-container": "#722600",
+                        "on-error-container": "#93000a",
+                        "tertiary": "#4e1700",
+                        "primary-fixed-dim": "#b0c6ff",
+                        "on-primary-fixed": "#001945",
+                        "surface-variant": "#e0e3e6",
+                        "primary-fixed": "#d9e2ff",
+                        "surface-tint": "#335bae",
+                        "surface-container": "#eceef1",
+                        "primary-container": "#003a8c",
+                        "surface-container-low": "#f2f4f7",
+                        "on-surface-variant": "#434651",
+                        "on-secondary-container": "#505d7e",
+                        "background": "#f7f9fc",
+                        "on-secondary-fixed": "#0c1a38",
+                        "primary": "#002660",
+                        "error": "#ba1a1a",
+                        "on-tertiary-fixed-variant": "#7c2d06",
+                        "on-tertiary": "#ffffff",
+                        "on-background": "#191c1e",
+                        "surface-container-high": "#e6e8eb",
+                        "surface-container-highest": "#e0e3e6",
+                        "secondary-container": "#c9d7fe",
+                        "on-surface": "#191c1e",
+                        "secondary-fixed": "#d9e2ff",
+                        "secondary-fixed-dim": "#b9c6ed",
+                        "secondary": "#515e7f",
+                        "inverse-primary": "#b0c6ff",
+                        "outline": "#747783",
+                        "inverse-on-surface": "#eff1f4",
+                        "tertiary-fixed": "#ffdbce"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.125rem",
+                        "lg": "0.25rem",
+                        "xl": "0.5rem",
+                        "full": "0.75rem"
+                    },
+                    "fontFamily": {
+                        "headline": ["Public Sans"],
+                        "body": ["Inter"],
+                        "label": ["Inter"]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        body { font-family: 'Inter', sans-serif; }
+        .font-headline { font-family: 'Public Sans', sans-serif; }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+    </style>
+</head>
+<body class="bg-surface text-on-surface antialiased">
+<!-- SideNavBar -->
+<aside class="h-screen w-64 fixed left-0 top-0 border-r border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 flex flex-col py-6 px-4 gap-2 z-50">
+<div class="mb-8 px-2">
+<h1 class="text-xl font-black text-blue-900 dark:text-white uppercase tracking-wider font-headline">The Digital Ledger</h1>
+<p class="text-xs text-slate-500 uppercase tracking-widest mt-1">Regulatory Oversight</p>
+</div>
+<nav class="flex-1 flex flex-col gap-1">
+<a class="flex items-center gap-3 px-3 py-2 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-900 transition-transform active:scale-[0.99] font-body text-sm" href="#">
+<span class="material-symbols-outlined" data-icon="dashboard">dashboard</span>
+<span>工作台</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 bg-blue-900 dark:bg-blue-800 text-white dark:text-blue-50 rounded-sm font-medium shadow-sm transition-transform active:scale-[0.99] font-body text-sm" href="#">
+<span class="material-symbols-outlined" data-icon="group">group</span>
+<span>监管人员列表</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-900 transition-transform active:scale-[0.99] font-body text-sm" href="#">
+<span class="material-symbols-outlined" data-icon="person_add">person_add</span>
+<span>新建监管人员</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-900 transition-transform active:scale-[0.99] font-body text-sm" href="#">
+<span class="material-symbols-outlined" data-icon="account_tree">account_tree</span>
+<span>角色与辖区配置</span>
+</a>
+</nav>
+<div class="mt-auto border-t border-slate-200 pt-4">
+<a class="flex items-center gap-3 px-3 py-2 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-900 transition-transform active:scale-[0.99] font-body text-sm" href="#">
+<span class="material-symbols-outlined" data-icon="logout">logout</span>
+<span>Logout</span>
+</a>
+</div>
+</aside>
+<main class="ml-64 min-h-screen">
+<!-- TopNavBar -->
+<header class="flex justify-between items-center h-16 px-6 w-full sticky top-0 z-40 bg-slate-50/80 dark:bg-slate-900/80 backdrop-blur-xl border-b border-slate-200/50 dark:border-slate-800/50 shadow-sm font-['Public_Sans'] tracking-tight">
+<div class="flex items-center gap-4">
+<span class="text-lg font-bold text-blue-900 dark:text-blue-100">Sentinel Governance</span>
+<div class="h-4 w-px bg-slate-300"></div>
+<nav class="flex items-center gap-6">
+<span class="text-blue-900 dark:text-blue-100 font-semibold text-sm">人员详情</span>
+</nav>
+</div>
+<div class="flex items-center gap-4">
+<div class="flex items-center gap-1">
+<button class="p-2 text-slate-500 hover:bg-slate-200/50 dark:hover:bg-slate-800/50 transition-all duration-200 rounded-lg">
+<span class="material-symbols-outlined text-[20px]" data-icon="notifications">notifications</span>
+</button>
+<button class="p-2 text-slate-500 hover:bg-slate-200/50 dark:hover:bg-slate-800/50 transition-all duration-200 rounded-lg">
+<span class="material-symbols-outlined text-[20px]" data-icon="settings">settings</span>
+</button>
+<button class="p-2 text-slate-500 hover:bg-slate-200/50 dark:hover:bg-slate-800/50 transition-all duration-200 rounded-lg">
+<span class="material-symbols-outlined text-[20px]" data-icon="help">help</span>
+</button>
+</div>
+<img alt="Administrator Profile" class="w-8 h-8 rounded-full border border-slate-200" data-alt="professional headshot of a senior government official in a dark suit with a neutral office background and soft lighting" src="https://lh3.googleusercontent.com/aida-public/AB6AXuC5EDAjHaRrQbMLbm61o79HsCDkATdJdiSmlUSgvonHJfT7IOXFsnm5h8FHLESPE1iQ6BC3f1CY0uc6O2o_FRoaRLDKgNHk0cNnYwYgerwONfrDxrcqruy0tzXSaNrfb77O_1xgAK-6XrNClSWcyrV4BDz_u_2OrBwXEqVx8NCA_GZWpqyP_UjasIVTVDOZM7KwGacoxxQSZNZY-QzIUA91IsBFGEXPLpgZxnbNObCnw2bfCSDDkEuQaxEdIt4GGnbuLJIFEQqfSfs"/>
+</div>
+</header>
+<!-- Content Canvas -->
+<div class="p-8 max-w-7xl mx-auto space-y-8">
+<!-- Action Header -->
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-4">
+<button class="p-2 bg-surface-container-high text-on-surface rounded hover:bg-surface-variant transition-colors flex items-center justify-center">
+<span class="material-symbols-outlined text-[20px]" data-icon="arrow_back">arrow_back</span>
+</button>
+<div>
+<h2 class="text-2xl font-bold font-headline text-primary tracking-tight">监管人员详情</h2>
+<p class="text-on-surface-variant text-sm">查看与管理系统监管人员核心档案与访问权限</p>
+</div>
+</div>
+<div class="flex items-center gap-3">
+<button class="px-4 py-2 bg-error-container text-on-error-container font-medium rounded-lg text-sm flex items-center gap-2 hover:opacity-90 transition-opacity">
+<span class="material-symbols-outlined text-[18px]" data-icon="block">block</span>
+                        停用账号
+                    </button>
+<button class="px-4 py-2 bg-primary text-on-primary font-medium rounded-lg text-sm flex items-center gap-2 hover:bg-primary-container transition-colors">
+<span class="material-symbols-outlined text-[18px]" data-icon="edit">edit</span>
+                        编辑信息
+                    </button>
+</div>
+</div>
+<!-- Bento Grid Layout -->
+<div class="grid grid-cols-12 gap-6">
+<!-- Section 1: Identity Card -->
+<div class="col-span-12 lg:col-span-4 space-y-6">
+<div class="bg-surface-container-lowest rounded-xl p-6 shadow-sm border border-transparent overflow-hidden relative">
+<div class="absolute top-0 right-0 p-4">
+<span class="px-3 py-1 bg-primary-container/20 text-on-primary-container text-[10px] font-bold rounded-sm flex items-center gap-1 uppercase tracking-tighter">
+<span class="w-1.5 h-1.5 bg-on-primary-container rounded-full"></span>
+                                在职
+                            </span>
+</div>
+<div class="flex flex-col items-center text-center mt-4">
+<img alt="Regulator Profile" class="w-24 h-24 rounded-full border-4 border-surface shadow-md mb-4 object-cover" data-alt="portrait of a focused professional regulator in a clean white laboratory environment, soft blue lighting" src="https://lh3.googleusercontent.com/aida-public/AB6AXuB_ER-bkFmrYx32y4gq6g-2BrKimwazO-EwPzobli7YiT0v3yCAExx6biDqkFTe_4ERqDu_qc0brArGh-KtwrfBRx6sH_BYOdU_piK8bV0tlAiRT3eyVAJbsLpoBLxmGCOHpMvgG_se0mfUHBURtakxKTm2l9aI6QQ-vOLQX5X3hnNdWWkABDe76OKO0ZYqmGxGJBhgPwRikwJzx7oe7-lJmLP5gucbs9X9WTbHnTTDZ4Q4M1uqo6n7AcZGgglCGYRKMvbmc_8ihbc"/>
+<h3 class="text-xl font-bold text-primary font-headline">陈国强</h3>
+<p class="text-on-surface-variant font-medium text-sm">高级食品安全监管员</p>
+</div>
+<div class="mt-8 space-y-4">
+<div class="bg-surface-container-low p-4 rounded-lg">
+<label class="text-[10px] font-bold text-on-surface-variant uppercase tracking-widest block mb-1">账号标识</label>
+<p class="text-primary font-headline font-semibold">SENTINEL-ID-20240892</p>
+</div>
+<div class="flex justify-between items-center px-2">
+<span class="text-xs text-on-surface-variant">用户名</span>
+<span class="text-sm font-medium">chen_guoqiang_01</span>
+</div>
+<div class="flex justify-between items-center px-2">
+<span class="text-xs text-on-surface-variant">最后登录</span>
+<span class="text-sm font-medium">2023-11-24 14:22</span>
+</div>
+</div>
+</div>
+<!-- Audit Trail Component -->
+<div class="bg-surface-container-lowest rounded-xl p-6 shadow-sm">
+<h4 class="text-xs font-bold text-on-surface-variant uppercase tracking-widest mb-4">合规操作日志</h4>
+<div class="relative pl-6 space-y-6 before:content-[''] before:absolute before:left-[3px] before:top-2 before:bottom-2 before:w-[2px] before:bg-outline-variant">
+<div class="relative">
+<div class="absolute -left-[27px] top-1 w-2 h-2 rounded-full bg-primary ring-4 ring-white"></div>
+<p class="text-xs font-bold">权限更新</p>
+<p class="text-[11px] text-on-surface-variant">管理员 A-02 授予了省级审批权</p>
+<p class="text-[10px] text-outline mt-1 italic">2小时前</p>
+</div>
+<div class="relative">
+<div class="absolute -left-[27px] top-1 w-2 h-2 rounded-full bg-outline-variant ring-4 ring-white"></div>
+<p class="text-xs font-bold">年度核查完成</p>
+<p class="text-[11px] text-on-surface-variant">人员资质核验通过</p>
+<p class="text-[10px] text-outline mt-1 italic">3天前</p>
+</div>
+</div>
+</div>
+</div>
+<!-- Section 2: Main Details -->
+<div class="col-span-12 lg:col-span-8 space-y-6">
+<!-- Basic Profile & Contact -->
+<div class="bg-surface-container-lowest rounded-xl shadow-sm overflow-hidden">
+<div class="px-6 py-4 bg-primary text-on-primary flex items-center justify-between">
+<h3 class="font-bold text-sm tracking-wide">基本档案与联系方式</h3>
+<span class="material-symbols-outlined text-[18px]" data-icon="badge">badge</span>
+</div>
+<div class="p-8 grid grid-cols-2 gap-y-8 gap-x-12">
+<div class="space-y-1">
+<label class="text-[11px] font-bold text-on-surface-variant uppercase tracking-widest">全名 (Legal Name)</label>
+<p class="text-lg font-medium border-b border-surface-container-high pb-1">陈国强</p>
+</div>
+<div class="space-y-1">
+<label class="text-[11px] font-bold text-on-surface-variant uppercase tracking-widest">所属部门 (Department)</label>
+<p class="text-lg font-medium border-b border-surface-container-high pb-1">食品安全监督管理局 - 二分局</p>
+</div>
+<div class="space-y-1">
+<label class="text-[11px] font-bold text-on-surface-variant uppercase tracking-widest">联系电话 (Phone)</label>
+<p class="text-lg font-medium border-b border-surface-container-high pb-1">+86 138-xxxx-5678</p>
+</div>
+<div class="space-y-1">
+<label class="text-[11px] font-bold text-on-surface-variant uppercase tracking-widest">办公邮箱 (Office Email)</label>
+<p class="text-lg font-medium border-b border-surface-container-high pb-1">chen.gq@governance.gov.cn</p>
+</div>
+</div>
+</div>
+<!-- Role & Permissions -->
+<div class="grid grid-cols-2 gap-6">
+<div class="bg-surface-container-lowest p-6 rounded-xl shadow-sm border-l-4 border-primary">
+<h4 class="text-[11px] font-bold text-on-surface-variant uppercase tracking-widest mb-4">系统分配角色 (Role)</h4>
+<div class="flex items-center gap-4">
+<div class="w-12 h-12 bg-primary-container/10 flex items-center justify-center rounded">
+<span class="material-symbols-outlined text-primary text-[28px]" data-icon="policy">policy</span>
+</div>
+<div>
+<p class="font-bold text-primary">REGULATOR_ADMIN</p>
+<p class="text-xs text-on-surface-variant">高级行政管理权限</p>
+</div>
+</div>
+</div>
+<div class="bg-surface-container-lowest p-6 rounded-xl shadow-sm border-l-4 border-secondary">
+<h4 class="text-[11px] font-bold text-on-surface-variant uppercase tracking-widest mb-4">权限级别 (Level)</h4>
+<div class="flex items-center gap-4">
+<div class="w-12 h-12 bg-secondary-container/10 flex items-center justify-center rounded">
+<span class="material-symbols-outlined text-secondary text-[28px]" data-icon="shield_person">shield_person</span>
+</div>
+<div>
+<p class="font-bold text-secondary">TIER 1 OVERSIGHT</p>
+<p class="text-xs text-on-surface-variant">具备签发处罚令资格</p>
+</div>
+</div>
+</div>
+</div>
+<!-- Jurisdiction -->
+<div class="bg-surface-container-lowest rounded-xl shadow-sm overflow-hidden">
+<div class="px-6 py-4 flex items-center gap-2 border-b border-surface-container-low">
+<span class="material-symbols-outlined text-primary" data-icon="map">map</span>
+<h3 class="font-bold text-sm tracking-wide">管辖辖区与分层系统</h3>
+</div>
+<div class="p-0 flex h-64">
+<div class="w-1/3 bg-surface-container-low p-6 space-y-4">
+<div>
+<label class="text-[10px] font-bold text-on-surface-variant uppercase tracking-widest block mb-1">主责任区</label>
+<p class="text-sm font-bold">华东大区</p>
+</div>
+<div>
+<label class="text-[10px] font-bold text-on-surface-variant uppercase tracking-widest block mb-1">直属省份</label>
+<p class="text-sm font-bold">上海市</p>
+</div>
+<div>
+<label class="text-[10px] font-bold text-on-surface-variant uppercase tracking-widest block mb-1">具体网格</label>
+<p class="text-sm font-bold text-on-surface-variant">浦东新区 - 陆家嘴核心监管区</p>
+</div>
+</div>
+<div class="flex-1 bg-surface-container-high relative overflow-hidden group">
+<img alt="Jurisdiction Map" class="w-full h-full object-cover" data-alt="high contrast digital map of urban city grids with neon blue highlights and data points showing regulatory heatmaps" data-location="Shanghai" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDuoXe8YLaOikRdDec3GbkZdXj-i9v3Wi48NrFx30wELbFWRISONOuEOrVXkrVw43pmFdkWTphKdOWuZewxNAS1PQpFSUR59vIDLpWg0UwPby_EIdeGrJsIpMSk8vESNnTDVpfX-WTfm1bgSq0BaYR6gqzGRzMOOCQ-MbKNvWkD7Bte9OFoWxgRinMNXwrObm25K3ez3U5sbIVBy4Z0qSwQs2FH5NTSNdbAXCSzlqSzXNOxr7x85LY02VblX01o24vzeBc-b7hXGQc"/>
+<div class="absolute inset-0 bg-primary/20 backdrop-blur-[1px] flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+<span class="px-4 py-2 bg-surface-container-lowest text-primary text-xs font-bold rounded shadow-lg">查看交互式地图</span>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</main>
+<!-- FAB Suppression Logic: Not rendered on detail pages -->
+</body></html>

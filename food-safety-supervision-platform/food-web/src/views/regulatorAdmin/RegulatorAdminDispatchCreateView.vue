@@ -15,7 +15,7 @@
             <span class="is-current">发起新任务</span>
           </nav>
           <h1>发起检查任务</h1>
-          <p>发起新的安全合规审计或常规检查</p>
+          <p>创建新的安全合规检查任务，并可在创建成功后直接完成执法人员分配。</p>
         </div>
         <div class="head-actions">
           <button class="ghost" type="button" @click="goBackToList">取消</button>
@@ -35,7 +35,7 @@
             <div class="form-grid">
               <label class="span-all">
                 任务名称
-                <input v-model.trim="form.taskTitle" placeholder="例如：2024Q3餐饮服务食品安全常规检查" />
+                <input v-model.trim="form.taskTitle" placeholder="例如：2026Q2餐饮服务食品安全常规检查" />
               </label>
               <label>
                 优先级
@@ -77,7 +77,9 @@
               >
                 <div>
                   <p class="enterprise-name">{{ item.enterpriseName || "-" }}</p>
-                  <p class="enterprise-meta">信用代码: {{ item.creditCode || "-" }} · 风险等级: {{ formatRisk(item.riskLevel) }}</p>
+                  <p class="enterprise-meta">
+                    信用代码: {{ item.creditCode || "-" }} | 风险等级: {{ formatRisk(item.riskLevel) }}
+                  </p>
                 </div>
                 <span class="check-dot">{{ String(form.enterpriseId) === String(item.id) ? "✓" : "" }}</span>
               </button>
@@ -92,7 +94,7 @@
               <i></i>
               <h2>执行人员分配</h2>
             </div>
-            <p class="side-tips">当前可用</p>
+            <p class="side-tips">当前选择会在任务创建成功后立即调用分配接口</p>
             <div class="enforcer-list">
               <button
                 v-for="item in enforcers"
@@ -158,7 +160,7 @@
 <script setup>
 import { computed, onMounted, reactive, ref } from "vue";
 import { useRouter } from "vue-router";
-import { createInspectionTask } from "../../api/regulationOperation";
+import { assignInspectionTask, createInspectionTask } from "../../api/regulationOperation";
 import { fetchEligibleRegulators, fetchEnterprises } from "../../api/regulation";
 import RegulatorAdminWorkspacePage from "../../components/regulatorAdmin/RegulatorAdminWorkspacePage.vue";
 import { regulatorFeaturePendingNotice, useRegulatorAdminShellSession } from "./regulatorAdminShared";
@@ -251,7 +253,6 @@ async function handleSubmitTask() {
   if (!form.taskTitle.trim()) return setStatus("请填写任务名称", "error");
   if (!form.enterpriseId) return setStatus("请选择目标企业", "error");
   if (!form.deadlineDate) return setStatus("请填写截止日期", "error");
-  // TODO: 当前后端创建任务接口未支持 taskType 字段，前端统一改为提交 priority。
 
   loading.value = true;
   setStatus("");
@@ -263,11 +264,15 @@ async function handleSubmitTask() {
       priority: form.priority,
       deadline: normalizeDeadline(form.deadlineDate)
     };
-    await createInspectionTask(token.value, payload);
+    const createdTask = await createInspectionTask(token.value, payload);
 
-    // TODO: 当前后端创建接口暂不支持直接携带分配人员，先保留已选人员前端态。
-    if (form.regulatorId) {
-      setStatus("任务已创建，人员分配将在任务列表中完成", "success");
+    if (form.regulatorId && createdTask?.id) {
+      try {
+        await assignInspectionTask(token.value, createdTask.id, { regulatorId: form.regulatorId });
+        setStatus("任务已创建并完成执法人员分配", "success");
+      } catch (assignError) {
+        setStatus(assignError.message || "任务已创建，但执法人员分配失败，请前往列表页重试", "error");
+      }
     } else {
       setStatus("任务已创建", "success");
     }

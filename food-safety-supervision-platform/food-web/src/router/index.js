@@ -13,7 +13,13 @@ import { getStoredSession } from "../session/authSession";
 
 const APP_TITLE = "Food Safety Platform";
 
-const AdminView = () => import("../views/AdminView.vue");
+const SystemAdminDashboardView = () => import("../views/systemAdmin/SystemAdminDashboardView.vue");
+const SystemAdminRegulatorListView = () => import("../views/systemAdmin/SystemAdminRegulatorListView.vue");
+const SystemAdminRegulatorCreateView = () => import("../views/systemAdmin/SystemAdminRegulatorCreateView.vue");
+const SystemAdminRegulatorCreateConfirmView = () => import("../views/systemAdmin/SystemAdminRegulatorCreateConfirmView.vue");
+const SystemAdminRegulatorDetailView = () => import("../views/systemAdmin/SystemAdminRegulatorDetailView.vue");
+const SystemAdminRegulatorEditView = () => import("../views/systemAdmin/SystemAdminRegulatorEditView.vue");
+const SystemAdminRegulatorStatusConfirmView = () => import("../views/systemAdmin/SystemAdminRegulatorStatusConfirmView.vue");
 const EnterpriseDetailView = () => import("../views/EnterpriseDetailView.vue");
 const EnterpriseRegisterView = () => import("../views/EnterpriseRegisterView.vue");
 const EnterpriseDashboardView = () => import("../views/enterprise/EnterpriseDashboardView.vue");
@@ -66,8 +72,37 @@ const RegulatorAdminSamplingTaskDetailView = () =>
 const RegulatorAdminSamplingTasksView = () => import("../views/regulatorAdmin/RegulatorAdminSamplingTasksView.vue");
 const RegulatorAdminWarningCenterView = () => import("../views/regulatorAdmin/RegulatorAdminWarningCenterView.vue");
 const RegulatorAdminStatisticsView = () => import("../views/regulatorAdmin/RegulatorAdminStatisticsView.vue");
-const RegulatorEnforcerComplaintDetailView = () => import("../views/RegulatorEnforcerComplaintDetailView.vue");
-const RegulatorEnforcerView = () => import("../views/RegulatorEnforcerView.vue");
+const RegulatorEnforcerEnterpriseListView = () =>
+  import("../views/regulatorEnforcer/RegulatorEnforcerEnterpriseListView.vue");
+const RegulatorEnforcerTaskListView = () => import("../views/regulatorEnforcer/RegulatorEnforcerTaskListView.vue");
+const RegulatorEnforcerTaskDetailView = () =>
+  import("../views/regulatorEnforcer/RegulatorEnforcerTaskDetailView.vue");
+const RegulatorEnforcerInspectionSubmitView = () =>
+  import("../views/regulatorEnforcer/RegulatorEnforcerInspectionSubmitView.vue");
+const RegulatorEnforcerSamplingTaskView = () =>
+  import("../views/regulatorEnforcer/RegulatorEnforcerSamplingTaskView.vue");
+const RegulatorEnforcerSamplingTaskDetailView = () =>
+  import("../views/regulatorEnforcer/RegulatorEnforcerSamplingTaskDetailView.vue");
+const RegulatorEnforcerSamplingResultSubmitView = () =>
+  import("../views/regulatorEnforcer/RegulatorEnforcerSamplingResultSubmitView.vue");
+const RegulatorEnforcerInspectionRecordView = () =>
+  import("../views/regulatorEnforcer/RegulatorEnforcerInspectionRecordView.vue");
+const RegulatorEnforcerInspectionRecordDetailView = () =>
+  import("../views/regulatorEnforcer/RegulatorEnforcerInspectionRecordDetailView.vue");
+const RegulatorEnforcerComplaintListView = () =>
+  import("../views/regulatorEnforcer/RegulatorEnforcerComplaintListView.vue");
+const RegulatorEnforcerComplaintDetailView = () =>
+  import("../views/regulatorEnforcer/RegulatorEnforcerComplaintDetailView.vue");
+const RegulatorEnforcerRectificationView = () =>
+  import("../views/regulatorEnforcer/RegulatorEnforcerRectificationView.vue");
+const RegulatorEnforcerRectificationDetailView = () =>
+  import("../views/regulatorEnforcer/RegulatorEnforcerRectificationDetailView.vue");
+const RegulatorEnforcerWarningView = () => import("../views/regulatorEnforcer/RegulatorEnforcerWarningView.vue");
+const RegulatorEnforcerWarningDetailView = () =>
+  import("../views/regulatorEnforcer/RegulatorEnforcerWarningDetailView.vue");
+const RegulatorEnforcerStatsView = () => import("../views/regulatorEnforcer/RegulatorEnforcerStatsView.vue");
+const RegulatorEnforcerEnterpriseDetailView = () =>
+  import("../views/regulatorEnforcer/RegulatorEnforcerEnterpriseDetailView.vue");
 
 function getSessionSnapshot(sessionOverride = null) {
   return sessionOverride || getResolvedSession() || getStoredSession() || {
@@ -84,7 +119,7 @@ export function getDefaultRouteLocation(sessionOverride = null) {
   const session = getSessionSnapshot(sessionOverride);
 
   if (hasAdminSession(session)) {
-    return { name: "admin-regulator-create" };
+    return { name: "admin-dashboard" };
   }
 
   if (hasEnterpriseSession(session)) {
@@ -217,16 +252,46 @@ const routes = [
     meta: { title: "投诉详情", requiresRole: "PUBLIC" }
   },
   {
+    path: "/admin/dashboard",
+    name: "admin-dashboard",
+    component: SystemAdminDashboardView,
+    meta: { title: "系统管理员工作台", requiresRole: "ADMIN" }
+  },
+  {
     path: "/admin/regulators/create",
     name: "admin-regulator-create",
-    component: AdminView,
-    meta: { title: "添加监管人员", requiresRole: "ADMIN", initialSection: "create" }
+    component: SystemAdminRegulatorCreateView,
+    meta: { title: "添加监管人员", requiresRole: "ADMIN" }
+  },
+  {
+    path: "/admin/regulators/create/confirm",
+    name: "admin-regulator-create-confirm",
+    component: SystemAdminRegulatorCreateConfirmView,
+    meta: { title: "核对人员信息", requiresRole: "ADMIN" }
   },
   {
     path: "/admin/regulators/list",
     name: "admin-regulator-list",
-    component: AdminView,
-    meta: { title: "监管人员列表", requiresRole: "ADMIN", initialSection: "list" }
+    component: SystemAdminRegulatorListView,
+    meta: { title: "监管人员列表", requiresRole: "ADMIN" }
+  },
+  {
+    path: "/admin/regulators/:userId",
+    name: "admin-regulator-detail",
+    component: SystemAdminRegulatorDetailView,
+    meta: { title: "监管人员详情", requiresRole: "ADMIN" }
+  },
+  {
+    path: "/admin/regulators/:userId/edit",
+    name: "admin-regulator-edit",
+    component: SystemAdminRegulatorEditView,
+    meta: { title: "编辑监管人员", requiresRole: "ADMIN" }
+  },
+  {
+    path: "/admin/regulators/:userId/status-confirm",
+    name: "admin-regulator-status-confirm",
+    component: SystemAdminRegulatorStatusConfirmView,
+    meta: { title: "状态切换确认", requiresRole: "ADMIN" }
   },
   {
     path: "/enterprise/dashboard",
@@ -429,32 +494,62 @@ const routes = [
   {
     path: "/regulator/enforcer/enterprises",
     name: "regulator-enforcer-enterprises",
-    component: RegulatorEnforcerView,
-    meta: { title: "企业监管", requiresRole: "REGULATOR_ENFORCER", initialSection: "enterprises" }
+    component: RegulatorEnforcerEnterpriseListView,
+    meta: { title: "企业监管", requiresRole: "REGULATOR_ENFORCER" }
   },
   {
     path: "/regulator/enforcer/tasks",
     name: "regulator-enforcer-tasks",
-    component: RegulatorEnforcerView,
-    meta: { title: "我的任务", requiresRole: "REGULATOR_ENFORCER", initialSection: "tasks" }
+    component: RegulatorEnforcerTaskListView,
+    meta: { title: "我的任务", requiresRole: "REGULATOR_ENFORCER" }
+  },
+  {
+    path: "/regulator/enforcer/tasks/:taskId",
+    name: "regulator-enforcer-task-detail",
+    component: RegulatorEnforcerTaskDetailView,
+    meta: { title: "检查任务详情", requiresRole: "REGULATOR_ENFORCER" }
+  },
+  {
+    path: "/regulator/enforcer/tasks/:taskId/submit",
+    name: "regulator-enforcer-task-submit",
+    component: RegulatorEnforcerInspectionSubmitView,
+    meta: { title: "检查结果提交", requiresRole: "REGULATOR_ENFORCER" }
   },
   {
     path: "/regulator/enforcer/sampling",
     name: "regulator-enforcer-sampling",
-    component: RegulatorEnforcerView,
-    meta: { title: "抽检任务", requiresRole: "REGULATOR_ENFORCER", initialSection: "sampling" }
+    component: RegulatorEnforcerSamplingTaskView,
+    meta: { title: "抽检任务", requiresRole: "REGULATOR_ENFORCER" }
+  },
+  {
+    path: "/regulator/enforcer/sampling/:taskId",
+    name: "regulator-enforcer-sampling-detail",
+    component: RegulatorEnforcerSamplingTaskDetailView,
+    meta: { title: "抽检任务详情", requiresRole: "REGULATOR_ENFORCER" }
+  },
+  {
+    path: "/regulator/enforcer/sampling/:taskId/submit",
+    name: "regulator-enforcer-sampling-submit",
+    component: RegulatorEnforcerSamplingResultSubmitView,
+    meta: { title: "抽检结果提交", requiresRole: "REGULATOR_ENFORCER" }
   },
   {
     path: "/regulator/enforcer/inspections",
     name: "regulator-enforcer-inspections",
-    component: RegulatorEnforcerView,
-    meta: { title: "检查记录", requiresRole: "REGULATOR_ENFORCER", initialSection: "inspections" }
+    component: RegulatorEnforcerInspectionRecordView,
+    meta: { title: "检查记录", requiresRole: "REGULATOR_ENFORCER" }
+  },
+  {
+    path: "/regulator/enforcer/inspections/:inspectionId",
+    name: "regulator-enforcer-inspection-detail",
+    component: RegulatorEnforcerInspectionRecordDetailView,
+    meta: { title: "检查记录详情", requiresRole: "REGULATOR_ENFORCER" }
   },
   {
     path: "/regulator/enforcer/complaints",
     name: "regulator-enforcer-complaints",
-    component: RegulatorEnforcerView,
-    meta: { title: "投诉处理", requiresRole: "REGULATOR_ENFORCER", initialSection: "complaints" }
+    component: RegulatorEnforcerComplaintListView,
+    meta: { title: "投诉处理", requiresRole: "REGULATOR_ENFORCER" }
   },
   {
     path: "/regulator/enforcer/complaints/:complaintId",
@@ -465,25 +560,37 @@ const routes = [
   {
     path: "/regulator/enforcer/rectifications",
     name: "regulator-enforcer-rectifications",
-    component: RegulatorEnforcerView,
-    meta: { title: "整改跟进", requiresRole: "REGULATOR_ENFORCER", initialSection: "rectification" }
+    component: RegulatorEnforcerRectificationView,
+    meta: { title: "整改跟进", requiresRole: "REGULATOR_ENFORCER" }
+  },
+  {
+    path: "/regulator/enforcer/rectifications/:rectificationId",
+    name: "regulator-enforcer-rectification-detail",
+    component: RegulatorEnforcerRectificationDetailView,
+    meta: { title: "整改详情", requiresRole: "REGULATOR_ENFORCER" }
   },
   {
     path: "/regulator/enforcer/warnings",
     name: "regulator-enforcer-warnings",
-    component: RegulatorEnforcerView,
-    meta: { title: "风险预警", requiresRole: "REGULATOR_ENFORCER", initialSection: "warnings" }
+    component: RegulatorEnforcerWarningView,
+    meta: { title: "风险预警", requiresRole: "REGULATOR_ENFORCER" }
+  },
+  {
+    path: "/regulator/enforcer/warnings/:warningId",
+    name: "regulator-enforcer-warning-detail",
+    component: RegulatorEnforcerWarningDetailView,
+    meta: { title: "预警详情", requiresRole: "REGULATOR_ENFORCER" }
   },
   {
     path: "/regulator/enforcer/stats",
     name: "regulator-enforcer-stats",
-    component: RegulatorEnforcerView,
-    meta: { title: "数据统计", requiresRole: "REGULATOR_ENFORCER", initialSection: "stats" }
+    component: RegulatorEnforcerStatsView,
+    meta: { title: "数据统计", requiresRole: "REGULATOR_ENFORCER" }
   },
   {
     path: "/regulator/enforcer/enterprises/:enterpriseId",
     name: "regulator-enforcer-enterprise-detail",
-    component: EnterpriseDetailView,
+    component: RegulatorEnforcerEnterpriseDetailView,
     meta: { title: "企业详情", requiresRole: "REGULATOR_ENFORCER" }
   },
   {

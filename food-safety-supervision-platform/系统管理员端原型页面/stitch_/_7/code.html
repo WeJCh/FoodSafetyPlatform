@@ -1,0 +1,388 @@
+<!DOCTYPE html>
+
+<html class="light" lang="zh-CN"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Sentinel Governance - 工作台</title>
+<link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;600;700;800;900&amp;family=Inter:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "surface": "#f7f9fc",
+                        "tertiary-fixed-dim": "#ffb599",
+                        "inverse-surface": "#2d3133",
+                        "error-container": "#ffdad6",
+                        "surface-dim": "#d8dadd",
+                        "on-error": "#ffffff",
+                        "on-tertiary-container": "#fb8d60",
+                        "outline-variant": "#c3c6d3",
+                        "on-secondary": "#ffffff",
+                        "surface-container-lowest": "#ffffff",
+                        "surface-bright": "#f7f9fc",
+                        "on-primary-fixed-variant": "#124394",
+                        "on-primary-container": "#84a8ff",
+                        "on-tertiary-fixed": "#370e00",
+                        "on-secondary-fixed-variant": "#394666",
+                        "on-primary": "#ffffff",
+                        "tertiary-container": "#722600",
+                        "on-error-container": "#93000a",
+                        "tertiary": "#4e1700",
+                        "primary-fixed-dim": "#b0c6ff",
+                        "on-primary-fixed": "#001945",
+                        "surface-variant": "#e0e3e6",
+                        "primary-fixed": "#d9e2ff",
+                        "surface-tint": "#335bae",
+                        "surface-container": "#eceef1",
+                        "primary-container": "#003a8c",
+                        "surface-container-low": "#f2f4f7",
+                        "on-surface-variant": "#434651",
+                        "on-secondary-container": "#505d7e",
+                        "background": "#f7f9fc",
+                        "on-secondary-fixed": "#0c1a38",
+                        "primary": "#002660",
+                        "error": "#ba1a1a",
+                        "on-tertiary-fixed-variant": "#7c2d06",
+                        "on-tertiary": "#ffffff",
+                        "on-background": "#191c1e",
+                        "surface-container-high": "#e6e8eb",
+                        "surface-container-highest": "#e0e3e6",
+                        "secondary-container": "#c9d7fe",
+                        "on-surface": "#191c1e",
+                        "secondary-fixed": "#d9e2ff",
+                        "secondary-fixed-dim": "#b9c6ed",
+                        "secondary": "#515e7f",
+                        "inverse-primary": "#b0c6ff",
+                        "outline": "#747783",
+                        "inverse-on-surface": "#eff1f4",
+                        "tertiary-fixed": "#ffdbce"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.125rem",
+                        "lg": "0.25rem",
+                        "xl": "0.5rem",
+                        "full": "0.75rem"
+                    },
+                    "fontFamily": {
+                        "headline": ["Public Sans"],
+                        "body": ["Inter"],
+                        "label": ["Inter"]
+                    }
+                },
+            },
+        }
+    </script>
+<style>
+        body { font-family: 'Inter', sans-serif; }
+        .font-headline { font-family: 'Public Sans', sans-serif; }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .tonal-depth-layering { transition: background-color 0.2s ease; }
+    </style>
+</head>
+<body class="bg-surface text-on-surface antialiased">
+<!-- SideNavBar Component -->
+<aside class="h-screen w-64 fixed left-0 top-0 border-r border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 flex flex-col h-full py-6 px-4 gap-2 z-50 font-['Inter'] text-sm antialiased">
+<div class="px-2 mb-8">
+<div class="text-xl font-black text-blue-900 dark:text-white uppercase tracking-wider">THE DIGITAL LEDGER</div>
+<div class="text-[10px] text-slate-500 font-bold tracking-[0.2em] uppercase mt-1">Regulatory Oversight</div>
+</div>
+<nav class="flex-1 flex flex-col gap-1">
+<!-- Active Tab: 工作台 -->
+<a class="bg-blue-900 dark:bg-blue-800 text-white dark:text-blue-50 rounded-sm font-medium shadow-sm flex items-center gap-3 px-3 py-2.5 transition-transform active:scale-[0.99]" href="#">
+<span class="material-symbols-outlined text-[20px]" data-icon="dashboard">dashboard</span>
+<span>工作台</span>
+</a>
+<a class="text-slate-600 dark:text-slate-400 hover:text-blue-900 dark:hover:text-blue-200 hover:bg-slate-200 dark:hover:bg-slate-900 flex items-center gap-3 px-3 py-2.5 rounded-sm transition-all" href="#">
+<span class="material-symbols-outlined text-[20px]" data-icon="group">group</span>
+<span>监管人员列表</span>
+</a>
+<a class="text-slate-600 dark:text-slate-400 hover:text-blue-900 dark:hover:text-blue-200 hover:bg-slate-200 dark:hover:bg-slate-900 flex items-center gap-3 px-3 py-2.5 rounded-sm transition-all" href="#">
+<span class="material-symbols-outlined text-[20px]" data-icon="person_add">person_add</span>
+<span>新建监管人员</span>
+</a>
+<a class="text-slate-600 dark:text-slate-400 hover:text-blue-900 dark:hover:text-blue-200 hover:bg-slate-200 dark:hover:bg-slate-900 flex items-center gap-3 px-3 py-2.5 rounded-sm transition-all" href="#">
+<span class="material-symbols-outlined text-[20px]" data-icon="account_tree">account_tree</span>
+<span>角色与辖区配置</span>
+</a>
+</nav>
+<div class="mt-auto border-t border-slate-200 dark:border-slate-800 pt-4">
+<a class="text-slate-600 dark:text-slate-400 hover:text-error flex items-center gap-3 px-3 py-2.5 rounded-sm transition-all" href="#">
+<span class="material-symbols-outlined text-[20px]" data-icon="logout">logout</span>
+<span>Logout</span>
+</a>
+</div>
+</aside>
+<!-- Main Content Wrapper -->
+<main class="ml-64 min-h-screen flex flex-col">
+<!-- TopNavBar Component -->
+<header class="flex justify-between items-center h-16 px-6 w-full sticky top-0 z-40 bg-slate-50/80 dark:bg-slate-900/80 backdrop-blur-xl shadow-sm border-b border-slate-200/50 dark:border-slate-800/50 font-['Public_Sans'] tracking-tight">
+<div class="flex items-center gap-4">
+<h1 class="text-lg font-bold text-blue-900 dark:text-blue-100">Sentinel Governance</h1>
+<div class="h-4 w-[1px] bg-slate-300 mx-2"></div>
+<div class="bg-surface-container-high px-3 py-1.5 rounded flex items-center gap-2 w-64">
+<span class="material-symbols-outlined text-slate-400 text-sm" data-icon="search">search</span>
+<input class="bg-transparent border-none focus:ring-0 text-sm w-full p-0 placeholder:text-slate-400" placeholder="搜索资源或记录..." type="text"/>
+</div>
+</div>
+<div class="flex items-center gap-3">
+<button class="p-2 text-slate-500 hover:bg-slate-200/50 dark:hover:bg-slate-800/50 transition-all rounded-full relative">
+<span class="material-symbols-outlined" data-icon="notifications">notifications</span>
+<span class="absolute top-2 right-2 w-2 h-2 bg-error rounded-full border-2 border-surface"></span>
+</button>
+<button class="p-2 text-slate-500 hover:bg-slate-200/50 dark:hover:bg-slate-800/50 transition-all rounded-full">
+<span class="material-symbols-outlined" data-icon="settings">settings</span>
+</button>
+<button class="p-2 text-slate-500 hover:bg-slate-200/50 dark:hover:bg-slate-800/50 transition-all rounded-full">
+<span class="material-symbols-outlined" data-icon="help">help</span>
+</button>
+<div class="flex items-center gap-3 pl-2 ml-2 border-l border-slate-200">
+<div class="text-right">
+<div class="text-xs font-bold text-on-surface">Admin User</div>
+<div class="text-[10px] text-on-surface-variant">系统管理员</div>
+</div>
+<img alt="Administrator Profile" class="w-8 h-8 rounded-full object-cover ring-2 ring-primary/10" data-alt="portrait of a professional administrator in a bright modern office with neutral lighting" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCp6WRpEozDBxsampGwBLWJmsyGrXdNr_ZIDx6gwZfcMCvqAjlTM4HUnZP7S0trzDd7czsOBApBjBZR0n8npXBFNSoT_FRS0ObycL7b9IETb2m0HTYIoB3M69wzA1oyc0CCeWu0TIJfJoi6U5vnWotQEQGKbyOYCSxBT57RZ94RnZ4TtqnZfySy76RwsjbE5QbPpFQbRs-MA4vmmJQjjjjH_NTmcvMbXXq-OJrKqzJ2KHD4GmnxOoER7KGJySDpD599F1KkMP0kBJE"/>
+</div>
+</div>
+</header>
+<!-- Dashboard Canvas -->
+<div class="p-8 max-w-7xl mx-auto w-full">
+<!-- Welcome Header -->
+<div class="mb-8">
+<h2 class="text-2xl font-black text-primary font-headline tracking-tight">监管工作台 / Dashboard</h2>
+<p class="text-on-surface-variant text-sm mt-1">欢迎回来，系统当前运行状态良好。以下是实时监管数据汇总。</p>
+</div>
+<!-- Bento Grid Layout -->
+<div class="grid grid-cols-12 gap-6">
+<!-- Overview Stats (Column Span 8) -->
+<div class="col-span-12 lg:col-span-8 grid grid-cols-3 gap-4">
+<!-- Total Regulators Card -->
+<div class="bg-surface-container-lowest p-6 rounded shadow-sm border-l-4 border-primary relative overflow-hidden group">
+<div class="absolute -right-4 -bottom-4 opacity-5 group-hover:scale-110 transition-transform">
+<span class="material-symbols-outlined text-8xl" data-icon="shield">shield</span>
+</div>
+<div class="text-on-surface-variant text-xs font-bold uppercase tracking-wider mb-2">监管人员总量</div>
+<div class="flex items-baseline gap-2">
+<span class="text-3xl font-black text-primary font-headline">1,284</span>
+<span class="text-xs text-green-600 font-bold">+12%</span>
+</div>
+<div class="mt-4 text-[10px] text-slate-400">更新时间: 2023-11-20 09:00</div>
+</div>
+<!-- On Duty Card -->
+<div class="bg-surface-container-lowest p-6 rounded shadow-sm border-l-4 border-green-600 relative overflow-hidden group">
+<div class="absolute -right-4 -bottom-4 opacity-5 group-hover:scale-110 transition-transform">
+<span class="material-symbols-outlined text-8xl" data-icon="how_to_reg">how_to_reg</span>
+</div>
+<div class="text-on-surface-variant text-xs font-bold uppercase tracking-wider mb-2">在岗人数 (Status 1)</div>
+<div class="flex items-baseline gap-2">
+<span class="text-3xl font-black text-green-700 font-headline">1,156</span>
+<span class="bg-green-100 text-green-700 text-[10px] px-1.5 py-0.5 rounded">90.1%</span>
+</div>
+<div class="mt-4 text-[10px] text-slate-400">实时在线追踪已启用</div>
+</div>
+<!-- Deactivated Card -->
+<div class="bg-surface-container-lowest p-6 rounded shadow-sm border-l-4 border-error relative overflow-hidden group">
+<div class="absolute -right-4 -bottom-4 opacity-5 group-hover:scale-110 transition-transform">
+<span class="material-symbols-outlined text-8xl" data-icon="person_off">person_off</span>
+</div>
+<div class="text-on-surface-variant text-xs font-bold uppercase tracking-wider mb-2">停用人数 (Status 0)</div>
+<div class="flex items-baseline gap-2">
+<span class="text-3xl font-black text-error font-headline">128</span>
+<span class="text-xs text-error font-bold">需核查</span>
+</div>
+<div class="mt-4 text-[10px] text-slate-400">包含退休与离职记录</div>
+</div>
+<!-- Role Distribution (Sub-row) -->
+<div class="col-span-3 bg-surface-container-lowest p-6 rounded shadow-sm flex flex-col md:flex-row items-center justify-between gap-8">
+<div class="flex-1">
+<h3 class="text-sm font-bold text-primary flex items-center gap-2 mb-6">
+<span class="material-symbols-outlined text-lg" data-icon="analytics">analytics</span>
+                                角色分布比例 / Role Distribution
+                            </h3>
+<div class="space-y-4">
+<div>
+<div class="flex justify-between text-xs mb-1">
+<span class="font-medium text-on-surface">REGULATOR_ADMIN (系统管理员)</span>
+<span class="font-bold text-primary">156</span>
+</div>
+<div class="w-full bg-surface-container-high h-2 rounded-full overflow-hidden">
+<div class="bg-primary h-full w-[15%]"></div>
+</div>
+</div>
+<div>
+<div class="flex justify-between text-xs mb-1">
+<span class="font-medium text-on-surface">REGULATOR_ENFORCER (执法人员)</span>
+<span class="font-bold text-primary">1,128</span>
+</div>
+<div class="w-full bg-surface-container-high h-2 rounded-full overflow-hidden">
+<div class="bg-primary-container h-full w-[85%]"></div>
+</div>
+</div>
+</div>
+</div>
+<div class="w-px h-24 bg-slate-100 hidden md:block"></div>
+<div class="grid grid-cols-2 gap-4 text-center">
+<div class="bg-surface p-4 rounded min-w-[120px]">
+<div class="text-2xl font-black text-primary">85%</div>
+<div class="text-[10px] text-on-surface-variant uppercase font-bold mt-1">Enforcers</div>
+</div>
+<div class="bg-surface p-4 rounded min-w-[120px]">
+<div class="text-2xl font-black text-on-surface-variant">15%</div>
+<div class="text-[10px] text-on-surface-variant uppercase font-bold mt-1">Admins</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Quick Actions & Small Stats (Column Span 4) -->
+<div class="col-span-12 lg:col-span-4 flex flex-col gap-6">
+<!-- Quick Actions -->
+<div class="bg-primary p-6 rounded shadow-lg text-white">
+<h3 class="text-sm font-bold flex items-center gap-2 mb-4">
+<span class="material-symbols-outlined text-lg" data-icon="bolt">bolt</span>
+                            快速操作 / Quick Actions
+                        </h3>
+<div class="flex flex-col gap-3">
+<button class="w-full bg-white/10 hover:bg-white/20 transition-all py-3 px-4 rounded text-sm font-semibold flex items-center justify-between group">
+<span class="flex items-center gap-2">
+<span class="material-symbols-outlined text-lg" data-icon="person_add">person_add</span>
+                                    新建监管人员
+                                </span>
+<span class="material-symbols-outlined text-sm group-hover:translate-x-1 transition-transform" data-icon="chevron_right">chevron_right</span>
+</button>
+<button class="w-full bg-white/10 hover:bg-white/20 transition-all py-3 px-4 rounded text-sm font-semibold flex items-center justify-between group">
+<span class="flex items-center gap-2">
+<span class="material-symbols-outlined text-lg" data-icon="visibility">visibility</span>
+                                    查看监管人员列表
+                                </span>
+<span class="material-symbols-outlined text-sm group-hover:translate-x-1 transition-transform" data-icon="chevron_right">chevron_right</span>
+</button>
+</div>
+</div>
+<!-- Recent Activity List -->
+<div class="bg-surface-container-lowest p-6 rounded shadow-sm flex-1">
+<div class="flex justify-between items-center mb-6">
+<h3 class="text-sm font-bold text-primary flex items-center gap-2">
+<span class="material-symbols-outlined text-lg" data-icon="history">history</span>
+                                最近动态 / Recent Activity
+                            </h3>
+<a class="text-[10px] font-bold text-primary-container hover:underline" href="#">查看全部</a>
+</div>
+<div class="space-y-4">
+<!-- Activity Item -->
+<div class="flex gap-4 group">
+<div class="relative">
+<div class="w-8 h-8 bg-surface-container-high rounded-full flex items-center justify-center">
+<span class="material-symbols-outlined text-primary text-sm" data-icon="person">person</span>
+</div>
+<div class="absolute -bottom-1 -right-1 w-4 h-4 bg-green-500 border-2 border-surface-container-lowest rounded-full flex items-center justify-center">
+<span class="material-symbols-outlined text-[10px] text-white" data-icon="check" data-weight="fill">check</span>
+</div>
+</div>
+<div class="flex-1">
+<div class="text-xs font-bold text-on-surface">张伟杰 (Enforcer)</div>
+<div class="text-[10px] text-on-surface-variant leading-relaxed">账号审核通过，已分配至静安区监管中心</div>
+<div class="text-[10px] text-slate-400 mt-1">10分钟前</div>
+</div>
+</div>
+<!-- Activity Item -->
+<div class="flex gap-4 group">
+<div class="relative">
+<div class="w-8 h-8 bg-surface-container-high rounded-full flex items-center justify-center">
+<span class="material-symbols-outlined text-primary text-sm" data-icon="lock_reset">lock_reset</span>
+</div>
+</div>
+<div class="flex-1">
+<div class="text-xs font-bold text-on-surface">李娜 (Admin)</div>
+<div class="text-[10px] text-on-surface-variant leading-relaxed">重置了 5 名监管人员的访问权限密码</div>
+<div class="text-[10px] text-slate-400 mt-1">45分钟前</div>
+</div>
+</div>
+<!-- Activity Item -->
+<div class="flex gap-4 group">
+<div class="relative">
+<div class="w-8 h-8 bg-error-container rounded-full flex items-center justify-center">
+<span class="material-symbols-outlined text-error text-sm" data-icon="block">block</span>
+</div>
+</div>
+<div class="flex-1">
+<div class="text-xs font-bold text-on-surface">王小明 (Enforcer)</div>
+<div class="text-[10px] text-on-surface-variant leading-relaxed">账号已被停用。原因：岗位调整</div>
+<div class="text-[10px] text-slate-400 mt-1">2小时前</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Detailed Audit Trail Table (Full Width) -->
+<div class="col-span-12 bg-surface-container-lowest rounded shadow-sm overflow-hidden">
+<div class="px-6 py-4 border-b border-surface-container flex justify-between items-center">
+<h3 class="text-sm font-bold text-primary">系统操作审计 / System Audit Log</h3>
+<div class="flex gap-2">
+<span class="bg-surface-container-high text-on-surface-variant text-[10px] font-bold px-2 py-1 rounded">ALL LOGS</span>
+<span class="bg-primary/5 text-primary text-[10px] font-bold px-2 py-1 rounded">FILTERED</span>
+</div>
+</div>
+<table class="w-full text-left text-xs">
+<thead>
+<tr class="bg-surface-container-low text-on-surface-variant">
+<th class="px-6 py-3 font-bold uppercase tracking-wider">时间 / TIMESTAMP</th>
+<th class="px-6 py-3 font-bold uppercase tracking-wider">操作员 / OPERATOR</th>
+<th class="px-6 py-3 font-bold uppercase tracking-wider">动作 / ACTION</th>
+<th class="px-6 py-3 font-bold uppercase tracking-wider">对象 / TARGET</th>
+<th class="px-6 py-3 font-bold uppercase tracking-wider">状态 / STATUS</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-surface-container">
+<tr class="hover:bg-surface-container-lowest transition-colors">
+<td class="px-6 py-4 text-slate-500 font-mono">2023-11-20 08:45:12</td>
+<td class="px-6 py-4 font-semibold">Admin_01</td>
+<td class="px-6 py-4">UPDATE_ROLE</td>
+<td class="px-6 py-4">User_8892 (林海)</td>
+<td class="px-6 py-4">
+<span class="bg-green-100 text-green-700 text-[10px] px-2 py-0.5 rounded font-bold">SUCCESS</span>
+</td>
+</tr>
+<tr class="bg-surface-container-low/30 hover:bg-surface-container-lowest transition-colors">
+<td class="px-6 py-4 text-slate-500 font-mono">2023-11-20 08:30:05</td>
+<td class="px-6 py-4 font-semibold">Admin_02</td>
+<td class="px-6 py-4">CREATE_USER</td>
+<td class="px-6 py-4">User_9102 (陈静)</td>
+<td class="px-6 py-4">
+<span class="bg-green-100 text-green-700 text-[10px] px-2 py-0.5 rounded font-bold">SUCCESS</span>
+</td>
+</tr>
+<tr class="hover:bg-surface-container-lowest transition-colors">
+<td class="px-6 py-4 text-slate-500 font-mono">2023-11-20 08:12:44</td>
+<td class="px-6 py-4 font-semibold">System_Core</td>
+<td class="px-6 py-4">ARCHIVE_RECORDS</td>
+<td class="px-6 py-4">Batch_Nov_23</td>
+<td class="px-6 py-4">
+<span class="bg-blue-100 text-blue-700 text-[10px] px-2 py-0.5 rounded font-bold">COMPLETED</span>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</div>
+<!-- System Footer Info -->
+<footer class="mt-auto px-8 py-6 flex justify-between items-center text-[10px] text-slate-400 font-bold tracking-widest uppercase border-t border-slate-200">
+<div>© 2023 Sentinel Governance Ecosystem</div>
+<div class="flex gap-6">
+<a class="hover:text-primary transition-colors" href="#">Documentation</a>
+<a class="hover:text-primary transition-colors" href="#">API Status</a>
+<a class="hover:text-primary transition-colors" href="#">Privacy Protocol</a>
+</div>
+</footer>
+</main>
+<!-- Contextual FAB (Only on dashboard) -->
+<button class="fixed bottom-8 right-8 bg-primary text-white w-14 h-14 rounded-xl shadow-2xl flex items-center justify-center hover:scale-110 active:scale-95 transition-all z-50">
+<span class="material-symbols-outlined text-2xl" data-icon="add">add</span>
+</button>
+</body></html>

@@ -97,6 +97,15 @@ export function fetchRegulatorProfile(token) {
   });
 }
 
+export function fetchRegulatorProfileByUserId(token, userId) {
+  return requestWithBase(REGULATION_BASE_URL, `/api/regulation/regulators/user/${userId}`, {
+    method: "GET",
+    headers: {
+      Authorization: `Bearer ${token}`
+    }
+  });
+}
+
 export function updateRegulatorStatus(token, id, status) {
   return requestWithBase(REGULATION_BASE_URL, `/api/regulation/regulators/${id}/status`, {
     method: "PUT",

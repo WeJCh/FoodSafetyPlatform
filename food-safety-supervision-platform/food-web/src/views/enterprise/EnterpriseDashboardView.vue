@@ -2,7 +2,7 @@
   <EnterpriseWorkspacePage
     active-key="dashboard"
     title="企业工作台"
-    subtitle="欢迎回来，今日待处理事项共计 3 项。"
+    :subtitle="`欢迎回来，当前待处理整改任务共计 ${pendingRectificationCount} 项。`"
     top-search-placeholder="搜索监管记录、产品或任务..."
     :username="enterpriseUser.username"
     :user-type="enterpriseUser.userType"
@@ -14,7 +14,7 @@
     <section class="enterprise-dashboard-page">
       <div class="enterprise-dashboard-page__head">
         <h2>企业工作台</h2>
-        <p>欢迎回来，今日待处理事项共计 {{ pendingRectificationCount || recentInspectionAlertCount || 0 }} 项。</p>
+        <p>以下数字均按后端当前总量口径汇总，列表区域仅展示最近记录预览。</p>
       </div>
 
       <div class="enterprise-dashboard-bento">
@@ -35,7 +35,6 @@
               <RouterLink class="primary enterprise-link-button" :to="primaryAction.to">
                 {{ primaryAction.label }}
               </RouterLink>
-              <button class="ghost" type="button" @click="onDownloadCertificate">下载电子证书</button>
             </div>
           </div>
 
@@ -64,6 +63,14 @@
               <strong>{{ pendingRectificationCount.toString().padStart(2, "0") }}</strong>
             </div>
             <span class="enterprise-dashboard-stat-card__icon">风险</span>
+          </article>
+
+          <article class="enterprise-dashboard-stat-card">
+            <div>
+              <p>不合格检查记录</p>
+              <strong>{{ recentInspectionAlertCount.toString().padStart(2, "0") }}</strong>
+            </div>
+            <span class="enterprise-dashboard-stat-card__icon">检查</span>
           </article>
 
           <RouterLink class="enterprise-dashboard-quick-create" :to="{ name: 'enterprise-product-create' }">
@@ -136,7 +143,7 @@
                 <span class="enterprise-dashboard-action__icon">新</span>
                 <div>
                   <strong>新增监管产品</strong>
-                  <p>申报新的受监管条目</p>
+                  <p>申报新的受监管产品条目</p>
                 </div>
               </RouterLink>
 
@@ -153,7 +160,7 @@
           <div class="enterprise-dashboard-actions-panel__notice">
             <div class="enterprise-dashboard-actions-panel__notice-dot"></div>
             <strong>监管动态提醒</strong>
-            <p>2024 年度食品安全监管新规即将发布，请提前完成合规自查与资料复核。</p>
+            <p>请持续关注近期检查、整改与备案状态变化，及时补充监管要求的资料与附件。</p>
           </div>
         </aside>
       </div>
@@ -166,7 +173,7 @@
           </div>
           <div class="enterprise-dashboard-footer__item">
             <span class="enterprise-dashboard-footer__dot"></span>
-            <span>LAST SYNC: 2023-11-08 09:41 CST</span>
+            <span>LAST SYNC: {{ dashboardSyncTime }}</span>
           </div>
         </div>
         <p>© 2023 Sovereign Oversight Regulatory Authority. All Rights Reserved.</p>
@@ -202,16 +209,12 @@ const profileLoaded = ref(false);
 const profile = reactive({ approvalStatus: "", approvalComment: "", approvedTime: "" });
 const productCount = ref(0);
 const inspectionRecords = ref([]);
-const rectificationRecords = ref([]);
+const pendingRectificationCount = ref(0);
+const recentInspectionAlertCount = ref(0);
+const dashboardSyncTime = ref("-");
 
 const approvalLabel = computed(() => getApprovalStatusLabel(profileLoaded.value, profile.approvalStatus));
 const approvalTone = computed(() => getApprovalStatusTone(profileLoaded.value, profile.approvalStatus));
-const pendingRectificationCount = computed(() =>
-  rectificationRecords.value.filter((item) => item.status === "ONGOING" || item.status === "REWORK").length
-);
-const recentInspectionAlertCount = computed(() =>
-  inspectionRecords.value.slice(0, 3).filter((item) => item.result === "FAIL" || item.problemDesc).length
-);
 const recentInspections = computed(() => inspectionRecords.value.slice(0, 3));
 
 const heroStatusTitle = computed(() => {
@@ -230,7 +233,7 @@ const approvalCode = computed(() => {
 
 const heroDescription = computed(() => {
   if (profile.approvedTime) {
-    return `您的企业备案信息已于 ${formatTime(profile.approvedTime)} 审核完成。建议继续维护产品档案与检查整改资料。`;
+    return `您的企业备案信息已于 ${formatTime(profile.approvedTime)} 审核完成。建议持续维护产品档案、检查记录与整改资料。`;
   }
   if (profile.approvalComment) {
     return profile.approvalComment;
@@ -241,7 +244,7 @@ const heroDescription = computed(() => {
   if (profile.approvalStatus === "REJECTED") {
     return "当前备案申请未通过，请根据审核意见尽快修正资料并重新提交。";
   }
-  return "当前备案正在审核中，请留意近期检查与整改任务，并准备补充可能需要的附件资料。";
+  return "当前备案正在审核中，请留意近期检查与整改任务，并准备补充所需附件资料。";
 });
 
 const validUntilText = computed(() => {
@@ -249,12 +252,7 @@ const validUntilText = computed(() => {
   return "待核准";
 });
 
-const primaryAction = computed(() => {
-  if (!profileLoaded.value || profile.approvalStatus !== "APPROVED") {
-    return { label: "更新备案信息", to: { name: "enterprise-profile" } };
-  }
-  return { label: "更新备案信息", to: { name: "enterprise-profile" } };
-});
+const primaryAction = computed(() => ({ label: "更新备案信息", to: { name: "enterprise-profile" } }));
 
 function setStatus(message, type = "info") {
   status.message = message;
@@ -264,30 +262,26 @@ function setStatus(message, type = "info") {
 function getInspectionGlyph(item) {
   if (item.result === "FAIL") return "!";
   if (item.problemDesc) return "检";
-  return "安";
-}
-
-function onDownloadCertificate() {
-  // TODO: 接入电子证照/备案证书下载接口（签章 PDF 或链上凭证）
-  enterpriseFeaturePendingNotice("下载电子证书");
+  return "查";
 }
 
 function onHelpFab() {
-  // TODO: 接入在线客服或帮助文档路由
   enterpriseFeaturePendingNotice("工作台帮助");
 }
 
 async function loadDashboard() {
   setStatus("");
   try {
-    const [profileData, products, inspectionData, rectificationData] = await Promise.all([
+    const [profileData, products, inspectionPreviewData, inspectionAlertData, ongoingRectificationData, reworkRectificationData] = await Promise.all([
       fetchEnterpriseProfile(token.value).catch((error) => {
         if (String(error?.message).includes("not found")) return null;
         throw error;
       }),
       fetchMyProducts(token.value).catch(() => []),
-      fetchEnterpriseInspectionRecords(token.value, { page: 1, size: 6 }).catch(() => ({ records: [], total: 0 })),
-      fetchMyRectifications(token.value, { page: 1, size: 6 }).catch(() => ({ records: [], total: 0 }))
+      fetchEnterpriseInspectionRecords(token.value, { page: 1, size: 3 }).catch(() => ({ records: [], total: 0 })),
+      fetchEnterpriseInspectionRecords(token.value, { result: "FAIL", page: 1, size: 1 }).catch(() => ({ records: [], total: 0 })),
+      fetchMyRectifications(token.value, { status: "ONGOING", page: 1, size: 1 }).catch(() => ({ records: [], total: 0 })),
+      fetchMyRectifications(token.value, { status: "REWORK", page: 1, size: 1 }).catch(() => ({ records: [], total: 0 }))
     ]);
 
     if (profileData) {
@@ -303,8 +297,10 @@ async function loadDashboard() {
     }
 
     productCount.value = Array.isArray(products) ? products.length : 0;
-    inspectionRecords.value = inspectionData.records || [];
-    rectificationRecords.value = rectificationData.records || [];
+    inspectionRecords.value = inspectionPreviewData.records || [];
+    recentInspectionAlertCount.value = Number(inspectionAlertData.total || 0);
+    pendingRectificationCount.value = Number(ongoingRectificationData.total || 0) + Number(reworkRectificationData.total || 0);
+    dashboardSyncTime.value = formatTime(new Date().toISOString());
   } catch (error) {
     setStatus(error.message || "加载企业工作台失败。", "error");
   }

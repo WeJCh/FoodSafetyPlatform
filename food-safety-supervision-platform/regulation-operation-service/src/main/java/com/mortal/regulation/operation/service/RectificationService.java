@@ -11,7 +11,7 @@ public interface RectificationService {
 
     void createFromInspection(Long inspectionId, Long enterpriseId, String rectificationDesc);
 
-    PageResult<RectificationTaskVO> listMy(Long enterpriseUserId, String status, int page, int size);
+    PageResult<RectificationTaskVO> listMy(Long enterpriseUserId, String status, String slaFilter, int page, int size);
 
     RectificationTaskVO submitMy(Long enterpriseUserId, Long rectificationId, RectificationSubmitDTO dto);
 

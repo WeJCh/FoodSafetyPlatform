@@ -1,8 +1,8 @@
-<template>
+﻿<template>
   <EnterpriseWorkspacePage
     active-key="rectifications"
     title="整改任务"
-    subtitle="查看并提交企业待处理的合规整改项。"
+    subtitle="查看并提交企业待处理的合规整改事项。"
     top-search-placeholder="搜索任务或编号..."
     :username="enterpriseUser.username"
     :user-type="enterpriseUser.userType"
@@ -20,16 +20,16 @@
             <span class="is-current">整改任务</span>
           </nav>
           <h1 class="enterprise-page-hero__title">整改任务列表</h1>
-          <p class="enterprise-page-hero__desc">查看并提交企业待处理的合规整改项。</p>
+          <p class="enterprise-page-hero__desc">查看并提交企业待处理的合规整改事项。</p>
         </div>
         <div class="enterprise-stat-pill-group">
-          <div class="enterprise-stat-pill">
+          <div class="enterprise-stat-pill">                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          
             <span class="enterprise-stat-pill__label">待处理总数</span>
             <span class="enterprise-stat-pill__value">{{ rectificationTotal }}</span>
           </div>
           <div class="enterprise-stat-pill enterprise-stat-pill--danger">
             <span class="enterprise-stat-pill__label">即将逾期</span>
-            <span class="enterprise-stat-pill__value">{{ dueSoonOrOverduePageCount }}</span>
+            <span class="enterprise-stat-pill__value">{{ dueSoonOrOverdueTotal }}</span>
           </div>
         </div>
       </header>
@@ -66,7 +66,7 @@
             :class="{ 'is-active': rectificationFilters.status === 'REWORK' }"
             @click="setStatusFilter('REWORK')"
           >
-            需重办 (REWORK)
+            需重提 (REWORK)
           </button>
           <button
             type="button"
@@ -82,7 +82,7 @@
             :class="{ 'is-active': rectificationFilters.slaFilter === 'OVERDUE' }"
             @click="setSlaFilter('OVERDUE')"
           >
-            逾期
+            已逾期
           </button>
           <button
             type="button"
@@ -107,7 +107,7 @@
       </div>
 
       <div class="enterprise-data-table-wrap enterprise-rectification-list-page__table-wrap">
-        <table v-if="filteredRectificationRecords.length" class="enterprise-data-table enterprise-rectification-list-page__table">
+        <table v-if="rectificationRecords.length" class="enterprise-data-table enterprise-rectification-list-page__table">
           <thead>
             <tr>
               <th>任务编号</th>
@@ -118,7 +118,7 @@
             </tr>
           </thead>
           <tbody>
-            <tr v-for="item in filteredRectificationRecords" :key="item.id" class="enterprise-rectification-list-page__row">
+            <tr v-for="item in rectificationRecords" :key="item.id" class="enterprise-rectification-list-page__row">
               <td>
                 <span class="enterprise-rectification-list-page__id">{{ rectificationTaskCode(item.id) }}</span>
               </td>
@@ -127,7 +127,7 @@
                   class="enterprise-rectification-list-page__desc-link"
                   :to="{ name: 'enterprise-rectification-detail', params: { rectificationId: item.id } }"
                 >
-                  <div class="enterprise-rectification-list-page__desc-title">{{ item.rectificationDesc || "—" }}</div>
+                  <div class="enterprise-rectification-list-page__desc-title">{{ item.rectificationDesc || "-" }}</div>
                   <div class="enterprise-rectification-list-page__desc-sub">{{ rectificationDescSub(item) }}</div>
                 </RouterLink>
               </td>
@@ -174,11 +174,11 @@
           <h3>整改指南 (Regulatory Standards)</h3>
           <div class="enterprise-rectification-list-page__guide-item">
             <b>1</b>
-            <p><strong>证据上传：</strong>所有整改项必须提供高清现场照片及相关合规证明文档（PDF/JPG 格式）。</p>
+            <p><strong>证据上传：</strong>所有整改项需提供清晰的现场照片及相关合规证明材料（PDF/JPG 格式）。</p>
           </div>
           <div class="enterprise-rectification-list-page__guide-item">
             <b>2</b>
-            <p><strong>截止时间：</strong>逾期未整改项将自动计入年度诚信扣分系统，请务必关注临近红色的任务。</p>
+            <p><strong>截止时间：</strong>逾期未整改事项将自动计入年度诚信扣分，请及时关注临近到期的任务。</p>
           </div>
         </div>
         <div class="enterprise-rectification-list-page__guide-support">
@@ -194,7 +194,7 @@
 </template>
 
 <script setup>
-import { computed, onMounted, reactive, ref } from "vue";
+import { onMounted, reactive, ref } from "vue";
 import { RouterLink } from "vue-router";
 import { fetchMyRectifications } from "../../api/regulationOperation";
 import EnterpriseEmptyState from "../../components/enterprise/EnterpriseEmptyState.vue";
@@ -210,22 +210,9 @@ const rectificationPage = ref(1);
 const rectificationSize = ref(8);
 const rectificationTotal = ref(0);
 const rectificationPages = ref(1);
+const dueSoonOrOverdueTotal = ref(0);
 const rectificationFilters = reactive({ status: "", slaFilter: "" });
 const showAdvancedFilters = ref(false);
-
-const dueSoonOrOverduePageCount = computed(
-  () => rectificationRecords.value.filter((r) => r.slaStatus === "DUE_SOON" || r.slaStatus === "OVERDUE").length
-);
-
-const filteredRectificationRecords = computed(() => {
-  if (rectificationFilters.slaFilter === "OVERDUE") {
-    return rectificationRecords.value.filter((item) => item?.slaStatus === "OVERDUE");
-  }
-  if (rectificationFilters.slaFilter === "NOT_OVERDUE") {
-    return rectificationRecords.value.filter((item) => item?.slaStatus !== "OVERDUE");
-  }
-  return rectificationRecords.value;
-});
 
 function setStatusFilter(value) {
   rectificationFilters.status = value;
@@ -234,6 +221,7 @@ function setStatusFilter(value) {
 
 function setSlaFilter(value) {
   rectificationFilters.slaFilter = rectificationFilters.slaFilter === value ? "" : value;
+  handleRectificationSearch();
 }
 
 function toggleAdvanced() {
@@ -314,17 +302,27 @@ async function loadRectifications() {
   rectificationLoading.value = true;
   setStatus("");
   try {
-    const data = await fetchMyRectifications(token.value, {
-      ...rectificationFilters,
-      page: rectificationPage.value,
-      size: rectificationSize.value
-    });
+    const [data, riskData] = await Promise.all([
+      fetchMyRectifications(token.value, {
+        ...rectificationFilters,
+        page: rectificationPage.value,
+        size: rectificationSize.value
+      }),
+      fetchMyRectifications(token.value, {
+        status: rectificationFilters.status,
+        slaFilter: "AT_RISK",
+        page: 1,
+        size: 1
+      })
+    ]);
     rectificationRecords.value = data.records || [];
     rectificationTotal.value = data.total || 0;
     rectificationPage.value = data.page || 1;
     rectificationSize.value = data.size || rectificationSize.value;
     rectificationPages.value = data.pages || 1;
+    dueSoonOrOverdueTotal.value = Number(riskData?.total || 0);
   } catch (error) {
+    dueSoonOrOverdueTotal.value = 0;
     setStatus(error.message || "加载整改任务失败", "error");
   } finally {
     rectificationLoading.value = false;
@@ -345,3 +343,4 @@ onMounted(() => {
   loadRectifications();
 });
 </script>
+

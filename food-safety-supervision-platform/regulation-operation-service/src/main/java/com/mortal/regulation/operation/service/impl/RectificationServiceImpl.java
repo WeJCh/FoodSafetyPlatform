@@ -97,7 +97,7 @@ public class RectificationServiceImpl implements RectificationService {
     }
 
     @Override
-    public PageResult<RectificationTaskVO> listMy(Long enterpriseUserId, String status, int page, int size) {
+    public PageResult<RectificationTaskVO> listMy(Long enterpriseUserId, String status, String slaFilter, int page, int size) {
         InternalEnterpriseDetailVO enterprise = masterDataSupport.requireEnterpriseByUserId(enterpriseUserId);
         LambdaQueryWrapper<RectificationTask> wrapper = new LambdaQueryWrapper<RectificationTask>()
             .eq(RectificationTask::getDeleted, 0)
@@ -106,6 +106,7 @@ public class RectificationServiceImpl implements RectificationService {
         if (statusValue != null) {
             wrapper.eq(RectificationTask::getStatus, statusValue);
         }
+        applyEnterpriseSlaFilter(wrapper, slaFilter);
         wrapper.orderByDesc(RectificationTask::getUpdateTime);
         Page<RectificationTask> pageInfo = rectificationTaskMapper.selectPage(new Page<>(page, size), wrapper);
         return PageResult.of(toVOs(pageInfo.getRecords()), pageInfo.getTotal(), page, size);
@@ -228,6 +229,71 @@ public class RectificationServiceImpl implements RectificationService {
         wrapper.orderByDesc(RectificationTask::getUpdateTime);
         Page<RectificationTask> pageInfo = rectificationTaskMapper.selectPage(new Page<>(page, size), wrapper);
         return PageResult.of(toVOs(pageInfo.getRecords()), pageInfo.getTotal(), page, size);
+    }
+
+    private void applyEnterpriseSlaFilter(LambdaQueryWrapper<RectificationTask> wrapper, String slaFilter) {
+        String normalized = normalizeSlaFilter(slaFilter);
+        if (normalized == null) {
+            return;
+        }
+        LocalDateTime now = LocalDateTime.now();
+        if ("OVERDUE".equals(normalized)) {
+            wrapper.and(group -> group
+                .and(submit -> submit
+                    .in(RectificationTask::getStatus, RectificationStatus.ONGOING, RectificationStatus.REWORK)
+                    .isNotNull(RectificationTask::getSubmitDeadline)
+                    .lt(RectificationTask::getSubmitDeadline, now)
+                )
+                .or(review -> review
+                    .eq(RectificationTask::getStatus, RectificationStatus.SUBMITTED)
+                    .isNotNull(RectificationTask::getReviewDeadline)
+                    .lt(RectificationTask::getReviewDeadline, now)
+                )
+            );
+            return;
+        }
+        if ("NOT_OVERDUE".equals(normalized)) {
+            wrapper.and(group -> group
+                .and(submit -> submit
+                    .in(RectificationTask::getStatus, RectificationStatus.ONGOING, RectificationStatus.REWORK)
+                    .and(active -> active
+                        .isNull(RectificationTask::getSubmitDeadline)
+                        .or()
+                        .ge(RectificationTask::getSubmitDeadline, now)
+                    )
+                )
+                .or(review -> review
+                    .eq(RectificationTask::getStatus, RectificationStatus.SUBMITTED)
+                    .and(active -> active
+                        .isNull(RectificationTask::getReviewDeadline)
+                        .or()
+                        .ge(RectificationTask::getReviewDeadline, now)
+                    )
+                )
+                .or(closed -> closed.notIn(
+                    RectificationTask::getStatus,
+                    RectificationStatus.ONGOING,
+                    RectificationStatus.REWORK,
+                    RectificationStatus.SUBMITTED
+                ))
+            );
+            return;
+        }
+        if ("AT_RISK".equals(normalized)) {
+            LocalDateTime dueSoonThreshold = now.plusMinutes(SLA_DUE_SOON_MINUTES);
+            wrapper.and(group -> group
+                .and(submit -> submit
+                    .in(RectificationTask::getStatus, RectificationStatus.ONGOING, RectificationStatus.REWORK)
+                    .isNotNull(RectificationTask::getSubmitDeadline)
+                    .le(RectificationTask::getSubmitDeadline, dueSoonThreshold)
+                )
+                .or(review -> review
+                    .eq(RectificationTask::getStatus, RectificationStatus.SUBMITTED)
+                    .isNotNull(RectificationTask::getReviewDeadline)
+                    .le(RectificationTask::getReviewDeadline, dueSoonThreshold)
+                )
+            );
+        }
     }
 
     private RectificationTask resolveVisibleTask(Long operatorUserId, String userType, Long rectificationId) {
@@ -406,6 +472,17 @@ public class RectificationServiceImpl implements RectificationService {
         } catch (IllegalArgumentException ex) {
             throw new IllegalArgumentException("invalid rectification status");
         }
+    }
+
+    private String normalizeSlaFilter(String value) {
+        if (!StringUtils.hasText(value)) {
+            return null;
+        }
+        String normalized = value.trim().toUpperCase();
+        if ("OVERDUE".equals(normalized) || "NOT_OVERDUE".equals(normalized) || "AT_RISK".equals(normalized)) {
+            return normalized;
+        }
+        return null;
     }
 
     private RectificationReviewAction normalizeReviewAction(String value) {

@@ -47,7 +47,7 @@
       <section class="public-complaint-track-page__stats">
         <article class="public-complaint-track-page__stat-card">
           <span>全部投诉</span>
-          <strong>{{ total }}</strong>
+          <strong>{{ statsRecords.length }}</strong>
         </article>
         <article class="public-complaint-track-page__stat-card is-processing">
           <span>处理中</span>
@@ -157,25 +157,20 @@ const topNavItems = [
 const filters = reactive({ status: "", keyword: "" });
 const loading = ref(false);
 const records = ref([]);
+const statsRecords = ref([]);
 const page = ref(1);
 const size = ref(8);
 const total = ref(0);
 const pages = ref(1);
 const status = reactive({ message: "", type: "" });
 
-const filteredRecords = computed(() => {
-  const keyword = filters.keyword.trim().toLowerCase();
-  if (!keyword) return records.value;
-  return records.value.filter((item) => {
-    const source = [item.complaintNo, item.enterpriseName, item.content, item.handleResult]
-      .filter(Boolean)
-      .join(" ")
-      .toLowerCase();
-    return source.includes(keyword);
-  });
-});
-const processingCount = computed(() => records.value.filter((item) => ["PENDING", "ASSIGNED", "PROCESSING"].includes(item.status)).length);
-const finishedCount = computed(() => records.value.filter((item) => ["FEEDBACKED", "REJECTED"].includes(item.status)).length);
+const filteredRecords = computed(() => records.value);
+const processingCount = computed(() =>
+  statsRecords.value.filter((item) => ["PENDING", "ASSIGNED", "PROCESSING"].includes(item.status)).length
+);
+const finishedCount = computed(() =>
+  statsRecords.value.filter((item) => ["FEEDBACKED", "REJECTED"].includes(item.status)).length
+);
 
 function setStatus(message, type = "info") {
   status.message = message;
@@ -241,11 +236,31 @@ async function loadComplaints() {
   loading.value = true;
   setStatus("");
   try {
+    const keyword = filters.keyword.trim().toLowerCase();
+    if (keyword) {
+      const allRecords = await fetchAllComplaintRecords();
+      const matchedRecords = allRecords.filter((item) => {
+        const source = [item.complaintNo, item.enterpriseName, item.content, item.handleResult]
+          .filter(Boolean)
+          .join(" ")
+          .toLowerCase();
+        return source.includes(keyword);
+      });
+      statsRecords.value = matchedRecords;
+      total.value = matchedRecords.length;
+      pages.value = Math.max(1, Math.ceil(total.value / size.value));
+      if (page.value > pages.value) page.value = pages.value;
+      const start = (page.value - 1) * size.value;
+      records.value = matchedRecords.slice(start, start + size.value);
+      return;
+    }
+
     const data = await fetchMyComplaints(publicToken, {
       status: filters.status,
       page: page.value,
       size: size.value
     });
+    statsRecords.value = await fetchAllComplaintRecords();
     records.value = data.records || [];
     total.value = data.total || 0;
     page.value = data.page || 1;
@@ -253,10 +268,31 @@ async function loadComplaints() {
     pages.value = data.pages || 1;
   } catch (error) {
     records.value = [];
+    statsRecords.value = [];
     setStatus(error.message || "加载投诉列表失败", "error");
   } finally {
     loading.value = false;
   }
+}
+
+async function fetchAllComplaintRecords() {
+  const merged = [];
+  let currentPage = 1;
+  const batchSize = 50;
+  let totalPages = 1;
+
+  do {
+    const data = await fetchMyComplaints(publicToken, {
+      status: filters.status,
+      page: currentPage,
+      size: batchSize
+    });
+    merged.push(...(data.records || []));
+    totalPages = Math.max(1, data.pages || 1);
+    currentPage += 1;
+  } while (currentPage <= totalPages);
+
+  return merged;
 }
 function applyFilters() {
   page.value = 1;

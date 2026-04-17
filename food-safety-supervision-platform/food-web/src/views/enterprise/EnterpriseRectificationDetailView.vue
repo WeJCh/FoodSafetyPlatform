@@ -25,13 +25,15 @@
           <div>
             <div class="enterprise-rectification-detail-page__title-row">
               <span class="enterprise-rectification-detail-page__task-id-pill">TASK ID</span>
-              <h1 class="enterprise-page-hero__title enterprise-rectification-detail-page__title">#{{ rectificationId }}：{{ detail.rectificationDesc || "整改任务" }}</h1>
+              <h1 class="enterprise-page-hero__title enterprise-rectification-detail-page__title">
+                #{{ rectificationId }} · {{ detail.rectificationDesc || "整改任务" }}
+              </h1>
             </div>
             <div class="enterprise-rectification-detail-page__meta-row">
               <EnterpriseStatusChip :label="formatRectificationStatus(detail.status)" :tone="statusChipTone" />
               <span class="enterprise-rectification-detail-page__inline-meta">
                 <span class="material-symbols-outlined" aria-hidden="true">calendar_today</span>
-                截止日期：<strong>{{ detail.currentDeadline || "—" }}</strong>
+                截止日期：<strong>{{ detail.currentDeadline || "-" }}</strong>
               </span>
               <span class="enterprise-rectification-detail-page__inline-meta">
                 <span class="material-symbols-outlined" aria-hidden="true">schedule</span>
@@ -57,7 +59,7 @@
         <div v-if="lastReworkLog" class="enterprise-alert-rework">
           <span class="material-symbols-outlined is-filled" aria-hidden="true">info</span>
           <div>
-            <h4 class="enterprise-rectification-detail-page__rework-title">监管部门驳回意见</h4>
+            <h4 class="enterprise-rectification-detail-page__rework-title">监管部门打回意见</h4>
             <p class="enterprise-rectification-detail-page__rework-body">{{ reworkAlertBody }}</p>
             <p v-if="reworkAlertTime" class="enterprise-rectification-detail-page__rework-time">{{ formatTime(reworkAlertTime) }}</p>
           </div>
@@ -83,25 +85,12 @@
                   </li>
                 </ul>
               </div>
-              <div class="enterprise-rectification-detail-page__standard">
-                <h5>参考标准</h5>
-                <div class="enterprise-rectification-detail-page__standard-file">
-                  <span class="material-symbols-outlined" aria-hidden="true">picture_as_pdf</span>
-                  <div>
-                    <p>GB/T 19079.1-2013 食品加工通用安全标准（占位）</p>
-                    <small>PDF Document · 2.4 MB</small>
-                  </div>
-                  <button type="button" class="ghost" @click="onDownloadStandard">
-                    <span class="material-symbols-outlined" aria-hidden="true">download</span>
-                  </button>
-                </div>
-              </div>
             </section>
 
             <section class="enterprise-panel">
               <div class="enterprise-panel__head">
                 <div class="enterprise-panel__head-bar" />
-                <h3>流转日志 / Audit Trail</h3>
+                <h3>流转日志</h3>
               </div>
               <div v-if="!sortedLogs.length" class="secondary-text">暂无动作记录</div>
               <div v-else class="enterprise-audit-trail-v">
@@ -151,7 +140,7 @@
                 <span class="enterprise-countdown-card__value">{{ countdownDisplay.primary }}</span>
                 <span>{{ countdownDisplay.unit }}</span>
               </div>
-              <p>{{ detail.currentDeadline ? `${detail.currentDeadline} 自动关闭通道` : "未设置明确截止时刻时，以监管通知为准。" }}</p>
+              <p>{{ detail.currentDeadline ? `${detail.currentDeadline} 自动关闭提交通道` : "未设置明确截止时刻时，以监管通知为准。" }}</p>
             </div>
 
             <div class="enterprise-side-card">
@@ -165,23 +154,6 @@
                   <span class="material-symbols-outlined" aria-hidden="true">support_agent</span>
                   申请延期或咨询
                 </button>
-              </div>
-            </div>
-
-            <div class="enterprise-side-card enterprise-rectification-detail-page__owner-card">
-              <div class="enterprise-side-card__head">负责督办员</div>
-              <div class="enterprise-side-card__body">
-                <div class="enterprise-rectification-detail-page__owner-main">
-                  <span class="material-symbols-outlined" aria-hidden="true">person</span>
-                  <div>
-                    <p>张明远（占位）</p>
-                    <small>食品安全监管一处</small>
-                  </div>
-                </div>
-                <div class="enterprise-rectification-detail-page__owner-contact">
-                  <span><span class="material-symbols-outlined" aria-hidden="true">call</span>010-8829-1022</span>
-                  <span><span class="material-symbols-outlined" aria-hidden="true">mail</span>zhang.my@gov.food.cn</span>
-                </div>
               </div>
             </div>
           </aside>
@@ -206,7 +178,7 @@
 </template>
 
 <script setup>
-import { computed, onMounted, reactive, ref } from "vue";
+import { computed, reactive, ref, watch } from "vue";
 import { RouterLink, useRoute } from "vue-router";
 import { fetchRectificationActions, fetchRectificationDetail } from "../../api/regulationOperation";
 import EnterpriseStatusChip from "../../components/enterprise/EnterpriseStatusChip.vue";
@@ -222,7 +194,7 @@ import {
 
 const route = useRoute();
 const { enterpriseUser, token, handleSidebarNavigate, handleLogout } = useEnterpriseShellSession();
-const rectificationId = String(route.params.rectificationId || "");
+const rectificationId = computed(() => String(route.params.rectificationId || ""));
 const detail = ref(null);
 const actionLogs = ref([]);
 const loading = ref(false);
@@ -238,7 +210,7 @@ function logComment(log) {
 
 function normalizeLogUrls(raw) {
   if (!raw) return [];
-  if (Array.isArray(raw)) return raw.filter(Boolean).map((v) => String(v));
+  if (Array.isArray(raw)) return raw.filter(Boolean).map((value) => String(value));
   if (typeof raw === "string") return [raw];
   return [];
 }
@@ -247,7 +219,10 @@ function logImageUrls(log) {
   const fromAttachmentUrls = normalizeLogUrls(log?.attachmentUrls);
   const fromImageUrls = normalizeLogUrls(log?.imageUrls);
   const fromAttachments = Array.isArray(log?.attachments)
-    ? log.attachments.map((item) => item?.url || item?.fileUrl || item?.attachmentUrl).filter(Boolean).map((v) => String(v))
+    ? log.attachments
+        .map((item) => item?.url || item?.fileUrl || item?.attachmentUrl)
+        .filter(Boolean)
+        .map((value) => String(value))
     : [];
   return [...new Set([...fromAttachmentUrls, ...fromImageUrls, ...fromAttachments])];
 }
@@ -281,42 +256,43 @@ function showNextImage() {
 const canSubmit = computed(() => detail.value && (detail.value.status === "ONGOING" || detail.value.status === "REWORK"));
 
 const statusChipTone = computed(() => {
-  const s = detail.value?.status;
-  if (s === "CONFIRMED") return "success";
-  if (s === "REWORK") return "danger";
-  if (s === "SUBMITTED") return "warning";
+  const currentStatus = detail.value?.status;
+  if (currentStatus === "CONFIRMED") return "success";
+  if (currentStatus === "REWORK") return "danger";
+  if (currentStatus === "SUBMITTED") return "warning";
   return "neutral";
 });
 
 const sortedLogs = computed(() => {
   const list = [...(actionLogs.value || [])];
   return list.sort((a, b) => {
-    const ta = new Date(rectificationLogTime(a) || 0).getTime();
-    const tb = new Date(rectificationLogTime(b) || 0).getTime();
-    return tb - ta;
+    const timeA = new Date(rectificationLogTime(a) || 0).getTime();
+    const timeB = new Date(rectificationLogTime(b) || 0).getTime();
+    return timeB - timeA;
   });
 });
 
 const lastReworkLog = computed(() => sortedLogs.value.find((log) => String(log?.actionType || "").toUpperCase() === "REVIEW_REWORK"));
-
 const reworkAlertBody = computed(() => (lastReworkLog.value ? logComment(lastReworkLog.value) : ""));
-
 const reworkAlertTime = computed(() => (lastReworkLog.value ? rectificationLogTime(lastReworkLog.value) : ""));
 
 const requirementItems = computed(() => {
   const text = (detail.value?.rectificationDesc || "").trim();
-  if (!text) return ["请按监管要求补充整改措施并提交证明材料。"];
-  const parts = text.split(/[\n;；。]+/).map((s) => s.trim()).filter(Boolean);
+  if (!text) return ["请按监管要求补充整改措施，并提交佐证材料。"];
+  const parts = text
+    .split(/[\n;；。]+/)
+    .map((item) => item.trim())
+    .filter(Boolean);
   return parts.slice(0, 3);
 });
 
 const countdownDisplay = computed(() => {
-  const d = detail.value;
-  if (!d?.currentDeadline) return { primary: "—", unit: "" };
-  const end = new Date(d.currentDeadline);
-  if (Number.isNaN(end.getTime())) return { primary: "—", unit: "" };
-  const days = Math.ceil((end.getTime() - Date.now()) / 86400000);
-  if (d.slaStatus === "OVERDUE") return { primary: "已逾期", unit: "" };
+  const currentDetail = detail.value;
+  if (!currentDetail?.currentDeadline) return { primary: "-", unit: "" };
+  const endTime = new Date(currentDetail.currentDeadline);
+  if (Number.isNaN(endTime.getTime())) return { primary: "-", unit: "" };
+  const days = Math.ceil((endTime.getTime() - Date.now()) / 86400000);
+  if (currentDetail.slaStatus === "OVERDUE") return { primary: "已逾期", unit: "" };
   if (days >= 0) return { primary: String(Math.max(0, days)), unit: "天" };
   return { primary: "已逾期", unit: "" };
 });
@@ -338,29 +314,34 @@ function formatRectificationSla(item) {
   if (item.slaStatus === "DUE_SOON") return `即将超时 ${formatDurationMinutes(remaining)}`;
   if (item.slaStatus === "NORMAL") return `剩余 ${formatDurationMinutes(remaining)}`;
   if (item.currentDeadline) return `截止 ${item.currentDeadline}`;
-  return "—";
+  return "-";
 }
 
 function onExtensionRequest() {
-  // TODO: 对接延期申请工单或监管咨询入口
   enterpriseFeaturePendingNotice("申请延期或咨询");
 }
 
-function onDownloadStandard() {
-  // TODO: 对接整改标准附件下载链接
-  enterpriseFeaturePendingNotice("下载整改参考标准");
-}
-
 async function loadDetail() {
+  if (!rectificationId.value) {
+    detail.value = null;
+    actionLogs.value = [];
+    return;
+  }
+
   loading.value = true;
+  status.message = "";
+  status.type = "";
+
   try {
     const [detailData, actionData] = await Promise.all([
-      fetchRectificationDetail(token.value, rectificationId),
-      fetchRectificationActions(token.value, rectificationId)
+      fetchRectificationDetail(token.value, rectificationId.value),
+      fetchRectificationActions(token.value, rectificationId.value)
     ]);
     detail.value = detailData || null;
     actionLogs.value = Array.isArray(actionData) ? actionData : [];
   } catch (error) {
+    detail.value = null;
+    actionLogs.value = [];
     status.message = error.message || "加载整改详情失败";
     status.type = "error";
   } finally {
@@ -368,7 +349,12 @@ async function loadDetail() {
   }
 }
 
-onMounted(() => {
-  loadDetail();
-});
+watch(
+  () => route.params.rectificationId,
+  () => {
+    closeImagePreview();
+    loadDetail();
+  },
+  { immediate: true }
+);
 </script>

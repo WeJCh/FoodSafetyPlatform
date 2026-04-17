@@ -38,13 +38,14 @@ public class RectificationController {
     @GetMapping("/my")
     public ApiResponse<PageResult<RectificationTaskVO>> listMy(@RequestHeader("Authorization") String token,
                                                                @RequestParam(required = false) String status,
+                                                               @RequestParam(required = false) String slaFilter,
                                                                @RequestParam(defaultValue = "1") int page,
                                                                @RequestParam(defaultValue = "10") int size) {
         RequestIdentity identity = requestIdentityResolver.resolve(token);
         if (!identity.isEnterprise()) {
             return ApiResponse.failure(403, OperationErrorMessages.ENTERPRISE_ONLY);
         }
-        return ApiResponse.success(rectificationService.listMy(identity.userId(), status, page, size));
+        return ApiResponse.success(rectificationService.listMy(identity.userId(), status, slaFilter, page, size));
     }
 
     @PutMapping("/my/{id}/submit")

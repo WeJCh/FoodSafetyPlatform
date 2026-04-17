@@ -73,14 +73,14 @@
               </label>
               <label class="enterprise-product-form-field">
                 <span>规格型号（重量/体积）</span>
-                <input v-model.trim="form.specification" placeholder="例如：500g、2.5L" autocomplete="off" />
+                <input v-model.trim="form.specification" placeholder="例如：500g、1.5L" autocomplete="off" />
               </label>
               <label class="enterprise-product-form-field enterprise-product-form-grid__full">
-                <span>产品描述</span>
+                <span>产品备注</span>
                 <textarea
                   v-model.trim="form.remark"
                   rows="4"
-                  placeholder="详细描述产品的成分、储存条件等（可选）"
+                  placeholder="补充产品配料、包装、贮存条件或其他说明（可选）"
                 />
               </label>
             </div>
@@ -116,7 +116,7 @@
               <div>
                 <h4>档案审核提示</h4>
                 <p>
-                  设为 ACTIVE 后，该产品将用于监管侧台账与抽检关联展示（以实际系统配置为准）。请确保名称、分类与许可证核准范围一致。
+                  设置为 ACTIVE 后，该产品会进入企业正式产品档案，并可能用于监管侧抽检、检查或台账关联展示。请确保产品名称、分类与备案信息一致。
                 </p>
               </div>
             </div>
@@ -124,29 +124,6 @@
         </div>
 
         <aside class="enterprise-product-form-aside">
-          <section class="enterprise-product-form-card">
-            <div class="enterprise-product-form-card__head">
-              <div class="enterprise-product-form-card__head-bar" aria-hidden="true" />
-              <h3>产品图片</h3>
-            </div>
-            <div
-              class="enterprise-attachment-dropzone enterprise-product-form-dropzone"
-              role="button"
-              tabindex="0"
-              @click="onImagePlaceholderClick"
-              @keydown.enter.prevent="onImagePlaceholderClick"
-            >
-              <span class="material-symbols-outlined enterprise-attachment-dropzone__cloud" aria-hidden="true">cloud_upload</span>
-              <span class="enterprise-attachment-dropzone__title">点击或拖拽上传</span>
-              <span class="enterprise-attachment-dropzone__hint">支持 JPG、PNG、WEBP（最大 5MB）· 即将接入</span>
-            </div>
-            <div class="enterprise-product-form-thumb-row" aria-hidden="true">
-              <div v-for="n in 3" :key="n" class="enterprise-product-form-thumb-slot">
-                <span class="material-symbols-outlined">image</span>
-              </div>
-            </div>
-          </section>
-
           <section class="enterprise-product-form-policy">
             <span class="material-symbols-outlined enterprise-product-form-policy__bg-icon" aria-hidden="true">policy</span>
             <h4>
@@ -156,15 +133,15 @@
             <ul>
               <li>
                 <span class="enterprise-product-form-policy__bullet">•</span>
-                <span>产品名称应与包装标示的法定名称一致。</span>
+                <span>产品名称应与包装标识、备案资料中的法定名称保持一致。</span>
               </li>
               <li>
                 <span class="enterprise-product-form-policy__bullet">•</span>
-                <span>图片需包含正面全景及成分表特写（上传功能上线后）。</span>
+                <span>当前系统未接入产品图片上传，请在备注中补充包装、标签和关键识别信息。</span>
               </li>
               <li>
                 <span class="enterprise-product-form-policy__bullet">•</span>
-                <span>分类与许可证不符可能导致后续核对退回。</span>
+                <span>分类与企业许可范围不一致时，后续监管核对可能会提示异常。</span>
               </li>
             </ul>
             <div class="enterprise-product-form-policy__foot">
@@ -207,7 +184,7 @@ const statusLabel = computed(() => getApprovalStatusLabel(profileLoaded.value, a
 const statusTone = computed(() => getApprovalStatusTone(profileLoaded.value, approvalStatus.value));
 const pageTitle = computed(() => (isEdit.value ? "编辑产品信息" : "新增产品档案"));
 const pageSubtitle = computed(() =>
-  isEdit.value ? "更新产品档案中的监管数据与合规状态。" : "录入新的食品产品详细信息，确保合规备案。"
+  isEdit.value ? "更新产品档案中的监管信息与启用状态。" : "录入新的食品产品详细信息，建立正式产品档案。"
 );
 const primarySubmitLabel = computed(() => (isEdit.value ? "保存并返回详情" : "提交并返回列表"));
 
@@ -219,15 +196,13 @@ const categoryOptions = computed(() => {
   return [...ENTERPRISE_PRODUCT_CATEGORY_PRESETS];
 });
 
-const canSubmit = computed(() => profileLoaded.value && approvalStatus.value === "APPROVED" && Boolean(form.productName.trim()) && Boolean(form.category));
+const canSubmit = computed(
+  () => profileLoaded.value && approvalStatus.value === "APPROVED" && Boolean(form.productName.trim()) && Boolean(form.category)
+);
 
 function setStatus(message, type = "info") {
   status.message = message;
   status.type = type;
-}
-
-function onImagePlaceholderClick() {
-  setStatus("产品图片上传能力即将接入，当前请先在「产品描述」中补充包装与标签说明。", "info");
 }
 
 function applyForm(payload = {}) {

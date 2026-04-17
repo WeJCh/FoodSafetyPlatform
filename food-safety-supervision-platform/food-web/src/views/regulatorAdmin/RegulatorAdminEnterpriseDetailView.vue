@@ -95,7 +95,11 @@
                   <td>{{ item.category || "-" }}</td>
                   <td>{{ item.specification || "-" }}</td>
                   <td>{{ formatTime(item.updateTime) }}</td>
-                  <td><span class="chip" :class="item.status === 'ACTIVE' ? 'chip--ok' : 'chip--off'">{{ formatProductStatus(item.status) }}</span></td>
+                  <td>
+                    <span class="chip" :class="item.status === 'ACTIVE' ? 'chip--ok' : 'chip--off'">
+                      {{ formatProductStatus(item.status) }}
+                    </span>
+                  </td>
                 </tr>
               </tbody>
             </table>
@@ -120,15 +124,11 @@
             <ul class="audit-list">
               <li>
                 <strong>企业档案已加载</strong>
-                <p>{{ formatTime(detail.updateTime) }} · 系统自动同步备案主档</p>
+                <p>{{ formatTime(detail.updateTime) }} · 系统自动同步备案主档。</p>
               </li>
               <li>
                 <strong>产品数据同步</strong>
-                <p>已加载 {{ productRecords.length }} 条产品记录</p>
-              </li>
-              <li>
-                <strong>后续能力占位</strong>
-                <p>TODO: 接入企业审计日志接口，替换当前前端占位。</p>
+                <p>已加载 {{ productRecords.length }} 条产品记录。</p>
               </li>
             </ul>
           </section>
@@ -182,7 +182,6 @@ const riskHistory = computed(() => {
 });
 
 function onPendingFeature(title) {
-  // TODO: 待接入档案导出与深层审计能力
   regulatorFeaturePendingNotice(title);
 }
 
@@ -270,17 +269,46 @@ watch(() => route.params.enterpriseId, loadDetail);
 
 <style scoped>
 .enterprise-detail-page { display: grid; gap: 16px; }
-.detail-header { background: #fff; border-radius: 6px; padding: 16px; display: grid; grid-template-columns: 1fr auto auto; gap: 12px; align-items: end; }
+.detail-header {
+  background: #fff;
+  border-radius: 6px;
+  padding: 16px;
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  gap: 12px;
+  align-items: end;
+}
 .detail-header h1 { margin: 0; color: #002660; font-size: 30px; font-weight: 800; }
 .detail-header p { margin: 6px 0 0; color: #64748b; font-size: 13px; }
 .detail-header__chips { display: flex; gap: 8px; align-items: center; }
 .status-chip-group { display: grid; gap: 4px; justify-items: start; }
-.status-chip-label { font-size: 10px; color: #64748b; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; }
+.status-chip-label {
+  font-size: 10px;
+  color: #64748b;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
 .detail-header__actions { display: flex; gap: 8px; }
-.detail-header__actions button { border: 0; border-radius: 4px; padding: 8px 12px; font-size: 12px; font-weight: 700; cursor: pointer; }
-.detail-header__actions .ghost { background: #e2e8f0; color: #334155; }
+.detail-header__actions button {
+  border: 0;
+  border-radius: 4px;
+  padding: 8px 12px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
 .detail-header__actions .primary { background: #002660; color: #fff; }
-.chip { display: inline-flex; align-items: center; padding: 3px 8px; border-radius: 4px; background: #e2e8f0; color: #334155; font-size: 11px; font-weight: 700; }
+.chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 8px;
+  border-radius: 4px;
+  background: #e2e8f0;
+  color: #334155;
+  font-size: 11px;
+  font-weight: 700;
+}
 .chip--ok { background: #dcfce7; color: #166534; }
 .chip--pending { background: #fef3c7; color: #92400e; }
 .chip--reject { background: #fee2e2; color: #991b1b; }
@@ -323,18 +351,33 @@ th { background: #f8fafc; color: #64748b; text-align: left; font-size: 11px; tex
 td { border-top: 1px solid #edf2f7; padding: 10px; font-size: 13px; color: #1e293b; }
 .panel--highlight { background: linear-gradient(120deg, #003a8c, #124394); color: #fff; }
 .panel--highlight h2 { color: #fff; }
-.risk-list, .audit-list { margin: 0; padding: 0; list-style: none; display: grid; gap: 10px; }
-.risk-list li, .audit-list li { background: rgba(255, 255, 255, 0.08); border-radius: 4px; padding: 10px; display: grid; gap: 4px; }
+.risk-list,
+.audit-list { margin: 0; padding: 0; list-style: none; display: grid; gap: 10px; }
+.risk-list li,
+.audit-list li { background: rgba(255, 255, 255, 0.08); border-radius: 4px; padding: 10px; display: grid; gap: 4px; }
 .panel:not(.panel--highlight) .audit-list li { background: #f8fafc; }
-.risk-list strong, .audit-list strong { font-size: 13px; }
+.risk-list strong,
+.audit-list strong { font-size: 13px; }
 .risk-list span { font-size: 11px; opacity: 0.85; }
-.risk-list p, .audit-list p { margin: 0; font-size: 12px; line-height: 1.5; }
+.risk-list p,
+.audit-list p { margin: 0; font-size: 12px; line-height: 1.5; }
 .status { border-radius: 4px; padding: 12px; font-size: 13px; }
 .status.info { background: #eff6ff; color: #1d4ed8; }
 .status.error { background: #fee2e2; color: #991b1b; }
+
 @media (max-width: 1200px) {
-  .detail-header, .detail-layout, .side-layout { grid-template-columns: 1fr; }
-  .base-grid { grid-template-columns: 1fr; }
-  .base-grid article.span2 { grid-column: span 1; }
+  .detail-header,
+  .detail-layout,
+  .side-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .base-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .base-grid article.span2 {
+    grid-column: span 1;
+  }
 }
 </style>

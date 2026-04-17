@@ -42,61 +42,42 @@
         </label>
         <label>
           指派人员
-          <input v-model.trim="uiFilters.assigneeKeyword" placeholder="搜索人员姓名..." />
+          <input v-model.trim="uiFilters.assigneeKeyword" placeholder="搜索人员姓名" />
         </label>
         <button class="ghost" type="button" :disabled="dispatchTaskLoading" @click="handleDispatchSearch">
           {{ dispatchTaskLoading ? "查询中..." : "查询" }}
         </button>
-        <button class="ghost link-reset" type="button" @click="resetFilters">重置筛选</button>
+        <button class="ghost link-reset" type="button" :disabled="dispatchTaskLoading" @click="resetFilters">
+          重置筛选
+        </button>
       </section>
 
       <section class="stats-grid">
         <article class="stat-card stat-card--primary">
-          <span>总检查任务数</span>
+          <span>检查任务总数</span>
           <strong>{{ dispatchTotal }}</strong>
-          <p>当前页：{{ dispatchTasks.length }} 条</p>
+          <p>按当前筛选条件统计的任务总量</p>
         </article>
         <article class="stat-card">
-          <span>待处理 (IN_PROGRESS)</span>
+          <span>执行中任务</span>
           <strong>{{ inProgressCount }}</strong>
-          <p>执行中任务</p>
+          <p>基于筛选后全量任务统计</p>
         </article>
         <article class="stat-card">
-          <span>超期警报 (OVERDUE)</span>
+          <span>逾期任务</span>
           <strong>{{ overdueCount }}</strong>
-          <p>需要立即跟进</p>
+          <p>截止日期已到且尚未办结</p>
         </article>
         <article class="stat-card">
-          <span>完成率 (COMPLETION)</span>
+          <span>办结率</span>
           <strong>{{ completionRate }}%</strong>
-          <p>已完成 / 总任务</p>
+          <p>已完成和已归档任务占比</p>
         </article>
       </section>
 
       <div class="dispatch-layout">
         <section class="panel list-panel">
           <div class="panel__title">任务列表</div>
-          <form class="filter-grid" @submit.prevent="handleDispatchSearch">
-            <label>
-              企业名称
-              <input v-model.trim="dispatchFilters.enterpriseName" placeholder="输入企业名称" />
-            </label>
-            <label>
-              任务状态
-              <select v-model="dispatchFilters.status">
-                <option value="">全部</option>
-                <option value="CREATED">待派发</option>
-                <option value="ASSIGNED">已派发</option>
-                <option value="IN_PROGRESS">执行中</option>
-                <option value="COMPLETED">已完成</option>
-                <option value="CLOSED">已归档</option>
-              </select>
-            </label>
-            <button class="primary" type="submit" :disabled="dispatchTaskLoading">
-              {{ dispatchTaskLoading ? "查询中..." : "查询" }}
-            </button>
-          </form>
-
           <div class="table-wrap">
             <table>
               <thead>
@@ -118,7 +99,11 @@
                   <td>{{ task.enterpriseName || "-" }}</td>
                   <td>{{ task.assignedToName || "-" }}</td>
                   <td>{{ formatTime(task.deadline) }}</td>
-                  <td><span class="status-pill" :class="statusClass(task.status)">{{ formatTaskStatus(task.status) }}</span></td>
+                  <td>
+                    <span class="status-pill" :class="statusClass(task.status)">
+                      {{ formatTaskStatus(task.status) }}
+                    </span>
+                  </td>
                   <td>
                     <div class="progress-wrap">
                       <div class="progress-track">
@@ -131,11 +116,7 @@
                     <div class="action-row">
                       <button class="op-btn op-btn--detail" type="button" @click="openTaskDetail(task)">详情</button>
                       <template v-if="isTaskAssignable(task) && !isTaskDeadlineExceeded(task.deadline)">
-                        <select
-                          class="op-select"
-                          v-model="taskAssignments[task.id]"
-                          :disabled="dispatchTaskLoading"
-                        >
+                        <select class="op-select" v-model="taskAssignments[task.id]" :disabled="dispatchTaskLoading">
                           <option value="">选择执法人员</option>
                           <option v-for="item in getEnforcers(task.regionId)" :key="item.id" :value="item.id">
                             {{ item.name }}
@@ -176,8 +157,17 @@
           <div class="pager">
             <span>共 {{ dispatchTotal }} 条，{{ dispatchPage }}/{{ dispatchPages }} 页</span>
             <div class="pager-actions">
-              <button class="ghost" type="button" :disabled="dispatchPage <= 1" @click="changeDispatchPage(dispatchPage - 1)">上一页</button>
-              <button class="ghost" type="button" :disabled="dispatchPage >= dispatchPages" @click="changeDispatchPage(dispatchPage + 1)">下一页</button>
+              <button class="ghost" type="button" :disabled="dispatchPage <= 1" @click="changeDispatchPage(dispatchPage - 1)">
+                上一页
+              </button>
+              <button
+                class="ghost"
+                type="button"
+                :disabled="dispatchPage >= dispatchPages"
+                @click="changeDispatchPage(dispatchPage + 1)"
+              >
+                下一页
+              </button>
             </div>
           </div>
         </section>
@@ -194,7 +184,14 @@
             <article><span>负责人</span><strong>{{ detailTask.assignedToName || "-" }}</strong></article>
             <article><span>截止时间</span><strong>{{ formatTime(detailTask.deadline) }}</strong></article>
             <article class="span2"><span>任务描述</span><strong>{{ detailTask.taskDesc || "暂无任务描述" }}</strong></article>
-            <article class="span2"><span>企业信息</span><strong>{{ detailTaskEnterprise?.enterpriseName || detailTask.enterpriseName || "-" }} / {{ detailTaskRegionName || "-" }}</strong></article>
+            <article class="span2">
+              <span>企业信息</span>
+              <strong>
+                {{ detailTaskEnterprise?.enterpriseName || detailTask.enterpriseName || "-" }}
+                /
+                {{ detailTaskRegionName || "-" }}
+              </strong>
+            </article>
           </div>
           <div class="modal-actions">
             <button class="ghost" type="button" @click="closeTaskDetail">关闭</button>
@@ -233,6 +230,7 @@ const status = reactive({ message: "", type: "" });
 
 const dispatchTaskLoading = ref(false);
 const dispatchTasks = ref([]);
+const allDispatchTasks = ref([]);
 const dispatchPage = ref(1);
 const dispatchSize = ref(8);
 const dispatchTotal = ref(0);
@@ -249,6 +247,7 @@ const taskAssignments = reactive({});
 const detailTask = ref(null);
 const detailTaskEnterprise = ref(null);
 const detailTaskRegionName = ref("-");
+
 const taskStatusMap = {
   CREATED: "待派发",
   ASSIGNED: "已派发",
@@ -256,13 +255,32 @@ const taskStatusMap = {
   COMPLETED: "已完成",
   CLOSED: "已归档"
 };
-const taskPriorityMap = { LOW: "低", MEDIUM: "中", HIGH: "高" };
-const inProgressCount = computed(() => dispatchTasks.value.filter((item) => item.status === "IN_PROGRESS").length);
-const overdueCount = computed(() => dispatchTasks.value.filter((item) => isTaskDeadlineExceeded(item.deadline) && item.status !== "COMPLETED" && item.status !== "CLOSED").length);
+
+const taskPriorityMap = {
+  LOW: "低",
+  MEDIUM: "中",
+  HIGH: "高"
+};
+
+const inProgressCount = computed(() =>
+  allDispatchTasks.value.filter((item) => item.status === "IN_PROGRESS").length
+);
+
+const overdueCount = computed(() =>
+  allDispatchTasks.value.filter(
+    (item) =>
+      isTaskDeadlineExceeded(item.deadline) &&
+      item.status !== "COMPLETED" &&
+      item.status !== "CLOSED"
+  ).length
+);
+
 const completionRate = computed(() => {
   if (!dispatchTotal.value) return 0;
-  const completed = dispatchTasks.value.filter((item) => item.status === "COMPLETED" || item.status === "CLOSED").length;
-  return Math.round((completed / Math.max(dispatchTasks.value.length, 1)) * 100);
+  const completed = allDispatchTasks.value.filter(
+    (item) => item.status === "COMPLETED" || item.status === "CLOSED"
+  ).length;
+  return Math.round((completed / dispatchTotal.value) * 100);
 });
 
 function onPendingFeature(title) {
@@ -328,6 +346,52 @@ function getEnforcers(regionId) {
   return enforcerMap[regionId] || [];
 }
 
+function normalizeName(value) {
+  return String(value || "").trim().toLowerCase();
+}
+
+function parseFilterDate(value, endOfDay = false) {
+  if (!value) return null;
+  const suffix = endOfDay ? "T23:59:59.999" : "T00:00:00.000";
+  const result = new Date(`${value}${suffix}`);
+  return Number.isNaN(result.getTime()) ? null : result;
+}
+
+function taskMatchesUiFilters(task) {
+  const assigneeKeyword = normalizeName(uiFilters.assigneeKeyword);
+  if (assigneeKeyword) {
+    const assigneeName = normalizeName(task?.assignedToName);
+    if (!assigneeName.includes(assigneeKeyword)) {
+      return false;
+    }
+  }
+
+  const startDate = parseFilterDate(uiFilters.deadlineStart, false);
+  const endDate = parseFilterDate(uiFilters.deadlineEnd, true);
+  if (!startDate && !endDate) {
+    return true;
+  }
+
+  if (!task?.deadline) {
+    return false;
+  }
+
+  const deadline = new Date(task.deadline);
+  if (Number.isNaN(deadline.getTime())) {
+    return false;
+  }
+
+  if (startDate && deadline < startDate) {
+    return false;
+  }
+
+  if (endDate && deadline > endDate) {
+    return false;
+  }
+
+  return true;
+}
+
 async function ensureEnforcers(regionId) {
   if (!regionId || enforcerMap[regionId]) return;
   try {
@@ -338,22 +402,50 @@ async function ensureEnforcers(regionId) {
   }
 }
 
+async function fetchAllDispatchTasks() {
+  const size = 100;
+  let page = 1;
+  let pages = 1;
+  const records = [];
+
+  do {
+    const data = await fetchInspectionTasks(token.value, {
+      enterpriseName: dispatchFilters.enterpriseName,
+      status: dispatchFilters.status,
+      page,
+      size
+    });
+    const pageRecords = Array.isArray(data?.records) ? data.records : [];
+    records.push(...pageRecords);
+    pages = Number(data?.pages || 1);
+    page += 1;
+  } while (page <= pages);
+
+  return records;
+}
+
+async function applyDispatchResult(tasks) {
+  const filteredTasks = tasks.filter(taskMatchesUiFilters);
+  allDispatchTasks.value = filteredTasks;
+  dispatchTotal.value = filteredTasks.length;
+  dispatchPages.value = Math.max(1, Math.ceil(filteredTasks.length / dispatchSize.value));
+  if (dispatchPage.value > dispatchPages.value) {
+    dispatchPage.value = dispatchPages.value;
+  }
+  const start = (dispatchPage.value - 1) * dispatchSize.value;
+  const end = start + dispatchSize.value;
+  dispatchTasks.value = filteredTasks.slice(start, end);
+
+  const regionIds = [...new Set(dispatchTasks.value.map((task) => task.regionId).filter(Boolean))];
+  await Promise.all(regionIds.map((id) => ensureEnforcers(id)));
+}
+
 async function loadDispatchTasks() {
   dispatchTaskLoading.value = true;
   setStatus("");
   try {
-    const data = await fetchInspectionTasks(token.value, {
-      ...dispatchFilters,
-      page: dispatchPage.value,
-      size: dispatchSize.value
-    });
-    dispatchTasks.value = data.records || [];
-    dispatchTotal.value = data.total || 0;
-    dispatchPage.value = data.page || 1;
-    dispatchSize.value = data.size || dispatchSize.value;
-    dispatchPages.value = data.pages || 1;
-    const regionIds = dispatchTasks.value.map((task) => task.regionId).filter(Boolean);
-    await Promise.all(regionIds.map((id) => ensureEnforcers(id)));
+    const tasks = await fetchAllDispatchTasks();
+    await applyDispatchResult(tasks);
   } catch (error) {
     setStatus(error.message || "加载任务列表失败", "error");
   } finally {
@@ -362,30 +454,33 @@ async function loadDispatchTasks() {
 }
 
 async function handleDispatchSearch() {
-  // TODO: 待后端支持按截止日期范围、指派人员关键字查询
-  // 目前仅使用企业名称和任务状态两个筛选条件。
   dispatchPage.value = 1;
   await loadDispatchTasks();
 }
 
-function resetFilters() {
+async function resetFilters() {
   dispatchFilters.enterpriseName = "";
   dispatchFilters.status = "";
   uiFilters.deadlineStart = "";
   uiFilters.deadlineEnd = "";
   uiFilters.assigneeKeyword = "";
-  handleDispatchSearch();
+  dispatchPage.value = 1;
+  await loadDispatchTasks();
 }
 
 async function changeDispatchPage(nextPage) {
   dispatchPage.value = nextPage;
-  await loadDispatchTasks();
+  await applyDispatchResult(allDispatchTasks.value);
 }
 
 async function handleAssignTask(task) {
-  if (isTaskDeadlineExceeded(task?.deadline)) return setStatus("任务已超期，无法派发", "error");
+  if (isTaskDeadlineExceeded(task?.deadline)) {
+    return setStatus("任务已超期，无法派发", "error");
+  }
   const regulatorId = taskAssignments[task.id];
-  if (!regulatorId) return setStatus("请选择执法人员后再派发", "error");
+  if (!regulatorId) {
+    return setStatus("请选择执法人员后再派发", "error");
+  }
   dispatchTaskLoading.value = true;
   try {
     await assignInspectionTask(token.value, task.id, { regulatorId });
@@ -423,7 +518,9 @@ async function openTaskDetail(task) {
     detailTaskEnterprise.value = enterprise || null;
     if (enterprise?.regionId) {
       const path = await fetchRegionPath(token.value, enterprise.regionId).catch(() => []);
-      detailTaskRegionName.value = Array.isArray(path) && path.length ? path.map((item) => item.name).join("/") : "-";
+      detailTaskRegionName.value = Array.isArray(path) && path.length
+        ? path.map((item) => item.name).join("/")
+        : "-";
     }
   } catch (error) {
     setStatus(error.message || "加载企业信息失败", "error");
@@ -460,9 +557,18 @@ onMounted(async () => {
 .dispatch-page__head h1 { margin: 0; color: #002660; font-size: 30px; font-weight: 800; }
 .dispatch-page__head p { margin: 6px 0 0; color: #64748b; }
 .head-create-btn { min-height: 40px; padding: 0 16px; border-radius: 8px; white-space: nowrap; }
-.filter-panel { background: #edf2f7; border-radius: 10px; padding: 12px; display: grid; grid-template-columns: 1fr 1.4fr 1fr auto auto; gap: 10px; align-items: end; }
+.filter-panel {
+  background: #edf2f7;
+  border-radius: 10px;
+  padding: 12px;
+  display: grid;
+  grid-template-columns: 1fr 1.4fr 1fr auto auto;
+  gap: 10px;
+  align-items: end;
+}
 .filter-panel label { display: grid; gap: 6px; font-size: 12px; color: #64748b; font-weight: 700; }
-.filter-panel input, .filter-panel select { border: 0; background: #fff; border-radius: 8px; padding: 9px 10px; color: #1e293b; }
+.filter-panel input,
+.filter-panel select { border: 0; background: #fff; border-radius: 8px; padding: 9px 10px; color: #1e293b; }
 .date-range { display: grid; grid-template-columns: 1fr auto 1fr; gap: 8px; align-items: center; }
 .date-range span { color: #64748b; font-size: 12px; }
 .stats-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
@@ -471,14 +577,22 @@ onMounted(async () => {
 .stat-card strong { display: block; margin-top: 8px; font-size: 30px; color: #0f172a; }
 .stat-card p { margin: 6px 0 0; color: #64748b; font-size: 12px; }
 .stat-card--primary { background: linear-gradient(120deg, #002660, #003a8c); border: 0; }
-.stat-card--primary span, .stat-card--primary strong, .stat-card--primary p { color: #fff; }
+.stat-card--primary span,
+.stat-card--primary strong,
+.stat-card--primary p { color: #fff; }
 .dispatch-layout { display: grid; gap: 16px; }
 .panel { background: #fff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 14px; }
 .panel__title { font-size: 14px; font-weight: 800; color: #0f172a; margin-bottom: 10px; }
-.primary { border: 0; background: #002660; color: #fff; border-radius: 6px; padding: 9px 12px; font-size: 12px; font-weight: 700; cursor: pointer; }
-.filter-grid { display: grid; grid-template-columns: 1.4fr 1fr auto; gap: 10px; align-items: end; margin-bottom: 10px; }
-.filter-grid label { display: grid; gap: 6px; font-size: 12px; color: #64748b; font-weight: 700; }
-.filter-grid input, .filter-grid select { border: 0; background: #f1f5f9; border-radius: 6px; padding: 9px; color: #1e293b; }
+.primary {
+  border: 0;
+  background: #002660;
+  color: #fff;
+  border-radius: 6px;
+  padding: 9px 12px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
 .table-wrap { border: 1px solid #e2e8f0; border-radius: 8px; overflow: auto; }
 table { width: 100%; min-width: 1080px; border-collapse: collapse; }
 th { text-align: left; padding: 10px; background: #f8fafc; color: #64748b; font-size: 11px; text-transform: uppercase; }
@@ -548,8 +662,22 @@ td { padding: 10px; border-top: 1px solid #edf2f7; font-size: 13px; color: #1e29
   font-size: 12px;
   color: #334155;
 }
-.ghost { border: 1px solid #d1d5db; background: #fff; color: #334155; border-radius: 6px; padding: 6px 10px; font-size: 12px; cursor: pointer; }
-.link-reset { border-color: transparent; background: transparent; color: #475569; text-decoration: underline; text-underline-offset: 3px; }
+.ghost {
+  border: 1px solid #d1d5db;
+  background: #fff;
+  color: #334155;
+  border-radius: 6px;
+  padding: 6px 10px;
+  font-size: 12px;
+  cursor: pointer;
+}
+.link-reset {
+  border-color: transparent;
+  background: transparent;
+  color: #475569;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
 .pager { margin-top: 10px; display: flex; justify-content: space-between; align-items: center; font-size: 12px; color: #64748b; }
 .pager-actions { display: flex; gap: 8px; }
 .empty { padding: 14px; color: #64748b; font-size: 13px; }
@@ -564,12 +692,22 @@ td { padding: 10px; border-top: 1px solid #edf2f7; font-size: 13px; color: #1e29
 .modal-actions { margin-top: 10px; display: flex; justify-content: flex-end; }
 .status { position: fixed; right: 18px; bottom: 18px; border-radius: 8px; padding: 10px 12px; color: #fff; background: #0f172a; font-size: 13px; }
 .status.error { background: #b91c1c; }
+.status.success { background: #166534; }
+
 @media (max-width: 1200px) {
   .filter-panel { grid-template-columns: 1fr 1fr; }
   .stats-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
+
 @media (max-width: 900px) {
-  .dispatch-page__head, .filter-panel, .filter-grid, .modal-grid { grid-template-columns: 1fr; }
-  .modal-grid article.span2 { grid-column: span 1; }
+  .dispatch-page__head,
+  .filter-panel,
+  .modal-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .modal-grid article.span2 {
+    grid-column: span 1;
+  }
 }
 </style>

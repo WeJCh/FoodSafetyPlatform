@@ -32,7 +32,7 @@
               rows="10"
               maxlength="2000"
               class="enterprise-rectification-submit-page__textarea"
-              placeholder="请详细描述针对检查发现的问题所采取的整改措施、完成情况及后续防范措施..."
+              placeholder="请详细描述针对发现问题采取的整改措施、完成情况，以及后续防范安排..."
             />
             <div class="enterprise-rectification-submit-page__counter">
               <span>{{ progress.length }} / 2000 字符</span>
@@ -72,9 +72,7 @@
             </div>
             <div class="enterprise-rectification-submit-page__upload-tip">
               <span class="material-symbols-outlined" aria-hidden="true">info</span>
-              <p>
-                支持 JPG / PNG / WebP，单文件最大不超过 5MB。请确保图片清晰，包含时间戳或整改前后的对比参考更佳。
-              </p>
+              <p>支持 JPG / PNG / WebP，单文件大小不超过 5MB。请确保图片清晰，能够体现整改前后对比或关键佐证信息。</p>
             </div>
           </section>
         </div>
@@ -90,7 +88,7 @@
               </div>
               <div>
                 <p>检查事项</p>
-                <p>{{ detail.rectificationDesc || "—" }}</p>
+                <p>{{ detail.rectificationDesc || "-" }}</p>
               </div>
               <div>
                 <p>整改期限</p>
@@ -126,7 +124,7 @@
         <div class="enterprise-rectification-submit-page__footer">
           <div class="enterprise-rectification-submit-page__notice">
             <span class="material-symbols-outlined" aria-hidden="true">lock_open</span>
-            <p>提交后状态将变更为“已提交”，内容将进入存档不可修改，请等待监管人员复核。</p>
+            <p>提交后状态将变更为“已提交”，内容会进入待审核阶段，请等待监管人员复核。</p>
           </div>
           <div class="enterprise-rectification-submit-page__actions">
             <button type="button" class="ghost" @click="onBackToList">返回整改列表</button>
@@ -145,8 +143,8 @@
 </template>
 
 <script setup>
-import { computed, onBeforeUnmount, onMounted, reactive, ref } from "vue";
-import { RouterLink, useRoute, useRouter } from "vue-router";
+import { computed, onBeforeUnmount, reactive, ref, watch } from "vue";
+import { useRoute, useRouter } from "vue-router";
 import { presignUpload } from "../../api/file";
 import { fetchRectificationDetail, submitMyRectification } from "../../api/regulationOperation";
 import EnterpriseStatusChip from "../../components/enterprise/EnterpriseStatusChip.vue";
@@ -156,7 +154,7 @@ import { formatRectificationStatus, useEnterpriseShellSession } from "./enterpri
 const route = useRoute();
 const router = useRouter();
 const { enterpriseUser, token, handleSidebarNavigate, handleLogout } = useEnterpriseShellSession();
-const rectificationId = String(route.params.rectificationId || "");
+const rectificationId = computed(() => String(route.params.rectificationId || ""));
 const detail = ref(null);
 const loadingDetail = ref(false);
 const loading = ref(false);
@@ -187,7 +185,7 @@ function clearUploads() {
 }
 
 function onBackToDetail() {
-  router.push({ name: "enterprise-rectification-detail", params: { rectificationId } }).catch(() => {});
+  router.push({ name: "enterprise-rectification-detail", params: { rectificationId: rectificationId.value } }).catch(() => {});
 }
 
 function onBackToList() {
@@ -195,10 +193,19 @@ function onBackToList() {
 }
 
 async function loadDetail() {
+  if (!rectificationId.value) {
+    detail.value = null;
+    return;
+  }
+
   loadingDetail.value = true;
+  status.message = "";
+  status.type = "";
+
   try {
-    detail.value = await fetchRectificationDetail(token.value, rectificationId);
+    detail.value = await fetchRectificationDetail(token.value, rectificationId.value);
   } catch (error) {
+    detail.value = null;
     status.message = error.message || "加载整改任务失败";
     status.type = "error";
   } finally {
@@ -234,6 +241,7 @@ async function uploadFile(item) {
 function handleFileChange(event) {
   const files = Array.from(event?.target?.files || []);
   if (!files.length) return;
+
   const remaining = 6 - uploadItems.value.length;
   files.slice(0, remaining).forEach((file) => {
     if (!allowedTypes.includes(file.type)) {
@@ -250,6 +258,7 @@ function handleFileChange(event) {
     uploadItems.value = [...uploadItems.value, item];
     uploadFile(item);
   });
+
   event.target.value = "";
 }
 
@@ -274,7 +283,7 @@ async function handleSubmit() {
     return;
   }
   if (uploadItems.value.some((item) => item.uploading)) {
-    status.message = "整改凭证上传中，请稍后提交";
+    status.message = "整改凭证仍在上传中，请稍后提交";
     status.type = "error";
     return;
   }
@@ -283,16 +292,19 @@ async function handleSubmit() {
     status.type = "error";
     return;
   }
+
   loading.value = true;
   status.message = "";
+  status.type = "";
+
   try {
-    await submitMyRectification(token.value, rectificationId, {
+    await submitMyRectification(token.value, rectificationId.value, {
       progress: progress.value.trim(),
       attachmentUrls: uploadItems.value.map((item) => item.fileUrl).filter(Boolean)
     });
     await router.replace({
       name: "enterprise-rectification-submit-success",
-      params: { rectificationId },
+      params: { rectificationId: rectificationId.value },
       query: { progress: progress.value.trim() }
     });
   } catch (error) {
@@ -303,9 +315,17 @@ async function handleSubmit() {
   }
 }
 
-onMounted(() => {
-  loadDetail();
-});
+watch(
+  () => route.params.rectificationId,
+  () => {
+    clearUploads();
+    progress.value = "";
+    status.message = "";
+    status.type = "";
+    loadDetail();
+  },
+  { immediate: true }
+);
 
 onBeforeUnmount(() => {
   clearUploads();

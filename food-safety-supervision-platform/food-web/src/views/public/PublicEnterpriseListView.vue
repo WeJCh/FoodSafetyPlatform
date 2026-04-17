@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div class="public-enterprises-page">
     <header class="public-enterprises-page__topbar">
       <div class="public-enterprises-page__topbar-inner">
@@ -13,7 +13,7 @@
         <div class="public-enterprises-page__toolbar">
           <label class="public-enterprises-page__search-box">
             <span class="material-symbols-outlined" aria-hidden="true">search</span>
-            <input v-model.trim="filters.enterpriseName" type="text" placeholder="搜索企业..." @keyup.enter="loadEnterprises" />
+            <input v-model.trim="filters.enterpriseName" type="text" placeholder="搜索企业..." @keyup.enter="handleSearch" />
           </label>
           <button type="button" class="public-enterprises-page__icon-btn" @click="onFeaturePending('通知中心')">
             <span class="material-symbols-outlined" aria-hidden="true">notifications</span>
@@ -30,7 +30,7 @@
         <div>
           <div class="public-enterprises-page__crumb">政务公开 / 企业公示</div>
           <h1>企业公示</h1>
-          <p>实时展示本行政区域内食品生产经营企业的基本信息及信用评价等级</p>
+          <p>实时展示本行政区域内食品生产经营企业的基本信息与信用等级情况</p>
         </div>
         <div class="public-enterprises-page__filters">
           <label>
@@ -39,7 +39,7 @@
               v-model.trim="filters.enterpriseName"
               type="text"
               placeholder="请输入企业名称"
-              @keyup.enter="loadEnterprises"
+              @keyup.enter="handleSearch"
             />
           </label>
           <label>
@@ -51,7 +51,7 @@
             </select>
           </label>
           <div class="public-enterprises-page__filters-actions">
-            <button type="button" @click="loadEnterprises">查询</button>
+            <button type="button" @click="handleSearch">查询</button>
             <button type="button" class="ghost" @click="resetFilters">重置</button>
           </div>
         </div>
@@ -73,11 +73,12 @@
 </template>
 
 <script setup>
-import { computed, onMounted, reactive, ref } from "vue";
-import { useRouter } from "vue-router";
+import { computed, onMounted, reactive, ref, watch } from "vue";
+import { useRoute, useRouter } from "vue-router";
 import { fetchPublicEnterprises } from "../../api/regulation";
 import { getActiveSession, performLogout } from "../../session/authRuntime";
 
+const route = useRoute();
 const router = useRouter();
 const publicToken = getActiveSession()?.token || "";
 const records = ref([]);
@@ -134,8 +135,16 @@ function onFeaturePending(name) {
 function resetFilters() {
   filters.enterpriseName = "";
   filters.status = "";
+  syncRouteQuery();
   loadEnterprises();
 }
+
+function handleSearch() {
+  page.value = 1;
+  syncRouteQuery();
+  loadEnterprises();
+}
+
 function viewEnterprise(item) {
   if (!item?.id) return;
   router.push({ name: "public-enterprise-detail", params: { enterpriseId: item.id } }).catch(() => {});
@@ -144,7 +153,31 @@ async function loadEnterprises() {
   const data = await fetchPublicEnterprises(publicToken, { enterpriseName: filters.enterpriseName, page: page.value, size: size.value });
   records.value = data.records || [];
 }
-onMounted(loadEnterprises);
+
+function syncRouteQuery() {
+  const nextQuery = {};
+  if (filters.enterpriseName.trim()) nextQuery.keyword = filters.enterpriseName.trim();
+  router.replace({ query: nextQuery }).catch(() => {});
+}
+
+function applyRouteQuery() {
+  const nextKeyword = typeof route.query.keyword === "string" ? route.query.keyword.trim() : "";
+  filters.enterpriseName = nextKeyword;
+}
+
+onMounted(() => {
+  applyRouteQuery();
+  loadEnterprises();
+});
+
+watch(
+  () => route.query.keyword,
+  () => {
+    applyRouteQuery();
+    page.value = 1;
+    loadEnterprises();
+  }
+);
 </script>
 
 <style scoped>
@@ -236,3 +269,4 @@ onMounted(loadEnterprises);
   .public-enterprises-page__row { padding-left: 12px; padding-right: 12px; }
 }
 </style>
+

@@ -97,12 +97,13 @@
 </template>
 
 <script setup>
-import { computed, onMounted, reactive, ref } from "vue";
-import { useRouter } from "vue-router";
+import { computed, onMounted, reactive, ref, watch } from "vue";
+import { useRoute, useRouter } from "vue-router";
 import { fetchPublicBulletins } from "../../api/regulation";
 import { getActiveSession, performLogout } from "../../session/authRuntime";
 import { formatTime } from "../../utils/formatters";
 
+const route = useRoute();
 const router = useRouter();
 const publicToken = getActiveSession()?.token || "";
 const filters = reactive({ keyword: "", category: "" });
@@ -175,6 +176,7 @@ async function loadBulletins() {
 
 function handleSearch() {
   page.value = 1;
+  syncRouteQuery();
   loadBulletins();
 }
 
@@ -186,6 +188,7 @@ function changePage(nextPage) {
 function setCategory(next) {
   filters.category = next;
   page.value = 1;
+  syncRouteQuery();
   loadBulletins();
 }
 
@@ -201,6 +204,20 @@ function goTo(name) {
   router.push({ name }).catch(() => {});
 }
 
+function syncRouteQuery() {
+  const nextQuery = {};
+  if (filters.keyword.trim()) nextQuery.keyword = filters.keyword.trim();
+  if (filters.category) nextQuery.category = filters.category;
+  router.replace({ query: nextQuery }).catch(() => {});
+}
+
+function applyRouteQuery() {
+  const nextKeyword = typeof route.query.keyword === "string" ? route.query.keyword.trim() : "";
+  const nextCategory = typeof route.query.category === "string" ? route.query.category.trim().toUpperCase() : "";
+  filters.keyword = nextKeyword;
+  filters.category = categoryOptions.some((item) => item.key === nextCategory) ? nextCategory : "";
+}
+
 function onFeaturePending(name) {
   window.alert(`${name} 功能待后续完善`);
 }
@@ -213,7 +230,19 @@ function bulletinSubline(item) {
   return `公告类别：${formatCategory(item?.category)}${item?.publishedByName ? ` · 发布人：${item.publishedByName}` : ""}`;
 }
 
-onMounted(loadBulletins);
+onMounted(() => {
+  applyRouteQuery();
+  loadBulletins();
+});
+
+watch(
+  () => [route.query.keyword, route.query.category],
+  () => {
+    applyRouteQuery();
+    page.value = 1;
+    loadBulletins();
+  }
+);
 </script>
 
 <style scoped>

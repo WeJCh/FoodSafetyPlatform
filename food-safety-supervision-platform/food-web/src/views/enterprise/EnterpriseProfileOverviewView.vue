@@ -2,7 +2,7 @@
   <EnterpriseWorkspacePage
     active-key="profile"
     title="企业备案"
-    subtitle="将企业注册后的资料完善、证照附件和审核状态正式接入备案流程。"
+    subtitle="完善企业主体资料、附件材料与备案信息。"
     top-search-placeholder="搜索企业或档案..."
     :username="enterpriseUser.username"
     :user-type="enterpriseUser.userType"
@@ -43,162 +43,167 @@
 
       <div class="enterprise-detail-layout">
         <form id="enterprise-profile-form-anchor" @submit.prevent="handleSubmit">
-        <div class="enterprise-panel enterprise-panel--accent-top">
-          <div class="enterprise-panel__head" style="justify-content: space-between">
-            <div style="display: flex; align-items: center; gap: 10px">
-              <div class="enterprise-panel__head-bar" />
-              <h3>基础信息表单</h3>
-            </div>
-            <a class="ghost enterprise-inline-link" style="font-size: 12px" href="#enterprise-profile-form-anchor" @click.prevent="scrollToForm">在表单内修改</a>
-          </div>
-          <p v-if="profile.approvalComment" class="secondary-text" style="margin: 0 0 16px; font-size: 13px">审核意见：{{ profile.approvalComment }}</p>
-          <p v-if="!profileLoaded" class="secondary-text" style="margin: 0 0 16px">暂无备案记录，请先提交企业资料。</p>
-          <div class="enterprise-form-section" style="box-shadow: none; border: none; padding: 0; margin: 0">
-          <div class="enterprise-form-section__title" style="display: none">基础备案信息</div>
-          <div class="enterprise-detail-grid">
-            <label>
-              企业名称
-              <input v-model.trim="form.enterpriseName" required placeholder="请输入企业名称" />
-            </label>
-            <label>
-              食品经营许可证编号
-              <input v-model.trim="form.licenseNo" placeholder="请输入食品经营许可证编号" />
-            </label>
-            <label>
-              统一社会信用代码
-              <input v-model.trim="form.creditCode" maxlength="18" placeholder="请输入 18 位统一社会信用代码（选填）" />
-            </label>
-            <label>
-              法定代表人
-              <input v-model.trim="stageB.legalRepresentative" placeholder="请输入法定代表人姓名" />
-            </label>
-            <label>
-              负责人姓名
-              <input v-model.trim="form.principal" placeholder="请输入负责人姓名" />
-            </label>
-            <label>
-              负责人电话
-              <input v-model.trim="form.principalPhone" placeholder="11 位手机号" />
-            </label>
-          </div>
-          </div>
-        </div>
-
-        <div class="enterprise-panel">
-          <div class="enterprise-panel__head">
-            <div class="enterprise-panel__head-bar" />
-            <h3>行政区与地址</h3>
-          </div>
-          <div class="enterprise-form-section" style="box-shadow: none; border: none; padding: 0; margin: 0">
-          <div class="enterprise-form-section__title" style="display: none">行政区与地址</div>
-          <div class="enterprise-detail-grid">
-            <label>
-              省份
-              <select v-model="regionSelection.provinceId" @change="handleProvinceChange">
-                <option value="">请选择省</option>
-                <option v-for="item in regionOptions.provinces" :key="item.id" :value="item.id">{{ item.name }}</option>
-              </select>
-            </label>
-            <label>
-              城市
-              <select v-model="regionSelection.cityId" :disabled="!regionSelection.provinceId" @change="handleCityChange">
-                <option value="">请选择市</option>
-                <option v-for="item in regionOptions.cities" :key="item.id" :value="item.id">{{ item.name }}</option>
-              </select>
-            </label>
-            <label>
-              区县
-              <select v-model="regionSelection.countyId" :disabled="!regionSelection.cityId" @change="handleCountyChange">
-                <option value="">请选择区县</option>
-                <option v-for="item in regionOptions.counties" :key="item.id" :value="item.id">{{ item.name }}</option>
-              </select>
-            </label>
-            <label>
-              街道
-              <select v-model="regionSelection.streetId" :disabled="!regionSelection.countyId">
-                <option value="">请选择街道</option>
-                <option v-for="item in regionOptions.streets" :key="item.id" :value="item.id">{{ item.name }}</option>
-              </select>
-            </label>
-            <div v-if="existingRegionText && !regionSelection.provinceId" class="hint enterprise-detail-item--full">当前行政区：{{ existingRegionText }}</div>
-            <label class="enterprise-detail-item--full">
-              详细地址
-              <input v-model.trim="form.addressDetail" required placeholder="请输入详细地址" />
-            </label>
-          </div>
-          </div>
-        </div>
-
-        <div class="enterprise-panel">
-          <div class="enterprise-panel__head">
-            <div class="enterprise-panel__head-bar" />
-            <h3>附件上传区</h3>
-          </div>
-          <div class="enterprise-form-section" style="box-shadow: none; border: none; padding: 0; margin: 0">
-          <div class="enterprise-form-section__title" style="display: none">附件上传区</div>
-          <p class="enterprise-attachment-intro">请按顺序上传以下材料原件扫描件或照片，清晰可辨认。上传成功后将随「更新并重新提交」一并送达审核。</p>
-          <div class="enterprise-attachment-uploader-grid">
-            <div
-              v-for="field in attachmentFields"
-              :key="field.type"
-              class="enterprise-attachment-slot"
-              :class="{ 'enterprise-attachment-slot--filled': !!findAttachment(field.type) }"
-            >
-              <div class="enterprise-attachment-slot__head">
-                <span class="material-symbols-outlined enterprise-attachment-slot__icon" aria-hidden="true">{{ attachmentTypeIcon[field.type] || "attach_file" }}</span>
-                <span class="enterprise-attachment-slot__title">{{ field.label }}</span>
+          <div class="enterprise-panel enterprise-panel--accent-top">
+            <div class="enterprise-panel__head" style="justify-content: space-between">
+              <div style="display: flex; align-items: center; gap: 10px">
+                <div class="enterprise-panel__head-bar" />
+                <h3>基础信息表单</h3>
               </div>
+              <a class="ghost enterprise-inline-link" style="font-size: 12px" href="#enterprise-profile-form-anchor" @click.prevent="scrollToForm">在表单内修改</a>
+            </div>
+            <p v-if="profile.approvalComment" class="secondary-text" style="margin: 0 0 16px; font-size: 13px">
+              审核意见：{{ profile.approvalComment }}
+            </p>
+            <p v-if="!profileLoaded" class="secondary-text" style="margin: 0 0 16px">
+              当前还没有备案记录，请先提交企业资料。
+            </p>
+            <div class="enterprise-form-section" style="box-shadow: none; border: none; padding: 0; margin: 0">
+              <div class="enterprise-detail-grid">
+                <label>
+                  企业名称
+                  <input v-model.trim="form.enterpriseName" required placeholder="请输入企业名称" />
+                </label>
+                <label>
+                  食品经营许可证编号
+                  <input v-model.trim="form.licenseNo" placeholder="请输入食品经营许可证编号" />
+                </label>
+                <label>
+                  统一社会信用代码
+                  <input v-model.trim="form.creditCode" maxlength="18" placeholder="请输入 18 位统一社会信用代码" />
+                </label>
+                <label>
+                  法定代表人
+                  <input v-model.trim="stageB.legalRepresentative" placeholder="请输入法定代表人姓名" />
+                </label>
+                <label>
+                  负责人姓名
+                  <input v-model.trim="form.principal" placeholder="请输入负责人姓名" />
+                </label>
+                <label>
+                  负责人电话
+                  <input v-model.trim="form.principalPhone" placeholder="请输入负责人电话" />
+                </label>
+              </div>
+            </div>
+          </div>
 
-              <div v-if="findAttachment(field.type)" class="enterprise-attachment-file-card">
-                <span class="material-symbols-outlined enterprise-attachment-file-card__icon" aria-hidden="true">draft</span>
-                <div class="enterprise-attachment-file-card__body">
-                  <span class="enterprise-attachment-file-card__name">{{ findAttachment(field.type)?.name }}</span>
-                  <span class="enterprise-attachment-file-card__hint">已上传 · 提交备案时一并发送</span>
+          <div class="enterprise-panel">
+            <div class="enterprise-panel__head">
+              <div class="enterprise-panel__head-bar" />
+              <h3>行政区与地址</h3>
+            </div>
+            <div class="enterprise-form-section" style="box-shadow: none; border: none; padding: 0; margin: 0">
+              <div class="enterprise-detail-grid">
+                <label>
+                  省份
+                  <select v-model="regionSelection.provinceId" @change="handleProvinceChange">
+                    <option value="">请选择省份</option>
+                    <option v-for="item in regionOptions.provinces" :key="item.id" :value="item.id">{{ item.name }}</option>
+                  </select>
+                </label>
+                <label>
+                  城市
+                  <select v-model="regionSelection.cityId" :disabled="!regionSelection.provinceId" @change="handleCityChange">
+                    <option value="">请选择城市</option>
+                    <option v-for="item in regionOptions.cities" :key="item.id" :value="item.id">{{ item.name }}</option>
+                  </select>
+                </label>
+                <label>
+                  区县
+                  <select v-model="regionSelection.countyId" :disabled="!regionSelection.cityId" @change="handleCountyChange">
+                    <option value="">请选择区县</option>
+                    <option v-for="item in regionOptions.counties" :key="item.id" :value="item.id">{{ item.name }}</option>
+                  </select>
+                </label>
+                <label>
+                  街道
+                  <select v-model="regionSelection.streetId" :disabled="!regionSelection.countyId">
+                    <option value="">请选择街道</option>
+                    <option v-for="item in regionOptions.streets" :key="item.id" :value="item.id">{{ item.name }}</option>
+                  </select>
+                </label>
+                <div v-if="existingRegionText && !regionSelection.provinceId" class="hint enterprise-detail-item--full">
+                  当前行政区：{{ existingRegionText }}
                 </div>
-                <div class="enterprise-attachment-file-card__actions">
-                  <a class="enterprise-attachment-file-card__link" :href="findAttachment(field.type)?.url" target="_blank" rel="noreferrer">预览</a>
-                  <button type="button" class="enterprise-attachment-file-card__link" @click="removeAttachment(field.type)">移除</button>
-                  <label class="enterprise-attachment-file-card__replace">
-                    更换
+                <label class="enterprise-detail-item--full">
+                  详细地址
+                  <input v-model.trim="form.addressDetail" required placeholder="请输入详细地址" />
+                </label>
+              </div>
+            </div>
+          </div>
+
+          <div class="enterprise-panel">
+            <div class="enterprise-panel__head">
+              <div class="enterprise-panel__head-bar" />
+              <h3>附件上传区</h3>
+            </div>
+            <div class="enterprise-form-section" style="box-shadow: none; border: none; padding: 0; margin: 0">
+              <p class="enterprise-attachment-intro">
+                请上传备案所需材料。附件会在提交备案时一并发送到后端，未提交前只保留在当前页面会话中。
+              </p>
+              <div class="enterprise-attachment-uploader-grid">
+                <div
+                  v-for="field in attachmentFields"
+                  :key="field.type"
+                  class="enterprise-attachment-slot"
+                  :class="{ 'enterprise-attachment-slot--filled': !!findAttachment(field.type) }"
+                >
+                  <div class="enterprise-attachment-slot__head">
+                    <span class="material-symbols-outlined enterprise-attachment-slot__icon" aria-hidden="true">{{ attachmentTypeIcon[field.type] || "attach_file" }}</span>
+                    <span class="enterprise-attachment-slot__title">{{ field.label }}</span>
+                  </div>
+
+                  <div v-if="findAttachment(field.type)" class="enterprise-attachment-file-card">
+                    <span class="material-symbols-outlined enterprise-attachment-file-card__icon" aria-hidden="true">draft</span>
+                    <div class="enterprise-attachment-file-card__body">
+                      <span class="enterprise-attachment-file-card__name">{{ findAttachment(field.type)?.name }}</span>
+                      <span class="enterprise-attachment-file-card__hint">已上传，提交备案时一并发送</span>
+                    </div>
+                    <div class="enterprise-attachment-file-card__actions">
+                      <a class="enterprise-attachment-file-card__link" :href="findAttachment(field.type)?.url" target="_blank" rel="noreferrer">预览</a>
+                      <button type="button" class="enterprise-attachment-file-card__link" @click="removeAttachment(field.type)">移除</button>
+                      <label class="enterprise-attachment-file-card__replace">
+                        替换
+                        <input
+                          type="file"
+                          accept="image/jpeg,image/png,image/webp"
+                          :disabled="loading || uploading"
+                          @change="handleAttachmentSelect(field.type, field.label, $event)"
+                        />
+                      </label>
+                    </div>
+                  </div>
+
+                  <label
+                    v-else
+                    class="enterprise-attachment-dropzone"
+                    :class="{ 'is-dragover': dragOverType === field.type, 'is-disabled': loading || uploading }"
+                    @dragenter.prevent="dragOverType = field.type"
+                    @dragleave.prevent="handleAttachmentDragLeave($event, field.type)"
+                    @dragover.prevent="dragOverType = field.type"
+                    @drop.prevent="handleAttachmentDrop(field.type, field.label, $event)"
+                  >
                     <input
                       type="file"
+                      class="enterprise-attachment-dropzone__input"
                       accept="image/jpeg,image/png,image/webp"
                       :disabled="loading || uploading"
                       @change="handleAttachmentSelect(field.type, field.label, $event)"
                     />
+                    <span class="material-symbols-outlined enterprise-attachment-dropzone__cloud" aria-hidden="true">cloud_upload</span>
+                    <span class="enterprise-attachment-dropzone__title">点击选择或拖拽文件到此处</span>
+                    <span class="enterprise-attachment-dropzone__hint">JPG、PNG、WebP，单文件不超过 5MB</span>
                   </label>
                 </div>
               </div>
-
-              <label
-                v-else
-                class="enterprise-attachment-dropzone"
-                :class="{ 'is-dragover': dragOverType === field.type, 'is-disabled': loading || uploading }"
-                @dragenter.prevent="dragOverType = field.type"
-                @dragleave.prevent="handleAttachmentDragLeave($event, field.type)"
-                @dragover.prevent="dragOverType = field.type"
-                @drop.prevent="handleAttachmentDrop(field.type, field.label, $event)"
-              >
-                <input
-                  type="file"
-                  class="enterprise-attachment-dropzone__input"
-                  accept="image/jpeg,image/png,image/webp"
-                  :disabled="loading || uploading"
-                  @change="handleAttachmentSelect(field.type, field.label, $event)"
-                />
-                <span class="material-symbols-outlined enterprise-attachment-dropzone__cloud" aria-hidden="true">cloud_upload</span>
-                <span class="enterprise-attachment-dropzone__title">点击选择或拖放文件到此处</span>
-                <span class="enterprise-attachment-dropzone__hint">JPG、PNG、WebP · 单文件 ≤ 5MB</span>
-              </label>
             </div>
           </div>
-          </div>
-        </div>
 
-        <div class="product-form__actions">
-          <button class="primary" type="submit" :disabled="loading || uploading">{{ loading ? "提交中..." : submitLabel }}</button>
-        </div>
-      </form>
+          <div class="product-form__actions">
+            <button class="primary" type="submit" :disabled="loading || uploading">{{ loading ? "提交中..." : submitLabel }}</button>
+          </div>
+        </form>
 
         <aside class="enterprise-side-stack">
           <div class="enterprise-side-card enterprise-audit-summary-card">
@@ -235,6 +240,7 @@
               </RouterLink>
             </div>
           </div>
+
           <div class="enterprise-side-card">
             <div class="enterprise-side-card__head">提示</div>
             <div class="enterprise-side-card__body">
@@ -258,15 +264,7 @@ import EnterpriseStatusChip from "../../components/enterprise/EnterpriseStatusCh
 import EnterpriseWorkspacePage from "../../components/enterprise/EnterpriseWorkspacePage.vue";
 import { formatTime } from "../../utils/formatters";
 import { getApprovalStatusLabel, getApprovalStatusTone, useEnterpriseShellSession } from "./enterpriseShared";
-import {
-  buildApprovalTimeline,
-  createEmptyStageBData,
-  ENTERPRISE_ATTACHMENT_FIELDS,
-  loadStageBData,
-  mergeProfileWithStageB,
-  saveStageBData,
-  upsertStageBHistory
-} from "./enterpriseProfileStageB";
+import { buildApprovalTimeline, createEmptyStageBData, ENTERPRISE_ATTACHMENT_FIELDS } from "./enterpriseProfileStageB";
 
 const { enterpriseUser, token, handleSidebarNavigate, handleLogout } = useEnterpriseShellSession();
 const loading = ref(false);
@@ -279,6 +277,7 @@ const attachmentTypeIcon = {
   foodPermit: "restaurant",
   onsitePhoto: "photo_camera"
 };
+
 const status = reactive({ message: "", type: "" });
 const existingRegionId = ref(null);
 const existingRegionText = ref("");
@@ -294,7 +293,7 @@ const statusLabel = computed(() => getApprovalStatusLabel(profileLoaded.value, p
 const statusTone = computed(() => getApprovalStatusTone(profileLoaded.value, profile.approvalStatus));
 const statusDescription = computed(() => {
   if (!profileLoaded.value) return "当前还没有提交企业备案记录。";
-  if (profile.approvalStatus === "APPROVED") return "企业主体资料已通过审核，可以继续使用企业端能力。";
+  if (profile.approvalStatus === "APPROVED") return "企业主体资料已审核通过，可以继续使用企业端功能。";
   if (profile.approvalStatus === "REJECTED") return "请根据审核意见修改后重新提交。";
   return "企业资料已提交，等待监管审核。";
 });
@@ -304,8 +303,7 @@ const approvalTimeline = computed(() =>
     profileLoaded: profileLoaded.value,
     approvalStatus: profile.approvalStatus,
     approvalComment: profile.approvalComment,
-    approvedTime: profile.approvedTime,
-    history: stageB.history
+    approvedTime: profile.approvedTime
   })
 );
 
@@ -323,17 +321,13 @@ const timelineSummaryRows = computed(() => {
     } else {
       variant = "upcoming";
     }
-    let metaLine = hasTime ? formatTime(item.time) : "";
-    if (!hasTime) {
-      metaLine = variant === "active" ? "当前阶段 · 处理中" : "待开始";
-    }
-    const noteLine = variant === "active" && item.note ? item.note : "";
+    const metaLine = hasTime ? formatTime(item.time) : variant === "active" ? "当前阶段 · 处理中" : "待开始";
     return {
       key: `${item.type}-${item.label}`,
       label: item.label,
       variant,
       metaLine,
-      noteLine
+      noteLine: variant === "active" && item.note ? item.note : ""
     };
   });
 });
@@ -347,10 +341,6 @@ function scrollToForm() {
   document.getElementById("enterprise-profile-form-anchor")?.scrollIntoView({ behavior: "smooth", block: "start" });
 }
 
-function getUserStorageKey() {
-  return enterpriseUser.value?.userId || enterpriseUser.value?.username || "anonymous";
-}
-
 function resetForm(payload = {}) {
   form.enterpriseName = payload.enterpriseName || "";
   form.licenseNo = payload.licenseNo || "";
@@ -361,21 +351,13 @@ function resetForm(payload = {}) {
 }
 
 function applyStageB(payload = {}) {
-  const merged = mergeProfileWithStageB({}, payload);
-  stageB.legalRepresentative = merged.legalRepresentative;
-  stageB.attachments = merged.attachments;
-  stageB.history = merged.history;
-}
-
-function persistStageB() {
-  saveStageBData(getUserStorageKey(), { ...stageB });
+  stageB.legalRepresentative = payload.legalRepresentative || "";
+  stageB.attachments = Array.isArray(payload.attachments) ? payload.attachments : [];
 }
 
 async function loadProfile() {
   try {
     const data = await fetchEnterpriseProfile(token.value);
-    const local = loadStageBData(getUserStorageKey());
-    const merged = mergeProfileWithStageB(data, local);
     profile.approvalStatus = data.approvalStatus || "";
     profile.approvalComment = data.approvalComment || "";
     profile.approvedTime = data.approvedTime || "";
@@ -383,9 +365,7 @@ async function loadProfile() {
     existingRegionText.value = data.regionPathText || "";
     existingRegionPath.value = Array.isArray(data.regionPath) ? data.regionPath : [];
     resetForm(data);
-    applyStageB(merged);
-    stageB.attachments = Array.isArray(data.attachments) ? data.attachments : [];
-    saveStageBData(getUserStorageKey(), { ...merged, attachments: stageB.attachments, history: stageB.history });
+    applyStageB(data);
     profileLoaded.value = true;
     if (existingRegionPath.value.length) {
       await applyRegionPath(existingRegionPath.value);
@@ -397,9 +377,7 @@ async function loadProfile() {
       existingRegionText.value = "";
       existingRegionPath.value = [];
       resetForm();
-      const local = loadStageBData(getUserStorageKey());
-      applyStageB(local);
-      form.creditCode = local.creditCode || "";
+      applyStageB(createEmptyStageBData());
       return;
     }
     setStatus(error.message || "加载备案信息失败", "error");
@@ -428,15 +406,8 @@ async function handleSubmit() {
     existingRegionId.value = data.regionId || existingRegionId.value;
     existingRegionText.value = data.regionPathText || existingRegionText.value;
     existingRegionPath.value = Array.isArray(data.regionPath) ? data.regionPath : existingRegionPath.value;
-    stageB.attachments = Array.isArray(data.attachments) ? data.attachments : stageB.attachments;
+    applyStageB(data);
     profileLoaded.value = true;
-    stageB.history = upsertStageBHistory(stageB.history, {
-      type: "PROFILE_SUBMITTED",
-      label: "资料已提交",
-      time: new Date().toISOString(),
-      note: "企业资料完善已提交，等待监管审核。"
-    });
-    persistStageB();
     setStatus("提交成功，已进入审核流程。", "success");
   } catch (error) {
     setStatus(error.message || "提交备案失败", "error");
@@ -523,8 +494,8 @@ function findAttachment(type) {
 
 function isAllowedProfileAttachment(file) {
   if (!file?.name) return false;
-  const t = (file.type || "").toLowerCase();
-  if (["image/jpeg", "image/png", "image/webp"].includes(t)) return true;
+  const contentType = (file.type || "").toLowerCase();
+  if (["image/jpeg", "image/png", "image/webp"].includes(contentType)) return true;
   return /\.(jpe?g|png|webp)$/i.test(file.name);
 }
 
@@ -557,8 +528,7 @@ async function processProfileAttachment(type, label, file) {
     setStatus("仅支持 JPG、PNG、WebP 图片格式", "error");
     return;
   }
-  const maxBytes = 5 * 1024 * 1024;
-  if (file.size > maxBytes) {
+  if (file.size > 5 * 1024 * 1024) {
     setStatus("单文件请控制在 5MB 以内", "error");
     return;
   }
@@ -570,7 +540,6 @@ async function processProfileAttachment(type, label, file) {
       ...stageB.attachments.filter((item) => item.type !== type),
       { type, label, name: file.name, url, uploadedAt: new Date().toISOString() }
     ];
-    persistStageB();
     setStatus(`${label}上传成功`, "success");
   } catch (error) {
     setStatus(error.message || `${label}上传失败`, "error");
@@ -593,7 +562,6 @@ async function handleAttachmentDrop(type, label, event) {
 
 function removeAttachment(type) {
   stageB.attachments = stageB.attachments.filter((item) => item.type !== type);
-  persistStageB();
 }
 
 onMounted(async () => {

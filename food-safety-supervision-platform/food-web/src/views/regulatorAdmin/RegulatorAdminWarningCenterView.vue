@@ -15,11 +15,11 @@
         <div class="hero-metrics">
           <article>
             <span>当前活跃预警</span>
-            <strong>{{ total }}</strong>
+            <strong>{{ activeWarningCount }}</strong>
           </article>
           <article>
             <span>待处理</span>
-            <strong>{{ openCount }}</strong>
+            <strong>{{ pendingWarningCount }}</strong>
           </article>
         </div>
       </header>
@@ -51,7 +51,7 @@
                 :class="['chip', { active: filters.status === 'PROCESSING' }]"
                 @click="setStatusFilter('PROCESSING')"
               >
-                处置中
+                处理中
               </button>
               <button type="button" :class="['chip', { active: filters.status === 'RESOLVED' }]" @click="setStatusFilter('RESOLVED')">已解决</button>
             </div>
@@ -207,7 +207,13 @@
 <script setup>
 import { computed, onMounted, reactive, ref } from "vue";
 import { useRouter } from "vue-router";
-import { fetchWarningRecordDetail, fetchWarningRecords, processWarningRecord } from "../../api/regulation";
+import {
+  fetchWarningOverview,
+  fetchWarningRecordDetail,
+  fetchWarningRecords,
+  fetchWarningTypes,
+  processWarningRecord
+} from "../../api/regulation";
 import RegulatorAdminWorkspacePage from "../../components/regulatorAdmin/RegulatorAdminWorkspacePage.vue";
 import { formatByMap, formatTime } from "../../utils/formatters";
 import { warningActionMap, warningLevelMap, warningStatusMap } from "../../utils/statusMaps";
@@ -228,6 +234,8 @@ const total = ref(0);
 const pages = ref(1);
 const advancedVisible = ref(false);
 const status = reactive({ message: "", type: "" });
+const summary = ref({});
+const typeOptions = ref([]);
 const filters = reactive({
   status: "",
   level: "",
@@ -236,15 +244,48 @@ const filters = reactive({
   keyword: ""
 });
 
+const activeWarningCount = computed(
+  () => (Number(summary.value?.openCount) || 0) + (Number(summary.value?.processingCount) || 0)
+);
+const pendingWarningCount = computed(() => Number(summary.value?.openCount) || 0);
+
 const warningTypeOptions = computed(() => {
-  const set = new Set(records.value.map((item) => String(item.warningType || "").trim()).filter(Boolean));
-  return Array.from(set).sort();
+  const values = typeOptions.value
+    .map((item) => {
+      if (typeof item === "string") return item.trim();
+      return String(item?.warningType || item?.type || item?.key || "").trim();
+    })
+    .filter(Boolean);
+  if (filters.warningType && !values.includes(filters.warningType)) {
+    values.unshift(filters.warningType);
+  }
+  return [...new Set(values)].sort();
 });
-const openCount = computed(() => records.value.filter((item) => item.status === "OPEN").length);
 
 function setStatus(message = "", type = "info") {
   status.message = message;
   status.type = type;
+}
+
+function buildListParams() {
+  return {
+    page: page.value,
+    size: size.value,
+    status: filters.status || undefined,
+    level: filters.level || undefined,
+    warningType: filters.warningType || undefined,
+    bizType: filters.bizType || undefined,
+    keyword: filters.keyword || undefined
+  };
+}
+
+function buildTypeParams() {
+  return {
+    status: filters.status || undefined,
+    level: filters.level || undefined,
+    bizType: filters.bizType || undefined,
+    keyword: filters.keyword || undefined
+  };
 }
 
 function setLevel(level) {
@@ -312,19 +353,28 @@ function jumpToWarningRectification(warning) {
   closeWarningDetail();
 }
 
+async function loadWarningSummary() {
+  try {
+    summary.value = (await fetchWarningOverview(token.value, {})) || {};
+  } catch {
+    summary.value = {};
+  }
+}
+
+async function loadWarningTypeOptions() {
+  try {
+    const data = await fetchWarningTypes(token.value, buildTypeParams());
+    typeOptions.value = Array.isArray(data) ? data : [];
+  } catch {
+    typeOptions.value = [];
+  }
+}
+
 async function loadWarnings() {
   loading.value = true;
   setStatus("");
   try {
-    const data = await fetchWarningRecords(token.value, {
-      page: page.value,
-      size: size.value,
-      status: filters.status || undefined,
-      level: filters.level || undefined,
-      warningType: filters.warningType || undefined,
-      bizType: filters.bizType || undefined,
-      keyword: filters.keyword || undefined
-    });
+    const data = await fetchWarningRecords(token.value, buildListParams());
     records.value = data.records || [];
     total.value = data.total || 0;
     page.value = data.page || 1;
@@ -337,9 +387,13 @@ async function loadWarnings() {
   }
 }
 
+async function loadPageMeta() {
+  await Promise.all([loadWarningSummary(), loadWarningTypeOptions()]);
+}
+
 async function handleSearch() {
   page.value = 1;
-  await loadWarnings();
+  await Promise.all([loadWarnings(), loadPageMeta()]);
 }
 
 async function changePage(nextPage) {
@@ -378,8 +432,8 @@ async function handleWarningAction(target, actionType) {
     if (warningDetailVisible.value && warningDetail.value?.id === warningId) {
       warningDetail.value = detailData;
     }
-    setStatus(`预警已执行${formatWarningAction(actionType)}`, "success");
-    await loadWarnings();
+    setStatus(`预警已执行 ${formatWarningAction(actionType)}`, "success");
+    await Promise.all([loadWarnings(), loadWarningSummary()]);
   } catch (error) {
     setStatus(error.message || "预警处理失败", "error");
   } finally {
@@ -387,7 +441,9 @@ async function handleWarningAction(target, actionType) {
   }
 }
 
-onMounted(loadWarnings);
+onMounted(async () => {
+  await Promise.all([loadWarnings(), loadPageMeta()]);
+});
 </script>
 
 <style scoped>

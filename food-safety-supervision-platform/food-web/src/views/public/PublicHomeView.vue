@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div class="public-home-page">
     <header class="public-home-page__topbar">
       <div class="public-home-page__topbar-inner">
@@ -21,7 +21,12 @@
         <div class="public-home-page__toolbar">
           <label class="public-home-page__search-box">
             <span class="material-symbols-outlined" aria-hidden="true">search</span>
-            <input v-model.trim="globalKeyword" type="text" placeholder="搜索企业、产品、法规..." />
+            <input
+              v-model.trim="globalKeyword"
+              type="text"
+              placeholder="搜索企业、产品、法规..."
+              @keyup.enter="handleGlobalSearch"
+            />
           </label>
           <button type="button" class="public-home-page__icon-btn" @click="onFeaturePending('通知中心')">
             <span class="material-symbols-outlined" aria-hidden="true">notifications</span>
@@ -50,10 +55,6 @@
                 <span class="material-symbols-outlined" aria-hidden="true">search</span>
                 立即查询
               </button>
-            </div>
-            <div class="public-home-page__hotwords">
-              <span>热词搜索:</span>
-              <button v-for="word in hotWords" :key="word" type="button" @click="useHotWord(word)">{{ word }}</button>
             </div>
           </div>
         </div>
@@ -106,7 +107,9 @@
             <button type="button" @click="goTo('public-bulletins')">更多资讯 →</button>
           </div>
 
-          <article v-for="item in latestNews" :key="item.id" class="public-home-page__news-item" @click="goTo('public-bulletins')">
+          <div v-if="newsLoading" class="public-home-page__news-empty">公告加载中...</div>
+          <div v-else-if="!latestNews.length" class="public-home-page__news-empty">暂无已发布公告</div>
+          <article v-for="item in latestNews" :key="item.id" class="public-home-page__news-item" @click="viewBulletin(item)">
             <div class="public-home-page__news-date">
               <span>{{ item.day }}</span>
               <small>{{ item.month }}</small>
@@ -137,7 +140,7 @@
           </div>
 
           <div class="public-home-page__stats-card">
-            <h3>今日公示数据</h3>
+            <h3>公开数据概览</h3>
             <div>
               <p v-for="item in statsItems" :key="item.label">
                 <span>{{ item.label }}</span>
@@ -170,15 +173,26 @@
 </template>
 
 <script setup>
-import { computed, ref } from "vue";
+import { computed, onMounted, ref } from "vue";
 import { useRouter } from "vue-router";
+import { fetchPublicBulletins, fetchPublicEnterprises } from "../../api/regulation";
+import { fetchPublicSamplingResults } from "../../api/regulationOperation";
 import { getActiveSession, performLogout } from "../../session/authRuntime";
+import { formatTime } from "../../utils/formatters";
 
 const router = useRouter();
 const publicUser = computed(() => getActiveSession() || {});
+const publicToken = computed(() => getActiveSession()?.token || "");
 
 const globalKeyword = ref("");
 const enterpriseKeyword = ref("");
+const newsLoading = ref(false);
+const latestNews = ref([]);
+const publicStats = ref({
+  enterpriseTotal: null,
+  bulletinTotal: null,
+  samplingTotal: null
+});
 
 const topNavItems = [
   { key: "home", label: "首页", routeName: "public-home" },
@@ -189,54 +203,18 @@ const topNavItems = [
   { key: "complaints", label: "我的投诉", routeName: "public-complaints" }
 ];
 
-const hotWords = ["乳制品抽检", "餐饮诚信榜", "预制菜标准"];
-
-const latestNews = [
-  {
-    id: "n1",
-    day: "24",
-    month: "Oct",
-    tag: "通告",
-    source: "来源：市场监督管理局",
-    title: "关于开展2024年秋季校园周边食品安全专项整治工作的通知",
-    category: "监督检查",
-    description: "为加强秋季开学期间校园及周边食品安全监管，决定开展为期一个月的专项整治行动。"
-  },
-  {
-    id: "n2",
-    day: "22",
-    month: "Oct",
-    tag: "警告",
-    source: "来源：国家抽检公示系统",
-    title: "近期某批次不合格“食用调和油”召回公告及消费提示",
-    category: "消费提示",
-    description: "抽检发现部分品牌食用调和油过氧化值超标，生产厂家已启动召回流程。"
-  },
-  {
-    id: "n3",
-    day: "18",
-    month: "Oct",
-    tag: "法规",
-    source: "来源：国务院食安委",
-    title: "《餐饮服务通用卫生规范》地方标准解读说明会举行",
-    category: "政策法规",
-    description: "围绕厨房通风、排水、消毒等重点条款开展线上解读，提升标准落地执行效果。"
-  }
-];
-
 const quickLinks = [
-  { key: "bright-kitchen", icon: "restaurant", label: "明厨亮灶" },
-  { key: "law-db", icon: "policy", label: "法律智库" },
-  { key: "rank", icon: "stars", label: "红黑榜" },
-  { key: "license", icon: "history_edu", label: "许可办理" }
+  { key: "bulletins", icon: "campaign", label: "公告查询", routeName: "public-bulletins" },
+  { key: "enterprises", icon: "apartment", label: "企业公示", routeName: "public-enterprises" },
+  { key: "sampling", icon: "biotech", label: "抽检查询", routeName: "public-sampling-results" },
+  { key: "complaints", icon: "track_changes", label: "投诉追踪", routeName: "public-complaints" }
 ];
 
-const statsItems = [
-  { label: "在营餐饮企业", value: "12,842" },
-  { label: "本周抽检次数", value: "1,405" },
-  { label: "合格率报告", value: "98.2%" },
-  { label: "待办投诉处理", value: "14" }
-];
+const statsItems = computed(() => [
+  { label: "已公示企业", value: formatOverviewStat(publicStats.value.enterpriseTotal) },
+  { label: "已发布公告", value: formatOverviewStat(publicStats.value.bulletinTotal) },
+  { label: "已公开抽检结果", value: formatOverviewStat(publicStats.value.samplingTotal) }
+]);
 
 const credibilityItems = [
   {
@@ -256,24 +234,141 @@ const credibilityItems = [
   }
 ];
 
+const bulletinCategoryMap = {
+  POLICY: "政策法规",
+  INSPECTION: "监督检查",
+  NOTICE: "消费提示",
+  OTHER: "其他公告"
+};
+
+function formatBulletinCategory(value) {
+  return bulletinCategoryMap[String(value || "").toUpperCase()] || "公告";
+}
+
+function formatNewsDateParts(value) {
+  const normalized = String(formatTime(value || "") || "");
+  const dateText = normalized.length >= 10 ? normalized.slice(0, 10) : "";
+  if (!dateText) {
+    return { day: "--", month: "----.--" };
+  }
+  const [year, month, day] = dateText.split("-");
+  return {
+    day: day || "--",
+    month: `${year || "----"}.${month || "--"}`
+  };
+}
+
+function buildBulletinSource(item) {
+  const publisher = item?.publishedByName || item?.createdByName;
+  return publisher ? `发布单位：${publisher}` : "发布单位：监管部门";
+}
+
+function formatOverviewStat(value) {
+  if (typeof value !== "number" || Number.isNaN(value)) {
+    return "--";
+  }
+  return value.toLocaleString("zh-CN");
+}
+
+async function loadLatestNews() {
+  if (!publicToken.value) {
+    latestNews.value = [];
+    return;
+  }
+  newsLoading.value = true;
+  try {
+    const data = await fetchPublicBulletins(publicToken.value, {
+      page: 1,
+      size: 3
+    });
+    latestNews.value = (data.records || []).slice(0, 3).map((item) => {
+      const publishedTime = item?.publishedTime || item?.updateTime || item?.createTime || "";
+      const dateParts = formatNewsDateParts(publishedTime);
+      return {
+        id: item.id,
+        bulletinId: item.id,
+        day: dateParts.day,
+        month: dateParts.month,
+        tag: formatBulletinCategory(item?.category),
+        source: buildBulletinSource(item),
+        title: item?.title || "-",
+        description: item?.contentSummary || item?.summary || "点击查看公告详情"
+      };
+    });
+  } catch (error) {
+    latestNews.value = [];
+  } finally {
+    newsLoading.value = false;
+  }
+}
+
+async function loadPublicOverviewStats() {
+  if (!publicToken.value) {
+    publicStats.value = {
+      enterpriseTotal: null,
+      bulletinTotal: null,
+      samplingTotal: null
+    };
+    return;
+  }
+  try {
+    const [enterpriseData, bulletinData, samplingData] = await Promise.all([
+      fetchPublicEnterprises(publicToken.value, { page: 1, size: 1 }),
+      fetchPublicBulletins(publicToken.value, { page: 1, size: 1 }),
+      fetchPublicSamplingResults(publicToken.value, { page: 1, size: 1 })
+    ]);
+    publicStats.value = {
+      enterpriseTotal: Number(enterpriseData?.total ?? 0),
+      bulletinTotal: Number(bulletinData?.total ?? 0),
+      samplingTotal: Number(samplingData?.total ?? 0)
+    };
+  } catch (error) {
+    publicStats.value = {
+      enterpriseTotal: null,
+      bulletinTotal: null,
+      samplingTotal: null
+    };
+  }
+}
+
 function onFeaturePending(name) {
-  // TODO: 接入公众端通知中心/个人中心/静态内容页能力
   window.alert(`${name} 功能待后续完善`);
 }
 
 function onPublicSearch() {
-  // TODO: 接入公众门户统一查询接口（企业/追溯码/全文检索）
-  window.alert("查询能力待后续完善，当前仅保留原型入口与交互形态");
-}
-
-function useHotWord(word) {
-  globalKeyword.value = word;
-  onPublicSearch();
+  const keyword = enterpriseKeyword.value.trim();
+  router.push({
+    name: "public-enterprises",
+    query: keyword ? { keyword } : {}
+  }).catch(() => {});
 }
 
 function onQuickLink(item) {
-  // TODO: 接入常用查询能力（明厨亮灶/法律智库/红黑榜/许可办理）
-  window.alert(`${item.label} 功能待后续完善`);
+  if (!item?.routeName) return;
+  router.push({ name: item.routeName }).catch(() => {});
+}
+
+function viewBulletin(item) {
+  const bulletinId = Number(item?.bulletinId || item?.id || 0);
+  if (!bulletinId) return;
+  router.push({
+    name: "public-bulletin-detail",
+    params: { bulletinId }
+  }).catch(() => {});
+}
+
+function handleGlobalSearch() {
+  const keyword = globalKeyword.value.trim();
+  if (!keyword) {
+    router.push({ name: "public-enterprises" }).catch(() => {});
+    return;
+  }
+  const bulletinHints = ["公告", "通知", "通告", "法规", "政策", "标准", "办法", "条例", "规范", "指引"];
+  const routeName = bulletinHints.some((item) => keyword.includes(item)) ? "public-bulletins" : "public-enterprises";
+  router.push({
+    name: routeName,
+    query: { keyword }
+  }).catch(() => {});
 }
 
 async function handleLogout() {
@@ -285,6 +380,11 @@ function goTo(name) {
   if (name === "public-home") return;
   router.push({ name }).catch(() => {});
 }
+
+onMounted(() => {
+  loadLatestNews();
+  loadPublicOverviewStats();
+});
 </script>
 
 <style scoped>
@@ -493,28 +593,6 @@ function goTo(name) {
   gap: 6px;
 }
 
-.public-home-page__hotwords {
-  margin-top: 14px;
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 10px;
-}
-
-.public-home-page__hotwords span {
-  color: #fff;
-  font-size: 12px;
-  font-weight: 700;
-}
-
-.public-home-page__hotwords button {
-  border: none;
-  background: transparent;
-  color: rgba(255, 255, 255, 0.86);
-  text-decoration: underline;
-  cursor: pointer;
-}
-
 .public-home-page__entry-wrap {
   max-width: 1680px;
   margin: -80px auto 0;
@@ -702,6 +780,16 @@ function goTo(name) {
   color: var(--primary);
   font-weight: 700;
   cursor: pointer;
+}
+
+.public-home-page__news-empty {
+  min-height: 120px;
+  border: 1px dashed rgba(195, 198, 211, 0.45);
+  border-radius: 16px;
+  display: grid;
+  place-items: center;
+  color: var(--on-surface-variant);
+  background: rgba(255, 255, 255, 0.72);
 }
 
 .public-home-page__news-item {
@@ -936,3 +1024,10 @@ function goTo(name) {
   }
 }
 </style>
+
+
+
+
+
+
+

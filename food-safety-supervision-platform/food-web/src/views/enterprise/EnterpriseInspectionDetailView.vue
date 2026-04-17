@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <EnterpriseWorkspacePage
     active-key="inspections"
     title="检查记录详情"
@@ -25,7 +25,7 @@
           <div>
             <h1 class="enterprise-inspection-detail-hero__title">检查记录详情</h1>
             <p class="enterprise-inspection-detail-hero__subtitle">
-              检查日期 {{ detail.record.inspectionDate || "—" }} · 更新时间 {{ formatTime(detail.record.updateTime) }}
+              检查日期 {{ detail.record.inspectionDate || "-" }} · 更新时间 {{ formatTime(detail.record.updateTime) }}
             </p>
           </div>
           <RouterLink class="enterprise-toolbar-button enterprise-inspection-detail-hero__back" :to="{ name: 'enterprise-inspections' }">
@@ -89,11 +89,11 @@
                   </thead>
                   <tbody>
                     <tr v-for="(item, index) in detail.items" :key="index">
-                      <td style="font-weight: 600">{{ item.itemName || "—" }}</td>
+                      <td style="font-weight: 600">{{ item.itemName || "-" }}</td>
                       <td>
                         <EnterpriseStatusChip :label="formatInspectionResult(item.itemResult)" :tone="item.itemResult === 'FAIL' ? 'danger' : 'success'" small />
                       </td>
-                      <td>{{ item.problemDesc || "—" }}</td>
+                      <td>{{ item.problemDesc || "-" }}</td>
                     </tr>
                   </tbody>
                 </table>
@@ -128,7 +128,7 @@
                 </div>
                 <div class="enterprise-meta-row">
                   <span>检查日期</span>
-                  <span>{{ detail.record.inspectionDate || "—" }}</span>
+                  <span>{{ detail.record.inspectionDate || "-" }}</span>
                 </div>
                 <div class="enterprise-meta-row">
                   <span>检查结果</span>
@@ -159,7 +159,7 @@
 </template>
 
 <script setup>
-import { computed, onMounted, reactive, ref } from "vue";
+import { computed, reactive, ref, watch } from "vue";
 import { RouterLink, useRoute } from "vue-router";
 import { fetchEnterpriseInspectionRecordDetail } from "../../api/regulationOperation";
 import EnterpriseStatusChip from "../../components/enterprise/EnterpriseStatusChip.vue";
@@ -169,7 +169,7 @@ import { formatInspectionResult, formatRectificationStatus, useEnterpriseShellSe
 
 const route = useRoute();
 const { enterpriseUser, token, handleSidebarNavigate, handleLogout } = useEnterpriseShellSession();
-const inspectionId = String(route.params.inspectionId || "");
+const inspectionId = computed(() => String(route.params.inspectionId || ""));
 const detail = ref(null);
 const loading = ref(false);
 const status = reactive({ message: "", type: "" });
@@ -187,7 +187,11 @@ const rectificationRoute = computed(() => {
 async function loadDetail() {
   loading.value = true;
   try {
-    detail.value = await fetchEnterpriseInspectionRecordDetail(token.value, inspectionId);
+    if (!inspectionId.value) {
+      detail.value = null;
+      return;
+    }
+    detail.value = await fetchEnterpriseInspectionRecordDetail(token.value, inspectionId.value);
   } catch (error) {
     status.message = error.message || "加载检查记录详情失败";
     status.type = "error";
@@ -196,7 +200,12 @@ async function loadDetail() {
   }
 }
 
-onMounted(() => {
-  loadDetail();
-});
+watch(
+  () => route.params.inspectionId,
+  () => {
+    loadDetail();
+  },
+  { immediate: true }
+);
 </script>
+

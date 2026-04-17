@@ -277,6 +277,7 @@ export function fetchPublicSamplingResultDetail(token, id) {
 export function fetchMyRectifications(token, params = {}) {
   const search = new URLSearchParams();
   if (params.status) search.append("status", params.status);
+  if (params.slaFilter) search.append("slaFilter", params.slaFilter);
   if (params.page) search.append("page", params.page);
   if (params.size) search.append("size", params.size);
   const query = search.toString();

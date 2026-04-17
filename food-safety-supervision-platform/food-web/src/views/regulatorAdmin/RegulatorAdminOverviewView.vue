@@ -8,7 +8,7 @@
   >
     <section class="overview-page">
       <header class="overview-page__header">
-        <h1>监管概述</h1>
+        <h1>监管概览</h1>
         <p>区域监管核心指标、待办事项与风险态势总览</p>
       </header>
 
@@ -19,14 +19,14 @@
           <span>已核准 {{ approvedEnterpriseCount }} 家</span>
         </article>
         <article class="metric-card">
-          <p>本月检查任务</p>
+          <p>检查任务总数</p>
           <strong>{{ inspectionTaskTotal }}</strong>
           <span>执行中 {{ inProgressInspectionTasks }} 项</span>
         </article>
         <article class="metric-card">
           <p>待处理投诉</p>
           <strong>{{ complaintTodoCount }}</strong>
-          <span>待受理 / 待分配案件</span>
+          <span>待受理 / 待分派案件</span>
         </article>
         <article class="metric-card metric-card--danger">
           <p>活跃风险预警</p>
@@ -48,7 +48,7 @@
             </button>
             <button type="button" class="todo-item" @click="handleSidebarNavigate('complaints')">
               <span class="material-symbols-outlined">assignment_return</span>
-              <div><strong>{{ complaintTodoCount }} 件待派发投诉</strong><p>投诉流转需要分配执行人</p></div>
+              <div><strong>{{ complaintTodoCount }} 件待派发投诉</strong><p>投诉流转需要分配执行人员</p></div>
             </button>
             <button type="button" class="todo-item" @click="handleSidebarNavigate('rectification')">
               <span class="material-symbols-outlined">rule</span>
@@ -56,7 +56,7 @@
             </button>
             <button type="button" class="todo-item todo-item--danger" @click="handleSidebarNavigate('warnings')">
               <span class="material-symbols-outlined">notification_important</span>
-              <div><strong>{{ warningOpenCount }} 条待处理预警</strong><p>高风险告警优先处理</p></div>
+              <div><strong>{{ warningOpenCount }} 条待处理预警</strong><p>高风险告警优先处置</p></div>
             </button>
           </div>
         </section>
@@ -67,7 +67,7 @@
           <div v-else class="feed-list">
             <article v-for="item in taskFeeds" :key="item.id" class="feed-item">
               <div><span class="feed-tag" :class="`is-${item.tone}`">{{ item.tag }}</span><strong>{{ item.title }}</strong><p>{{ item.meta }}</p></div>
-              <button type="button" @click="onPendingFeature(item.action)"> {{ item.action }} </button>
+              <button type="button" @click="onPendingFeature(item.action)">{{ item.action }}</button>
             </article>
           </div>
         </section>
@@ -139,13 +139,17 @@ const complaintEfficiency = computed(() => {
 });
 
 function onPendingFeature(title) {
-  // TODO: 待接入通知中心/帮助中心/报表导出的真实后端能力与交互流程
   regulatorFeaturePendingNotice(title);
 }
 
 function setStatus(message, type = "info") {
   status.message = message;
   status.type = type;
+}
+
+function totalOf(pageLike) {
+  if (Array.isArray(pageLike)) return pageLike.length;
+  return Number(pageLike?.total || 0);
 }
 
 function buildTaskFeeds(inspectionTasks = []) {
@@ -167,36 +171,52 @@ function buildTaskFeeds(inspectionTasks = []) {
 async function loadOverview() {
   setStatus("");
   try {
-    // TODO: 后端补充监管概述聚合接口后，替换为单接口拉取，减少多请求并发开销
-    const [enterprisePage, pending, inspectionTasks, complaints, rectifications, warnings] = await Promise.all([
-      fetchEnterprises(token.value, { page: 1, size: 50 }).catch(() => ({ records: [], total: 0 })),
+    const [
+      enterprisePage,
+      approvedEnterprisePage,
+      pending,
+      inspectionTasks,
+      inProgressInspectionPage,
+      complaintPendingPage,
+      complaintAcceptedPage,
+      complaintAssignedPage,
+      complaintDonePage,
+      rectificationSubmittedPage,
+      rectificationReworkPage,
+      warningOpenPage,
+      warningProcessingPage,
+      inspectionTaskFeed
+    ] = await Promise.all([
+      fetchEnterprises(token.value, { page: 1, size: 1 }).catch(() => ({ records: [], total: 0 })),
+      fetchEnterprises(token.value, { approvalStatus: "APPROVED", page: 1, size: 1 }).catch(() => ({ records: [], total: 0 })),
       fetchPendingEnterprises(token.value).catch(() => []),
-      fetchInspectionTasks(token.value, { page: 1, size: 20 }).catch(() => ({ records: [], total: 0 })),
-      fetchComplaints(token.value, { page: 1, size: 50 }).catch(() => ({ records: [], total: 0 })),
-      fetchRectifications(token.value, { page: 1, size: 50 }).catch(() => ({ records: [], total: 0 })),
-      fetchWarningRecords(token.value, { page: 1, size: 50 }).catch(() => ({ records: [], total: 0 }))
+      fetchInspectionTasks(token.value, { page: 1, size: 1 }).catch(() => ({ records: [], total: 0 })),
+      fetchInspectionTasks(token.value, { status: "IN_PROGRESS", page: 1, size: 1 }).catch(() => ({ records: [], total: 0 })),
+      fetchComplaints(token.value, { status: "PENDING", page: 1, size: 1 }).catch(() => ({ records: [], total: 0 })),
+      fetchComplaints(token.value, { status: "ACCEPTED", page: 1, size: 1 }).catch(() => ({ records: [], total: 0 })),
+      fetchComplaints(token.value, { status: "ASSIGNED", page: 1, size: 1 }).catch(() => ({ records: [], total: 0 })),
+      fetchComplaints(token.value, { status: "PROCESSED", page: 1, size: 1 }).catch(() => ({ records: [], total: 0 })),
+      fetchRectifications(token.value, { status: "SUBMITTED", page: 1, size: 1 }).catch(() => ({ records: [], total: 0 })),
+      fetchRectifications(token.value, { status: "REWORK", page: 1, size: 1 }).catch(() => ({ records: [], total: 0 })),
+      fetchWarningRecords(token.value, { status: "OPEN", page: 1, size: 1 }).catch(() => ({ records: [], total: 0 })),
+      fetchWarningRecords(token.value, { status: "PROCESSING", page: 1, size: 1 }).catch(() => ({ records: [], total: 0 })),
+      fetchInspectionTasks(token.value, { page: 1, size: 20 }).catch(() => ({ records: [], total: 0 }))
     ]);
 
-    const enterpriseRecords = enterprisePage.records || [];
-    const inspectionRecords = inspectionTasks.records || [];
-    const complaintRecords = complaints.records || [];
-    const rectificationRecords = rectifications.records || [];
-    const warningRecords = warnings.records || [];
-
-    enterpriseTotal.value = Number(enterprisePage.total) || enterpriseRecords.length;
-    approvedEnterpriseCount.value = enterpriseRecords.filter((item) => item.approvalStatus === "APPROVED").length;
+    enterpriseTotal.value = totalOf(enterprisePage);
+    approvedEnterpriseCount.value = totalOf(approvedEnterprisePage);
     pendingEnterpriseCount.value = Array.isArray(pending) ? pending.length : Number(pending?.length || 0);
-    inspectionTaskTotal.value = Number(inspectionTasks.total) || inspectionRecords.length;
-    inProgressInspectionTasks.value = inspectionRecords.filter((item) => item.status === "IN_PROGRESS").length;
-    complaintTodoCount.value = complaintRecords.filter((item) => ["PENDING", "ACCEPTED", "ASSIGNED"].includes(item.status)).length;
-    complaintDoneCount.value = complaintRecords.filter((item) => item.status === "PROCESSED").length;
-    rectificationTodoCount.value = rectificationRecords.filter((item) => ["SUBMITTED", "REWORK"].includes(item.status)).length;
-    warningOpenCount.value = warningRecords.filter((item) => item.status === "OPEN").length;
-    warningProcessingCount.value = warningRecords.filter((item) => item.status === "PROCESSING").length;
+    inspectionTaskTotal.value = totalOf(inspectionTasks);
+    inProgressInspectionTasks.value = totalOf(inProgressInspectionPage);
+    complaintTodoCount.value = totalOf(complaintPendingPage) + totalOf(complaintAcceptedPage) + totalOf(complaintAssignedPage);
+    complaintDoneCount.value = totalOf(complaintDonePage);
+    rectificationTodoCount.value = totalOf(rectificationSubmittedPage) + totalOf(rectificationReworkPage);
+    warningOpenCount.value = totalOf(warningOpenPage);
+    warningProcessingCount.value = totalOf(warningProcessingPage);
 
-    buildTaskFeeds(inspectionRecords);
+    buildTaskFeeds(inspectionTaskFeed.records || []);
   } catch (error) {
-    setStatus(error.message || "加载监管概述失败。", "error");
+    setStatus(error.message || "加载监管概览失败。", "error");
   }
 }
 

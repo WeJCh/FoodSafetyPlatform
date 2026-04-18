@@ -7,6 +7,7 @@ import com.mortal.regulation.entity.FoodProduct;
 import com.mortal.regulation.mapper.FoodEnterpriseMapper;
 import com.mortal.regulation.mapper.FoodProductMapper;
 import com.mortal.regulation.service.ProductService;
+import com.mortal.regulation.support.ProductMasterCacheService;
 import com.mortal.regulation.vo.ProductVO;
 import com.mortal.regulation.vo.internal.InternalProductDetailVO;
 import com.mortal.regulation.vo.internal.InternalProductSummaryVO;
@@ -30,11 +31,14 @@ public class ProductServiceImpl implements ProductService {
 
     private final FoodProductMapper foodProductMapper;
     private final FoodEnterpriseMapper foodEnterpriseMapper;
+    private final ProductMasterCacheService productMasterCacheService;
 
     public ProductServiceImpl(FoodProductMapper foodProductMapper,
-                              FoodEnterpriseMapper foodEnterpriseMapper) {
+                              FoodEnterpriseMapper foodEnterpriseMapper,
+                              ProductMasterCacheService productMasterCacheService) {
         this.foodProductMapper = foodProductMapper;
         this.foodEnterpriseMapper = foodEnterpriseMapper;
+        this.productMasterCacheService = productMasterCacheService;
     }
 
     @Override
@@ -58,6 +62,7 @@ public class ProductServiceImpl implements ProductService {
         product.setUpdateTime(LocalDateTime.now());
         product.setDeleted(0);
         foodProductMapper.insert(product);
+        productMasterCacheService.evict(product.getId());
         return toVO(product);
     }
 
@@ -74,6 +79,7 @@ public class ProductServiceImpl implements ProductService {
         product.setRemark(normalizeText(dto.getRemark()));
         product.setUpdateTime(LocalDateTime.now());
         foodProductMapper.updateById(product);
+        productMasterCacheService.evict(product.getId());
         return toVO(product);
     }
 

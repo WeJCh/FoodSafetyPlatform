@@ -11,7 +11,9 @@ import com.mortal.regulation.operation.mapper.InspectionRecordMapper;
 import com.mortal.regulation.operation.mapper.InspectionTaskMapper;
 import com.mortal.regulation.operation.mapper.RectificationActionLogMapper;
 import com.mortal.regulation.operation.mapper.RectificationTaskMapper;
+import com.mortal.regulation.operation.config.OperationSchedulerLockProperties;
 import com.mortal.regulation.operation.service.WarningEventOutboxService;
+import com.mortal.regulation.operation.support.OperationSchedulerLockSupport;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.Collection;
@@ -31,6 +33,7 @@ import org.springframework.stereotype.Component;
 public class RectificationSlaScheduler {
 
     private static final Logger log = LoggerFactory.getLogger(RectificationSlaScheduler.class);
+    private static final String SCHEDULER_LOCK_NAME = "reg-op:rectification-sla";
 
     private static final String BIZ_TYPE_RECTIFICATION = "RECTIFICATION";
     private static final String SOURCE_SERVICE = "regulation-operation-service";
@@ -48,30 +51,45 @@ public class RectificationSlaScheduler {
     private final WarningEventOutboxService warningEventOutboxService;
     private final InspectionRecordMapper inspectionRecordMapper;
     private final InspectionTaskMapper inspectionTaskMapper;
+    private final OperationSchedulerLockSupport operationSchedulerLockSupport;
+    private final OperationSchedulerLockProperties operationSchedulerLockProperties;
 
     public RectificationSlaScheduler(RectificationTaskMapper rectificationTaskMapper,
                                      RectificationActionLogMapper rectificationActionLogMapper,
                                      WarningEventOutboxService warningEventOutboxService,
                                      InspectionRecordMapper inspectionRecordMapper,
-                                     InspectionTaskMapper inspectionTaskMapper) {
+                                     InspectionTaskMapper inspectionTaskMapper,
+                                     OperationSchedulerLockSupport operationSchedulerLockSupport,
+                                     OperationSchedulerLockProperties operationSchedulerLockProperties) {
         this.rectificationTaskMapper = rectificationTaskMapper;
         this.rectificationActionLogMapper = rectificationActionLogMapper;
         this.warningEventOutboxService = warningEventOutboxService;
         this.inspectionRecordMapper = inspectionRecordMapper;
         this.inspectionTaskMapper = inspectionTaskMapper;
+        this.operationSchedulerLockSupport = operationSchedulerLockSupport;
+        this.operationSchedulerLockProperties = operationSchedulerLockProperties;
     }
 
     @Scheduled(fixedDelayString = "${regulation.rectification.sla.scan-ms:600000}", initialDelay = 30000)
     public void scanRectificationSla() {
         try {
-            LocalDateTime now = LocalDateTime.now();
-            List<RectificationTask> activeTasks = loadActiveTasks();
-            if (activeTasks.isEmpty()) {
-                return;
-            }
-            Map<Long, Set<String>> loggedActions = loadLoggedSlaActions(activeTasks);
-            for (RectificationTask task : activeTasks) {
-                processTask(now, task, loggedActions);
+            boolean executed = operationSchedulerLockSupport.executeWithLock(
+                SCHEDULER_LOCK_NAME,
+                operationSchedulerLockProperties.getRectificationSlaLeaseSeconds(),
+                () -> {
+                LocalDateTime now = LocalDateTime.now();
+                List<RectificationTask> activeTasks = loadActiveTasks();
+                if (activeTasks.isEmpty()) {
+                    return;
+                }
+                Map<Long, Set<String>> loggedActions = loadLoggedSlaActions(activeTasks);
+                for (RectificationTask task : activeTasks) {
+                    processTask(now, task, loggedActions);
+                }
+                }
+            );
+            if (!executed) {
+                log.debug("Skip rectification SLA scan because scheduler lock is held by another instance.");
             }
         } catch (Exception ex) {
             log.error("Rectification SLA scan failed.", ex);

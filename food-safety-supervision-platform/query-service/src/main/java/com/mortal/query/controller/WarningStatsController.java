@@ -2,6 +2,7 @@ package com.mortal.query.controller;
 
 import com.mortal.platform.common.ApiResponse;
 import com.mortal.query.dto.WarningStatsQueryDTO;
+import com.mortal.query.support.QueryRateLimitService;
 import com.mortal.query.service.WarningStatsQueryService;
 import com.mortal.query.service.WarningStatsScopeService;
 import com.mortal.query.vo.WarningEfficiencyStatsVO;
@@ -37,15 +38,18 @@ public class WarningStatsController {
 
     private final WarningStatsQueryService warningStatsQueryService;
     private final WarningStatsScopeService warningStatsScopeService;
+    private final QueryRateLimitService queryRateLimitService;
     private final boolean cacheEnabled;
     private final int cacheTtlSeconds;
 
     public WarningStatsController(WarningStatsQueryService warningStatsQueryService,
                                   WarningStatsScopeService warningStatsScopeService,
+                                  QueryRateLimitService queryRateLimitService,
                                   @Value("${query.warning-stats.cache.enabled:false}") boolean cacheEnabled,
                                   @Value("${query.warning-stats.cache.ttl-seconds:30}") int cacheTtlSeconds) {
         this.warningStatsQueryService = warningStatsQueryService;
         this.warningStatsScopeService = warningStatsScopeService;
+        this.queryRateLimitService = queryRateLimitService;
         this.cacheEnabled = cacheEnabled;
         this.cacheTtlSeconds = cacheTtlSeconds;
     }
@@ -150,6 +154,9 @@ public class WarningStatsController {
                                                   Function<WarningStatsQueryDTO, T> executor,
                                                   ToLongFunction<T> countResolver) {
         long startMillis = System.currentTimeMillis();
+        if (userId == null || !queryRateLimitService.isWarningStatsAllowed(userId, endpoint)) {
+            return ApiResponse.failure(429, "query requests are too frequent");
+        }
         WarningStatsQueryDTO scopedQuery = warningStatsScopeService.applyScope(queryDTO, userId, userType, authorization);
         String filterSummary = summarizeFilters(scopedQuery);
         try {

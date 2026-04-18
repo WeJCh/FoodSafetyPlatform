@@ -4,6 +4,13 @@ server:
 spring:
   application:
     name: gateway-service
+  data:
+    redis:
+      host: ${REDIS_HOST:192.168.142.133}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:123456}
+      database: ${REDIS_DATABASE:0}
+      timeout: 3s
   cloud:
     nacos:
       config:
@@ -93,3 +100,16 @@ gateway:
     introspect-timeout-ms: 1500
     # Strict by default. Enable fail-open only via env var for temporary troubleshooting.
     introspect-fail-open: ${GATEWAY_AUTH_INTROSPECT_FAIL_OPEN:false}
+  rate-limit:
+    login:
+      enabled: ${GATEWAY_LOGIN_RATE_LIMIT_ENABLED:true}
+      fail-open: ${GATEWAY_LOGIN_RATE_LIMIT_FAIL_OPEN:true}
+      ip-window-seconds: ${GATEWAY_LOGIN_RATE_LIMIT_IP_WINDOW_SECONDS:60}
+      ip-max-requests: ${GATEWAY_LOGIN_RATE_LIMIT_IP_MAX_REQUESTS:10}
+      user-window-seconds: ${GATEWAY_LOGIN_RATE_LIMIT_USER_WINDOW_SECONDS:600}
+      user-max-requests: ${GATEWAY_LOGIN_RATE_LIMIT_USER_MAX_REQUESTS:5}
+
+platform:
+  redis:
+    key-prefix: ${PLATFORM_REDIS_KEY_PREFIX:fsp}
+    env: ${PLATFORM_REDIS_ENV:dev}

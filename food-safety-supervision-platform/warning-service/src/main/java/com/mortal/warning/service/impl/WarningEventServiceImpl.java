@@ -17,6 +17,8 @@ import com.mortal.warning.entity.WarningRecord;
 import com.mortal.warning.mapper.WarningProcessLogMapper;
 import com.mortal.warning.mapper.WarningRecordMapper;
 import com.mortal.warning.service.WarningEventService;
+import com.mortal.warning.support.WarningLockSupport;
+import com.mortal.warning.support.WarningStatsCacheSupport;
 import com.mortal.warning.vo.WarningProcessLogVO;
 import com.mortal.warning.vo.WarningRecordDetailVO;
 import com.mortal.warning.vo.WarningRecordVO;
@@ -38,14 +40,20 @@ public class WarningEventServiceImpl implements WarningEventService {
     private final WarningRecordMapper warningRecordMapper;
     private final WarningProcessLogMapper warningProcessLogMapper;
     private final ObjectMapper objectMapper;
+    private final WarningLockSupport warningLockSupport;
+    private final WarningStatsCacheSupport warningStatsCacheSupport;
     private final Random random = new Random();
 
     public WarningEventServiceImpl(WarningRecordMapper warningRecordMapper,
                                    WarningProcessLogMapper warningProcessLogMapper,
-                                   ObjectMapper objectMapper) {
+                                   ObjectMapper objectMapper,
+                                   WarningLockSupport warningLockSupport,
+                                   WarningStatsCacheSupport warningStatsCacheSupport) {
         this.warningRecordMapper = warningRecordMapper;
         this.warningProcessLogMapper = warningProcessLogMapper;
         this.objectMapper = objectMapper;
+        this.warningLockSupport = warningLockSupport;
+        this.warningStatsCacheSupport = warningStatsCacheSupport;
     }
 
     /**
@@ -97,6 +105,7 @@ public class WarningEventServiceImpl implements WarningEventService {
             created.setUpdateTime(now);
             created.setDeleted(0);
             warningRecordMapper.insert(created);
+            warningStatsCacheSupport.bumpVersion();
             saveProcessLog(created.getId(), "新事件创建预警记录", now);
             return toVO(created);
         }
@@ -123,6 +132,7 @@ public class WarningEventServiceImpl implements WarningEventService {
         existing.setPayloadJson(payloadJson);
         existing.setUpdateTime(now);
         warningRecordMapper.updateById(existing);
+        warningStatsCacheSupport.bumpVersion();
         saveProcessLog(existing.getId(), "重复事件合并，触发次数+1", now);
         return toVO(existing);
     }
@@ -175,14 +185,18 @@ public class WarningEventServiceImpl implements WarningEventService {
                                                       String operatorName,
                                                       WarningScopeDTO scopeDTO) {
         WarningActionType normalized = normalizeActionType(actionType);
-        return doProcessWarning(
+        return warningLockSupport.executeWithLock(
+            "warning-action",
             warningId,
-            normalized,
-            actionComment,
-            operatorId,
-            operatorName,
-            scopeDTO,
-            null
+            () -> doProcessWarning(
+                warningId,
+                normalized,
+                actionComment,
+                operatorId,
+                operatorName,
+                scopeDTO,
+                null
+            )
         );
     }
 
@@ -196,14 +210,18 @@ public class WarningEventServiceImpl implements WarningEventService {
         if (assignDTO == null || assignDTO.getAssignedTo() == null) {
             throw new IllegalArgumentException("assignedTo required");
         }
-        return doProcessWarning(
+        return warningLockSupport.executeWithLock(
+            "warning-action",
             warningId,
-            WarningActionType.ASSIGN,
-            assignDTO.getActionComment(),
-            operatorId,
-            operatorName,
-            scopeDTO,
-            assignDTO.getAssignedTo()
+            () -> doProcessWarning(
+                warningId,
+                WarningActionType.ASSIGN,
+                assignDTO.getActionComment(),
+                operatorId,
+                operatorName,
+                scopeDTO,
+                assignDTO.getAssignedTo()
+            )
         );
     }
 
@@ -233,6 +251,7 @@ public class WarningEventServiceImpl implements WarningEventService {
         processLog.setUpdateTime(now);
         processLog.setDeleted(0);
         warningProcessLogMapper.insert(processLog);
+        warningStatsCacheSupport.bumpVersion();
         return toDetailVO(record);
     }
 

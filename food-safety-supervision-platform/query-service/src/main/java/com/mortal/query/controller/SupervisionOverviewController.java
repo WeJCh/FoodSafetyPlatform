@@ -4,6 +4,7 @@ import com.mortal.platform.common.ApiResponse;
 import com.mortal.query.dto.WarningStatsQueryDTO;
 import com.mortal.query.service.SupervisionOverviewQueryService;
 import com.mortal.query.service.WarningStatsScopeService;
+import com.mortal.query.support.QueryRateLimitService;
 import com.mortal.query.vo.SupervisionOverviewVO;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -27,11 +28,14 @@ public class SupervisionOverviewController {
 
     private final SupervisionOverviewQueryService supervisionOverviewQueryService;
     private final WarningStatsScopeService warningStatsScopeService;
+    private final QueryRateLimitService queryRateLimitService;
 
     public SupervisionOverviewController(SupervisionOverviewQueryService supervisionOverviewQueryService,
-                                         WarningStatsScopeService warningStatsScopeService) {
+                                         WarningStatsScopeService warningStatsScopeService,
+                                         QueryRateLimitService queryRateLimitService) {
         this.supervisionOverviewQueryService = supervisionOverviewQueryService;
         this.warningStatsScopeService = warningStatsScopeService;
+        this.queryRateLimitService = queryRateLimitService;
     }
     /**
      * 获取监管概览统计。
@@ -52,6 +56,9 @@ public class SupervisionOverviewController {
                                                        @RequestHeader(value = "Authorization", required = false)
                                                        String authorization) {
         long startMillis = System.currentTimeMillis();
+        if (userId == null || !queryRateLimitService.isSupervisionOverviewAllowed(userId)) {
+            return ApiResponse.failure(429, "query requests are too frequent");
+        }
         WarningStatsQueryDTO scopedQuery =
             warningStatsScopeService.applyScope(queryDTO, userId, userType, authorization);
         SupervisionOverviewVO overview = supervisionOverviewQueryService.getOverview(scopedQuery);

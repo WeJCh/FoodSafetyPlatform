@@ -5,6 +5,7 @@ import com.mortal.user.entity.Role;
 import com.mortal.user.entity.UserRole;
 import com.mortal.user.mapper.RoleMapper;
 import com.mortal.user.mapper.UserRoleMapper;
+import com.mortal.user.service.AuthRedisService;
 import com.mortal.user.service.RoleService;
 import java.util.List;
 import org.springframework.stereotype.Service;
@@ -14,10 +15,14 @@ public class RoleServiceImpl implements RoleService {
 
     private final RoleMapper roleMapper;
     private final UserRoleMapper userRoleMapper;
+    private final AuthRedisService authRedisService;
 
-    public RoleServiceImpl(RoleMapper roleMapper, UserRoleMapper userRoleMapper) {
+    public RoleServiceImpl(RoleMapper roleMapper,
+                           UserRoleMapper userRoleMapper,
+                           AuthRedisService authRedisService) {
         this.roleMapper = roleMapper;
         this.userRoleMapper = userRoleMapper;
+        this.authRedisService = authRedisService;
     }
 
     @Override
@@ -26,6 +31,7 @@ public class RoleServiceImpl implements RoleService {
         userRole.setUserId(userId);
         userRole.setRoleId(roleId);
         userRoleMapper.insert(userRole);
+        authRedisService.invalidateUserAllSessions(userId);
     }
 
     @Override

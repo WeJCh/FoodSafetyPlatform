@@ -20,6 +20,7 @@ import com.mortal.regulation.operation.mapper.InspectionTaskMapper;
 import com.mortal.regulation.operation.service.InspectionTaskService;
 import com.mortal.regulation.operation.service.RectificationService;
 import com.mortal.regulation.operation.service.WarningEventOutboxService;
+import com.mortal.regulation.operation.support.OperationLockSupport;
 import com.mortal.regulation.operation.support.OperationMasterDataSupport;
 import com.mortal.regulation.operation.vo.InspectionTaskVO;
 import java.time.LocalDate;
@@ -59,6 +60,7 @@ public class InspectionTaskServiceImpl implements InspectionTaskService {
     private final InspectionRecordMapper inspectionRecordMapper;
     private final InspectionItemMapper inspectionItemMapper;
     private final OperationMasterDataSupport masterDataSupport;
+    private final OperationLockSupport operationLockSupport;
     private final RectificationService rectificationService;
     private final WarningEventOutboxService warningEventOutboxService;
 
@@ -69,12 +71,14 @@ public class InspectionTaskServiceImpl implements InspectionTaskService {
                                      InspectionRecordMapper inspectionRecordMapper,
                                      InspectionItemMapper inspectionItemMapper,
                                      OperationMasterDataSupport masterDataSupport,
+                                     OperationLockSupport operationLockSupport,
                                      RectificationService rectificationService,
                                      WarningEventOutboxService warningEventOutboxService) {
         this.inspectionTaskMapper = inspectionTaskMapper;
         this.inspectionRecordMapper = inspectionRecordMapper;
         this.inspectionItemMapper = inspectionItemMapper;
         this.masterDataSupport = masterDataSupport;
+        this.operationLockSupport = operationLockSupport;
         this.rectificationService = rectificationService;
         this.warningEventOutboxService = warningEventOutboxService;
     }
@@ -195,6 +199,10 @@ public class InspectionTaskServiceImpl implements InspectionTaskService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public InspectionTaskVO submitTask(Long userId, Long taskId, InspectionSubmitDTO dto) {
+        return operationLockSupport.executeWithLock("inspection-submit", taskId, () -> doSubmitTask(userId, taskId, dto));
+    }
+
+    private InspectionTaskVO doSubmitTask(Long userId, Long taskId, InspectionSubmitDTO dto) {
         InternalRegulatorIdentityVO regulator = masterDataSupport.requireEnforcer(userId);
         InspectionTask task = requireTask(taskId);
         if (!Objects.equals(task.getAssignedTo(), regulator.getId())) {

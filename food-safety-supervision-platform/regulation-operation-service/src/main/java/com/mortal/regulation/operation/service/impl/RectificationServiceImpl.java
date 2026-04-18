@@ -19,6 +19,7 @@ import com.mortal.regulation.operation.mapper.RectificationActionLogMapper;
 import com.mortal.regulation.operation.mapper.RectificationTaskMapper;
 import com.mortal.regulation.operation.service.RectificationService;
 import com.mortal.regulation.operation.service.StatusTransitionValidator;
+import com.mortal.regulation.operation.support.OperationLockSupport;
 import com.mortal.regulation.operation.support.OperationMasterDataSupport;
 import com.mortal.regulation.operation.vo.RectificationActionLogVO;
 import com.mortal.regulation.operation.vo.RectificationTaskVO;
@@ -53,15 +54,18 @@ public class RectificationServiceImpl implements RectificationService {
     private final RectificationTaskMapper rectificationTaskMapper;
     private final RectificationActionLogMapper rectificationActionLogMapper;
     private final OperationMasterDataSupport masterDataSupport;
+    private final OperationLockSupport operationLockSupport;
     private final ObjectMapper objectMapper;
 
     public RectificationServiceImpl(RectificationTaskMapper rectificationTaskMapper,
                                     RectificationActionLogMapper rectificationActionLogMapper,
                                     OperationMasterDataSupport masterDataSupport,
+                                    OperationLockSupport operationLockSupport,
                                     ObjectMapper objectMapper) {
         this.rectificationTaskMapper = rectificationTaskMapper;
         this.rectificationActionLogMapper = rectificationActionLogMapper;
         this.masterDataSupport = masterDataSupport;
+        this.operationLockSupport = operationLockSupport;
         this.objectMapper = objectMapper;
     }
 
@@ -115,6 +119,14 @@ public class RectificationServiceImpl implements RectificationService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public RectificationTaskVO submitMy(Long enterpriseUserId, Long rectificationId, RectificationSubmitDTO dto) {
+        return operationLockSupport.executeWithLock(
+            "rectification-submit",
+            rectificationId,
+            () -> doSubmitMy(enterpriseUserId, rectificationId, dto)
+        );
+    }
+
+    private RectificationTaskVO doSubmitMy(Long enterpriseUserId, Long rectificationId, RectificationSubmitDTO dto) {
         InternalEnterpriseDetailVO enterprise = masterDataSupport.requireEnterpriseByUserId(enterpriseUserId);
         RectificationTask task = requireTask(rectificationId);
         if (!Objects.equals(task.getEnterpriseId(), enterprise.getId())) {
@@ -156,6 +168,14 @@ public class RectificationServiceImpl implements RectificationService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public RectificationTaskVO review(Long regulatorUserId, Long rectificationId, RectificationReviewDTO dto) {
+        return operationLockSupport.executeWithLock(
+            "rectification-review",
+            rectificationId,
+            () -> doReview(regulatorUserId, rectificationId, dto)
+        );
+    }
+
+    private RectificationTaskVO doReview(Long regulatorUserId, Long rectificationId, RectificationReviewDTO dto) {
         InternalRegulatorIdentityVO regulator = masterDataSupport.requireAdmin(regulatorUserId);
         RectificationTask task = requireTask(rectificationId);
         masterDataSupport.requireEnterpriseInScope(regulator.getId(), task.getEnterpriseId());

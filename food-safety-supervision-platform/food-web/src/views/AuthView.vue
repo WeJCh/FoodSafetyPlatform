@@ -183,6 +183,12 @@ async function handleLogin() {
   setStatus("");
   try {
     const result = await login(loginForm.value);
+    if (!result || typeof result !== "object") {
+      throw new Error("登录接口返回为空或格式不正确");
+    }
+    if (!result.token) {
+      throw new Error("登录接口未返回 token");
+    }
     const roles = Array.isArray(result.roles) ? result.roles : [];
     const sessionPayload = {
       token: result.token,

@@ -24,12 +24,16 @@ import com.mortal.regulation.mapper.FoodRegulatorMapper;
 import com.mortal.regulation.mapper.FoodRegulatorRegionMapper;
 import com.mortal.regulation.service.EnterpriseKeyReasonService;
 import com.mortal.regulation.service.EnterpriseProfileService;
+import com.mortal.regulation.support.EnterpriseMasterCacheService;
+import com.mortal.regulation.support.EnterprisePublicCacheService;
+import com.mortal.regulation.support.RegulatorMasterCacheService;
 import com.mortal.regulation.vo.BatchActionResult;
 import com.mortal.regulation.vo.EnterpriseProfileVO;
 import com.mortal.regulation.vo.EnterpriseProfileAttachmentVO;
 import com.mortal.regulation.vo.PublicEnterpriseDetailVO;
 import com.mortal.regulation.vo.PublicEnterpriseVO;
 import com.mortal.regulation.vo.RegionVO;
+import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
@@ -42,6 +46,7 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 import org.springframework.stereotype.Service;
+import org.springframework.util.DigestUtils;
 import org.springframework.util.StringUtils;
 
 @Service
@@ -62,6 +67,9 @@ public class EnterpriseProfileServiceImpl implements EnterpriseProfileService {
     private final UserServiceClient userServiceClient;
     private final EnterpriseKeyReasonService enterpriseKeyReasonService;
     private final MinioProperties minioProperties;
+    private final EnterpriseMasterCacheService enterpriseMasterCacheService;
+    private final EnterprisePublicCacheService enterprisePublicCacheService;
+    private final RegulatorMasterCacheService regulatorMasterCacheService;
 
     public EnterpriseProfileServiceImpl(FoodEnterpriseMapper foodEnterpriseMapper,
                                         EnterpriseProfileAttachmentMapper enterpriseProfileAttachmentMapper,
@@ -71,7 +79,10 @@ public class EnterpriseProfileServiceImpl implements EnterpriseProfileService {
                                         FoodRegulatorRegionMapper foodRegulatorRegionMapper,
                                         UserServiceClient userServiceClient,
                                         EnterpriseKeyReasonService enterpriseKeyReasonService,
-                                        MinioProperties minioProperties) {
+                                        MinioProperties minioProperties,
+                                        EnterpriseMasterCacheService enterpriseMasterCacheService,
+                                        EnterprisePublicCacheService enterprisePublicCacheService,
+                                        RegulatorMasterCacheService regulatorMasterCacheService) {
         this.foodEnterpriseMapper = foodEnterpriseMapper;
         this.enterpriseProfileAttachmentMapper = enterpriseProfileAttachmentMapper;
         this.addrLocationMapper = addrLocationMapper;
@@ -81,6 +92,9 @@ public class EnterpriseProfileServiceImpl implements EnterpriseProfileService {
         this.userServiceClient = userServiceClient;
         this.enterpriseKeyReasonService = enterpriseKeyReasonService;
         this.minioProperties = minioProperties;
+        this.enterpriseMasterCacheService = enterpriseMasterCacheService;
+        this.enterprisePublicCacheService = enterprisePublicCacheService;
+        this.regulatorMasterCacheService = regulatorMasterCacheService;
     }
 
     @Override
@@ -118,6 +132,7 @@ public class EnterpriseProfileServiceImpl implements EnterpriseProfileService {
         }
 
         saveProfileAttachments(enterprise.getId(), userId, dto.getAttachments());
+        evictEnterpriseMasterCaches(enterprise);
         EnterpriseProfileVO vo = toVO(enterprise, location.getDetail(), resolveRegionPath(enterprise.getRegionId()));
         attachAttachments(vo, listAttachmentVOs(enterprise.getId()));
         return vo;
@@ -180,26 +195,8 @@ public class EnterpriseProfileServiceImpl implements EnterpriseProfileService {
 
     @Override
     public PageResult<PublicEnterpriseVO> listPublic(String enterpriseName, int page, int size) {
-        int safeSize = Math.max(1, Math.min(size, 50));
-        int safePage = Math.max(1, page);
-        var wrapper = new LambdaQueryWrapper<FoodEnterprise>()
-            .eq(FoodEnterprise::getDeleted, 0)
-            .eq(FoodEnterprise::getApprovalStatus, APPROVAL_APPROVED);
-        if (StringUtils.hasText(enterpriseName)) {
-            wrapper.like(FoodEnterprise::getEnterpriseName, enterpriseName.trim());
-        }
-        wrapper.orderByAsc(FoodEnterprise::getEnterpriseName);
-        Page<FoodEnterprise> pageInfo = foodEnterpriseMapper.selectPage(new Page<>(safePage, safeSize), wrapper);
-        List<FoodEnterprise> enterprises = pageInfo.getRecords();
-        Map<Long, List<RegionVO>> regionPathMap = loadRegionPaths(enterprises);
-        Map<Long, String> addressMap = loadAddressDetails(enterprises);
-        List<PublicEnterpriseVO> records = enterprises.stream()
-            .map(enterprise -> toPublicVO(
-                enterprise,
-                regionPathMap.get(enterprise.getRegionId()),
-                addressMap.get(enterprise.getAddressId())))
-            .toList();
-        return PageResult.of(records, pageInfo.getTotal(), safePage, safeSize);
+        String queryHash = buildPublicEnterpriseQueryHash(enterpriseName, page, size);
+        return enterprisePublicCacheService.getList(queryHash, () -> loadPublicEnterpriseList(enterpriseName, page, size));
     }
 
     /**
@@ -212,20 +209,7 @@ public class EnterpriseProfileServiceImpl implements EnterpriseProfileService {
         if (enterpriseId == null) {
             return null;
         }
-        FoodEnterprise enterprise = foodEnterpriseMapper.selectById(enterpriseId);
-        if (enterprise == null || isDeleted(enterprise.getDeleted())) {
-            return null;
-        }
-        if (!APPROVAL_APPROVED.equalsIgnoreCase(enterprise.getApprovalStatus())) {
-            return null;
-        }
-        PublicEnterpriseDetailVO vo = toPublicDetailVO(
-            enterprise,
-            resolveRegionPath(enterprise.getRegionId()),
-            resolveAddressDetail(enterprise.getAddressId()));
-        attachAttachments(vo, listAttachmentVOs(enterprise.getId()));
-        attachKeyReasons(vo, enterprise.getId());
-        return vo;
+        return enterprisePublicCacheService.getDetail(enterpriseId, () -> loadPublicEnterpriseDetail(enterpriseId));
     }
 
     private PageResult<EnterpriseProfileVO> listByRegionIds(String enterpriseName,
@@ -307,6 +291,7 @@ public class EnterpriseProfileServiceImpl implements EnterpriseProfileService {
     public EnterpriseProfileVO approve(Long enterpriseId, Long operatorId, EnterpriseApprovalDTO dto) {
         FoodEnterprise enterprise = requireEnterprise(enterpriseId);
         applyApproval(enterprise, APPROVAL_APPROVED, operatorId, dto.getComment(), dto.getRegulatorName());
+        evictEnterpriseMasterCaches(enterprise);
         EnterpriseProfileVO vo = toVO(
             enterprise,
             resolveAddressDetail(enterprise.getAddressId()),
@@ -320,6 +305,7 @@ public class EnterpriseProfileServiceImpl implements EnterpriseProfileService {
     public EnterpriseProfileVO reject(Long enterpriseId, Long operatorId, EnterpriseApprovalDTO dto) {
         FoodEnterprise enterprise = requireEnterprise(enterpriseId);
         applyApproval(enterprise, APPROVAL_REJECTED, operatorId, dto.getComment(), dto.getRegulatorName());
+        evictEnterpriseMasterCaches(enterprise);
         EnterpriseProfileVO vo = toVO(
             enterprise,
             resolveAddressDetail(enterprise.getAddressId()),
@@ -347,6 +333,7 @@ public class EnterpriseProfileServiceImpl implements EnterpriseProfileService {
         foodEnterpriseMapper.updateById(enterprise);
         markAddressDeleted(enterprise.getAddressId());
         markAttachmentsDeleted(enterprise.getId());
+        evictEnterpriseMasterCaches(enterprise);
         if (enterprise.getUserId() != null) {
             userServiceClient.deleteUser(enterprise.getUserId());
         }
@@ -666,6 +653,7 @@ public class EnterpriseProfileServiceImpl implements EnterpriseProfileService {
                 continue;
             }
             applyApproval(enterprise, status, operatorId, comment, regulatorName);
+            evictEnterpriseMasterCaches(enterprise);
             successCount += 1;
         }
         result.setSuccessCount(successCount);
@@ -709,6 +697,64 @@ public class EnterpriseProfileServiceImpl implements EnterpriseProfileService {
             result.put(regionId, resolveRegionPath(regionId));
         }
         return result;
+    }
+
+    private void evictEnterpriseMasterCaches(FoodEnterprise enterprise) {
+        if (enterprise == null) {
+            return;
+        }
+        enterpriseMasterCacheService.evict(enterprise.getId(), enterprise.getUserId());
+        enterprisePublicCacheService.evict(enterprise.getId());
+        regulatorMasterCacheService.bumpScopeEnterpriseVersion();
+    }
+
+    private PageResult<PublicEnterpriseVO> loadPublicEnterpriseList(String enterpriseName, int page, int size) {
+        int safeSize = Math.max(1, Math.min(size, 50));
+        int safePage = Math.max(1, page);
+        var wrapper = new LambdaQueryWrapper<FoodEnterprise>()
+            .eq(FoodEnterprise::getDeleted, 0)
+            .eq(FoodEnterprise::getApprovalStatus, APPROVAL_APPROVED);
+        if (StringUtils.hasText(enterpriseName)) {
+            wrapper.like(FoodEnterprise::getEnterpriseName, enterpriseName.trim());
+        }
+        wrapper.orderByAsc(FoodEnterprise::getEnterpriseName);
+        Page<FoodEnterprise> pageInfo = foodEnterpriseMapper.selectPage(new Page<>(safePage, safeSize), wrapper);
+        List<FoodEnterprise> enterprises = pageInfo.getRecords();
+        Map<Long, List<RegionVO>> regionPathMap = loadRegionPaths(enterprises);
+        Map<Long, String> addressMap = loadAddressDetails(enterprises);
+        List<PublicEnterpriseVO> records = enterprises.stream()
+            .map(enterprise -> toPublicVO(
+                enterprise,
+                regionPathMap.get(enterprise.getRegionId()),
+                addressMap.get(enterprise.getAddressId())))
+            .toList();
+        return PageResult.of(records, pageInfo.getTotal(), safePage, safeSize);
+    }
+
+    private PublicEnterpriseDetailVO loadPublicEnterpriseDetail(Long enterpriseId) {
+        FoodEnterprise enterprise = foodEnterpriseMapper.selectById(enterpriseId);
+        if (enterprise == null || isDeleted(enterprise.getDeleted())) {
+            return null;
+        }
+        if (!APPROVAL_APPROVED.equalsIgnoreCase(enterprise.getApprovalStatus())) {
+            return null;
+        }
+        PublicEnterpriseDetailVO vo = toPublicDetailVO(
+            enterprise,
+            resolveRegionPath(enterprise.getRegionId()),
+            resolveAddressDetail(enterprise.getAddressId()));
+        attachAttachments(vo, listAttachmentVOs(enterprise.getId()));
+        attachKeyReasons(vo, enterprise.getId());
+        return vo;
+    }
+
+    private String buildPublicEnterpriseQueryHash(String enterpriseName, int page, int size) {
+        String raw = String.join("|",
+            StringUtils.hasText(enterpriseName) ? enterpriseName.trim() : "",
+            String.valueOf(Math.max(1, page)),
+            String.valueOf(Math.max(1, Math.min(size, 50)))
+        );
+        return DigestUtils.md5DigestAsHex(raw.getBytes(StandardCharsets.UTF_8));
     }
 
     private List<RegionVO> resolveRegionPath(Long regionId) {
@@ -867,5 +913,3 @@ public class EnterpriseProfileServiceImpl implements EnterpriseProfileService {
         return StringUtils.hasText(value) ? value.trim().toUpperCase() : null;
     }
 }
-
-

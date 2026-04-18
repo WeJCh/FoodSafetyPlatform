@@ -11,6 +11,9 @@ import com.mortal.warning.entity.WarningProcessLog;
 import com.mortal.warning.entity.WarningRecord;
 import com.mortal.warning.mapper.WarningProcessLogMapper;
 import com.mortal.warning.mapper.WarningRecordMapper;
+import com.mortal.warning.config.WarningSchedulerLockProperties;
+import com.mortal.warning.support.WarningSchedulerLockSupport;
+import com.mortal.warning.support.WarningStatsCacheSupport;
 import java.time.Duration;
 import java.time.DateTimeException;
 import java.time.Instant;
@@ -40,6 +43,7 @@ import org.springframework.util.StringUtils;
 public class WarningEscalationScheduler {
 
     private static final Logger log = LoggerFactory.getLogger(WarningEscalationScheduler.class);
+    private static final String SCHEDULER_LOCK_NAME = "warning:escalation";
 
     private static final String BIZ_TYPE_RECTIFICATION = "RECTIFICATION";
     private static final Set<WarningStatus> ACTIVE_STATUSES = EnumSet.of(
@@ -55,6 +59,9 @@ public class WarningEscalationScheduler {
     private final WarningRecordMapper warningRecordMapper;
     private final WarningProcessLogMapper warningProcessLogMapper;
     private final ObjectMapper objectMapper;
+    private final WarningSchedulerLockSupport warningSchedulerLockSupport;
+    private final WarningSchedulerLockProperties warningSchedulerLockProperties;
+    private final WarningStatsCacheSupport warningStatsCacheSupport;
 
     @Value("${warning.escalation.enabled:true}")
     private boolean escalationEnabled;
@@ -64,10 +71,16 @@ public class WarningEscalationScheduler {
 
     public WarningEscalationScheduler(WarningRecordMapper warningRecordMapper,
                                       WarningProcessLogMapper warningProcessLogMapper,
-                                      ObjectMapper objectMapper) {
+                                      ObjectMapper objectMapper,
+                                      WarningSchedulerLockSupport warningSchedulerLockSupport,
+                                      WarningSchedulerLockProperties warningSchedulerLockProperties,
+                                      WarningStatsCacheSupport warningStatsCacheSupport) {
         this.warningRecordMapper = warningRecordMapper;
         this.warningProcessLogMapper = warningProcessLogMapper;
         this.objectMapper = objectMapper;
+        this.warningSchedulerLockSupport = warningSchedulerLockSupport;
+        this.warningSchedulerLockProperties = warningSchedulerLockProperties;
+        this.warningStatsCacheSupport = warningStatsCacheSupport;
     }
 
     /**
@@ -82,10 +95,19 @@ public class WarningEscalationScheduler {
             return;
         }
         try {
-            LocalDateTime now = LocalDateTime.now();
-            List<WarningRecord> candidates = loadCandidates();
-            for (WarningRecord record : candidates) {
-                tryEscalateSingle(record, now);
+            boolean executed = warningSchedulerLockSupport.executeWithLock(
+                SCHEDULER_LOCK_NAME,
+                warningSchedulerLockProperties.getEscalationLeaseSeconds(),
+                () -> {
+                LocalDateTime now = LocalDateTime.now();
+                List<WarningRecord> candidates = loadCandidates();
+                for (WarningRecord record : candidates) {
+                    tryEscalateSingle(record, now);
+                }
+                }
+            );
+            if (!executed) {
+                log.debug("Skip warning escalation scan because scheduler lock is held by another instance.");
             }
         } catch (Exception ex) {
             log.error("Warning escalation scan failed.", ex);
@@ -148,6 +170,7 @@ public class WarningEscalationScheduler {
         processLog.setUpdateTime(now);
         processLog.setDeleted(0);
         warningProcessLogMapper.insert(processLog);
+        warningStatsCacheSupport.bumpVersion();
     }
 
     /**

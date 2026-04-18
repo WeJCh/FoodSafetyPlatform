@@ -8,6 +8,9 @@ import com.mortal.warning.entity.WarningProcessLog;
 import com.mortal.warning.entity.WarningRecord;
 import com.mortal.warning.mapper.WarningProcessLogMapper;
 import com.mortal.warning.mapper.WarningRecordMapper;
+import com.mortal.warning.config.WarningSchedulerLockProperties;
+import com.mortal.warning.support.WarningSchedulerLockSupport;
+import com.mortal.warning.support.WarningStatsCacheSupport;
 import java.time.LocalDateTime;
 import java.util.List;
 import org.slf4j.Logger;
@@ -24,9 +27,13 @@ import org.springframework.util.StringUtils;
 public class WarningArchiveScheduler {
 
     private static final Logger log = LoggerFactory.getLogger(WarningArchiveScheduler.class);
+    private static final String SCHEDULER_LOCK_NAME = "warning:archive";
 
     private final WarningRecordMapper warningRecordMapper;
     private final WarningProcessLogMapper warningProcessLogMapper;
+    private final WarningSchedulerLockSupport warningSchedulerLockSupport;
+    private final WarningSchedulerLockProperties warningSchedulerLockProperties;
+    private final WarningStatsCacheSupport warningStatsCacheSupport;
 
     @Value("${warning.archive.enabled:true}")
     private boolean archiveEnabled;
@@ -38,9 +45,15 @@ public class WarningArchiveScheduler {
     private int batchSize;
 
     public WarningArchiveScheduler(WarningRecordMapper warningRecordMapper,
-                                   WarningProcessLogMapper warningProcessLogMapper) {
+                                   WarningProcessLogMapper warningProcessLogMapper,
+                                   WarningSchedulerLockSupport warningSchedulerLockSupport,
+                                   WarningSchedulerLockProperties warningSchedulerLockProperties,
+                                   WarningStatsCacheSupport warningStatsCacheSupport) {
         this.warningRecordMapper = warningRecordMapper;
         this.warningProcessLogMapper = warningProcessLogMapper;
+        this.warningSchedulerLockSupport = warningSchedulerLockSupport;
+        this.warningSchedulerLockProperties = warningSchedulerLockProperties;
+        this.warningStatsCacheSupport = warningStatsCacheSupport;
     }
 
     /**
@@ -55,17 +68,26 @@ public class WarningArchiveScheduler {
             return;
         }
         try {
-            LocalDateTime now = LocalDateTime.now();
-            LocalDateTime cutoffTime = now.minusDays(resolvedDays);
-            List<WarningRecord> candidates = warningRecordMapper.selectList(new LambdaQueryWrapper<WarningRecord>()
-                .eq(WarningRecord::getDeleted, 0)
-                .eq(WarningRecord::getStatus, WarningStatus.RESOLVED.name())
-                .isNotNull(WarningRecord::getResolvedTime)
-                .le(WarningRecord::getResolvedTime, cutoffTime)
-                .orderByAsc(WarningRecord::getResolvedTime, WarningRecord::getId)
-                .last("limit " + Math.max(1, batchSize)));
-            for (WarningRecord record : candidates) {
-                archiveSingle(record, now, cutoffTime);
+            boolean executed = warningSchedulerLockSupport.executeWithLock(
+                SCHEDULER_LOCK_NAME,
+                warningSchedulerLockProperties.getArchiveLeaseSeconds(),
+                () -> {
+                LocalDateTime now = LocalDateTime.now();
+                LocalDateTime cutoffTime = now.minusDays(resolvedDays);
+                List<WarningRecord> candidates = warningRecordMapper.selectList(new LambdaQueryWrapper<WarningRecord>()
+                    .eq(WarningRecord::getDeleted, 0)
+                    .eq(WarningRecord::getStatus, WarningStatus.RESOLVED.name())
+                    .isNotNull(WarningRecord::getResolvedTime)
+                    .le(WarningRecord::getResolvedTime, cutoffTime)
+                    .orderByAsc(WarningRecord::getResolvedTime, WarningRecord::getId)
+                    .last("limit " + Math.max(1, batchSize)));
+                for (WarningRecord record : candidates) {
+                    archiveSingle(record, now, cutoffTime);
+                }
+                }
+            );
+            if (!executed) {
+                log.debug("Skip warning archive scan because scheduler lock is held by another instance.");
             }
         } catch (Exception ex) {
             log.error("Warning auto archive scan failed.", ex);
@@ -103,6 +125,6 @@ public class WarningArchiveScheduler {
         processLog.setUpdateTime(now);
         processLog.setDeleted(0);
         warningProcessLogMapper.insert(processLog);
+        warningStatsCacheSupport.bumpVersion();
     }
 }
-

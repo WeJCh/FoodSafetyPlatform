@@ -42,6 +42,10 @@ export async function request(path, options = {}) {
     throw new Error(data.message || "Request failed");
   }
 
+  if (response.ok && data == null) {
+    throw new Error(`Empty or non-JSON response from ${path}`);
+  }
+
   return data?.data ?? data;
 }
 

@@ -4,6 +4,13 @@ server:
 spring:
   application:
     name: user-service
+  data:
+    redis:
+      host: ${REDIS_HOST:192.168.142.133}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:123456}
+      database: ${REDIS_DATABASE:0}
+      timeout: 3s
   cloud:
     nacos:
       discovery:
@@ -27,3 +34,8 @@ mybatis-plus:
 jwt:
   secret: "foodUserServiceJwtSecretKey123456"
   expiration-minutes: 120
+
+platform:
+  redis:
+    key-prefix: ${PLATFORM_REDIS_KEY_PREFIX:fsp}
+    env: ${PLATFORM_REDIS_ENV:dev}

@@ -5,6 +5,7 @@ import com.mortal.query.client.RegulatorProfileClient;
 import com.mortal.platform.common.ApiResponse;
 import com.mortal.query.common.ForbiddenException;
 import com.mortal.query.dto.WarningStatsQueryDTO;
+import com.mortal.query.support.QueryRedisCacheSupport;
 import com.mortal.query.vo.RegulatorProfileVO;
 import com.mortal.query.vo.RegionVO;
 import java.util.ArrayDeque;
@@ -31,11 +32,14 @@ public class WarningStatsScopeService {
 
     private final RegulatorProfileClient regulatorProfileClient;
     private final RegulationRegionClient regulationRegionClient;
+    private final QueryRedisCacheSupport queryRedisCacheSupport;
 
     public WarningStatsScopeService(RegulatorProfileClient regulatorProfileClient,
-                                    RegulationRegionClient regulationRegionClient) {
+                                    RegulationRegionClient regulationRegionClient,
+                                    QueryRedisCacheSupport queryRedisCacheSupport) {
         this.regulatorProfileClient = regulatorProfileClient;
         this.regulationRegionClient = regulationRegionClient;
+        this.queryRedisCacheSupport = queryRedisCacheSupport;
     }
 
     /**
@@ -53,7 +57,7 @@ public class WarningStatsScopeService {
         if (!normalizedUserType.startsWith("REGULATOR")) {
             return query;
         }
-        RegulatorProfileVO profile = loadMyProfile(authorization);
+        RegulatorProfileVO profile = loadMyProfile(userId, authorization);
         String roleType = normalizeRoleType(profile.getRoleType());
         if (ROLE_ENFORCER.equals(roleType)) {
             applyEnforcerScope(query, profile.getId());
@@ -61,7 +65,7 @@ public class WarningStatsScopeService {
         }
         if (ROLE_ADMIN.equals(roleType)) {
             Set<Long> directRegionIds = parsePositiveIds(profile.getRegionIds());
-            Set<Long> fullRegionIds = expandRegionIds(directRegionIds, authorization);
+            Set<Long> fullRegionIds = expandRegionIds(profile.getId(), directRegionIds, authorization);
             applyAdminScope(query, fullRegionIds);
             return query;
         }
@@ -104,21 +108,18 @@ public class WarningStatsScopeService {
         query.setRegionIds(joinRegionIds(allowedRegionIds));
     }
 
-    private RegulatorProfileVO loadMyProfile(String authorization) {
+    private RegulatorProfileVO loadMyProfile(Long userId, String authorization) {
         if (!StringUtils.hasText(authorization)) {
             throw new IllegalArgumentException("authorization required");
         }
-        ApiResponse<RegulatorProfileVO> response = regulatorProfileClient.getMyProfile(authorization);
-        if (response == null) {
-            throw new IllegalStateException("load regulator profile failed");
+        if (userId == null || userId <= 0) {
+            return requireProfile(regulatorProfileClient.getMyProfile(authorization));
         }
-        if (response.getCode() != 0 || response.getData() == null) {
-            String message = StringUtils.hasText(response.getMessage())
-                ? response.getMessage()
-                : "load regulator profile failed";
-            throw new ForbiddenException(message);
-        }
-        return response.getData();
+        String cacheKey = queryRedisCacheSupport.buildKey("query", "scope", "profile", String.valueOf(userId));
+        return queryRedisCacheSupport.getScopeOrLoad(
+            cacheKey,
+            () -> requireProfile(regulatorProfileClient.getMyProfile(authorization))
+        );
     }
 
     private WarningStatsQueryDTO copy(WarningStatsQueryDTO source) {
@@ -182,13 +183,29 @@ public class WarningStatsScopeService {
     /**
      * 管理员统计范围按“辖区+下级辖区”展开，保证与监管预警列表口径一致。
      */
-    private Set<Long> expandRegionIds(Set<Long> rootRegionIds, String authorization) {
+    private Set<Long> expandRegionIds(Long regulatorId, Set<Long> rootRegionIds, String authorization) {
         if (rootRegionIds == null || rootRegionIds.isEmpty()) {
             return Set.of();
         }
         if (!StringUtils.hasText(authorization)) {
             return rootRegionIds;
         }
+        if (regulatorId != null && regulatorId > 0) {
+            String cacheKey = queryRedisCacheSupport.buildKey(
+                "query",
+                "scope",
+                "region-set",
+                String.valueOf(regulatorId)
+            );
+            return queryRedisCacheSupport.getScopeOrLoad(
+                cacheKey,
+                () -> loadExpandedRegionIds(rootRegionIds, authorization)
+            );
+        }
+        return loadExpandedRegionIds(rootRegionIds, authorization);
+    }
+
+    private Set<Long> loadExpandedRegionIds(Set<Long> rootRegionIds, String authorization) {
         Set<Long> result = new LinkedHashSet<>(rootRegionIds);
         ArrayDeque<Long> queue = new ArrayDeque<>(rootRegionIds);
         while (!queue.isEmpty()) {
@@ -204,6 +221,19 @@ public class WarningStatsScopeService {
             }
         }
         return result;
+    }
+
+    private RegulatorProfileVO requireProfile(ApiResponse<RegulatorProfileVO> response) {
+        if (response == null) {
+            throw new IllegalStateException("load regulator profile failed");
+        }
+        if (response.getCode() != 0 || response.getData() == null) {
+            String message = StringUtils.hasText(response.getMessage())
+                ? response.getMessage()
+                : "load regulator profile failed";
+            throw new ForbiddenException(message);
+        }
+        return response.getData();
     }
 
     private List<RegionVO> fetchRegions(String authorization, Long parentId) {

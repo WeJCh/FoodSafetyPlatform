@@ -4,6 +4,13 @@ server:
 spring:
   application:
     name: warning-service
+  data:
+    redis:
+      host: ${REDIS_HOST:192.168.142.133}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:123456}
+      database: ${REDIS_DATABASE:0}
+      timeout: 3s
   cloud:
     nacos:
       config:
@@ -25,6 +32,19 @@ mybatis-plus:
     map-underscore-to-camel-case: true
 
 warning:
+  scheduler:
+    lock:
+      wait-seconds: ${WARNING_SCHEDULER_LOCK_WAIT_SECONDS:0}
+      escalation-lease-seconds: ${WARNING_ESCALATION_SCHEDULER_LOCK_LEASE_SECONDS:300}
+      archive-lease-seconds: ${WARNING_ARCHIVE_SCHEDULER_LOCK_LEASE_SECONDS:900}
+  lock:
+    wait-seconds: ${WARNING_LOCK_WAIT_SECONDS:0}
+    lease-seconds: ${WARNING_LOCK_LEASE_SECONDS:15}
+  cache:
+    stats:
+      enabled: ${WARNING_STATS_CACHE_ENABLED:true}
+      ttl-seconds: ${WARNING_STATS_CACHE_TTL_SECONDS:30}
+      lock-lease-seconds: ${WARNING_STATS_CACHE_LOCK_LEASE_SECONDS:5}
   internal:
     # 与 query-service 使用同一环境变量 WARNING_INTERNAL_TOKEN，确保内部统计/事件接口鉴权一致。
     token: ${WARNING_INTERNAL_TOKEN:warning-internal-token}
@@ -39,3 +59,8 @@ warning:
     initial-delay-ms: ${WARNING_ARCHIVE_INITIAL_DELAY_MS:120000}
     resolved-days: ${WARNING_ARCHIVE_RESOLVED_DAYS:7}
     batch-size: ${WARNING_ARCHIVE_BATCH_SIZE:100}
+
+platform:
+  redis:
+    key-prefix: ${PLATFORM_REDIS_KEY_PREFIX:fsp}
+    env: ${PLATFORM_REDIS_ENV:dev}

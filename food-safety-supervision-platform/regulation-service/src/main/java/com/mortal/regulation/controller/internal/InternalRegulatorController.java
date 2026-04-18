@@ -10,6 +10,7 @@ import com.mortal.regulation.mapper.AddrRegionMapper;
 import com.mortal.regulation.mapper.FoodEnterpriseMapper;
 import com.mortal.regulation.mapper.FoodRegulatorMapper;
 import com.mortal.regulation.mapper.FoodRegulatorRegionMapper;
+import com.mortal.regulation.support.RegulatorMasterCacheService;
 import com.mortal.regulation.vo.internal.InternalRegulatorIdentityVO;
 import com.mortal.regulation.vo.internal.InternalRegulatorSummaryVO;
 import java.util.ArrayDeque;
@@ -38,44 +39,48 @@ public class InternalRegulatorController {
     private final FoodRegulatorRegionMapper foodRegulatorRegionMapper;
     private final AddrRegionMapper addrRegionMapper;
     private final FoodEnterpriseMapper foodEnterpriseMapper;
+    private final RegulatorMasterCacheService regulatorMasterCacheService;
 
     public InternalRegulatorController(FoodRegulatorMapper foodRegulatorMapper,
                                        FoodRegulatorRegionMapper foodRegulatorRegionMapper,
                                        AddrRegionMapper addrRegionMapper,
-                                       FoodEnterpriseMapper foodEnterpriseMapper) {
+                                       FoodEnterpriseMapper foodEnterpriseMapper,
+                                       RegulatorMasterCacheService regulatorMasterCacheService) {
         this.foodRegulatorMapper = foodRegulatorMapper;
         this.foodRegulatorRegionMapper = foodRegulatorRegionMapper;
         this.addrRegionMapper = addrRegionMapper;
         this.foodEnterpriseMapper = foodEnterpriseMapper;
+        this.regulatorMasterCacheService = regulatorMasterCacheService;
     }
 
     @GetMapping("/by-user/{userId}")
     public ApiResponse<InternalRegulatorIdentityVO> getByUserId(@PathVariable Long userId) {
-        FoodRegulator regulator = foodRegulatorMapper.selectOne(new LambdaQueryWrapper<FoodRegulator>()
-            .eq(FoodRegulator::getUserId, userId)
-            .eq(FoodRegulator::getDeleted, 0));
-        if (regulator == null) {
+        InternalRegulatorIdentityVO identity =
+            regulatorMasterCacheService.getByUser(userId, () -> loadIdentityByUserId(userId));
+        if (identity == null) {
             return ApiResponse.failure(404, "regulator not found");
         }
-        return ApiResponse.success(toIdentityVO(regulator, findDirectRegionIds(regulator.getId())));
+        return ApiResponse.success(identity);
     }
 
     @GetMapping("/{id}/identity")
     public ApiResponse<InternalRegulatorIdentityVO> getIdentityById(@PathVariable Long id) {
-        FoodRegulator regulator = foodRegulatorMapper.selectById(id);
-        if (regulator == null || isDeleted(regulator.getDeleted())) {
+        InternalRegulatorIdentityVO identity =
+            regulatorMasterCacheService.getIdentity(id, () -> loadIdentityById(id));
+        if (identity == null) {
             return ApiResponse.failure(404, "regulator not found");
         }
-        return ApiResponse.success(toIdentityVO(regulator, findDirectRegionIds(regulator.getId())));
+        return ApiResponse.success(identity);
     }
 
     @GetMapping("/{id}")
     public ApiResponse<InternalRegulatorSummaryVO> getById(@PathVariable Long id) {
-        FoodRegulator regulator = foodRegulatorMapper.selectById(id);
-        if (regulator == null || isDeleted(regulator.getDeleted())) {
+        InternalRegulatorSummaryVO summary =
+            regulatorMasterCacheService.getSummary(id, () -> loadSummaryById(id));
+        if (summary == null) {
             return ApiResponse.failure(404, "regulator not found");
         }
-        return ApiResponse.success(toSummaryVO(regulator));
+        return ApiResponse.success(summary);
     }
 
     @PostMapping("/summaries")
@@ -84,21 +89,8 @@ public class InternalRegulatorController {
         if (cleanedIds.isEmpty()) {
             return ApiResponse.success(List.of());
         }
-        List<FoodRegulator> regulators = foodRegulatorMapper.selectBatchIds(cleanedIds)
-            .stream()
-            .filter(Objects::nonNull)
-            .filter(regulator -> !isDeleted(regulator.getDeleted()))
-            .toList();
-        if (regulators.isEmpty()) {
-            return ApiResponse.success(List.of());
-        }
-        Map<Long, FoodRegulator> regulatorMap = regulators.stream()
-            .collect(Collectors.toMap(FoodRegulator::getId, Function.identity(), (a, b) -> a));
-        List<InternalRegulatorSummaryVO> result = cleanedIds.stream()
-            .map(regulatorMap::get)
-            .filter(Objects::nonNull)
-            .map(this::toSummaryVO)
-            .toList();
+        List<InternalRegulatorSummaryVO> result =
+            regulatorMasterCacheService.getSummaries(cleanedIds, this::loadSummariesByIds);
         return ApiResponse.success(result);
     }
 
@@ -125,22 +117,8 @@ public class InternalRegulatorController {
         if (regulator == null || isDeleted(regulator.getDeleted())) {
             return ApiResponse.failure(404, "regulator not found");
         }
-        List<Long> directRegionIds = findDirectRegionIds(id);
-        if (directRegionIds.isEmpty()) {
-            return ApiResponse.success(List.of());
-        }
-        List<Long> scopeRegionIds = collectRegionIds(directRegionIds);
-        if (scopeRegionIds.isEmpty()) {
-            return ApiResponse.success(List.of());
-        }
-        List<Long> enterpriseIds = foodEnterpriseMapper.selectList(new LambdaQueryWrapper<FoodEnterprise>()
-                .eq(FoodEnterprise::getDeleted, 0)
-                .in(FoodEnterprise::getRegionId, scopeRegionIds))
-            .stream()
-            .map(FoodEnterprise::getId)
-            .filter(Objects::nonNull)
-            .distinct()
-            .toList();
+        List<Long> enterpriseIds =
+            regulatorMasterCacheService.getScopeEnterpriseIds(id, () -> loadScopeEnterpriseIds(id));
         return ApiResponse.success(enterpriseIds);
     }
 
@@ -150,11 +128,76 @@ public class InternalRegulatorController {
         if (regulator == null || isDeleted(regulator.getDeleted())) {
             return ApiResponse.failure(404, "regulator not found");
         }
+        return ApiResponse.success(
+            regulatorMasterCacheService.getScopeRegionIds(id, () -> loadScopeRegionIds(id))
+        );
+    }
+
+    private InternalRegulatorIdentityVO loadIdentityByUserId(Long userId) {
+        FoodRegulator regulator = foodRegulatorMapper.selectOne(new LambdaQueryWrapper<FoodRegulator>()
+            .eq(FoodRegulator::getUserId, userId)
+            .eq(FoodRegulator::getDeleted, 0));
+        if (regulator == null) {
+            return null;
+        }
+        return toIdentityVO(regulator, findDirectRegionIds(regulator.getId()));
+    }
+
+    private InternalRegulatorIdentityVO loadIdentityById(Long id) {
+        FoodRegulator regulator = foodRegulatorMapper.selectById(id);
+        if (regulator == null || isDeleted(regulator.getDeleted())) {
+            return null;
+        }
+        return toIdentityVO(regulator, findDirectRegionIds(regulator.getId()));
+    }
+
+    private InternalRegulatorSummaryVO loadSummaryById(Long id) {
+        FoodRegulator regulator = foodRegulatorMapper.selectById(id);
+        if (regulator == null || isDeleted(regulator.getDeleted())) {
+            return null;
+        }
+        return toSummaryVO(regulator);
+    }
+
+    private List<InternalRegulatorSummaryVO> loadSummariesByIds(List<Long> ids) {
+        List<FoodRegulator> regulators = foodRegulatorMapper.selectBatchIds(ids)
+            .stream()
+            .filter(Objects::nonNull)
+            .filter(regulator -> !isDeleted(regulator.getDeleted()))
+            .toList();
+        if (regulators.isEmpty()) {
+            return List.of();
+        }
+        Map<Long, FoodRegulator> regulatorMap = regulators.stream()
+            .collect(Collectors.toMap(FoodRegulator::getId, Function.identity(), (a, b) -> a));
+        return ids.stream()
+            .map(regulatorMap::get)
+            .filter(Objects::nonNull)
+            .map(this::toSummaryVO)
+            .toList();
+    }
+
+    private List<Long> loadScopeRegionIds(Long id) {
         List<Long> directRegionIds = findDirectRegionIds(id);
         if (directRegionIds.isEmpty()) {
-            return ApiResponse.success(List.of());
+            return List.of();
         }
-        return ApiResponse.success(collectRegionIds(directRegionIds));
+        return collectRegionIds(directRegionIds);
+    }
+
+    private List<Long> loadScopeEnterpriseIds(Long id) {
+        List<Long> scopeRegionIds = loadScopeRegionIds(id);
+        if (scopeRegionIds.isEmpty()) {
+            return List.of();
+        }
+        return foodEnterpriseMapper.selectList(new LambdaQueryWrapper<FoodEnterprise>()
+                .eq(FoodEnterprise::getDeleted, 0)
+                .in(FoodEnterprise::getRegionId, scopeRegionIds))
+            .stream()
+            .map(FoodEnterprise::getId)
+            .filter(Objects::nonNull)
+            .distinct()
+            .toList();
     }
 
     @GetMapping("/{id}/assignable-to-region/{regionId}")

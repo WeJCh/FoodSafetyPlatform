@@ -4,6 +4,13 @@ server:
 spring:
   application:
     name: regulation-service
+  data:
+    redis:
+      host: ${REDIS_HOST:192.168.142.133}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:123456}
+      database: ${REDIS_DATABASE:0}
+      timeout: 3s
   cloud:
     nacos:
       config:
@@ -38,6 +45,20 @@ minio:
 regulation:
   internal:
     token: ${REGULATION_INTERNAL_TOKEN:regulation-internal-token}
+  cache:
+    region:
+      enabled: ${REGULATION_REGION_CACHE_ENABLED:true}
+      ttl-seconds: ${REGULATION_REGION_CACHE_TTL_SECONDS:86400}
+      lock-lease-seconds: ${REGULATION_REGION_CACHE_LOCK_LEASE_SECONDS:5}
+    master-data:
+      enabled: ${REGULATION_MASTER_CACHE_ENABLED:true}
+      ttl-seconds: ${REGULATION_MASTER_CACHE_TTL_SECONDS:600}
+      lock-lease-seconds: ${REGULATION_MASTER_CACHE_LOCK_LEASE_SECONDS:5}
+    public-data:
+      enabled: ${REGULATION_PUBLIC_CACHE_ENABLED:true}
+      list-ttl-seconds: ${REGULATION_PUBLIC_LIST_CACHE_TTL_SECONDS:60}
+      detail-ttl-seconds: ${REGULATION_PUBLIC_DETAIL_CACHE_TTL_SECONDS:300}
+      lock-lease-seconds: ${REGULATION_PUBLIC_CACHE_LOCK_LEASE_SECONDS:5}
   rectification:
     sla:
       scan-ms: ${RECTIFICATION_SLA_SCAN_MS:300000}
@@ -49,7 +70,18 @@ regulation:
       max-retry: ${REG_WARNING_OUTBOX_MAX_RETRY:8}
       backoff-base-seconds: ${REG_WARNING_OUTBOX_BACKOFF_BASE_SECONDS:30}
       backoff-max-seconds: ${REG_WARNING_OUTBOX_BACKOFF_MAX_SECONDS:1800}
+  rate-limit:
+    presign:
+      enabled: ${REGULATION_PRESIGN_RATE_LIMIT_ENABLED:true}
+      fail-open: ${REGULATION_PRESIGN_RATE_LIMIT_FAIL_OPEN:true}
+      window-seconds: ${REGULATION_PRESIGN_RATE_LIMIT_WINDOW_SECONDS:60}
+      max-requests: ${REGULATION_PRESIGN_RATE_LIMIT_MAX_REQUESTS:20}
 
 warning:
   internal:
     token: ${WARNING_INTERNAL_TOKEN:warning-internal-token}
+
+platform:
+  redis:
+    key-prefix: ${PLATFORM_REDIS_KEY_PREFIX:fsp}
+    env: ${PLATFORM_REDIS_ENV:dev}

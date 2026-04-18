@@ -4,6 +4,7 @@ import com.mortal.platform.common.ApiResponse;
 import com.mortal.regulation.common.enums.FileBizType;
 import com.mortal.regulation.dto.FilePresignRequest;
 import com.mortal.regulation.service.MinioFileService;
+import com.mortal.regulation.support.PresignRateLimitService;
 import com.mortal.regulation.util.JwtUserResolver;
 import com.mortal.regulation.vo.FilePresignVO;
 import jakarta.validation.Valid;
@@ -24,10 +25,14 @@ public class FileController {
 
     private final MinioFileService minioFileService;
     private final JwtUserResolver jwtUserResolver;
+    private final PresignRateLimitService presignRateLimitService;
 
-    public FileController(MinioFileService minioFileService, JwtUserResolver jwtUserResolver) {
+    public FileController(MinioFileService minioFileService,
+                          JwtUserResolver jwtUserResolver,
+                          PresignRateLimitService presignRateLimitService) {
         this.minioFileService = minioFileService;
         this.jwtUserResolver = jwtUserResolver;
+        this.presignRateLimitService = presignRateLimitService;
     }
 
     /**
@@ -48,6 +53,9 @@ public class FileController {
         FileBizType bizType = FileBizType.fromValue(request.getBizType());
         if (!isAllowedBizType(userType, bizType)) {
             return ApiResponse.failure(403, "forbidden biz type");
+        }
+        if (!presignRateLimitService.isAllowed(userId, bizType)) {
+            return ApiResponse.failure(429, "file presign requests are too frequent");
         }
         return ApiResponse.success(minioFileService.presignUpload(userId, request, bizType));
     }

@@ -4,6 +4,13 @@ server:
 spring:
   application:
     name: regulation-operation-service
+  data:
+    redis:
+      host: ${REDIS_HOST:192.168.142.133}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:123456}
+      database: ${REDIS_DATABASE:0}
+      timeout: 3s
   cloud:
     nacos:
       config:
@@ -31,6 +38,12 @@ jwt:
 regulation:
   internal:
     token: ${REGULATION_INTERNAL_TOKEN:regulation-internal-token}
+  cache:
+    public-data:
+      enabled: ${OPERATION_PUBLIC_CACHE_ENABLED:true}
+      list-ttl-seconds: ${OPERATION_PUBLIC_LIST_CACHE_TTL_SECONDS:60}
+      detail-ttl-seconds: ${OPERATION_PUBLIC_DETAIL_CACHE_TTL_SECONDS:300}
+      lock-lease-seconds: ${OPERATION_PUBLIC_CACHE_LOCK_LEASE_SECONDS:5}
   rectification:
     sla:
       scan-ms: ${RECTIFICATION_SLA_SCAN_MS:300000}
@@ -46,3 +59,18 @@ regulation:
 warning:
   internal:
     token: ${WARNING_INTERNAL_TOKEN:warning-internal-token}
+
+operation:
+  lock:
+    wait-seconds: ${OPERATION_LOCK_WAIT_SECONDS:0}
+    lease-seconds: ${OPERATION_LOCK_LEASE_SECONDS:15}
+  scheduler:
+    lock:
+      wait-seconds: ${OPERATION_SCHEDULER_LOCK_WAIT_SECONDS:0}
+      rectification-sla-lease-seconds: ${RECTIFICATION_SLA_SCHEDULER_LOCK_LEASE_SECONDS:480}
+      warning-outbox-retry-lease-seconds: ${WARNING_OUTBOX_RETRY_SCHEDULER_LOCK_LEASE_SECONDS:60}
+
+platform:
+  redis:
+    key-prefix: ${PLATFORM_REDIS_KEY_PREFIX:fsp}
+    env: ${PLATFORM_REDIS_ENV:dev}

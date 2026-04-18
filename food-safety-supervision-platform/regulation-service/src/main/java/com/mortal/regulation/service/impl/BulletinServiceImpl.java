@@ -9,8 +9,10 @@ import com.mortal.regulation.entity.PublicBulletin;
 import com.mortal.regulation.mapper.FoodRegulatorMapper;
 import com.mortal.regulation.mapper.PublicBulletinMapper;
 import com.mortal.regulation.service.BulletinService;
+import com.mortal.regulation.support.BulletinPublicCacheService;
 import com.mortal.regulation.vo.BulletinDetailVO;
 import com.mortal.regulation.vo.BulletinVO;
+import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
 import java.util.Collections;
 import java.util.List;
@@ -20,6 +22,7 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 import org.springframework.stereotype.Service;
+import org.springframework.util.DigestUtils;
 import org.springframework.util.StringUtils;
 
 @Service
@@ -33,11 +36,14 @@ public class BulletinServiceImpl implements BulletinService {
 
     private final PublicBulletinMapper publicBulletinMapper;
     private final FoodRegulatorMapper foodRegulatorMapper;
+    private final BulletinPublicCacheService bulletinPublicCacheService;
 
     public BulletinServiceImpl(PublicBulletinMapper publicBulletinMapper,
-                               FoodRegulatorMapper foodRegulatorMapper) {
+                               FoodRegulatorMapper foodRegulatorMapper,
+                               BulletinPublicCacheService bulletinPublicCacheService) {
         this.publicBulletinMapper = publicBulletinMapper;
         this.foodRegulatorMapper = foodRegulatorMapper;
+        this.bulletinPublicCacheService = bulletinPublicCacheService;
     }
 
     @Override
@@ -86,6 +92,7 @@ public class BulletinServiceImpl implements BulletinService {
         bulletin.setCreatedBy(userId);
         bulletin.setDeleted(0);
         publicBulletinMapper.insert(bulletin);
+        bulletinPublicCacheService.evict(bulletin.getId());
         PublicBulletin saved = publicBulletinMapper.selectById(bulletin.getId());
         return toDetailVO(saved, loadRegulatorNameMap(List.of(saved)));
     }
@@ -98,6 +105,7 @@ public class BulletinServiceImpl implements BulletinService {
         bulletin.setCategory(normalizeCategory(dto.getCategory()));
         bulletin.setContent(normalizeContent(dto.getContent()));
         publicBulletinMapper.updateById(bulletin);
+        bulletinPublicCacheService.evict(bulletinId);
         PublicBulletin saved = publicBulletinMapper.selectById(bulletinId);
         return toDetailVO(saved, loadRegulatorNameMap(List.of(saved)));
     }
@@ -110,6 +118,7 @@ public class BulletinServiceImpl implements BulletinService {
         bulletin.setPublishedBy(userId);
         bulletin.setPublishedTime(LocalDateTime.now());
         publicBulletinMapper.updateById(bulletin);
+        bulletinPublicCacheService.evict(bulletinId);
         PublicBulletin saved = publicBulletinMapper.selectById(bulletinId);
         return toDetailVO(saved, loadRegulatorNameMap(List.of(saved)));
     }
@@ -120,12 +129,26 @@ public class BulletinServiceImpl implements BulletinService {
         PublicBulletin bulletin = requireBulletin(bulletinId);
         bulletin.setStatus(STATUS_OFFLINE);
         publicBulletinMapper.updateById(bulletin);
+        bulletinPublicCacheService.evict(bulletinId);
         PublicBulletin saved = publicBulletinMapper.selectById(bulletinId);
         return toDetailVO(saved, loadRegulatorNameMap(List.of(saved)));
     }
 
     @Override
     public PageResult<BulletinVO> listPublic(String keyword, String category, int page, int size) {
+        String queryHash = buildPublicListQueryHash(keyword, category, page, size);
+        return bulletinPublicCacheService.getList(queryHash, () -> loadPublicBulletinList(keyword, category, page, size));
+    }
+
+    @Override
+    public BulletinDetailVO getPublicDetail(Long bulletinId) {
+        if (bulletinId == null) {
+            return null;
+        }
+        return bulletinPublicCacheService.getDetail(bulletinId, () -> loadPublicBulletinDetail(bulletinId));
+    }
+
+    private PageResult<BulletinVO> loadPublicBulletinList(String keyword, String category, int page, int size) {
         int safePage = Math.max(1, page);
         int safeSize = Math.max(1, Math.min(size, MAX_PAGE_SIZE));
         LambdaQueryWrapper<PublicBulletin> wrapper = new LambdaQueryWrapper<PublicBulletin>()
@@ -149,11 +172,7 @@ public class BulletinServiceImpl implements BulletinService {
         return PageResult.of(records, pageInfo.getTotal(), safePage, safeSize);
     }
 
-    @Override
-    public BulletinDetailVO getPublicDetail(Long bulletinId) {
-        if (bulletinId == null) {
-            return null;
-        }
+    private BulletinDetailVO loadPublicBulletinDetail(Long bulletinId) {
         PublicBulletin bulletin = publicBulletinMapper.selectById(bulletinId);
         if (bulletin == null || isDeleted(bulletin.getDeleted())) {
             return null;
@@ -162,6 +181,16 @@ public class BulletinServiceImpl implements BulletinService {
             return null;
         }
         return toDetailVO(bulletin, loadRegulatorNameMap(List.of(bulletin)));
+    }
+
+    private String buildPublicListQueryHash(String keyword, String category, int page, int size) {
+        String raw = String.join("|",
+            StringUtils.hasText(keyword) ? keyword.trim() : "",
+            StringUtils.hasText(category) ? normalizeCategory(category) : "",
+            String.valueOf(Math.max(1, page)),
+            String.valueOf(Math.max(1, Math.min(size, MAX_PAGE_SIZE)))
+        );
+        return DigestUtils.md5DigestAsHex(raw.getBytes(StandardCharsets.UTF_8));
     }
 
     private FoodRegulator requireAdmin(Long userId) {

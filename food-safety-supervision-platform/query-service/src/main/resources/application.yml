@@ -4,6 +4,13 @@ server:
 spring:
   application:
     name: query-service
+  data:
+    redis:
+      host: ${REDIS_HOST:192.168.142.133}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:123456}
+      database: ${REDIS_DATABASE:0}
+      timeout: 3s
   cloud:
     nacos:
       config:
@@ -26,12 +33,35 @@ mybatis-plus:
 
 warning:
   internal:
-    # 与 warning-service 使用同一环境变量 WARNING_INTERNAL_TOKEN，确保调用内部统计接口通过鉴权。
     token: ${WARNING_INTERNAL_TOKEN:warning-internal-token}
 
 query:
+  cache:
+    scope:
+      enabled: ${QUERY_SCOPE_CACHE_ENABLED:true}
+      ttl-seconds: ${QUERY_SCOPE_CACHE_TTL_SECONDS:600}
+      lock-lease-seconds: ${QUERY_SCOPE_CACHE_LOCK_LEASE_SECONDS:5}
+    supervision-overview:
+      enabled: ${QUERY_SUPERVISION_OVERVIEW_CACHE_ENABLED:true}
+      ttl-seconds: ${QUERY_SUPERVISION_OVERVIEW_CACHE_TTL_SECONDS:20}
+      lock-lease-seconds: ${QUERY_SUPERVISION_OVERVIEW_CACHE_LOCK_LEASE_SECONDS:5}
   warning-stats:
     cache:
-      # 预留缓存开关：当前默认关闭，后续可启用 30s 本地缓存。
-      enabled: ${WARNING_STATS_CACHE_ENABLED:false}
-      ttl-seconds: ${WARNING_STATS_CACHE_TTL_SECONDS:30}
+      enabled: ${QUERY_WARNING_STATS_CACHE_ENABLED:false}
+      ttl-seconds: ${QUERY_WARNING_STATS_CACHE_TTL_SECONDS:30}
+  rate-limit:
+    warning-stats:
+      enabled: ${QUERY_WARNING_STATS_RATE_LIMIT_ENABLED:true}
+      fail-open: ${QUERY_WARNING_STATS_RATE_LIMIT_FAIL_OPEN:true}
+      window-seconds: ${QUERY_WARNING_STATS_RATE_LIMIT_WINDOW_SECONDS:60}
+      max-requests: ${QUERY_WARNING_STATS_RATE_LIMIT_MAX_REQUESTS:120}
+    supervision-overview:
+      enabled: ${QUERY_SUPERVISION_OVERVIEW_RATE_LIMIT_ENABLED:true}
+      fail-open: ${QUERY_SUPERVISION_OVERVIEW_RATE_LIMIT_FAIL_OPEN:true}
+      window-seconds: ${QUERY_SUPERVISION_OVERVIEW_RATE_LIMIT_WINDOW_SECONDS:60}
+      max-requests: ${QUERY_SUPERVISION_OVERVIEW_RATE_LIMIT_MAX_REQUESTS:120}
+
+platform:
+  redis:
+    key-prefix: ${PLATFORM_REDIS_KEY_PREFIX:fsp}
+    env: ${PLATFORM_REDIS_ENV:dev}

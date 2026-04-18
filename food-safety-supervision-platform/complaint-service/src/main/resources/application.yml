@@ -4,6 +4,13 @@ server:
 spring:
   application:
     name: complaint-service
+  data:
+    redis:
+      host: ${REDIS_HOST:192.168.142.133}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:123456}
+      database: ${REDIS_DATABASE:0}
+      timeout: 3s
   cloud:
     nacos:
       config:
@@ -31,3 +38,19 @@ mybatis-plus:
 regulation:
   internal:
     token: ${REGULATION_INTERNAL_TOKEN:regulation-internal-token}
+
+complaint:
+  lock:
+    wait-seconds: ${COMPLAINT_LOCK_WAIT_SECONDS:0}
+    lease-seconds: ${COMPLAINT_LOCK_LEASE_SECONDS:15}
+  rate-limit:
+    public-submit:
+      enabled: ${COMPLAINT_PUBLIC_SUBMIT_RATE_LIMIT_ENABLED:true}
+      fail-open: ${COMPLAINT_PUBLIC_SUBMIT_RATE_LIMIT_FAIL_OPEN:true}
+      window-seconds: ${COMPLAINT_PUBLIC_SUBMIT_RATE_LIMIT_WINDOW_SECONDS:600}
+      max-requests: ${COMPLAINT_PUBLIC_SUBMIT_RATE_LIMIT_MAX_REQUESTS:5}
+
+platform:
+  redis:
+    key-prefix: ${PLATFORM_REDIS_KEY_PREFIX:fsp}
+    env: ${PLATFORM_REDIS_ENV:dev}

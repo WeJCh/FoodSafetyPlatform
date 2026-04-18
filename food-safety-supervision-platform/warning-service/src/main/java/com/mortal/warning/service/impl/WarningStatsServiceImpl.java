@@ -7,30 +7,30 @@ import com.mortal.warning.dto.WarningStatsQueryDTO;
 import com.mortal.warning.entity.WarningRecord;
 import com.mortal.warning.mapper.WarningRecordMapper;
 import com.mortal.warning.service.WarningStatsService;
+import com.mortal.warning.support.WarningStatsCacheSupport;
 import com.mortal.warning.vo.WarningEfficiencyStatsVO;
 import com.mortal.warning.vo.WarningStatsItemVO;
 import com.mortal.warning.vo.WarningStatsOverviewVO;
 import com.mortal.warning.vo.WarningTrendPointVO;
 import com.mortal.warning.vo.WarningTypeStatsVO;
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Comparator;
-import java.util.LinkedHashSet;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 import org.springframework.stereotype.Service;
+import org.springframework.util.DigestUtils;
 import org.springframework.util.StringUtils;
 
-/**
- * 预警统计实现（MVP）。
- */
 @Service
 public class WarningStatsServiceImpl implements WarningStatsService {
 
@@ -41,15 +41,45 @@ public class WarningStatsServiceImpl implements WarningStatsService {
     private static final int DEFAULT_OVERDUE_HOURS = 24;
     private static final int MAX_OVERDUE_HOURS = 30 * 24;
     private static final DateTimeFormatter DAY_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd");
+    private static final DateTimeFormatter KEY_TIME_FORMATTER = DateTimeFormatter.ISO_LOCAL_DATE_TIME;
 
     private final WarningRecordMapper warningRecordMapper;
+    private final WarningStatsCacheSupport warningStatsCacheSupport;
 
-    public WarningStatsServiceImpl(WarningRecordMapper warningRecordMapper) {
+    public WarningStatsServiceImpl(WarningRecordMapper warningRecordMapper,
+                                   WarningStatsCacheSupport warningStatsCacheSupport) {
         this.warningRecordMapper = warningRecordMapper;
+        this.warningStatsCacheSupport = warningStatsCacheSupport;
     }
 
     @Override
     public WarningStatsOverviewVO getOverview(WarningStatsQueryDTO queryDTO) {
+        String cacheKey = warningStatsCacheSupport.buildCacheKey("overview", buildFingerprint("overview", queryDTO));
+        return warningStatsCacheSupport.getOrLoad(cacheKey, () -> loadOverview(queryDTO));
+    }
+
+    @Override
+    public List<WarningTrendPointVO> getTrend(WarningStatsQueryDTO queryDTO) {
+        String cacheKey = warningStatsCacheSupport.buildCacheKey("trend", buildFingerprint("trend", queryDTO));
+        return warningStatsCacheSupport.getOrLoad(cacheKey, () -> loadTrend(queryDTO));
+    }
+
+    @Override
+    public List<WarningTypeStatsVO> getTypeTop(WarningStatsQueryDTO queryDTO) {
+        String cacheKey = warningStatsCacheSupport.buildCacheKey("types", buildFingerprint("types", queryDTO));
+        return warningStatsCacheSupport.getOrLoad(cacheKey, () -> loadTypeTop(queryDTO));
+    }
+
+    @Override
+    public WarningEfficiencyStatsVO getEfficiency(WarningStatsQueryDTO queryDTO) {
+        String cacheKey = warningStatsCacheSupport.buildCacheKey(
+            "efficiency",
+            buildFingerprint("efficiency", queryDTO)
+        );
+        return warningStatsCacheSupport.getOrLoad(cacheKey, () -> loadEfficiency(queryDTO));
+    }
+
+    private WarningStatsOverviewVO loadOverview(WarningStatsQueryDTO queryDTO) {
         List<WarningRecord> records = loadRecords(queryDTO, null, null);
         Map<String, Long> statusCount = records.stream()
             .collect(Collectors.groupingBy(
@@ -74,8 +104,7 @@ public class WarningStatsServiceImpl implements WarningStatsService {
         return vo;
     }
 
-    @Override
-    public List<WarningTrendPointVO> getTrend(WarningStatsQueryDTO queryDTO) {
+    private List<WarningTrendPointVO> loadTrend(WarningStatsQueryDTO queryDTO) {
         LocalDateTime now = LocalDateTime.now();
         int trendDays = normalizeTrendDays(queryDTO == null ? null : queryDTO.getTrendDays());
         LocalDateTime defaultStart = now.minusDays(trendDays - 1L).toLocalDate().atStartOfDay();
@@ -91,7 +120,6 @@ public class WarningStatsServiceImpl implements WarningStatsService {
             cursor = cursor.plusDays(1);
         }
         for (WarningRecord record : records) {
-            // 中文注释：趋势统计时间锚点固定为 firstOccurTime，不使用 createTime 兜底。
             LocalDateTime baseTime = resolveOccurTime(record);
             if (baseTime == null) {
                 continue;
@@ -113,11 +141,9 @@ public class WarningStatsServiceImpl implements WarningStatsService {
         return result;
     }
 
-    @Override
-    public List<WarningTypeStatsVO> getTypeTop(WarningStatsQueryDTO queryDTO) {
+    private List<WarningTypeStatsVO> loadTypeTop(WarningStatsQueryDTO queryDTO) {
         List<WarningRecord> records = loadRecords(queryDTO, null, null);
         int topN = normalizeTopN(queryDTO == null ? null : queryDTO.getTopN());
-        // 中文注释：类型统计按 warningType 原值分组，不做中文 label 映射，避免口径歧义。
         Map<String, Long> typeCount = records.stream()
             .collect(Collectors.groupingBy(
                 item -> normalizeType(item.getWarningType()),
@@ -136,8 +162,7 @@ public class WarningStatsServiceImpl implements WarningStatsService {
             .toList();
     }
 
-    @Override
-    public WarningEfficiencyStatsVO getEfficiency(WarningStatsQueryDTO queryDTO) {
+    private WarningEfficiencyStatsVO loadEfficiency(WarningStatsQueryDTO queryDTO) {
         List<WarningRecord> records = loadRecords(queryDTO, null, null);
         int overdueHours = normalizeOverdueHours(queryDTO == null ? null : queryDTO.getOverdueHours());
         LocalDateTime threshold = LocalDateTime.now().minusHours(overdueHours);
@@ -172,6 +197,37 @@ public class WarningStatsServiceImpl implements WarningStatsService {
         vo.setOverduePendingCount(overduePendingCount);
         vo.setOverdueHours(overdueHours);
         return vo;
+    }
+
+    private String buildFingerprint(String category, WarningStatsQueryDTO queryDTO) {
+        WarningStatsQueryDTO query = queryDTO == null ? new WarningStatsQueryDTO() : queryDTO;
+        String regionIds = parseRegionIds(query.getRegionIds()).stream()
+            .map(String::valueOf)
+            .collect(Collectors.joining(","));
+        String raw = String.join("|",
+            category,
+            formatTime(query.getStartTime()),
+            formatTime(query.getEndTime()),
+            normalizeKeyText(query.getWarningType()),
+            normalizeKeyText(query.getBizType()),
+            normalizeKeyText(query.getLevel()),
+            normalizeKeyText(query.getStatus()),
+            query.getRegionId() == null ? "" : String.valueOf(query.getRegionId()),
+            regionIds,
+            query.getOwnerRegulatorId() == null ? "" : String.valueOf(query.getOwnerRegulatorId()),
+            String.valueOf(normalizeTopN(query.getTopN())),
+            String.valueOf(normalizeTrendDays(query.getTrendDays())),
+            String.valueOf(normalizeOverdueHours(query.getOverdueHours()))
+        );
+        return DigestUtils.md5DigestAsHex(raw.getBytes(StandardCharsets.UTF_8));
+    }
+
+    private String formatTime(LocalDateTime time) {
+        return time == null ? "" : KEY_TIME_FORMATTER.format(time);
+    }
+
+    private String normalizeKeyText(String value) {
+        return StringUtils.hasText(value) ? value.trim() : "";
     }
 
     private List<WarningRecord> loadRecords(WarningStatsQueryDTO queryDTO,

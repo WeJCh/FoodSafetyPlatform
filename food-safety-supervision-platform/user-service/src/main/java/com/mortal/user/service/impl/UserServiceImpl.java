@@ -16,6 +16,8 @@ import com.mortal.user.enums.UserType;
 import com.mortal.user.mapper.RoleMapper;
 import com.mortal.user.mapper.UserMapper;
 import com.mortal.user.mapper.UserRoleMapper;
+import com.mortal.user.service.AuthRedisService;
+import com.mortal.user.service.AuthSessionCacheValue;
 import com.mortal.user.service.UserService;
 import com.mortal.user.util.PasswordEncoderUtil;
 import com.mortal.user.util.TokenUtil;
@@ -34,15 +36,18 @@ public class UserServiceImpl implements UserService {
     private final TokenUtil tokenUtil;
     private final RoleMapper roleMapper;
     private final UserRoleMapper userRoleMapper;
+    private final AuthRedisService authRedisService;
 
     public UserServiceImpl(UserMapper userMapper,
                            TokenUtil tokenUtil,
                            RoleMapper roleMapper,
-                           UserRoleMapper userRoleMapper) {
+                           UserRoleMapper userRoleMapper,
+                           AuthRedisService authRedisService) {
         this.userMapper = userMapper;
         this.tokenUtil = tokenUtil;
         this.roleMapper = roleMapper;
         this.userRoleMapper = userRoleMapper;
+        this.authRedisService = authRedisService;
     }
 
     @Override
@@ -96,6 +101,7 @@ public class UserServiceImpl implements UserService {
         // 关键注释：登录时查询角色并写入 Token，减少网关与服务重复查库
         List<String> roles = loadRoleCodes(user.getId());
         String token = tokenUtil.generateToken(user.getId(), user.getUsername(), user.getUserType(), roles);
+        cacheLoginSession(user, roles, token);
         LoginResult result = new LoginResult();
         result.setUserId(user.getId());
         result.setUsername(user.getUsername());
@@ -108,6 +114,16 @@ public class UserServiceImpl implements UserService {
     @Override
     public void logout(String token) {
         if (StringUtils.hasText(token)) {
+            String jti = tokenUtil.getJti(token);
+            Long userId = tokenUtil.getUserId(token);
+            long ttlSeconds = tokenUtil.getRemainingSeconds(token);
+            String tokenHash = tokenUtil.getTokenHash(token);
+            if (ttlSeconds > 0) {
+                authRedisService.blacklist(jti, ttlSeconds);
+            }
+            authRedisService.deleteSession(jti);
+            authRedisService.deleteIntrospect(tokenHash);
+            authRedisService.unbindUserJti(userId, jti);
             tokenUtil.invalidate(token);
         }
     }
@@ -135,6 +151,7 @@ public class UserServiceImpl implements UserService {
         user.setStatus(dto.getStatus());
         user.setUpdateTime(LocalDateTime.now());
         userMapper.updateById(user);
+        authRedisService.invalidateUserAllSessions(user.getId());
         return toUserVO(user);
     }
 
@@ -151,6 +168,26 @@ public class UserServiceImpl implements UserService {
         userRoleMapper.update(null, new LambdaUpdateWrapper<UserRole>()
             .eq(UserRole::getUserId, id)
             .set(UserRole::getDeleted, 1));
+        authRedisService.invalidateUserAllSessions(id);
+    }
+
+    private void cacheLoginSession(User user, List<String> roles, String token) {
+        if (user == null || !StringUtils.hasText(token)) {
+            return;
+        }
+        String jti = tokenUtil.getJti(token);
+        long ttlSeconds = tokenUtil.getRemainingSeconds(token);
+        if (!StringUtils.hasText(jti) || ttlSeconds <= 0) {
+            return;
+        }
+        AuthSessionCacheValue session = new AuthSessionCacheValue();
+        session.setUserId(user.getId());
+        session.setUsername(user.getUsername());
+        session.setUserType(user.getUserType());
+        session.setRoles(roles == null ? List.of() : roles);
+        session.setExpireAt(tokenUtil.getExpireAt(token));
+        authRedisService.saveSession(jti, session, ttlSeconds);
+        authRedisService.bindUserJti(user.getId(), jti, ttlSeconds);
     }
 
     private UserVO toUserVO(User user) {

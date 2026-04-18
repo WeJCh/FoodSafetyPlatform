@@ -11,6 +11,7 @@ import com.mortal.regulation.mapper.AddrRegionMapper;
 import com.mortal.regulation.mapper.FoodRegulatorMapper;
 import com.mortal.regulation.mapper.FoodRegulatorRegionMapper;
 import com.mortal.regulation.service.RegulatorProfileService;
+import com.mortal.regulation.support.RegulatorMasterCacheService;
 import com.mortal.regulation.vo.RegulatorProfileVO;
 import java.time.LocalDateTime;
 import java.util.ArrayDeque;
@@ -35,15 +36,18 @@ public class RegulatorProfileServiceImpl implements RegulatorProfileService {
     private final FoodRegulatorRegionMapper foodRegulatorRegionMapper;
     private final AddrRegionMapper addrRegionMapper;
     private final UserServiceClient userServiceClient;
+    private final RegulatorMasterCacheService regulatorMasterCacheService;
 
     public RegulatorProfileServiceImpl(FoodRegulatorMapper foodRegulatorMapper,
                                        FoodRegulatorRegionMapper foodRegulatorRegionMapper,
                                        AddrRegionMapper addrRegionMapper,
-                                       UserServiceClient userServiceClient) {
+                                       UserServiceClient userServiceClient,
+                                       RegulatorMasterCacheService regulatorMasterCacheService) {
         this.foodRegulatorMapper = foodRegulatorMapper;
         this.foodRegulatorRegionMapper = foodRegulatorRegionMapper;
         this.addrRegionMapper = addrRegionMapper;
         this.userServiceClient = userServiceClient;
+        this.regulatorMasterCacheService = regulatorMasterCacheService;
     }
 
     @Override
@@ -75,6 +79,7 @@ public class RegulatorProfileServiceImpl implements RegulatorProfileService {
             foodRegulatorMapper.updateById(regulator);
         }
         updateRegions(regulator.getId(), regionIds);
+        evictRegulatorCaches(regulator);
         return toVO(regulator, regionIds);
     }
 
@@ -173,6 +178,7 @@ public class RegulatorProfileServiceImpl implements RegulatorProfileService {
         regulator.setStatus(status);
         regulator.setUpdateTime(LocalDateTime.now());
         foodRegulatorMapper.updateById(regulator);
+        evictRegulatorCaches(regulator);
         List<Long> regionIds = findRegionIds(regulator.getId());
         return toVO(regulator, regionIds);
     }
@@ -193,6 +199,7 @@ public class RegulatorProfileServiceImpl implements RegulatorProfileService {
                 .eq(FoodRegulatorRegion::getRegulatorId, id)
                 .set(FoodRegulatorRegion::getDeleted, 1)
         );
+        evictRegulatorCaches(regulator);
         if (regulator.getUserId() != null) {
             userServiceClient.deleteUser(regulator.getUserId());
         }
@@ -298,6 +305,14 @@ public class RegulatorProfileServiceImpl implements RegulatorProfileService {
             }
         }
         return result;
+    }
+
+    private void evictRegulatorCaches(FoodRegulator regulator) {
+        if (regulator == null) {
+            return;
+        }
+        regulatorMasterCacheService.evict(regulator.getId(), regulator.getUserId());
+        regulatorMasterCacheService.bumpScopeEnterpriseVersion();
     }
 
     private List<Long> resolveAssignableRegionIds(Long regionId) {

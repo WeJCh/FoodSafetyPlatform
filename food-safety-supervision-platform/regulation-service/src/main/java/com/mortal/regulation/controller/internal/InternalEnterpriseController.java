@@ -10,6 +10,7 @@ import com.mortal.regulation.mapper.AddrLocationMapper;
 import com.mortal.regulation.mapper.EnterpriseProfileAttachmentMapper;
 import com.mortal.regulation.mapper.FoodEnterpriseMapper;
 import com.mortal.regulation.service.EnterpriseKeyReasonService;
+import com.mortal.regulation.support.EnterpriseMasterCacheService;
 import com.mortal.regulation.vo.EnterpriseProfileAttachmentVO;
 import com.mortal.regulation.vo.internal.InternalEnterpriseDetailVO;
 import com.mortal.regulation.vo.internal.InternalEnterpriseSummaryVO;
@@ -41,35 +42,36 @@ public class InternalEnterpriseController {
     private final EnterpriseProfileAttachmentMapper enterpriseProfileAttachmentMapper;
     private final AddrLocationMapper addrLocationMapper;
     private final EnterpriseKeyReasonService enterpriseKeyReasonService;
+    private final EnterpriseMasterCacheService enterpriseMasterCacheService;
 
     public InternalEnterpriseController(FoodEnterpriseMapper foodEnterpriseMapper,
                                         EnterpriseProfileAttachmentMapper enterpriseProfileAttachmentMapper,
                                         AddrLocationMapper addrLocationMapper,
-                                        EnterpriseKeyReasonService enterpriseKeyReasonService) {
+                                        EnterpriseKeyReasonService enterpriseKeyReasonService,
+                                        EnterpriseMasterCacheService enterpriseMasterCacheService) {
         this.foodEnterpriseMapper = foodEnterpriseMapper;
         this.enterpriseProfileAttachmentMapper = enterpriseProfileAttachmentMapper;
         this.addrLocationMapper = addrLocationMapper;
         this.enterpriseKeyReasonService = enterpriseKeyReasonService;
+        this.enterpriseMasterCacheService = enterpriseMasterCacheService;
     }
 
     @GetMapping("/{id}")
     public ApiResponse<InternalEnterpriseDetailVO> getById(@PathVariable Long id) {
-        FoodEnterprise enterprise = foodEnterpriseMapper.selectById(id);
-        if (enterprise == null || isDeleted(enterprise.getDeleted())) {
+        InternalEnterpriseDetailVO detail = enterpriseMasterCacheService.getDetail(id, () -> loadDetailById(id));
+        if (detail == null) {
             return ApiResponse.failure(404, "enterprise not found");
         }
-        return ApiResponse.success(toDetailVO(enterprise, loadAddressDetail(enterprise.getAddressId())));
+        return ApiResponse.success(detail);
     }
 
     @GetMapping("/by-user/{userId}")
     public ApiResponse<InternalEnterpriseDetailVO> getByUserId(@PathVariable Long userId) {
-        FoodEnterprise enterprise = foodEnterpriseMapper.selectOne(new LambdaQueryWrapper<FoodEnterprise>()
-            .eq(FoodEnterprise::getUserId, userId)
-            .eq(FoodEnterprise::getDeleted, 0));
-        if (enterprise == null) {
+        InternalEnterpriseDetailVO detail = enterpriseMasterCacheService.getByUser(userId, () -> loadDetailByUserId(userId));
+        if (detail == null) {
             return ApiResponse.failure(404, "enterprise not found");
         }
-        return ApiResponse.success(toDetailVO(enterprise, loadAddressDetail(enterprise.getAddressId())));
+        return ApiResponse.success(detail);
     }
 
     @PostMapping("/summaries")
@@ -78,23 +80,46 @@ public class InternalEnterpriseController {
         if (cleanedIds.isEmpty()) {
             return ApiResponse.success(List.of());
         }
-        List<FoodEnterprise> enterprises = foodEnterpriseMapper.selectBatchIds(cleanedIds)
+        List<InternalEnterpriseSummaryVO> result =
+            enterpriseMasterCacheService.getSummaries(cleanedIds, this::loadSummariesByIds);
+        return ApiResponse.success(result);
+    }
+
+    private InternalEnterpriseDetailVO loadDetailById(Long id) {
+        FoodEnterprise enterprise = foodEnterpriseMapper.selectById(id);
+        if (enterprise == null || isDeleted(enterprise.getDeleted())) {
+            return null;
+        }
+        return toDetailVO(enterprise, loadAddressDetail(enterprise.getAddressId()));
+    }
+
+    private InternalEnterpriseDetailVO loadDetailByUserId(Long userId) {
+        FoodEnterprise enterprise = foodEnterpriseMapper.selectOne(new LambdaQueryWrapper<FoodEnterprise>()
+            .eq(FoodEnterprise::getUserId, userId)
+            .eq(FoodEnterprise::getDeleted, 0));
+        if (enterprise == null) {
+            return null;
+        }
+        return toDetailVO(enterprise, loadAddressDetail(enterprise.getAddressId()));
+    }
+
+    private List<InternalEnterpriseSummaryVO> loadSummariesByIds(List<Long> ids) {
+        List<FoodEnterprise> enterprises = foodEnterpriseMapper.selectBatchIds(ids)
             .stream()
             .filter(Objects::nonNull)
             .filter(enterprise -> !isDeleted(enterprise.getDeleted()))
             .toList();
         if (enterprises.isEmpty()) {
-            return ApiResponse.success(List.of());
+            return List.of();
         }
         Map<Long, FoodEnterprise> enterpriseMap = enterprises.stream()
             .collect(Collectors.toMap(FoodEnterprise::getId, Function.identity(), (a, b) -> a));
         Map<Long, String> addressMap = loadAddressMap(enterprises);
-        List<InternalEnterpriseSummaryVO> result = cleanedIds.stream()
+        return ids.stream()
             .map(enterpriseMap::get)
             .filter(Objects::nonNull)
             .map(enterprise -> toSummaryVO(enterprise, addressMap.get(enterprise.getAddressId())))
             .toList();
-        return ApiResponse.success(result);
     }
 
     @GetMapping("/query-ids-by-name")
@@ -251,6 +276,5 @@ public class InternalEnterpriseController {
         return deleted != null && deleted == 1;
     }
 }
-
 
 

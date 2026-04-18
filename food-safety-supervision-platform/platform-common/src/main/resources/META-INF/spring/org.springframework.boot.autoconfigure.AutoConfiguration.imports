@@ -1,1 +1,2 @@
 com.mortal.platform.common.PlatformCommonAutoConfiguration
+com.mortal.platform.common.redis.PlatformRedisAutoConfiguration

@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.mortal.regulation.dto.RegionCreateDTO;
 import com.mortal.regulation.entity.AddrRegion;
 import com.mortal.regulation.mapper.AddrRegionMapper;
+import com.mortal.regulation.support.RegionCacheService;
 import com.mortal.regulation.service.RegionService;
 import com.mortal.regulation.vo.RegionVO;
 import java.util.ArrayList;
@@ -18,9 +19,12 @@ import org.springframework.util.StringUtils;
 public class RegionServiceImpl implements RegionService {
 
     private final AddrRegionMapper addrRegionMapper;
+    private final RegionCacheService regionCacheService;
 
-    public RegionServiceImpl(AddrRegionMapper addrRegionMapper) {
+    public RegionServiceImpl(AddrRegionMapper addrRegionMapper,
+                             RegionCacheService regionCacheService) {
         this.addrRegionMapper = addrRegionMapper;
+        this.regionCacheService = regionCacheService;
     }
 
     @Override
@@ -34,11 +38,22 @@ public class RegionServiceImpl implements RegionService {
         region.setLevel(dto.getLevel());
         region.setDeleted(0);
         addrRegionMapper.insert(region);
+        regionCacheService.evictChildren(region.getParentId());
+        regionCacheService.evictPath(region.getId());
         return toVO(region);
     }
 
     @Override
     public List<RegionVO> listByParentId(Long parentId) {
+        return regionCacheService.getChildren(parentId, () -> loadChildren(parentId));
+    }
+
+    @Override
+    public List<RegionVO> getPath(Long id) {
+        return regionCacheService.getPath(id, () -> loadPath(id));
+    }
+
+    private List<RegionVO> loadChildren(Long parentId) {
         LambdaQueryWrapper<AddrRegion> wrapper = new LambdaQueryWrapper<AddrRegion>()
             .eq(AddrRegion::getDeleted, 0);
         if (parentId == null) {
@@ -52,8 +67,7 @@ public class RegionServiceImpl implements RegionService {
             .toList();
     }
 
-    @Override
-    public List<RegionVO> getPath(Long id) {
+    private List<RegionVO> loadPath(Long id) {
         if (id == null) {
             return List.of();
         }

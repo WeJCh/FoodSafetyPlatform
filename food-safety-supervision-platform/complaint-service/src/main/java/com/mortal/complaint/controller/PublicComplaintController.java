@@ -5,6 +5,7 @@ import com.mortal.complaint.application.ComplaintQueryService;
 import com.mortal.platform.common.ApiResponse;
 import com.mortal.platform.common.PageResult;
 import com.mortal.complaint.dto.ComplaintSubmitDTO;
+import com.mortal.complaint.support.ComplaintRateLimitService;
 import com.mortal.complaint.support.RequestIdentityResolver;
 import com.mortal.complaint.support.RequestIdentityResolver.RequestIdentity;
 import com.mortal.complaint.vo.ComplaintListVO;
@@ -30,6 +31,7 @@ public class PublicComplaintController {
     private final ComplaintCommandService complaintCommandService;
     private final ComplaintQueryService complaintQueryService;
     private final RequestIdentityResolver requestIdentityResolver;
+    private final ComplaintRateLimitService complaintRateLimitService;
 
     /**
      * 构造函数
@@ -39,10 +41,12 @@ public class PublicComplaintController {
      */
     public PublicComplaintController(ComplaintCommandService complaintCommandService,
                                      ComplaintQueryService complaintQueryService,
-                                     RequestIdentityResolver requestIdentityResolver) {
+                                     RequestIdentityResolver requestIdentityResolver,
+                                     ComplaintRateLimitService complaintRateLimitService) {
         this.complaintCommandService = complaintCommandService;
         this.complaintQueryService = complaintQueryService;
         this.requestIdentityResolver = requestIdentityResolver;
+        this.complaintRateLimitService = complaintRateLimitService;
     }
 
     /**
@@ -64,6 +68,9 @@ public class PublicComplaintController {
         RequestIdentity identity = requestIdentityResolver.resolve(userId, userType, userRoles);
         if (!identity.isPublicUser()) {
             return ApiResponse.failure(403, "public user only");
+        }
+        if (!complaintRateLimitService.isPublicSubmitAllowed(identity.userId())) {
+            return ApiResponse.failure(429, "complaint submit requests are too frequent");
         }
         return ApiResponse.success(complaintCommandService.submitPublic(identity.userId(), dto));
     }

@@ -2,6 +2,7 @@ package com.mortal.regulation.controller.internal;
 
 import com.mortal.platform.common.ApiResponse;
 import com.mortal.regulation.service.ProductService;
+import com.mortal.regulation.support.ProductMasterCacheService;
 import com.mortal.regulation.vo.internal.InternalProductDetailVO;
 import com.mortal.regulation.vo.internal.InternalProductSummaryVO;
 import java.util.List;
@@ -17,9 +18,12 @@ import org.springframework.web.bind.annotation.RestController;
 public class InternalProductController {
 
     private final ProductService productService;
+    private final ProductMasterCacheService productMasterCacheService;
 
-    public InternalProductController(ProductService productService) {
+    public InternalProductController(ProductService productService,
+                                     ProductMasterCacheService productMasterCacheService) {
         this.productService = productService;
+        this.productMasterCacheService = productMasterCacheService;
     }
 
     /**
@@ -30,7 +34,9 @@ public class InternalProductController {
      */
     @GetMapping("/{id}")
     public ApiResponse<InternalProductDetailVO> getById(@PathVariable Long id) {
-        return ApiResponse.success(productService.getInternalById(id));
+        return ApiResponse.success(
+            productMasterCacheService.getDetail(id, () -> productService.getInternalById(id))
+        );
     }
 
     /**
@@ -52,6 +58,8 @@ public class InternalProductController {
      */
     @PostMapping("/summaries")
     public ApiResponse<List<InternalProductSummaryVO>> summaries(@RequestBody(required = false) List<Long> ids) {
-        return ApiResponse.success(productService.getInternalSummaries(ids));
+        return ApiResponse.success(
+            productMasterCacheService.getSummaries(ids, productService::getInternalSummaries)
+        );
     }
 }

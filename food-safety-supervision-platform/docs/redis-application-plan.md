@@ -173,6 +173,7 @@
 - TTL
   - 与 token 剩余过期时间保持一致，上限 7200 秒
   - introspect 缓存取 `min(300秒, token剩余TTL)`
+  - 认证相关 key 使用固定 TTL，不参与随机抖动，避免超过 token 剩余生命周期
 - 更新策略
   - 登录成功后写 `session`、`user-jtis`
   - 首次 introspect 查库后写 `introspect`
@@ -645,7 +646,7 @@ public AuthIntrospectVO introspect(String token) {
 ```java
 boolean allowed = redisRateLimiter.allow(key, limit, windowSeconds);
 if (!allowed) {
-    throw new TooManyRequestsException("too many requests");
+    return ApiResponse.failure(429, "query requests are too frequent");
 }
 ```
 
@@ -654,6 +655,7 @@ if (!allowed) {
 - Redis 限流与 Sentinel 并存
 - Sentinel 保留为网关粗粒度保护
 - Redis 限流负责多实例精确限流
+- `query-service` 通过 `QUERY_WARNING_STATS_RATE_LIMIT_*`、`QUERY_SUPERVISION_OVERVIEW_RATE_LIMIT_*` 配置控制开关、窗口、阈值与 fail-open
 
 ### 4.3 区域树缓存
 
@@ -994,6 +996,7 @@ try {
 - TTL 加随机抖动
   - 主数据：`600 ± 60s`
   - 公众详情：`300 ± 30s`
+- 登录态、黑名单、`user-jtis`、introspect 缓存不加抖动，统一使用固定 TTL
 
 ### 8.4 热 Key
 
@@ -1055,26 +1058,25 @@ try {
 
 ## 10. 最终实施清单
 
-- [ ] 在根 `pom` 引入 Redis 与 Redisson 依赖
-- [ ] 在 `platform-common` 新增统一 Redis 配置、序列化配置、Lua 限流脚本加载器
-- [ ] 在 `user-service` 改造 `TokenUtil`，增加 `jti` 与剩余 TTL 能力
-- [ ] 在 `user-service` 新增 `AuthRedisService`
-- [ ] 在 `user-service` 改造 `login/logout/introspect`
-- [ ] 在 `user-service` 的用户更新、删除、角色绑定后统一失效用户所有会话
-- [ ] 在 `gateway-service` 新增 Redis 登录限流过滤器
-- [ ] 在 `complaint-service` 对公共投诉提交增加限流
-- [ ] 在 `regulation-service` 对 `FileController#presign` 增加限流
-- [ ] 在 `regulation-service` 为区域 children/path 增加缓存
-- [ ] 在 `regulation-service` 为企业/监管员/产品内部主数据增加缓存
-- [ ] 在 `warning-service` 为四个统计接口增加 30 秒缓存与版本号
-- [ ] 在 `query-service` 为监管总览增加 20 秒缓存
-- [ ] 在 `query-service` 为监管员作用域 profile/region-set 增加缓存
-- [ ] 在 `regulation-service` 为公众企业与公告增加详情缓存和列表 version key
-- [ ] 在 `regulation-operation-service` 为公众抽检公示增加详情缓存和列表 version key
-- [ ] 在 `regulation-operation-service` 为检查提交、抽检提交、整改提交/复核增加 Redisson 锁
-- [ ] 在 `warning-service` 为预警处理流程增加 Redisson 锁
-- [ ] 在 `complaint-service` 为投诉流转动作增加 Redisson 锁
-- [ ] 在 4 个 scheduler 入口增加 Redisson 单实例执行锁
-- [ ] 为所有缓存 key 加统一前缀、环境隔离和 TTL 抖动
-- [ ] 补充 Redis 不可用下的降级与日志告警
-
+- [x] 在根 `pom` 引入 Redis 与 Redisson 依赖
+- [x] 在 `platform-common` 新增统一 Redis 配置、序列化配置、Lua 限流脚本加载器
+- [x] 在 `user-service` 改造 `TokenUtil`，增加 `jti` 与剩余 TTL 能力
+- [x] 在 `user-service` 新增 `AuthRedisService`
+- [x] 在 `user-service` 改造 `login/logout/introspect`
+- [x] 在 `user-service` 的用户更新、删除、角色绑定后统一失效用户所有会话
+- [x] 在 `gateway-service` 新增 Redis 登录限流过滤器
+- [x] 在 `complaint-service` 对公共投诉提交增加限流
+- [x] 在 `regulation-service` 对 `FileController#presign` 增加限流
+- [x] 在 `regulation-service` 为区域 children/path 增加缓存
+- [x] 在 `regulation-service` 为企业/监管员/产品内部主数据增加缓存
+- [x] 在 `warning-service` 为四个统计接口增加 30 秒缓存与版本号
+- [x] 在 `query-service` 为监管总览增加 20 秒缓存
+- [x] 在 `query-service` 为监管员作用域 profile/region-set 增加缓存
+- [x] 在 `regulation-service` 为公众企业与公告增加详情缓存和列表 version key
+- [x] 在 `regulation-operation-service` 为公众抽检公示增加详情缓存和列表 version key
+- [x] 在 `regulation-operation-service` 为检查提交、抽检提交、整改提交/复核增加 Redisson 锁
+- [x] 在 `warning-service` 为预警处理流程增加 Redisson 锁
+- [x] 在 `complaint-service` 为投诉流转动作增加 Redisson 锁
+- [x] 在 4 个 scheduler 入口增加 Redisson 单实例执行锁
+- [x] 为所有缓存 key 加统一前缀、环境隔离和 TTL 抖动
+- [x] 补充 Redis 不可用下的降级与日志告警

@@ -44,6 +44,7 @@
         <mybatis-plus.version>3.5.15</mybatis-plus.version>
         <jjwt.version>0.11.5</jjwt.version>
         <knife4j.version>4.4.0</knife4j.version>
+        <redisson.version>3.32.0</redisson.version>
     </properties>
     <dependencyManagement>
         <dependencies>
@@ -60,6 +61,11 @@
                 <version>${spring-cloud-alibaba.version}</version>
                 <type>pom</type>
                 <scope>import</scope>
+            </dependency>
+            <dependency>
+                <groupId>org.redisson</groupId>
+                <artifactId>redisson-spring-boot-starter</artifactId>
+                <version>${redisson.version}</version>
             </dependency>
         </dependencies>
     </dependencyManagement>

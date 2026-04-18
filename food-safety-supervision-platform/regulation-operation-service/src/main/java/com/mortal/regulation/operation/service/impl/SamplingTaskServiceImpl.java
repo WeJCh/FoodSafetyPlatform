@@ -18,9 +18,12 @@ import com.mortal.regulation.operation.mapper.SamplingResultMapper;
 import com.mortal.regulation.operation.mapper.SamplingTaskMapper;
 import com.mortal.regulation.operation.service.SamplingTaskService;
 import com.mortal.regulation.operation.service.WarningEventOutboxService;
+import com.mortal.regulation.operation.support.OperationLockSupport;
 import com.mortal.regulation.operation.support.OperationMasterDataSupport;
+import com.mortal.regulation.operation.support.SamplingPublicCacheService;
 import com.mortal.regulation.operation.vo.SamplingResultVO;
 import com.mortal.regulation.operation.vo.SamplingTaskVO;
+import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.LinkedHashSet;
@@ -31,6 +34,7 @@ import java.util.Set;
 import java.util.stream.Collectors;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.DigestUtils;
 import org.springframework.util.StringUtils;
 
 @Service
@@ -58,15 +62,21 @@ public class SamplingTaskServiceImpl implements SamplingTaskService {
     private final SamplingTaskMapper samplingTaskMapper;
     private final SamplingResultMapper samplingResultMapper;
     private final OperationMasterDataSupport masterDataSupport;
+    private final OperationLockSupport operationLockSupport;
+    private final SamplingPublicCacheService samplingPublicCacheService;
     private final WarningEventOutboxService warningEventOutboxService;
 
     public SamplingTaskServiceImpl(SamplingTaskMapper samplingTaskMapper,
                                    SamplingResultMapper samplingResultMapper,
                                    OperationMasterDataSupport masterDataSupport,
+                                   OperationLockSupport operationLockSupport,
+                                   SamplingPublicCacheService samplingPublicCacheService,
                                    WarningEventOutboxService warningEventOutboxService) {
         this.samplingTaskMapper = samplingTaskMapper;
         this.samplingResultMapper = samplingResultMapper;
         this.masterDataSupport = masterDataSupport;
+        this.operationLockSupport = operationLockSupport;
+        this.samplingPublicCacheService = samplingPublicCacheService;
         this.warningEventOutboxService = warningEventOutboxService;
     }
     /**
@@ -217,6 +227,10 @@ public class SamplingTaskServiceImpl implements SamplingTaskService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public SamplingResultVO submitResult(Long userId, Long taskId, SamplingResultSubmitDTO dto) {
+        return operationLockSupport.executeWithLock("sampling-submit", taskId, () -> doSubmitResult(userId, taskId, dto));
+    }
+
+    private SamplingResultVO doSubmitResult(Long userId, Long taskId, SamplingResultSubmitDTO dto) {
         InternalRegulatorIdentityVO regulator = masterDataSupport.requireEnforcer(userId);
         SamplingTask task = requireTask(taskId);
         if (!Objects.equals(task.getAssignedTo(), regulator.getId())) {
@@ -242,6 +256,7 @@ public class SamplingTaskServiceImpl implements SamplingTaskService {
         result.setUpdateTime(LocalDateTime.now());
         result.setDeleted(0);
         samplingResultMapper.insert(result);
+        samplingPublicCacheService.evict(result.getId());
 
         if (RESULT_FAIL.equals(result.getResult())) {
             markSamplingFailAsKey(task, result, regulator.getId());
@@ -269,6 +284,7 @@ public class SamplingTaskServiceImpl implements SamplingTaskService {
             result.setPublishedTime(LocalDateTime.now());
             result.setUpdateTime(LocalDateTime.now());
             samplingResultMapper.updateById(result);
+            samplingPublicCacheService.evict(resultId);
         }
         return toResultVO(result, task,
             loadEnterpriseNames(List.of(task)),
@@ -288,6 +304,7 @@ public class SamplingTaskServiceImpl implements SamplingTaskService {
         result.setPublicStatus(PUBLIC_STATUS_OFFLINE);
         result.setUpdateTime(LocalDateTime.now());
         samplingResultMapper.updateById(result);
+        samplingPublicCacheService.evict(resultId);
         return toResultVO(result, task,
             loadEnterpriseNames(List.of(task)),
             loadProductSummaries(List.of(task)),
@@ -299,6 +316,17 @@ public class SamplingTaskServiceImpl implements SamplingTaskService {
                                                           String result,
                                                           int page,
                                                           int size) {
+        String queryHash = buildPublicSamplingQueryHash(enterpriseName, result, page, size);
+        return samplingPublicCacheService.getList(
+            queryHash,
+            () -> loadPublicResults(enterpriseName, result, page, size)
+        );
+    }
+
+    private PageResult<SamplingResultVO> loadPublicResults(String enterpriseName,
+                                                           String result,
+                                                           int page,
+                                                           int size) {
         LambdaQueryWrapper<SamplingResult> wrapper = new LambdaQueryWrapper<SamplingResult>()
             .eq(SamplingResult::getDeleted, 0)
             .eq(SamplingResult::getPublicStatus, PUBLIC_STATUS_PUBLISHED);
@@ -319,6 +347,10 @@ public class SamplingTaskServiceImpl implements SamplingTaskService {
 
     @Override
     public SamplingResultVO getPublicResultDetail(Long resultId) {
+        return samplingPublicCacheService.getDetail(resultId, () -> loadPublicResultDetail(resultId));
+    }
+
+    private SamplingResultVO loadPublicResultDetail(Long resultId) {
         SamplingResult result = samplingResultMapper.selectOne(new LambdaQueryWrapper<SamplingResult>()
             .eq(SamplingResult::getId, resultId)
             .eq(SamplingResult::getDeleted, 0)
@@ -332,6 +364,16 @@ public class SamplingTaskServiceImpl implements SamplingTaskService {
             loadEnterpriseNames(List.of(task)),
             loadProductSummaries(List.of(task)),
             masterDataSupport.loadRegulatorNames(List.of(result.getSampledBy())));
+    }
+
+    private String buildPublicSamplingQueryHash(String enterpriseName, String result, int page, int size) {
+        String raw = String.join("|",
+            StringUtils.hasText(enterpriseName) ? enterpriseName.trim() : "",
+            StringUtils.hasText(result) ? normalizeResult(result) : "",
+            String.valueOf(Math.max(1, page)),
+            String.valueOf(Math.max(1, size))
+        );
+        return DigestUtils.md5DigestAsHex(raw.getBytes(StandardCharsets.UTF_8));
     }
 
     /**

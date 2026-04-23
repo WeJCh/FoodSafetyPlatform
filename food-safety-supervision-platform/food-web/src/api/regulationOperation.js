@@ -249,6 +249,7 @@ export function offlineSamplingResult(token, id) {
 export function fetchPublicSamplingResults(token, params = {}) {
   const search = new URLSearchParams();
   if (params.enterpriseName) search.append("enterpriseName", params.enterpriseName);
+  if (params.productName) search.append("productName", params.productName);
   if (params.result) search.append("result", params.result);
   if (params.page) search.append("page", params.page);
   if (params.size) search.append("size", params.size);

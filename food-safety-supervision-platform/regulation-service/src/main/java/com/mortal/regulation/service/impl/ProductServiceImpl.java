@@ -124,6 +124,24 @@ public class ProductServiceImpl implements ProductService {
     }
 
     @Override
+    public List<Long> queryInternalProductIdsByNameKeyword(String keyword) {
+        if (!StringUtils.hasText(keyword)) {
+            return List.of();
+        }
+        return foodProductMapper.selectList(new LambdaQueryWrapper<FoodProduct>()
+                .eq(FoodProduct::getDeleted, 0)
+                .like(FoodProduct::getProductName, keyword.trim())
+                .select(FoodProduct::getId)
+                .orderByAsc(FoodProduct::getId)
+                .last("limit 2000"))
+            .stream()
+            .map(FoodProduct::getId)
+            .filter(Objects::nonNull)
+            .distinct()
+            .toList();
+    }
+
+    @Override
     public List<InternalProductSummaryVO> getInternalSummaries(List<Long> ids) {
         List<Long> cleanedIds = sanitizeIds(ids);
         if (cleanedIds.isEmpty()) {

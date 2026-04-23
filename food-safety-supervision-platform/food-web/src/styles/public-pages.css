@@ -1,0 +1,65 @@
+/**
+ * 公众端统一字号与控件高度（与「抽检结果 / 企业公示」列表页对齐）
+ * 各 `views/public/*.vue` 的 scoped 样式中请使用下列变量，避免同一语义多种 px。
+ */
+:root {
+  --public-brand-size: 26px;
+  /** 顶栏内容区最小高度（品牌/导航行） */
+  --public-topbar-min-h: 56px;
+  --public-nav-size: 14px;
+  /** 正文次级、顶栏搜索、分页说明等统一 14px */
+  --public-text-md: 14px;
+  --public-toolbar-min-h: 40px;
+  --public-toolbar-input-size: 14px;
+  --public-toolbar-input-min-w: 200px;
+  --public-logout-min-h: 40px;
+  --public-logout-font-size: 14px;
+  --public-crumb-size: 14px;
+  --public-page-title: 44px;
+  --public-page-title-sm: 36px;
+  --public-page-title-xs: 32px;
+  --public-hero-title: 44px;
+  --public-hero-title-alt: 40px;
+  --public-hero-subtitle-en: 12px;
+  --public-lead: 15px;
+  --public-label: 12px;
+  --public-control: 14px;
+  --public-control-min-h: 38px;
+  /** 筛选行、列表侧栏等略紧凑的控件高度 */
+  --public-dense-control-min-h: 32px;
+  --public-control-radius: 6px;
+  --public-table-head: 13px;
+  --public-table-head-overline: 12px;
+  --public-body-em: 18px;
+  --public-body: 15px;
+  --public-body-secondary: 13px;
+  --public-caption: 12px;
+  --public-overline: 11px;
+  --public-chip: 12px;
+  --public-chip-min-h: 30px;
+  --public-btn: 14px;
+  --public-btn-min-h: 38px;
+  --public-btn-action-min-h: 36px;
+  --public-btn-compact-min-h: 34px;
+  --public-empty: 15px;
+  --public-pager: 14px;
+  --public-pager-btn: 38px;
+  --public-detail-title: 38px;
+  --public-detail-title-sm: 28px;
+  --public-badge-min-h: 28px;
+  --public-form-title: 40px;
+  --public-form-title-mobile: 32px;
+  --public-meta-strong: 13px;
+  --public-article-body: 15px;
+  --public-timeline-body: 12px;
+  --public-stat-number: 30px;
+  --public-code-strong: 17px;
+  /** 首页 / 模块小标题、装饰性数字 */
+  --public-subhead: 16px;
+  --public-news-date-num: 22px;
+  --public-decorative-glyph: 96px;
+  --public-stat-highlight: 20px;
+  /** Material Symbols 等图标字号（与正文体系区分） */
+  --public-icon-lg: 24px;
+  --public-icon-xl: 32px;
+}

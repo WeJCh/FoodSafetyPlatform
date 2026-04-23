@@ -20,12 +20,15 @@ import com.mortal.regulation.operation.entity.SamplingTask;
 import com.mortal.regulation.operation.mapper.SamplingResultMapper;
 import com.mortal.regulation.operation.mapper.SamplingTaskMapper;
 import com.mortal.regulation.operation.service.impl.SamplingTaskServiceImpl;
+import com.mortal.regulation.operation.support.OperationLockSupport;
 import com.mortal.regulation.operation.support.OperationMasterDataSupport;
+import com.mortal.regulation.operation.support.SamplingPublicCacheService;
 import com.mortal.regulation.operation.vo.SamplingResultVO;
 import com.mortal.regulation.operation.vo.SamplingTaskVO;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.Callable;
 import org.junit.jupiter.api.Test;
 
 class SamplingTaskServiceImplTest {
@@ -35,11 +38,15 @@ class SamplingTaskServiceImplTest {
         SamplingTaskMapper taskMapper = mock(SamplingTaskMapper.class);
         SamplingResultMapper resultMapper = mock(SamplingResultMapper.class);
         OperationMasterDataSupport masterDataSupport = mock(OperationMasterDataSupport.class);
+        OperationLockSupport operationLockSupport = mock(OperationLockSupport.class);
+        SamplingPublicCacheService samplingPublicCacheService = mock(SamplingPublicCacheService.class);
         WarningEventOutboxService warningEventOutboxService = mock(WarningEventOutboxService.class);
         SamplingTaskServiceImpl service = new SamplingTaskServiceImpl(
             taskMapper,
             resultMapper,
             masterDataSupport,
+            operationLockSupport,
+            samplingPublicCacheService,
             warningEventOutboxService
         );
 
@@ -91,11 +98,19 @@ class SamplingTaskServiceImplTest {
         SamplingTaskMapper taskMapper = mock(SamplingTaskMapper.class);
         SamplingResultMapper resultMapper = mock(SamplingResultMapper.class);
         OperationMasterDataSupport masterDataSupport = mock(OperationMasterDataSupport.class);
+        OperationLockSupport operationLockSupport = mock(OperationLockSupport.class);
+        SamplingPublicCacheService samplingPublicCacheService = mock(SamplingPublicCacheService.class);
         WarningEventOutboxService warningEventOutboxService = mock(WarningEventOutboxService.class);
+        when(operationLockSupport.executeWithLock(any(), any(), any())).thenAnswer(invocation -> {
+            Callable<?> callable = invocation.getArgument(2);
+            return callable.call();
+        });
         SamplingTaskServiceImpl service = new SamplingTaskServiceImpl(
             taskMapper,
             resultMapper,
             masterDataSupport,
+            operationLockSupport,
+            samplingPublicCacheService,
             warningEventOutboxService
         );
 

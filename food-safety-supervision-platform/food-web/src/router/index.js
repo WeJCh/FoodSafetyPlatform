@@ -45,8 +45,8 @@ const PublicEnterpriseDetailView = () => import("../views/public/PublicEnterpris
 const PublicEnterpriseListView = () => import("../views/public/PublicEnterpriseListView.vue");
 const PublicHomeView = () => import("../views/public/PublicHomeView.vue");
 const PublicRegisterView = () => import("../views/PublicRegisterView.vue");
-const PublicSamplingResultDetailView = () => import("../views/PublicSamplingResultDetailView.vue");
-const PublicSamplingResultListView = () => import("../views/PublicSamplingResultListView.vue");
+const PublicSamplingResultDetailView = () => import("../views/public/PublicSamplingResultDetailView.vue");
+const PublicSamplingResultListView = () => import("../views/public/PublicSamplingResultListView.vue");
 const RegulatorAdminComplaintDetailView = () =>
   import("../views/regulatorAdmin/RegulatorAdminComplaintDetailView.vue");
 const RegulatorAdminApprovalsView = () => import("../views/regulatorAdmin/RegulatorAdminApprovalsView.vue");

@@ -342,6 +342,21 @@ public class OperationMasterDataSupport {
             .toList();
     }
 
+    public List<Long> queryProductIdsByName(String keyword) {
+        if (!StringUtils.hasText(keyword)) {
+            return List.of();
+        }
+        ApiResponse<List<Long>> response =
+            productClient.queryProductIdsByName(keyword.trim(), regulationInternalToken);
+        if (response == null || !response.isSuccess() || response.getData() == null) {
+            return List.of();
+        }
+        return response.getData().stream()
+            .filter(Objects::nonNull)
+            .distinct()
+            .toList();
+    }
+
     public List<Long> queryRegulatorIdsByName(String keyword) {
         if (!StringUtils.hasText(keyword)) {
             return null;

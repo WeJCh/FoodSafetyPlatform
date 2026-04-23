@@ -313,17 +313,19 @@ public class SamplingTaskServiceImpl implements SamplingTaskService {
 
     @Override
     public PageResult<SamplingResultVO> listPublicResults(String enterpriseName,
+                                                          String productName,
                                                           String result,
                                                           int page,
                                                           int size) {
-        String queryHash = buildPublicSamplingQueryHash(enterpriseName, result, page, size);
+        String queryHash = buildPublicSamplingQueryHash(enterpriseName, productName, result, page, size);
         return samplingPublicCacheService.getList(
             queryHash,
-            () -> loadPublicResults(enterpriseName, result, page, size)
+            () -> loadPublicResults(enterpriseName, productName, result, page, size)
         );
     }
 
     private PageResult<SamplingResultVO> loadPublicResults(String enterpriseName,
+                                                           String productName,
                                                            String result,
                                                            int page,
                                                            int size) {
@@ -339,6 +341,13 @@ public class SamplingTaskServiceImpl implements SamplingTaskService {
                 return PageResult.of(List.of(), 0, page, size);
             }
             wrapper.in(SamplingResult::getEnterpriseId, enterpriseIds);
+        }
+        if (StringUtils.hasText(productName)) {
+            List<Long> productIds = masterDataSupport.queryProductIdsByName(productName);
+            if (productIds.isEmpty()) {
+                return PageResult.of(List.of(), 0, page, size);
+            }
+            wrapper.in(SamplingResult::getProductId, productIds);
         }
         wrapper.orderByDesc(SamplingResult::getPublishedTime, SamplingResult::getId);
         Page<SamplingResult> pageInfo = samplingResultMapper.selectPage(new Page<>(page, size), wrapper);
@@ -366,9 +375,14 @@ public class SamplingTaskServiceImpl implements SamplingTaskService {
             masterDataSupport.loadRegulatorNames(List.of(result.getSampledBy())));
     }
 
-    private String buildPublicSamplingQueryHash(String enterpriseName, String result, int page, int size) {
+    private String buildPublicSamplingQueryHash(String enterpriseName,
+                                                String productName,
+                                                String result,
+                                                int page,
+                                                int size) {
         String raw = String.join("|",
             StringUtils.hasText(enterpriseName) ? enterpriseName.trim() : "",
+            StringUtils.hasText(productName) ? productName.trim() : "",
             StringUtils.hasText(result) ? normalizeResult(result) : "",
             String.valueOf(Math.max(1, page)),
             String.valueOf(Math.max(1, size))

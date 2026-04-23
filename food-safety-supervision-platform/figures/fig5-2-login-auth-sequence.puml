@@ -1,0 +1,33 @@
+' 图5-2 登录认证与统一鉴权时序图
+' 用途：展示登录、令牌签发、网关鉴权和下游服务访问的实现过程
+@startuml
+actor 用户 as User
+participant "前端页面" as FE
+participant "user-service\nAuthController" as Auth
+participant "user-service\nAuthServiceImpl" as AuthSvc
+database "用户库" as UDB
+collections "Redis" as Redis
+participant "gateway-service\nJwtAuthFilter" as GW
+participant "业务服务" as Biz
+
+User -> FE : 提交用户名和密码
+FE -> Auth : POST /api/auth/login
+Auth -> AuthSvc : login(dto)
+AuthSvc -> UDB : 校验用户账号、密码、角色
+AuthSvc -> Redis : 写入会话缓存与内省缓存
+AuthSvc --> Auth : 返回 token、roles、userType
+Auth --> FE : 登录成功响应
+
+User -> FE : 访问受保护页面/接口
+FE -> GW : 携带 Authorization 请求
+GW -> GW : 校验 JWT 签名
+GW -> Auth : POST /api/auth/introspect
+Auth -> AuthSvc : introspect(token)
+AuthSvc -> Redis : 查询黑名单/内省缓存
+AuthSvc --> Auth : 返回 valid、userType、roles
+Auth --> GW : 内省结果
+GW -> GW : 按路径执行角色校验
+GW -> Biz : 透传 X-User-Id / X-User-Type / X-User-Roles
+Biz --> GW : 返回业务结果
+GW --> FE : 返回响应
+@enduml

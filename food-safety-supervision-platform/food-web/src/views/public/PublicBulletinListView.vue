@@ -264,7 +264,7 @@ watch(
 .public-bulletins-page__topbar-inner {
   max-width: 1680px;
   margin: 0 auto;
-  min-height: 56px;
+  min-height: var(--public-topbar-min-h);
   padding: 0 16px;
   display: flex;
   align-items: center;
@@ -280,7 +280,7 @@ watch(
 
 .public-bulletins-page__brand {
   font-family: var(--font-display);
-  font-size: 25px;
+  font-size: var(--public-brand-size);
   font-weight: 800;
   letter-spacing: -0.03em;
   color: var(--primary);
@@ -295,10 +295,10 @@ watch(
 .public-bulletins-page__nav-item {
   border: none;
   background: transparent;
-  min-height: 56px;
+  min-height: var(--public-topbar-min-h);
   padding: 0;
   color: var(--on-surface-variant);
-  font-size: 12px;
+  font-size: var(--public-nav-size);
   font-weight: 700;
   cursor: pointer;
   border-bottom: 2px solid transparent;
@@ -322,20 +322,20 @@ watch(
   border-radius: 8px;
   border: 1px solid rgba(195, 198, 211, 0.44);
   background: rgba(255, 255, 255, 0.75);
-  padding: 0 12px;
-  min-height: 34px;
+  padding: 0 14px;
+  min-height: var(--public-toolbar-min-h);
 }
 
 .public-bulletins-page__search-box input {
   border: none;
   background: transparent;
-  font-size: 12px;
-  min-width: 180px;
+  font-size: var(--public-toolbar-input-size);
+  min-width: var(--public-toolbar-input-min-w);
 }
 
 .public-bulletins-page__icon-btn {
-  width: 34px;
-  height: 34px;
+  width: var(--public-btn-compact-min-h);
+  height: var(--public-btn-compact-min-h);
   border-radius: 8px;
   border: 1px solid transparent;
   background: transparent;
@@ -344,7 +344,8 @@ watch(
 }
 
 .public-bulletins-page__logout {
-  min-height: 34px;
+  min-height: var(--public-toolbar-min-h);
+  font-size: var(--public-logout-font-size);
   margin: 0;
 }
 
@@ -365,13 +366,13 @@ watch(
 .public-bulletins-page__hero h1 {
   margin: 0 0 8px;
   font-family: var(--font-display);
-  font-size: 40px;
+  font-size: var(--public-hero-title);
 }
 
 .public-bulletins-page__hero p {
   margin: 0;
   letter-spacing: 0.12em;
-  font-size: 11px;
+  font-size: var(--public-hero-subtitle-en);
   font-weight: 700;
   opacity: 0.88;
   text-transform: uppercase;
@@ -397,7 +398,7 @@ watch(
 .public-bulletins-page__side-card h3 {
   margin: 0 0 12px;
   color: var(--primary);
-  font-size: 12px;
+  font-size: var(--public-table-head-overline);
   letter-spacing: 0.08em;
   font-weight: 800;
   text-transform: uppercase;
@@ -414,7 +415,8 @@ watch(
   display: flex;
   align-items: center;
   justify-content: space-between;
-  min-height: 36px;
+  min-height: var(--public-btn-action-min-h);
+  font-size: var(--public-control);
   border-radius: 8px;
   background: transparent;
   padding: 0 10px;
@@ -448,7 +450,7 @@ watch(
 }
 
 .public-bulletins-page__table-head span {
-  font-size: 10px;
+  font-size: var(--public-table-head-overline);
   font-weight: 800;
   letter-spacing: 0.12em;
   text-transform: uppercase;
@@ -488,7 +490,7 @@ watch(
 .public-bulletins-page__row-main strong {
   display: block;
   color: var(--primary);
-  font-size: 15px;
+  font-size: var(--public-body);
   font-weight: 800;
   letter-spacing: -0.02em;
 }
@@ -496,7 +498,7 @@ watch(
 .public-bulletins-page__row-main p {
   margin: 6px 0 0;
   color: var(--on-surface-variant);
-  font-size: 11px;
+  font-size: var(--public-overline);
   line-height: 1.45;
   display: -webkit-box;
   -webkit-line-clamp: 1;
@@ -514,7 +516,7 @@ watch(
   justify-content: center;
   border-radius: 4px;
   padding: 3px 10px;
-  font-size: 10px;
+  font-size: var(--public-caption);
   font-weight: 800;
   border: 1px solid transparent;
 }
@@ -528,7 +530,7 @@ watch(
 .public-bulletins-page__row-time {
   text-align: right;
   color: var(--on-surface-variant);
-  font-size: 12px;
+  font-size: var(--public-caption);
   font-family: var(--font-display);
 }
 
@@ -536,6 +538,8 @@ watch(
   padding: 30px 20px;
   text-align: center;
   color: var(--on-surface-variant);
+  font-size: var(--public-empty);
+  line-height: 1.55;
 }
 
 .public-bulletins-page__pager {
@@ -551,7 +555,8 @@ watch(
 .public-bulletins-page__pager p {
   margin: 0;
   color: var(--on-surface-variant);
-  font-size: 12px;
+  font-size: var(--public-pager);
+  line-height: 1.5;
 }
 
 .public-bulletins-page__pager div {
@@ -561,8 +566,8 @@ watch(
 }
 
 .public-bulletins-page__pager button {
-  width: 32px;
-  height: 32px;
+  width: var(--public-pager-btn);
+  height: var(--public-pager-btn);
   border: 1px solid rgba(195, 198, 211, 0.35);
   border-radius: 6px;
   background: rgba(255, 255, 255, 0.7);
@@ -616,7 +621,7 @@ watch(
   }
 
   .public-bulletins-page__hero h1 {
-    font-size: 32px;
+    font-size: var(--public-page-title-xs);
   }
 
   .public-bulletins-page__table-head,

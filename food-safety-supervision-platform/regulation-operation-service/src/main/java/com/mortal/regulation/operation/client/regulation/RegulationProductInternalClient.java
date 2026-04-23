@@ -10,6 +10,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
+import org.springframework.web.bind.annotation.RequestParam;
 
 @FeignClient(name = "regulation-service", contextId = "regulationProductInternalClient")
 public interface RegulationProductInternalClient {
@@ -48,4 +49,9 @@ public interface RegulationProductInternalClient {
     ApiResponse<List<InternalProductSummaryVO>> getProductSummaries(@RequestBody List<Long> ids,
                                                                     @RequestHeader("X-Internal-Token")
                                                                     String internalToken);
+
+    @GetMapping("/api/internal/regulation/products/query-ids-by-name")
+    ApiResponse<List<Long>> queryProductIdsByName(@RequestParam("keyword") String keyword,
+                                                  @RequestHeader("X-Internal-Token")
+                                                  String internalToken);
 }

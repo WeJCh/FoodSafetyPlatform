@@ -30,6 +30,7 @@ public class PublicSamplingResultController {
      * 查询公众抽检结果列表
      * 
      * @param enterpriseName 企业名称
+     * @param productName 产品名称关键字（模糊匹配，全库分页筛选）
      * @param result 结果
      * @param page 页码
      * @param size 每页大小
@@ -37,10 +38,12 @@ public class PublicSamplingResultController {
      */
     @GetMapping
     public ApiResponse<PageResult<SamplingResultVO>> list(@RequestParam(required = false) String enterpriseName,
+                                                          @RequestParam(required = false) String productName,
                                                           @RequestParam(required = false) String result,
                                                           @RequestParam(defaultValue = "1") int page,
                                                           @RequestParam(defaultValue = "10") int size) {
-        return ApiResponse.success(samplingTaskService.listPublicResults(enterpriseName, result, page, size));
+        return ApiResponse.success(
+            samplingTaskService.listPublicResults(enterpriseName, productName, result, page, size));
     }
 
     /**

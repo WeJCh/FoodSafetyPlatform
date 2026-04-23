@@ -1,0 +1,36 @@
+%% 图4-2 微服务模块划分与调用关系图
+%% 用途：展示各微服务职责边界与主要 Feign 调用关系
+flowchart LR
+    GW["gateway-service"]
+    US["user-service"]
+    RS["regulation-service"]
+    ROS["regulation-operation-service"]
+    CS["complaint-service"]
+    WS["warning-service"]
+    QS["query-service"]
+    PC["platform-common"]
+
+    GW --> US
+    GW --> RS
+    GW --> ROS
+    GW --> CS
+    GW --> QS
+    GW -.路由存在但前端禁直连.-> WS
+
+    RS --> US
+    RS --> WS
+    ROS --> RS
+    ROS --> WS
+    CS --> RS
+    QS --> RS
+    QS --> ROS
+    QS --> CS
+    QS --> WS
+
+    PC -.公共组件.-> GW
+    PC -.公共组件.-> US
+    PC -.公共组件.-> RS
+    PC -.公共组件.-> ROS
+    PC -.公共组件.-> CS
+    PC -.公共组件.-> WS
+    PC -.公共组件.-> QS

@@ -86,12 +86,14 @@ public interface SamplingTaskService {
      * 查询公众抽检结果列表
      * 
      * @param enterpriseName 企业名称
+     * @param productName 产品名称关键字（模糊匹配主数据产品，与抽检结果 productId 关联）
      * @param result 结果
      * @param page 页码
      * @param size 每页大小
      * @return 抽检结果列表
      */
     PageResult<SamplingResultVO> listPublicResults(String enterpriseName,
+                                                   String productName,
                                                    String result,
                                                    int page,
                                                    int size);

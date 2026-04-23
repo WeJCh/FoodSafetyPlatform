@@ -1,0 +1,27 @@
+%% 图5-3 检查整改与抽检预警闭环流程图
+%% 用途：展示检查、整改、抽检、公示和预警 outbox 联动的实现链路
+flowchart TD
+    A[区域管理员创建检查任务] --> B[分派给执法人员]
+    B --> C[执法人员提交检查结果]
+    C --> D[写入 inspection_record 和 inspection_item]
+    D --> E{检查是否不合格}
+    E -->|否| F[检查任务完成]
+    E -->|是| G[系统生成 rectification_task]
+    G --> H[企业提交整改内容与附件]
+    H --> I[监管人员复核整改]
+    I -->|通过| J[整改闭环]
+    I -->|退回| H
+
+    C --> K{是否触发重点监管/预警}
+    K -->|是| L[写入 warning_event_outbox]
+    L --> M[定时任务扫描待投递事件]
+    M --> N[调用 warning-service 内部事件接口]
+    N --> O[生成或更新 warning_record]
+
+    P[区域管理员创建抽检任务] --> Q[执法人员提交抽检结果]
+    Q --> R[写入 sampling_result]
+    R --> S[public_status 初始为 DRAFT]
+    S --> T[区域管理员发布或下线]
+    T --> U[公众用户查询已发布抽检结果]
+    Q --> V{抽检是否不合格}
+    V -->|是| L

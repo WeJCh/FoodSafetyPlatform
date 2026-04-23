@@ -23,4 +23,12 @@ public interface ProductService {
     List<InternalProductSummaryVO> listInternalByEnterpriseId(Long enterpriseId);
 
     List<InternalProductSummaryVO> getInternalSummaries(List<Long> ids);
+
+    /**
+     * 按产品名称关键字查询产品主键（模糊匹配，最多返回固定条数，供跨服务筛选）。
+     *
+     * @param keyword 关键字，空白则返回空列表
+     * @return 产品 ID 列表，无重复
+     */
+    List<Long> queryInternalProductIdsByNameKeyword(String keyword);
 }

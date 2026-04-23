@@ -406,7 +406,7 @@ onMounted(() => {
 .public-home-page__topbar-inner {
   max-width: 1680px;
   margin: 0 auto;
-  min-height: 56px;
+  min-height: var(--public-topbar-min-h);
   padding: 0 16px;
   display: flex;
   align-items: center;
@@ -422,7 +422,7 @@ onMounted(() => {
 
 .public-home-page__brand {
   font-family: var(--font-display);
-  font-size: 25px;
+  font-size: var(--public-brand-size);
   font-weight: 800;
   letter-spacing: -0.03em;
   color: var(--primary);
@@ -437,10 +437,10 @@ onMounted(() => {
 .public-home-page__nav-item {
   border: none;
   background: transparent;
-  min-height: 56px;
+  min-height: var(--public-topbar-min-h);
   padding: 0;
   color: var(--on-surface-variant);
-  font-size: 12px;
+  font-size: var(--public-nav-size);
   font-weight: 700;
   cursor: pointer;
   border-bottom: 2px solid transparent;
@@ -469,20 +469,20 @@ onMounted(() => {
   border-radius: 8px;
   border: 1px solid rgba(195, 198, 211, 0.44);
   background: rgba(255, 255, 255, 0.75);
-  padding: 0 12px;
-  min-height: 34px;
+  padding: 0 14px;
+  min-height: var(--public-toolbar-min-h);
 }
 
 .public-home-page__search-box input {
   border: none;
   background: transparent;
-  font-size: 12px;
+  font-size: var(--public-toolbar-input-size);
   min-width: 210px;
 }
 
 .public-home-page__icon-btn {
-  width: 34px;
-  height: 34px;
+  width: var(--public-btn-compact-min-h);
+  height: var(--public-btn-compact-min-h);
   border-radius: 8px;
   border: 1px solid transparent;
   background: transparent;
@@ -497,7 +497,8 @@ onMounted(() => {
 }
 
 .public-home-page__logout {
-  min-height: 34px;
+  min-height: var(--public-toolbar-min-h);
+  font-size: var(--public-logout-font-size);
   margin: 0;
   border-radius: 8px;
   border-color: rgba(195, 198, 211, 0.45);
@@ -545,7 +546,7 @@ onMounted(() => {
   margin: 0;
   color: #fff;
   font-family: var(--font-display);
-  font-size: clamp(2rem, 4vw, 3rem);
+  font-size: clamp(var(--public-page-title-xs), 4vw, var(--public-page-title-sm));
   font-weight: 900;
 }
 
@@ -553,6 +554,7 @@ onMounted(() => {
   margin: 14px 0 0;
   color: rgba(224, 234, 255, 0.95);
   line-height: 1.7;
+  font-size: var(--public-lead);
 }
 
 .public-home-page__hero-search {
@@ -644,14 +646,14 @@ onMounted(() => {
   margin: 18px 0 8px;
   color: var(--primary);
   font-family: var(--font-display);
-  font-size: 38px;
+  font-size: var(--public-detail-title);
   letter-spacing: -0.04em;
 }
 
 .public-home-page__entry-card p {
   margin: 0;
   color: var(--on-surface-variant);
-  font-size: 13px;
+  font-size: var(--public-body-secondary);
   line-height: 1.6;
 }
 
@@ -681,19 +683,19 @@ onMounted(() => {
   place-items: center;
   background: var(--surface-container-low);
   color: rgba(0, 38, 96, 0.78);
-  font-size: 18px;
+  font-size: var(--public-body-em);
 }
 
 .public-home-page__entry-card.is-mini strong {
   display: block;
   color: var(--primary);
-  font-size: 30px;
+  font-size: var(--public-stat-number);
   letter-spacing: -0.04em;
 }
 
 .public-home-page__entry-card.is-mini p {
   margin-top: 4px;
-  font-size: 12px;
+  font-size: var(--public-caption);
 }
 
 .public-home-page__rights-card {
@@ -709,13 +711,13 @@ onMounted(() => {
 .public-home-page__rights-card h3 {
   margin: 14px 0 10px;
   font-family: var(--font-display);
-  font-size: 38px;
+  font-size: var(--public-detail-title);
   letter-spacing: -0.04em;
 }
 
 .public-home-page__rights-card p {
   margin: 0 0 16px;
-  font-size: 13px;
+  font-size: var(--public-body-secondary);
   line-height: 1.55;
   opacity: 0.88;
 }
@@ -741,7 +743,7 @@ onMounted(() => {
   position: absolute;
   right: -8px;
   bottom: -8px;
-  font-size: 96px;
+  font-size: var(--public-decorative-glyph);
   opacity: 0.14;
 }
 
@@ -765,6 +767,8 @@ onMounted(() => {
   margin: 0;
   color: var(--primary);
   font-family: var(--font-display);
+  font-size: var(--public-page-title-sm);
+  line-height: 1.15;
 }
 
 .public-home-page__section-head div div {
@@ -779,6 +783,7 @@ onMounted(() => {
   background: transparent;
   color: var(--primary);
   font-weight: 700;
+  font-size: var(--public-caption);
   cursor: pointer;
 }
 
@@ -815,14 +820,14 @@ onMounted(() => {
 .public-home-page__news-date span {
   display: block;
   font-family: var(--font-display);
-  font-size: 22px;
+  font-size: var(--public-news-date-num);
   font-weight: 800;
   color: var(--primary);
   line-height: 1;
 }
 
 .public-home-page__news-date small {
-  font-size: 11px;
+  font-size: var(--public-overline);
   color: var(--on-surface-variant);
 }
 
@@ -837,22 +842,22 @@ onMounted(() => {
   color: var(--primary);
   padding: 2px 8px;
   border-radius: 999px;
-  font-size: 10px;
+  font-size: var(--public-table-head-overline);
 }
 
 .public-home-page__news-content span {
-  font-size: 12px;
+  font-size: var(--public-caption);
   color: var(--on-surface-variant);
 }
 
 .public-home-page__news-content h4 {
   margin: 8px 0 6px;
-  font-size: 16px;
+  font-size: var(--public-subhead);
 }
 
 .public-home-page__news-content p {
   margin: 0;
-  font-size: 13px;
+  font-size: var(--public-body-secondary);
   color: var(--on-surface-variant);
   line-height: 1.55;
 }
@@ -878,6 +883,9 @@ onMounted(() => {
   display: flex;
   align-items: center;
   gap: 6px;
+  font-size: var(--public-text-md);
+  font-weight: 800;
+  color: var(--primary);
 }
 
 .public-home-page__quick-card > div {
@@ -895,7 +903,7 @@ onMounted(() => {
   place-items: center;
   gap: 4px;
   cursor: pointer;
-  font-size: 12px;
+  font-size: var(--public-caption);
   font-weight: 700;
 }
 
@@ -906,6 +914,8 @@ onMounted(() => {
 
 .public-home-page__stats-card h3 {
   margin: 0 0 10px;
+  font-size: var(--public-text-md);
+  font-weight: 800;
 }
 
 .public-home-page__stats-card p {
@@ -922,12 +932,12 @@ onMounted(() => {
 
 .public-home-page__stats-card p span {
   opacity: 0.82;
-  font-size: 13px;
+  font-size: var(--public-body-secondary);
 }
 
 .public-home-page__stats-card p strong {
   font-family: var(--font-display);
-  font-size: 20px;
+  font-size: var(--public-stat-highlight);
 }
 
 .public-home-page__credibility {
@@ -945,12 +955,15 @@ onMounted(() => {
 
 .public-home-page__credibility h4 {
   margin: 10px 0 8px;
+  font-size: var(--public-subhead);
+  color: var(--primary);
+  font-weight: 800;
 }
 
 .public-home-page__credibility p {
   margin: 0;
   color: var(--on-surface-variant);
-  font-size: 13px;
+  font-size: var(--public-body-secondary);
   line-height: 1.65;
 }
 
@@ -972,12 +985,13 @@ onMounted(() => {
   border: none;
   background: transparent;
   color: var(--outline);
+  font-size: var(--public-caption);
   cursor: pointer;
 }
 
 .public-home-page__footer p {
   margin: 0;
-  font-size: 12px;
+  font-size: var(--public-caption);
   color: var(--outline);
 }
 

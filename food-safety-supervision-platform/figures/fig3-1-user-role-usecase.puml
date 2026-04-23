@@ -1,0 +1,55 @@
+' 图3-1 系统用户角色用例图
+' 用途：展示五类用户与系统核心功能之间的对应关系
+@startuml
+left to right direction
+skinparam packageStyle rectangle
+skinparam actorStyle awesome
+
+actor "系统管理员" as Admin
+actor "区域管理员" as RegAdmin
+actor "执法人员" as Enforcer
+actor "企业用户" as Enterprise
+actor "公众用户" as Public
+
+rectangle "基于微服务的食品安全监管平台" {
+  usecase "监管账号创建与状态维护" as UC1
+  usecase "企业备案审核" as UC2
+  usecase "产品档案维护" as UC3
+  usecase "检查任务创建与分派" as UC4
+  usecase "检查结果提交" as UC5
+  usecase "整改提交与复核" as UC6
+  usecase "抽检任务管理与结果发布" as UC7
+  usecase "公众投诉提交与跟踪" as UC8
+  usecase "投诉受理与处理" as UC9
+  usecase "公告管理与公开查询" as UC10
+  usecase "预警处理与统计查询" as UC11
+}
+
+Admin --> UC1
+
+RegAdmin --> UC2
+RegAdmin --> UC4
+RegAdmin --> UC6
+RegAdmin --> UC7
+RegAdmin --> UC9
+RegAdmin --> UC10
+RegAdmin --> UC11
+
+Enforcer --> UC5
+Enforcer --> UC6
+Enforcer --> UC7
+Enforcer --> UC9
+Enforcer --> UC11
+
+Enterprise --> UC3
+Enterprise --> UC6
+
+Public --> UC8
+Public --> UC10
+
+Enterprise --> UC2 : 提交备案
+Enterprise --> UC3 : 维护产品
+Enterprise --> UC7 : 查看公示结果
+Public --> UC7 : 查询已发布结果
+
+@enduml

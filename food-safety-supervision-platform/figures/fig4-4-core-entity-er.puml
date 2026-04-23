@@ -1,0 +1,171 @@
+' 图4-4 核心业务实体ER图
+' 用途：展示系统核心实体及主要关系，聚焦当前主运行链路
+@startuml
+hide circle
+skinparam linetype ortho
+
+entity "sys_user" as sys_user {
+  *id : bigint
+  --
+  username : varchar
+  user_type : varchar
+  status : int
+}
+
+entity "sys_role" as sys_role {
+  *id : bigint
+  --
+  role_code : varchar
+  role_name : varchar
+}
+
+entity "sys_user_role" as sys_user_role {
+  *id : bigint
+  --
+  user_id : bigint
+  role_id : bigint
+}
+
+entity "food_enterprise" as food_enterprise {
+  *id : bigint
+  --
+  user_id : bigint
+  enterprise_name : varchar
+  approval_status : varchar
+  region_id : bigint
+}
+
+entity "enterprise_profile_attachment" as enterprise_profile_attachment {
+  *id : bigint
+  --
+  enterprise_id : bigint
+  file_url : varchar
+}
+
+entity "food_product" as food_product {
+  *id : bigint
+  --
+  enterprise_id : bigint
+  product_name : varchar
+  status : varchar
+}
+
+entity "food_regulator" as food_regulator {
+  *id : bigint
+  --
+  user_id : bigint
+  role_type : varchar
+  status : int
+}
+
+entity "food_regulator_region" as food_regulator_region {
+  *id : bigint
+  --
+  regulator_id : bigint
+  region_id : bigint
+}
+
+entity "inspection_task" as inspection_task {
+  *id : bigint
+  --
+  enterprise_id : bigint
+  assignee_regulator_id : bigint
+  status : varchar
+}
+
+entity "inspection_record" as inspection_record {
+  *id : bigint
+  --
+  task_id : bigint
+  enterprise_id : bigint
+  result : varchar
+}
+
+entity "inspection_item" as inspection_item {
+  *id : bigint
+  --
+  record_id : bigint
+  item_name : varchar
+  qualified : boolean
+}
+
+entity "rectification_task" as rectification_task {
+  *id : bigint
+  --
+  inspection_record_id : bigint
+  enterprise_id : bigint
+  status : varchar
+}
+
+entity "sampling_task" as sampling_task {
+  *id : bigint
+  --
+  enterprise_id : bigint
+  product_id : bigint
+  status : varchar
+}
+
+entity "sampling_result" as sampling_result {
+  *id : bigint
+  --
+  task_id : bigint
+  public_status : varchar
+  result : varchar
+}
+
+entity "complaint" as complaint {
+  *id : bigint
+  --
+  enterprise_id : bigint
+  status : varchar
+}
+
+entity "complaint_handle" as complaint_handle {
+  *id : bigint
+  --
+  complaint_id : bigint
+  regulator_id : bigint
+}
+
+entity "warning_record" as warning_record {
+  *id : bigint
+  --
+  biz_id : varchar
+  warning_type : varchar
+  status : varchar
+}
+
+entity "warning_process_log" as warning_process_log {
+  *id : bigint
+  --
+  warning_id : bigint
+  action_type : varchar
+}
+
+entity "public_bulletin" as public_bulletin {
+  *id : bigint
+  --
+  title : varchar
+  status : varchar
+}
+
+sys_user ||--o{ sys_user_role
+sys_role ||--o{ sys_user_role
+sys_user ||--o| food_enterprise
+sys_user ||--o| food_regulator
+food_enterprise ||--o{ enterprise_profile_attachment
+food_enterprise ||--o{ food_product
+food_regulator ||--o{ food_regulator_region
+food_enterprise ||--o{ inspection_task
+food_regulator ||--o{ inspection_task
+inspection_task ||--o{ inspection_record
+inspection_record ||--o{ inspection_item
+inspection_record ||--o{ rectification_task
+food_enterprise ||--o{ sampling_task
+food_product ||--o{ sampling_task
+sampling_task ||--o{ sampling_result
+food_enterprise ||--o{ complaint
+complaint ||--o{ complaint_handle
+warning_record ||--o{ warning_process_log
+
+@enduml

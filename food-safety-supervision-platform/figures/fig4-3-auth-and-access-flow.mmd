@@ -1,0 +1,29 @@
+%% 图4-3 前后端交互与权限控制流程图
+%% 用途：展示前端路由限制、网关鉴权、用户服务内省和下游服务处理的访问链
+sequenceDiagram
+    participant U as 用户
+    participant FE as 前端页面
+    participant RT as Vue Router
+    participant GW as gateway-service
+    participant AUTH as user-service
+    participant BIZ as 业务服务
+
+    U->>FE: 访问页面或发起接口请求
+    FE->>RT: 检查 requiresRole 与会话状态
+    alt 未登录或角色不匹配
+        RT-->>U: 跳转登录页或默认首页
+    else 通过页面访问校验
+        FE->>GW: 携带 Authorization 请求接口
+        GW->>GW: 白名单/路径规则匹配
+        GW->>GW: 校验 JWT 签名
+        GW->>AUTH: 调用 /api/auth/introspect
+        AUTH-->>GW: 返回用户状态、类型、角色列表
+        GW->>GW: 按路径执行角色校验
+        alt 权限不足或令牌无效
+            GW-->>FE: 拒绝访问
+        else 通过接口校验
+            GW->>BIZ: 透传用户身份头
+            BIZ-->>GW: 返回业务结果
+            GW-->>FE: 返回响应
+        end
+    end

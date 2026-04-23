@@ -11,6 +11,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
@@ -61,5 +62,13 @@ public class InternalProductController {
         return ApiResponse.success(
             productMasterCacheService.getSummaries(ids, productService::getInternalSummaries)
         );
+    }
+
+    /**
+     * 按产品名称关键字查询产品 ID（模糊匹配），供运营服务等做全库关联筛选。
+     */
+    @GetMapping("/query-ids-by-name")
+    public ApiResponse<List<Long>> queryIdsByName(@RequestParam(required = false) String keyword) {
+        return ApiResponse.success(productService.queryInternalProductIdsByNameKeyword(keyword));
     }
 }

@@ -1,0 +1,49 @@
+' 图5-4 统计查询与预警代理时序图
+' 用途：展示 query-service 聚合查询和 regulation-service 代理 warning-service 的实现方式
+@startuml
+skinparam responseMessageBelowArrow true
+
+box "监管概览聚合链路" #EEF7FF
+actor "监管人员" as Reg
+participant "前端统计页面" as StatsFE
+participant "query-service\nSupervisionOverviewController" as QueryCtrl
+participant "SupervisionOverviewQueryServiceImpl" as QuerySvc
+participant "regulation-service\n企业统计接口" as RegStats
+participant "regulation-operation-service\n监管操作统计接口" as OpStats
+participant "complaint-service\n投诉统计接口" as CompStats
+participant "warning-service\n预警统计接口" as WarnStats
+
+Reg -> StatsFE : 查看监管概览
+StatsFE -> QueryCtrl : GET /api/query/supervision/overview
+QueryCtrl -> QuerySvc : overview(query, identity)
+QuerySvc -> QuerySvc : 计算辖区范围与缓存键
+QuerySvc -> RegStats : 查询企业统计
+RegStats --> QuerySvc : 企业概览数据
+QuerySvc -> OpStats : 查询监管操作统计
+OpStats --> QuerySvc : 检查/抽检/整改统计
+QuerySvc -> CompStats : 查询投诉统计
+CompStats --> QuerySvc : 投诉概览数据
+QuerySvc -> WarnStats : 查询预警统计
+WarnStats --> QuerySvc : 预警概览数据
+QuerySvc --> QueryCtrl : 组合统一概览结果
+QueryCtrl --> StatsFE : 返回监管概览
+end box
+
+== ==
+
+box "预警代理访问链路" #FFF6E8
+participant "前端预警页面" as WarnFE
+participant "regulation-service\nWarningProxyController" as ProxyCtrl
+participant "WarningProxyServiceImpl" as ProxySvc
+participant "warning-service\nWarningRecordController" as WarnCtrl
+
+Reg -> WarnFE : 查看预警列表/详情
+WarnFE -> ProxyCtrl : GET /api/regulation/warnings
+ProxyCtrl -> ProxySvc : list(identity, query)
+ProxySvc -> ProxySvc : 根据监管人员补充辖区/责任人过滤条件
+ProxySvc -> WarnCtrl : 转发至 warning-service
+WarnCtrl --> ProxySvc : 返回预警数据
+ProxySvc --> ProxyCtrl : 返回代理结果
+ProxyCtrl --> WarnFE : 返回预警列表/详情
+end box
+@enduml

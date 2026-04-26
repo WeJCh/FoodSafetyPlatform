@@ -1,0 +1,33 @@
+@startuml
+' 图名：抽检公示二级用例图
+' 用途：展示抽检任务、结果提交、结果公示与公众查询的细化关系
+left to right direction
+skinparam shadowing false
+skinparam packageStyle rectangle
+skinparam actorStyle awesome
+skinparam defaultFontName Microsoft YaHei
+
+actor "区域管理员" as RegAdmin
+actor "执法人员" as Enforcer
+actor "公众用户" as Public
+
+rectangle "抽检与公示模块" {
+  usecase "抽检任务创建" as UC1
+  usecase "抽检任务分派" as UC2
+  usecase "抽检结果提交" as UC3
+  usecase "抽检结果发布" as UC4
+  usecase "抽检结果下线" as UC5
+  usecase "抽检结果查询" as UC6
+}
+
+RegAdmin --> UC1
+RegAdmin --> UC2
+RegAdmin --> UC4
+RegAdmin --> UC5
+
+Enforcer --> UC3
+
+Public --> UC6
+
+UC3 ..> UC4 : <<include>>
+@enduml

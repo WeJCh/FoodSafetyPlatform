@@ -2,8 +2,6 @@
   <EnterpriseShell>
     <template #sidebar>
       <EnterpriseSidebar
-        title="企业监管中心"
-        subtitle="Enterprise Oversight"
         :active-key="activeKey"
         :nav-items="enterpriseNavItems"
         @navigate="$emit('navigate', $event)"

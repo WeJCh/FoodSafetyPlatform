@@ -2,7 +2,7 @@
   <section class="supervision-overview">
     <div class="overview-head">
       <div>
-        <div class="eyebrow">监管概览</div>
+        <div class="eyebrow">区域管理员工作台</div>
         <h2>把企业、执法、投诉和预警收在同一张业务视图里</h2>
         <p>
           {{ mode === "enforcer" ? "默认按本人任务口径汇总" : "默认按辖区业务口径汇总" }}
@@ -187,7 +187,7 @@ async function loadOverview() {
       ...(data || {})
     };
   } catch (error) {
-    errorMessage.value = error instanceof Error ? error.message : "监管概览加载失败";
+    errorMessage.value = error instanceof Error ? error.message : "区域管理员工作台加载失败";
   } finally {
     loading.value = false;
   }

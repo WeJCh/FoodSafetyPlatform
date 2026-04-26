@@ -1,0 +1,36 @@
+@startuml
+' 图名：检查整改二级用例图
+' 用途：展示检查任务、结果提交、整改生成与复核的细化关系
+left to right direction
+skinparam shadowing false
+skinparam packageStyle rectangle
+skinparam actorStyle awesome
+skinparam defaultFontName Microsoft YaHei
+
+actor "区域管理员" as RegAdmin
+actor "执法人员" as Enforcer
+actor "企业用户" as Enterprise
+
+rectangle "检查与整改模块" {
+  usecase "检查任务创建" as UC1
+  usecase "检查任务分派" as UC2
+  usecase "检查任务执行" as UC3
+  usecase "检查结果提交" as UC4
+  usecase "整改任务自动生成" as UC5
+  usecase "整改提交" as UC6
+  usecase "整改复核" as UC7
+}
+
+RegAdmin --> UC1
+RegAdmin --> UC2
+RegAdmin --> UC7
+
+Enforcer --> UC3
+Enforcer --> UC4
+
+Enterprise --> UC6
+
+UC4 ..> UC5 : <<extend>>
+UC5 ..> UC6 : <<include>>
+UC6 ..> UC7 : <<include>>
+@enduml

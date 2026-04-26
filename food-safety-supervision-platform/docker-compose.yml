@@ -1,0 +1,267 @@
+services:
+  mysql:
+    image: mysql:8.0.39
+    container_name: fsp-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      TZ: ${TZ}
+    command:
+      - --default-authentication-plugin=mysql_native_password
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_general_ci
+      - --max_connections=200
+    ports:
+      - "${MYSQL_HOST_PORT:-3306}:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./deploy/mysql/init:/docker-entrypoint-initdb.d:ro
+    networks:
+      - fsp-net
+
+  redis:
+    image: redis:7.2-alpine
+    container_name: fsp-redis
+    restart: unless-stopped
+    command: >
+      sh -c "redis-server --appendonly yes --requirepass ${REDIS_PASSWORD}"
+    ports:
+      - "${REDIS_HOST_PORT:-6379}:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - fsp-net
+
+  nacos:
+    image: nacos/nacos-server:v2.3.2
+    container_name: fsp-nacos
+    restart: unless-stopped
+    environment:
+      MODE: standalone
+      PREFER_HOST_MODE: hostname
+      NACOS_AUTH_ENABLE: "false"
+      TZ: ${TZ}
+      JVM_XMS: ${NACOS_JVM_XMS}
+      JVM_XMX: ${NACOS_JVM_XMX}
+      JVM_XMN: ${NACOS_JVM_XMN}
+    ports:
+      - "${NACOS_HOST_PORT:-8848}:8848"
+    networks:
+      - fsp-net
+
+  minio:
+    image: minio/minio:RELEASE.2024-08-17T01-24-54Z
+    container_name: fsp-minio
+    restart: unless-stopped
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ACCESS_KEY}
+      MINIO_ROOT_PASSWORD: ${MINIO_SECRET_KEY}
+      TZ: ${TZ}
+    command: server /data --console-address ":9001"
+    ports:
+      - "${MINIO_API_HOST_PORT:-9000}:9000"
+      - "${MINIO_CONSOLE_HOST_PORT:-9001}:9001"
+    volumes:
+      - minio_data:/data
+    networks:
+      - fsp-net
+
+  user-service:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+      args:
+        APP_JAR: user-service/target/user-service-0.0.1-SNAPSHOT.jar
+        SERVICE_PORT: 8081
+    container_name: fsp-user-service
+    restart: unless-stopped
+    depends_on:
+      - mysql
+      - redis
+      - nacos
+    environment: &backend-env
+      TZ: ${TZ}
+      DB_HOST: mysql
+      DB_PORT: 3306
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+      REDIS_DATABASE: ${REDIS_DATABASE}
+      NACOS_ADDR: nacos:8848
+      PLATFORM_REDIS_KEY_PREFIX: ${PLATFORM_REDIS_KEY_PREFIX}
+      PLATFORM_REDIS_ENV: ${PLATFORM_REDIS_ENV}
+      JAVA_OPTS: ${JAVA_OPTS_USER}
+    networks:
+      - fsp-net
+
+  regulation-service:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+      args:
+        APP_JAR: regulation-service/target/regulation-service-0.0.1-SNAPSHOT.jar
+        SERVICE_PORT: 8082
+    container_name: fsp-regulation-service
+    restart: unless-stopped
+    depends_on:
+      - mysql
+      - redis
+      - nacos
+      - user-service
+    environment:
+      <<: *backend-env
+      JAVA_OPTS: ${JAVA_OPTS_REGULATION}
+      MINIO_ENDPOINT: ${MINIO_ENDPOINT}
+      MINIO_PUBLIC_ENDPOINT: ${MINIO_PUBLIC_ENDPOINT}
+      MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY}
+      MINIO_SECRET_KEY: ${MINIO_SECRET_KEY}
+      MINIO_BUCKET: ${MINIO_BUCKET}
+      REGULATION_INTERNAL_TOKEN: ${REGULATION_INTERNAL_TOKEN}
+      WARNING_INTERNAL_TOKEN: ${WARNING_INTERNAL_TOKEN}
+    networks:
+      - fsp-net
+
+  warning-service:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+      args:
+        APP_JAR: warning-service/target/warning-service-0.0.1-SNAPSHOT.jar
+        SERVICE_PORT: 8084
+    container_name: fsp-warning-service
+    restart: unless-stopped
+    depends_on:
+      - mysql
+      - redis
+      - nacos
+      - regulation-service
+    environment:
+      <<: *backend-env
+      JAVA_OPTS: ${JAVA_OPTS_WARNING}
+      WARNING_INTERNAL_TOKEN: ${WARNING_INTERNAL_TOKEN}
+    networks:
+      - fsp-net
+
+  complaint-service:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+      args:
+        APP_JAR: complaint-service/target/complaint-service-0.0.1-SNAPSHOT.jar
+        SERVICE_PORT: 8085
+    container_name: fsp-complaint-service
+    restart: unless-stopped
+    depends_on:
+      - mysql
+      - redis
+      - nacos
+      - regulation-service
+    environment:
+      <<: *backend-env
+      JAVA_OPTS: ${JAVA_OPTS_COMPLAINT}
+      REGULATION_INTERNAL_TOKEN: ${REGULATION_INTERNAL_TOKEN}
+      SPRING_SQL_INIT_MODE: never
+    networks:
+      - fsp-net
+
+  regulation-operation-service:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+      args:
+        APP_JAR: regulation-operation-service/target/regulation-operation-service-0.0.1-SNAPSHOT.jar
+        SERVICE_PORT: 8086
+    container_name: fsp-regulation-operation-service
+    restart: unless-stopped
+    depends_on:
+      - mysql
+      - redis
+      - nacos
+      - regulation-service
+      - warning-service
+    environment:
+      <<: *backend-env
+      JAVA_OPTS: ${JAVA_OPTS_OPERATION}
+      REGULATION_INTERNAL_TOKEN: ${REGULATION_INTERNAL_TOKEN}
+      WARNING_INTERNAL_TOKEN: ${WARNING_INTERNAL_TOKEN}
+    networks:
+      - fsp-net
+
+  query-service:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+      args:
+        APP_JAR: query-service/target/query-service-0.0.1-SNAPSHOT.jar
+        SERVICE_PORT: 8083
+    container_name: fsp-query-service
+    restart: unless-stopped
+    depends_on:
+      - mysql
+      - redis
+      - nacos
+      - regulation-service
+      - regulation-operation-service
+      - complaint-service
+      - warning-service
+    environment:
+      <<: *backend-env
+      JAVA_OPTS: ${JAVA_OPTS_QUERY}
+      WARNING_INTERNAL_TOKEN: ${WARNING_INTERNAL_TOKEN}
+    networks:
+      - fsp-net
+
+  gateway-service:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+      args:
+        APP_JAR: gateway-service/target/gateway-service-0.0.1-SNAPSHOT.jar
+        SERVICE_PORT: 8080
+    container_name: fsp-gateway-service
+    restart: unless-stopped
+    depends_on:
+      - redis
+      - nacos
+      - user-service
+      - regulation-service
+      - regulation-operation-service
+      - complaint-service
+      - query-service
+      - warning-service
+    environment:
+      TZ: ${TZ}
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+      REDIS_DATABASE: ${REDIS_DATABASE}
+      NACOS_ADDR: nacos:8848
+      PLATFORM_REDIS_KEY_PREFIX: ${PLATFORM_REDIS_KEY_PREFIX}
+      PLATFORM_REDIS_ENV: ${PLATFORM_REDIS_ENV}
+      JAVA_OPTS: ${JAVA_OPTS_GATEWAY}
+    networks:
+      - fsp-net
+
+  food-web:
+    build:
+      context: .
+      dockerfile: food-web/Dockerfile
+    container_name: fsp-food-web
+    restart: unless-stopped
+    depends_on:
+      - gateway-service
+    ports:
+      - "${WEB_HOST_PORT:-80}:80"
+    networks:
+      - fsp-net
+
+volumes:
+  mysql_data:
+  redis_data:
+  minio_data:
+
+networks:
+  fsp-net:
+    driver: bridge

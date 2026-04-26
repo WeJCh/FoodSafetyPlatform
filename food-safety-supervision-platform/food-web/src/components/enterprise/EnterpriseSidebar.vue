@@ -2,11 +2,10 @@
   <div class="enterprise-sidebar">
     <div class="enterprise-sidebar__brand">
       <div class="enterprise-sidebar__brand-mark">
-        <span class="material-symbols-outlined is-filled" aria-hidden="true">policy</span>
+        食安
       </div>
       <div class="enterprise-sidebar__brand-copy">
-        <div class="enterprise-sidebar__title">{{ title }}</div>
-        <p class="enterprise-sidebar__subtitle">{{ subtitle }}</p>
+        <div class="enterprise-sidebar__title">食品安全监管平台</div>
       </div>
     </div>
 
@@ -53,14 +52,6 @@ const navMaterialIcon = {
 };
 
 defineProps({
-  title: {
-    type: String,
-    default: "企业监管中心"
-  },
-  subtitle: {
-    type: String,
-    default: "Enterprise Oversight"
-  },
   activeKey: {
     type: String,
     default: "profile"

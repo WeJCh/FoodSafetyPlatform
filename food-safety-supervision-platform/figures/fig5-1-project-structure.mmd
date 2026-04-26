@@ -1,8 +1,10 @@
-%% 图5-1 项目工程结构图
-%% 用途：展示父工程、多后端模块与前端工程的目录组织关系
-flowchart TD
+%% 图5-1 项目工程结构树形图
+%% 用途：展示项目根目录下前端工程与后端微服务工程的主要目录层次
+flowchart TB
     Root["food-safety-supervision-platform"]
 
+    Root --> POM["pom.xml"]
+    Root --> FE["food-web"]
     Root --> GW["gateway-service"]
     Root --> US["user-service"]
     Root --> RS["regulation-service"]
@@ -11,11 +13,17 @@ flowchart TD
     Root --> WS["warning-service"]
     Root --> QS["query-service"]
     Root --> PC["platform-common"]
-    Root --> FE["food-web"]
-    Root --> DOCS["docs/thesis"]
+
+    FE --> FE1["src/router"]
+    FE --> FE2["src/api"]
+    FE --> FE3["src/views/public"]
+    FE --> FE4["src/views/enterprise"]
+    FE --> FE5["src/views/systemAdmin"]
+    FE --> FE6["src/views/regulatorAdmin"]
+    FE --> FE7["src/views/regulatorEnforcer"]
 
     GW --> GW1["src/main/java"]
-    GW --> GW2["src/main/resources/application.yml"]
+    GW --> GW2["src/main/resources"]
 
     US --> US1["src/main/java"]
     US --> US2["src/main/resources/sql"]
@@ -35,10 +43,12 @@ flowchart TD
     QS --> QS1["src/main/java"]
     QS --> QS2["src/main/resources/sql"]
 
-    FE --> FE1["src/router"]
-    FE --> FE2["src/api"]
-    FE --> FE3["src/views/public"]
-    FE --> FE4["src/views/enterprise"]
-    FE --> FE5["src/views/systemAdmin"]
-    FE --> FE6["src/views/regulatorAdmin"]
-    FE --> FE7["src/views/regulatorEnforcer"]
+    PC --> PC1["src/main/java"]
+
+    classDef root fill:#eaf2ff,stroke:#3b6db3,stroke-width:2px,color:#1d2a3a,font-weight:bold;
+    classDef level1 fill:#f7f9fc,stroke:#7f8ea3,stroke-width:1.5px,color:#253041;
+    classDef level2 fill:#ffffff,stroke:#b8c2cc,stroke-width:1px,color:#374151;
+
+    class Root root;
+    class POM,FE,GW,US,RS,ROS,CS,WS,QS,PC level1;
+    class FE1,FE2,FE3,FE4,FE5,FE6,FE7,GW1,GW2,US1,US2,RS1,RS2,ROS1,ROS2,CS1,CS2,WS1,WS2,QS1,QS2,PC1 level2;

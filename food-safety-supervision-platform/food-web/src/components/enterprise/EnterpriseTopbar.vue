@@ -1,9 +1,5 @@
 <template>
   <div class="enterprise-topbar enterprise-topbar--grid">
-    <div class="enterprise-topbar__brand">
-      <span class="enterprise-topbar__brand-title">Sovereign Oversight</span>
-    </div>
-
     <div class="enterprise-topbar__search enterprise-topbar__search--center">
       <span class="material-symbols-outlined enterprise-topbar__search-icon" aria-hidden="true">search</span>
       <input v-model="localQuery" type="search" :placeholder="searchPlaceholder" autocomplete="off" @keydown.enter.prevent="onSearchSubmit" />

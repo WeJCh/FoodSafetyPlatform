@@ -8,7 +8,7 @@
   >
     <section class="overview-page">
       <header class="overview-page__header">
-        <h1>监管概览</h1>
+        <h1>区域管理员工作台</h1>
         <p>区域监管核心指标、待办事项与风险态势总览</p>
       </header>
 
@@ -216,7 +216,7 @@ async function loadOverview() {
 
     buildTaskFeeds(inspectionTaskFeed.records || []);
   } catch (error) {
-    setStatus(error.message || "加载监管概览失败。", "error");
+    setStatus(error.message || "加载区域管理员工作台失败。", "error");
   }
 }
 

@@ -3,7 +3,7 @@ import { useRouter } from "vue-router";
 import { getActiveSession, performLogout } from "../../session/authRuntime";
 
 export const regulatorAdminNavItems = [
-  { key: "overview", label: "监管概述", icon: "dashboard", routeName: "regulator-admin-overview", subtitle: "监管总览与待办中心" },
+  { key: "overview", label: "工作台", icon: "dashboard", routeName: "regulator-admin-overview", subtitle: "监管总览与待办中心" },
   { key: "enterprises", label: "企业管理", icon: "business", routeName: "regulator-admin-enterprises", subtitle: "企业档案与状态管理" },
   { key: "approvals", label: "企业备案审核", icon: "fact_check", routeName: "regulator-admin-approvals", subtitle: "企业备案审批流转" },
   { key: "dispatch", label: "检查任务", icon: "assignment", routeName: "regulator-admin-dispatch", subtitle: "检查任务创建与派发" },

@@ -176,7 +176,7 @@
             <span>LAST SYNC: {{ dashboardSyncTime }}</span>
           </div>
         </div>
-        <p>© 2023 Sovereign Oversight Regulatory Authority. All Rights Reserved.</p>
+        <p>© 2023 企业. All Rights Reserved.</p>
       </footer>
 
       <button class="enterprise-dashboard-fab" type="button" title="帮助" @click="onHelpFab">

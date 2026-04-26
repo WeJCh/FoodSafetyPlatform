@@ -1,0 +1,37 @@
+@startuml
+' 图名：投诉处理二级用例图
+' 用途：展示公众投诉提交、监管受理分派和执法处理反馈的细化关系
+left to right direction
+skinparam shadowing false
+skinparam packageStyle rectangle
+skinparam actorStyle awesome
+skinparam defaultFontName Microsoft YaHei
+
+actor "公众用户" as Public
+actor "区域管理员" as RegAdmin
+actor "执法人员" as Enforcer
+
+rectangle "投诉处理模块" {
+  usecase "投诉提交" as UC1
+  usecase "投诉跟踪查询" as UC2
+  usecase "投诉受理" as UC3
+  usecase "投诉分派" as UC4
+  usecase "投诉处理" as UC5
+  usecase "投诉反馈" as UC6
+  usecase "投诉驳回" as UC7
+}
+
+Public --> UC1
+Public --> UC2
+
+RegAdmin --> UC3
+RegAdmin --> UC4
+RegAdmin --> UC7
+
+Enforcer --> UC5
+Enforcer --> UC6
+
+UC1 ..> UC2 : <<extend>>
+UC3 ..> UC4 : <<include>>
+UC5 ..> UC6 : <<include>>
+@enduml

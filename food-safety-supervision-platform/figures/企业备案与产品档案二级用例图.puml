@@ -1,0 +1,32 @@
+@startuml
+' 图名：企业备案与产品档案二级用例图
+' 用途：展示企业备案与产品档案相关功能的细化关系
+left to right direction
+skinparam shadowing false
+skinparam packageStyle rectangle
+skinparam actorStyle awesome
+skinparam defaultFontName Microsoft YaHei
+
+actor "企业用户" as Enterprise
+actor "区域管理员" as RegAdmin
+
+rectangle "企业备案与产品档案模块" {
+  usecase "企业备案提交" as UC1
+  usecase "备案附件上传" as UC2
+  usecase "备案状态查看" as UC3
+  usecase "企业备案审核" as UC4
+  usecase "企业信息查询" as UC5
+  usecase "产品档案新增与维护" as UC6
+}
+
+Enterprise --> UC1
+Enterprise --> UC2
+Enterprise --> UC3
+Enterprise --> UC6
+
+RegAdmin --> UC4
+RegAdmin --> UC5
+RegAdmin --> UC6
+
+UC1 ..> UC2 : <<include>>
+@enduml

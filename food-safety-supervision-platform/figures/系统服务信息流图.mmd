@@ -1,0 +1,51 @@
+%% 图4-3 系统服务信息流图
+%% 用途：展示统一入口、服务协同、预警代理访问与统计聚合的主要信息流
+flowchart TB
+    Browser["浏览器 / 前端页面"]
+    Gateway["gateway-service
+统一入口 / 鉴权 / 路由转发"]
+
+    subgraph Master["主数据与监管基础服务"]
+        US["user-service
+认证与用户"]
+        RS["regulation-service
+企业 / 产品 / 监管人员 / 公告 / 预警代理"]
+    end
+
+    subgraph Biz["监管业务服务"]
+        ROS["regulation-operation-service
+检查 / 抽检 / 整改"]
+        CS["complaint-service
+投诉处理"]
+        QS["query-service
+统计聚合"]
+        WS["warning-service
+预警记录 / 处理"]
+    end
+
+    Browser --> Gateway
+
+    Gateway --> US
+    Gateway --> RS
+    Gateway --> ROS
+    Gateway --> CS
+    Gateway --> QS
+
+    RS --> US
+    ROS --> RS
+    CS --> RS
+
+    QS --> RS
+    QS --> ROS
+    QS --> CS
+    QS --> WS
+
+    RS -.预警代理访问.-> WS
+    ROS -.业务事件上报.-> WS
+
+    classDef entry fill:#eaf2ff,stroke:#3b6db3,stroke-width:2px,color:#1d2a3a,font-weight:bold;
+    classDef service fill:#ffffff,stroke:#6b7280,stroke-width:1px,color:#111827;
+    classDef agg fill:#f8fafc,stroke:#7f8ea3,stroke-width:1.5px,color:#253041;
+
+    class Browser,Gateway entry;
+    class US,RS,ROS,CS,WS,QS service;

@@ -1,55 +1,72 @@
 ' 图3-1 系统用户角色用例图
-' 用途：展示五类用户与系统核心功能之间的对应关系
+' 用途：展示五类用户与平台核心功能模块之间的对应关系
 @startuml
 left to right direction
+skinparam shadowing false
 skinparam packageStyle rectangle
 skinparam actorStyle awesome
-
+skinparam defaultFontName Microsoft YaHei
+skinparam rectangle {
+  BorderColor #6b7280
+  BackgroundColor #ffffff
+}
+skinparam package {
+  BorderColor #9ca3af
+  BackgroundColor #f8fafc
+}
+skinparam usecase {
+  BorderColor #6b7280
+  BackgroundColor #ffffff
+  ArrowColor #6b7280
+}
 actor "系统管理员" as Admin
 actor "区域管理员" as RegAdmin
 actor "执法人员" as Enforcer
 actor "企业用户" as Enterprise
 actor "公众用户" as Public
-
 rectangle "基于微服务的食品安全监管平台" {
-  usecase "监管账号创建与状态维护" as UC1
-  usecase "企业备案审核" as UC2
-  usecase "产品档案维护" as UC3
-  usecase "检查任务创建与分派" as UC4
-  usecase "检查结果提交" as UC5
-  usecase "整改提交与复核" as UC6
-  usecase "抽检任务管理与结果发布" as UC7
-  usecase "公众投诉提交与跟踪" as UC8
-  usecase "投诉受理与处理" as UC9
-  usecase "公告管理与公开查询" as UC10
-  usecase "预警处理与统计查询" as UC11
+  package "系统管理" {
+    usecase "监管账号管理" as UC_Admin
+  }
+  package "监管业务" {
+    usecase "企业备案审核" as UC_Approve
+    usecase "检查任务管理" as UC_InspectTask
+    usecase "检查结果提交" as UC_InspectSubmit
+    usecase "整改处理与复核" as UC_Rectify
+    usecase "抽检任务管理" as UC_SamplingTask
+    usecase "抽检结果提交" as UC_SamplingSubmit
+    usecase "投诉受理与处理" as UC_ComplaintHandle
+    usecase "预警处理与统计查询" as UC_WarningStats
+    usecase "公告管理" as UC_BulletinManage
+  }
+  package "企业服务" {
+    usecase "企业备案提交" as UC_ProfileSubmit
+    usecase "产品档案维护" as UC_Product
+    usecase "整改提交" as UC_RectifySubmit
+  }
+  package "公众服务" {
+    usecase "公告查询" as UC_BulletinQuery
+    usecase "抽检结果查询" as UC_SamplingQuery
+    usecase "投诉提交与跟踪" as UC_ComplaintPublic
+  }
 }
-
-Admin --> UC1
-
-RegAdmin --> UC2
-RegAdmin --> UC4
-RegAdmin --> UC6
-RegAdmin --> UC7
-RegAdmin --> UC9
-RegAdmin --> UC10
-RegAdmin --> UC11
-
-Enforcer --> UC5
-Enforcer --> UC6
-Enforcer --> UC7
-Enforcer --> UC9
-Enforcer --> UC11
-
-Enterprise --> UC3
-Enterprise --> UC6
-
-Public --> UC8
-Public --> UC10
-
-Enterprise --> UC2 : 提交备案
-Enterprise --> UC3 : 维护产品
-Enterprise --> UC7 : 查看公示结果
-Public --> UC7 : 查询已发布结果
-
+Admin --> UC_Admin
+RegAdmin --> UC_Approve
+RegAdmin --> UC_InspectTask
+RegAdmin --> UC_Rectify
+RegAdmin --> UC_SamplingTask
+RegAdmin --> UC_ComplaintHandle
+RegAdmin --> UC_WarningStats
+RegAdmin --> UC_BulletinManage
+Enforcer --> UC_InspectSubmit
+Enforcer --> UC_Rectify
+Enforcer --> UC_SamplingSubmit
+Enforcer --> UC_ComplaintHandle
+Enforcer --> UC_WarningStats
+Enterprise --> UC_ProfileSubmit
+Enterprise --> UC_Product
+Enterprise --> UC_RectifySubmit
+Public --> UC_BulletinQuery
+Public --> UC_SamplingQuery
+Public --> UC_ComplaintPublic
 @enduml

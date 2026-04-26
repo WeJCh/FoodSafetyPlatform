@@ -1,32 +1,45 @@
 %% 图4-1 系统总体架构图
-%% 用途：展示前端、网关、微服务、数据库及基础依赖之间的总体结构
-flowchart LR
+%% 用途：展示前端、网关、微服务、基础依赖与数据层之间的总体结构
+flowchart TB
     subgraph Client["客户端"]
         Browser["浏览器"]
     end
 
     subgraph Frontend["前端层"]
-        Web["food-web\nVue 3 + Vue Router 4 + Vite 5"]
+        Web["food-web
+Vue 3 + Vue Router 4 + Vite 5"]
     end
 
     subgraph Gateway["接入层"]
-        GW["gateway-service\n统一路由 / JWT鉴权 / 跨域 / 限流"]
+        GW["gateway-service
+统一路由 / JWT鉴权 / 跨域 / 限流"]
     end
 
     subgraph Services["业务服务层"]
-        US["user-service\n注册 / 登录 / 内省 / 角色绑定"]
-        RS["regulation-service\n企业备案 / 产品 / 监管人员 / 公告 / 文件 / 预警代理"]
-        ROS["regulation-operation-service\n检查 / 抽检 / 整改 / outbox"]
-        CS["complaint-service\n投诉提交 / 流转处理"]
-        WS["warning-service\n预警记录 / 处理日志 / 统计"]
-        QS["query-service\n监管概览 / 预警统计聚合"]
-        PC["platform-common\n公共返回体与公共组件"]
+        direction TB
+        US["user-service
+注册 / 登录 / 内省 / 角色绑定"]
+        RS["regulation-service
+企业备案 / 产品 / 监管人员 / 公告 / 文件 / 预警代理"]
+        ROS["regulation-operation-service
+检查 / 抽检 / 整改 / outbox"]
+        CS["complaint-service
+投诉提交 / 流转处理"]
+        WS["warning-service
+预警记录 / 处理日志 / 统计"]
+        QS["query-service
+监管概览 / 预警统计聚合"]
+        PC["platform-common
+公共返回体与公共组件"]
     end
 
-    subgraph Infra["基础依赖"]
-        Nacos["Nacos\n注册发现 / 配置管理"]
-        Redis["Redis\n会话 / 缓存 / 限流 / 锁"]
-        MinIO["MinIO\n附件对象存储"]
+    subgraph Infra["基础依赖层"]
+        Nacos["Nacos
+注册发现 / 配置管理"]
+        Redis["Redis
+会话 / 缓存 / 限流 / 锁"]
+        MinIO["MinIO
+附件对象存储"]
     end
 
     subgraph Data["数据层"]
@@ -39,11 +52,19 @@ flowchart LR
     end
 
     Browser --> Web --> GW
+
     GW --> US
     GW --> RS
     GW --> ROS
     GW --> CS
     GW --> QS
+
+    RS --> WS
+    ROS --> WS
+    QS --> WS
+    QS --> RS
+    QS --> ROS
+    QS --> CS
 
     US --> UDB
     RS --> RDB
@@ -52,26 +73,18 @@ flowchart LR
     WS --> WDB
     QS --> QDB
 
-    US --- Nacos
-    RS --- Nacos
-    ROS --- Nacos
-    CS --- Nacos
-    WS --- Nacos
-    QS --- Nacos
-    GW --- Nacos
-
-    US --- Redis
-    RS --- Redis
-    ROS --- Redis
-    CS --- Redis
-    WS --- Redis
-    QS --- Redis
-    GW --- Redis
-
+    Services --- Nacos
+    Services --- Redis
     RS --- MinIO
+
     PC --- US
     PC --- RS
     PC --- ROS
     PC --- CS
     PC --- WS
     PC --- QS
+
+    classDef layer fill:#f8fafc,stroke:#7f8ea3,stroke-width:1.5px,color:#253041;
+    classDef node fill:#ffffff,stroke:#6b7280,stroke-width:1px,color:#111827;
+
+    class Browser,Web,GW,US,RS,ROS,CS,WS,QS,PC,Nacos,Redis,MinIO,UDB,RDB,ODB,CDB,WDB,QDB node;

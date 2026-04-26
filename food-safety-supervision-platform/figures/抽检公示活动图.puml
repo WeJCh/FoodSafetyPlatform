@@ -1,0 +1,29 @@
+@startuml
+' 图名：抽检公示活动图
+' 用途：展示抽检任务创建、结果提交、结果发布与公众查询的主要活动流程
+skinparam shadowing false
+skinparam defaultFontName Microsoft YaHei
+skinparam activity {
+  BackgroundColor #ffffff
+  BorderColor #6b7280
+  DiamondBackgroundColor #f8fafc
+  DiamondBorderColor #6b7280
+  ArrowColor #6b7280
+}
+
+start
+:区域管理员创建抽检任务;
+:分派执法人员;
+:执法人员执行抽检;
+:提交抽检结果;
+:系统保存抽检结果;
+
+if (抽检结果是否发布?) then (是)
+  :区域管理员发布抽检结果;
+  :公众用户查询已发布结果;
+else (否)
+  :结果保持草稿或不公开;
+endif
+
+stop
+@enduml

@@ -1,0 +1,15 @@
+FROM eclipse-temurin:17-jre
+
+ARG APP_JAR
+ARG SERVICE_PORT=8080
+
+ENV TZ=Asia/Shanghai
+ENV JAVA_OPTS="-XX:+UseSerialGC -XX:MaxRAMPercentage=70 -Djava.security.egd=file:/dev/./urandom"
+
+WORKDIR /app
+
+COPY ${APP_JAR} /app/app.jar
+
+EXPOSE ${SERVICE_PORT}
+
+ENTRYPOINT ["sh", "-c", "java ${JAVA_OPTS} -jar /app/app.jar"]

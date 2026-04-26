@@ -375,7 +375,7 @@ const routes = [
     path: "/regulator/admin/overview",
     name: "regulator-admin-overview",
     component: RegulatorAdminOverviewView,
-    meta: { title: "监管概述", requiresRole: "REGULATOR_ADMIN" }
+    meta: { title: "工作台", requiresRole: "REGULATOR_ADMIN" }
   },
   {
     path: "/regulator/admin/enterprises",

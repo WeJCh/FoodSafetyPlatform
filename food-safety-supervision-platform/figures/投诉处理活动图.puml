@@ -1,0 +1,33 @@
+@startuml
+' 图名：投诉处理活动图
+' 用途：展示公众投诉提交、区域管理员受理分派、执法人员处理反馈的主要活动流程
+skinparam shadowing false
+skinparam defaultFontName Microsoft YaHei
+skinparam activity {
+  BackgroundColor #ffffff
+  BorderColor #6b7280
+  DiamondBackgroundColor #f8fafc
+  DiamondBorderColor #6b7280
+  ArrowColor #6b7280
+}
+
+start
+:公众用户提交投诉;
+:系统保存投诉记录;
+:区域管理员查看投诉;
+
+if (是否受理?) then (是)
+  :区域管理员受理投诉;
+  :分派执法人员;
+  :执法人员处理投诉;
+  :填写处理结果;
+  :系统更新投诉状态为已反馈;
+  :公众用户查看处理进度与结果;
+else (否)
+  :区域管理员驳回投诉;
+  :系统记录驳回原因;
+  :公众用户查看驳回结果;
+endif
+
+stop
+@enduml

@@ -2,8 +2,6 @@
   <EnterpriseShell>
     <template #sidebar>
       <EnterpriseSidebar
-        title="企业中心"
-        subtitle="食品安全企业端工作区"
         :active-key="section"
         :nav-items="sidebarNavItems"
         @navigate="handleSidebarNavigate"

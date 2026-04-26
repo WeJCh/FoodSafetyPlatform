@@ -1,0 +1,8 @@
+.git
+.idea
+docs
+figures
+**/node_modules
+**/.DS_Store
+debug.log
+deploy/.data

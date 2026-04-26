@@ -1,7 +1,7 @@
 <template>
   <header class="reg-admin-topbar">
     <div class="reg-admin-topbar__left">
-      <strong>监管管理平台</strong>
+      <strong>区域管理员</strong>
       <input :placeholder="searchPlaceholder" />
     </div>
     <div class="reg-admin-topbar__right">

@@ -1,0 +1,34 @@
+@startuml
+' 图名：企业备案审核活动图
+' 用途：展示企业备案提交、附件上传与区域管理员审核的主要活动流程
+skinparam shadowing false
+skinparam defaultFontName Microsoft YaHei
+skinparam activity {
+  BackgroundColor #ffffff
+  BorderColor #6b7280
+  DiamondBackgroundColor #f8fafc
+  DiamondBorderColor #6b7280
+  ArrowColor #6b7280
+}
+
+start
+:企业用户登录系统;
+:填写企业备案信息;
+:上传备案附件;
+:提交备案申请;
+:系统保存企业信息与附件;
+:备案状态置为待审核;
+:区域管理员查看待审核列表;
+:审核备案材料;
+
+if (审核通过?) then (是)
+  :更新备案状态为已通过;
+  :企业进入可纳管状态;
+else (否)
+  :更新备案状态为已驳回;
+  :记录审核意见;
+endif
+
+:企业用户查看备案结果;
+stop
+@enduml

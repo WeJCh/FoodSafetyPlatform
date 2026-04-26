@@ -1,0 +1,85 @@
+@startuml
+' 图名：检查整改时序图
+' 用途：展示检查任务创建、执行、整改生成、企业整改提交与监管复核的真实时序
+
+title 检查整改时序图
+
+skinparam backgroundColor white
+skinparam shadowing false
+skinparam sequence {
+  ArrowColor #4b5563
+  LifeLineBorderColor #6b7280
+  LifeLineBackgroundColor #f8fafc
+  ParticipantBorderColor #6b7280
+  ParticipantBackgroundColor #eef4ff
+  ParticipantFontColor #1f2937
+  ActorBorderColor #6b7280
+  ActorBackgroundColor #eef4ff
+  ActorFontColor #1f2937
+}
+
+actor 区域管理员
+actor 执法人员
+actor 企业用户
+
+participant "检查任务服务\nInspectionTaskServiceImpl" as 检查任务服务
+participant "整改服务\nRectificationServiceImpl" as 整改服务
+
+== 检查任务创建与分派 ==
+
+区域管理员 -> 检查任务服务 : createTask(enterpriseId, taskTitle, deadline)
+activate 检查任务服务
+检查任务服务 -> 检查任务服务 : 校验企业已审核通过\n校验辖区范围\n写入 inspection_task
+检查任务服务 --> 区域管理员 : 返回检查任务
+deactivate 检查任务服务
+
+区域管理员 -> 检查任务服务 : assignTask(taskId, regulatorId)
+activate 检查任务服务
+检查任务服务 -> 检查任务服务 : 校验执法人员角色与辖区\n更新状态为 ASSIGNED
+检查任务服务 --> 区域管理员 : 返回分派结果
+deactivate 检查任务服务
+
+== 检查执行与整改任务生成 ==
+
+执法人员 -> 检查任务服务 : startTask(taskId)
+activate 检查任务服务
+检查任务服务 -> 检查任务服务 : 校验任务归属\n更新状态为 IN_PROGRESS
+检查任务服务 --> 执法人员 : 返回开始结果
+deactivate 检查任务服务
+
+执法人员 -> 检查任务服务 : submitTask(taskId, InspectionSubmitDTO)
+activate 检查任务服务
+检查任务服务 -> 检查任务服务 : 写入 inspection_record
+检查任务服务 -> 检查任务服务 : 写入 inspection_item 列表
+
+alt 检查结果或检查项存在不合格
+  检查任务服务 -> 整改服务 : createFromInspection(inspectionId, enterpriseId, rectificationDesc)
+  activate 整改服务
+  整改服务 -> 整改服务 : 创建 rectification_task\n状态置为 ONGOING\n记录 ACTION_SYSTEM_CREATE
+  整改服务 --> 检查任务服务 : 返回创建结果
+  deactivate 整改服务
+end
+
+检查任务服务 -> 检查任务服务 : 更新 inspection_task 为 COMPLETED
+检查任务服务 --> 执法人员 : 返回检查提交结果
+deactivate 检查任务服务
+
+== 企业整改提交与监管复核 ==
+
+企业用户 -> 整改服务 : submitMy(rectificationId, RectificationSubmitDTO)
+activate 整改服务
+整改服务 -> 整改服务 : 校验企业归属\n状态改为 SUBMITTED\n设置 reviewDeadline\n记录 ACTION_ENTERPRISE_SUBMIT
+整改服务 --> 企业用户 : 返回整改提交结果
+deactivate 整改服务
+
+区域管理员 -> 整改服务 : review(rectificationId, action, comment)
+activate 整改服务
+alt action = CONFIRM
+  整改服务 -> 整改服务 : 状态改为 CONFIRMED\n记录 ACTION_REVIEW_CONFIRM
+else action = REWORK
+  整改服务 -> 整改服务 : 状态改为 REWORK\n重置 submitDeadline\n记录 ACTION_REVIEW_REWORK
+end
+整改服务 --> 区域管理员 : 返回复核结果
+deactivate 整改服务
+
+@enduml

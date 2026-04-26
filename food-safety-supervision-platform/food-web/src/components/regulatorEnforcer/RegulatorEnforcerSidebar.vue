@@ -1,8 +1,10 @@
 <template>
   <aside class="enforcer-sidebar">
     <div class="enforcer-brand">
-      <h2>执法政务系统</h2>
-      <p>监管人员工作区</p>
+      <div class="enforcer-brand__logo">食安</div>
+      <div>
+        <p class="enforcer-brand__title">食品安全监管平台</p>
+      </div>
     </div>
 
     <nav class="enforcer-nav">
@@ -40,41 +42,30 @@ defineEmits(["navigate", "logout"]);
   position: fixed;
   inset: 0 auto 0 0;
   width: 256px;
-  background: #f8fafc;
-  border-right: 1px solid #e2e8f0;
+  background: #0f172a;
+  color: #cbd5e1;
+  border-right: none;
   padding: 24px 16px;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 16px;
   z-index: 40;
 }
-.enforcer-brand h2 {
-  margin: 0;
-  color: #002660;
-  font-size: 22px;
-  font-weight: 900;
-  letter-spacing: 0.01em;
-}
-.enforcer-brand p {
-  margin: 4px 0 0;
-  color: #64748b;
-  font-size: 10px;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  font-weight: 700;
-}
+.enforcer-brand { display: flex; gap: 12px; align-items: center; margin-bottom: 20px; }
+.enforcer-brand__logo { width: 40px; height: 40px; border-radius: 8px; display: grid; place-items: center; background: #2563eb; color: #fff; font-weight: 700; }
+.enforcer-brand__title { margin: 0; color: #fff; font-size: 15px; font-weight: 700; letter-spacing: 0.04em; }
 .enforcer-nav {
-  display: flex;
-  flex-direction: column;
+  display: grid;
   gap: 6px;
-  margin-top: 8px;
+  flex: 1;
+  overflow: auto;
 }
 .enforcer-nav__item {
   border: 0;
   background: transparent;
-  color: #475569;
+  color: inherit;
   padding: 10px 12px;
-  border-radius: 2px;
+  border-radius: 8px;
   display: flex;
   align-items: center;
   gap: 10px;
@@ -83,21 +74,20 @@ defineEmits(["navigate", "logout"]);
   transition: 0.2s ease;
 }
 .enforcer-nav__item:hover {
-  background: #e2e8f0;
-  color: #002660;
+  background: rgba(51, 65, 85, 0.55);
+  color: #fff;
 }
 .enforcer-nav__item.is-active {
-  background: #002660;
-  color: #f8fafc;
-  font-weight: 700;
-  box-shadow: 0 1px 2px rgba(2, 38, 96, 0.26);
+  background: rgba(37, 99, 235, 0.22);
+  color: #bfdbfe;
+  border-left: 3px solid #60a5fa;
 }
 .enforcer-logout {
-  border: 0;
-  background: transparent;
-  color: #64748b;
+  border: 1px solid #334155;
+  background: #111827;
+  color: #e2e8f0;
   padding: 10px 12px;
-  border-radius: 4px;
+  border-radius: 8px;
   display: flex;
   align-items: center;
   gap: 10px;
@@ -105,8 +95,9 @@ defineEmits(["navigate", "logout"]);
   margin-top: auto;
 }
 .enforcer-logout:hover {
-  color: #ba1a1a;
-  background: #fee2e2;
+  background: #0b1220;
+  color: #fecaca;
+  border-color: rgba(248, 113, 113, 0.35);
 }
 </style>
 

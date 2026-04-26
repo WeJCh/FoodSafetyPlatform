@@ -1,0 +1,79 @@
+@startuml
+' 图名：抽检预警时序图
+' 用途：展示抽检任务创建、结果提交、不合格预警上报以及结果公示的真实时序
+
+title 抽检预警时序图
+
+skinparam backgroundColor white
+skinparam shadowing false
+skinparam sequence {
+  ArrowColor #4b5563
+  LifeLineBorderColor #6b7280
+  LifeLineBackgroundColor #f8fafc
+  ParticipantBorderColor #6b7280
+  ParticipantBackgroundColor #eef4ff
+  ParticipantFontColor #1f2937
+  ActorBorderColor #6b7280
+  ActorBackgroundColor #eef4ff
+  ActorFontColor #1f2937
+}
+
+actor 区域管理员
+actor 执法人员
+
+participant "抽检任务服务\nSamplingTaskServiceImpl" as 抽检任务服务
+participant "预警事件Outbox服务\nWarningEventOutboxServiceImpl" as 预警Outbox
+participant "预警服务内部接口\nWarningInternalEventController" as 预警内部接口
+participant "预警事件服务\nWarningEventService" as 预警服务
+
+== 抽检任务创建与分派 ==
+
+区域管理员 -> 抽检任务服务 : createTask(enterpriseId, productId, deadline)
+activate 抽检任务服务
+抽检任务服务 -> 抽检任务服务 : 校验企业、产品与辖区范围\n写入 sampling_task
+抽检任务服务 --> 区域管理员 : 返回抽检任务
+deactivate 抽检任务服务
+
+区域管理员 -> 抽检任务服务 : assignTask(taskId, regulatorId)
+activate 抽检任务服务
+抽检任务服务 -> 抽检任务服务 : 校验执法人员角色与辖区\n更新状态为 ASSIGNED
+抽检任务服务 --> 区域管理员 : 返回分派结果
+deactivate 抽检任务服务
+
+== 抽检结果提交与预警上报 ==
+
+执法人员 -> 抽检任务服务 : submitResult(taskId, SamplingResultSubmitDTO)
+activate 抽检任务服务
+抽检任务服务 -> 抽检任务服务 : 写入 sampling_result\npublicStatus = DRAFT
+
+alt 抽检结果为 FAIL
+  抽检任务服务 -> 抽检任务服务 : markEnterpriseAsKey(...)
+  抽检任务服务 -> 预警Outbox : ensurePendingEvent(eventKey, dto, now)
+  activate 预警Outbox
+  抽检任务服务 -> 预警Outbox : dispatchByEventKey(eventKey)
+  预警Outbox -> 预警内部接口 : upsertInternalEvent(dto, X-Internal-Token)
+  activate 预警内部接口
+  预警内部接口 -> 预警服务 : upsertInternalEvent(dto)
+  activate 预警服务
+  预警服务 -> 预警服务 : 按 dedupKey 幂等创建或合并\nwarning_record / warning_process_log
+  预警服务 --> 预警内部接口 : 返回预警记录结果
+  deactivate 预警服务
+  预警内部接口 --> 预警Outbox : success
+  deactivate 预警内部接口
+  预警Outbox -> 预警Outbox : 标记事件状态为 SENT
+  deactivate 预警Outbox
+end
+
+抽检任务服务 -> 抽检任务服务 : 更新 sampling_task 为 COMPLETED
+抽检任务服务 --> 执法人员 : 返回抽检结果
+deactivate 抽检任务服务
+
+== 抽检结果公示 ==
+
+区域管理员 -> 抽检任务服务 : publishResult(resultId)
+activate 抽检任务服务
+抽检任务服务 -> 抽检任务服务 : 更新 publicStatus = PUBLISHED\n写入 publishedTime
+抽检任务服务 --> 区域管理员 : 返回公示结果
+deactivate 抽检任务服务
+
+@enduml

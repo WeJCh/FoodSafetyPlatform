@@ -2,10 +2,9 @@
   <SystemAdminWorkspacePage
     active-key="list"
     :username="adminUser.username"
-    search-placeholder="全局搜索人员、证书或案件..."
+    search-placeholder="全局搜索人员、证件或案件..."
     @navigate="handleSidebarNavigate"
     @logout="handleLogout"
-    @pending-feature="onPendingFeature"
   >
     <section class="sys-admin-edit-page">
       <nav class="sys-admin-breadcrumb">
@@ -18,15 +17,15 @@
 
       <header class="sys-admin-titlebar">
         <div>
-          <h1>编辑人员档案</h1>
+          <h1>编辑监管人员档案</h1>
           <p>
-            正在修改账号标识为
+            当前正在修改账号
             <span class="is-mono">{{ accountTag }}</span>
-            的监管人员信息
+            的基础信息与辖区归属。
           </p>
         </div>
         <span class="sys-admin-status-flag" :class="{ 'is-disabled': Number(form.status) !== 1 }">
-          状态：{{ Number(form.status) === 1 ? "在岗" : "停用" }}
+          状态：{{ Number(form.status) === 1 ? "启用" : "停用" }}
         </span>
       </header>
 
@@ -39,11 +38,11 @@
             </div>
             <div class="sys-admin-account-grid">
               <div>
-                <label>用户名</label>
+                <label>登录账号</label>
                 <div class="sys-admin-readonly-box">{{ readonlyAccount.username }}</div>
               </div>
               <div>
-                <label>注册日期</label>
+                <label>注册时间</label>
                 <div class="sys-admin-readonly-box">{{ readonlyAccount.registeredAt }}</div>
               </div>
             </div>
@@ -75,18 +74,18 @@
           <section class="sys-admin-card">
             <div class="sys-admin-card__head">
               <span class="material-symbols-outlined">admin_panel_settings</span>
-              <h2>角色权限调整</h2>
+              <h2>角色与权限</h2>
             </div>
             <div class="sys-admin-role-grid">
               <label class="sys-admin-role-option" :class="{ active: form.roleType === 'REGULATOR_ADMIN' }">
                 <input v-model="form.roleType" type="radio" value="REGULATOR_ADMIN" />
-                <strong>REGULATOR_ADMIN</strong>
-                <p>区域管理员：辖区内全量数据管理与人员调配权限。</p>
+                <strong>监管管理员</strong>
+                <p>负责辖区管理、任务协调与人员调度。</p>
               </label>
               <label class="sys-admin-role-option" :class="{ active: form.roleType === 'REGULATOR_ENFORCER' }">
                 <input v-model="form.roleType" type="radio" value="REGULATOR_ENFORCER" />
-                <strong>REGULATOR_ENFORCER</strong>
-                <p>执法人员：现场核查、执法流程与证据采集权限。</p>
+                <strong>监管执法人员</strong>
+                <p>负责现场检查、执法流程处理与证据采集。</p>
               </label>
             </div>
           </section>
@@ -97,9 +96,8 @@
             <div class="sys-admin-juri-card__head">
               <div class="sys-admin-juri-title">
                 <span class="material-symbols-outlined">location_on</span>
-                <h2>管理辖区</h2>
+                <h2>辖区配置</h2>
               </div>
-              <button type="button" @click="onPendingFeature('辖区地图重选')">重新选择</button>
             </div>
             <div class="sys-admin-region-grid">
               <select v-model="region.provinceId" @change="handleProvinceChange">
@@ -120,13 +118,13 @@
               </select>
             </div>
             <div class="sys-admin-juri-path">
-              <label>当前管辖路径</label>
-              <p>{{ regionPathText || "辖区信息待完善" }}</p>
+              <label>当前辖区路径</label>
+              <p>{{ regionPathText || "辖区信息待补全" }}</p>
             </div>
           </section>
 
           <section class="sys-admin-audit-card">
-            <h3>操作审计轨迹</h3>
+            <h3>编辑记录说明</h3>
             <ul>
               <li v-for="item in auditTrail" :key="item.id">
                 <strong>{{ item.title }}</strong>
@@ -140,7 +138,7 @@
       <footer class="sys-admin-bottom-bar">
         <div class="sys-admin-bottom-note">
           <span class="material-symbols-outlined">info</span>
-          <span>未保存的修改将会丢失。系统会自动记录本次编辑操作。</span>
+          <span>未保存的修改将会丢失，保存后会覆盖原有档案信息。</span>
         </div>
         <div class="sys-admin-bottom-actions">
           <button type="button" class="btn-plain" :disabled="loading" @click="goDetail">取消编辑</button>
@@ -167,7 +165,8 @@ import {
 } from "../../api/regulation";
 import { fetchUserById } from "../../api/auth";
 import SystemAdminWorkspacePage from "../../components/systemAdmin/SystemAdminWorkspacePage.vue";
-import { systemAdminFeaturePendingNotice, useSystemAdminShellSession } from "./systemAdminShared";
+import { resolveErrorMessage } from "../../utils/uiFeedback";
+import { useSystemAdminShellSession } from "./systemAdminShared";
 
 const route = useRoute();
 const router = useRouter();
@@ -192,16 +191,15 @@ const regions = reactive({ provinces: [], cities: [], counties: [], streets: [] 
 const region = reactive({ provinceId: "", cityId: "", countyId: "", streetId: "" });
 
 const auditTrail = ref([
-  { id: "a1", title: "创建档案", desc: "系统管理员创建监管人员档案" },
-  { id: "a2", title: "最近修改", desc: "可在保存后刷新为最新审计记录" }
-  // TODO: 接入真实审计日志接口
+  { id: "a1", title: "账号档案", desc: "本页用于维护监管人员姓名、手机号、角色和辖区。" },
+  { id: "a2", title: "保存结果", desc: "保存成功后将返回详情页，并展示最新档案内容。" }
 ]);
 
 const userId = computed(() => Number(route.params.userId || 0) || 0);
 const accountTag = computed(() => (form.userId ? `REGULATOR-${form.userId}` : "REGULATOR-UNKNOWN"));
 const readonlyAccount = computed(() => ({
-  username: sourceUser.value?.username || (form.userId ? `regulator_${form.userId}` : "—"),
-  registeredAt: sourceProfile.value?.createTime ? formatDateTime(sourceProfile.value.createTime) : "—"
+  username: sourceUser.value?.username || (form.userId ? `regulator_${form.userId}` : "-"),
+  registeredAt: sourceProfile.value?.createTime ? formatDateTime(sourceProfile.value.createTime) : "-"
 }));
 
 function setStatus(message, type = "info") {
@@ -209,12 +207,8 @@ function setStatus(message, type = "info") {
   status.type = type;
 }
 
-function onPendingFeature(title) {
-  systemAdminFeaturePendingNotice(title);
-}
-
 function formatDateTime(value) {
-  if (!value) return "—";
+  if (!value) return "-";
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return String(value);
   return date.toLocaleString("zh-CN", { hour12: false });
@@ -225,7 +219,19 @@ function goList() {
 }
 
 function goDetail() {
-  router.push({ name: "admin-regulator-detail", params: { userId: userId.value } });
+  router.push({
+    name: "admin-regulator-detail",
+    params: { userId: userId.value },
+    query: { refreshedAt: String(Date.now()) }
+  });
+}
+
+function goAfterSave() {
+  router.replace({
+    name: "admin-regulator-detail",
+    params: { userId: userId.value },
+    query: { refreshedAt: String(Date.now()) }
+  });
 }
 
 function normalizePhone(phone) {
@@ -291,7 +297,7 @@ async function syncRegionPathText() {
     const pathList = await fetchRegionPath(token.value, target);
     regionPathText.value = Array.isArray(pathList) ? pathList.map((item) => item.name).join(" / ") : "";
   } catch {
-    regionPathText.value = `辖区ID: ${target}`;
+    regionPathText.value = `辖区 ID: ${target}`;
   }
 }
 
@@ -338,7 +344,7 @@ async function loadDetail() {
       await syncRegionPathText();
     }
   } catch (error) {
-    setStatus(error.message || "加载监管人员信息失败", "error");
+    setStatus(resolveErrorMessage(error, "加载监管人员信息失败"), "error");
   } finally {
     loading.value = false;
   }
@@ -356,7 +362,7 @@ async function handleSave() {
   }
   const targetRegionId = resolveTargetRegionId();
   if (!targetRegionId) {
-    setStatus(form.roleType === "REGULATOR_ADMIN" ? "区域管理员需选择区县级辖区" : "执法人员需选择街道级辖区", "error");
+    setStatus(form.roleType === "REGULATOR_ADMIN" ? "监管管理员需选择区县级辖区" : "监管执法人员需选择街道级辖区", "error");
     return;
   }
 
@@ -373,10 +379,10 @@ async function handleSave() {
     });
     setStatus("保存成功", "success");
     setTimeout(() => {
-      goDetail();
+      goAfterSave();
     }, 500);
   } catch (error) {
-    setStatus(error.message || "保存失败", "error");
+    setStatus(resolveErrorMessage(error, "保存失败"), "error");
   } finally {
     loading.value = false;
   }
@@ -434,7 +440,6 @@ onMounted(() => {
 .sys-admin-juri-title { display: flex; align-items: center; gap: 6px; }
 .sys-admin-juri-title .material-symbols-outlined { color: #bfdbfe; }
 .sys-admin-juri-title h2 { margin: 0; font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; color: #dbeafe; font-weight: 900; }
-.sys-admin-juri-card__head button { border: 1px solid rgba(255,255,255,.2); background: rgba(255,255,255,.12); color: #fff; border-radius: 2px; padding: 4px 8px; font-size: 10px; font-weight: 800; cursor: pointer; }
 .sys-admin-region-grid { display: grid; grid-template-columns: 1fr; gap: 8px; }
 .sys-admin-region-grid select { background: rgba(255,255,255,.94); outline-color: rgba(255,255,255,.4); }
 .sys-admin-juri-path { margin-top: 12px; padding-top: 12px; border-top: 1px solid rgba(255,255,255,.18); }
@@ -473,4 +478,3 @@ onMounted(() => {
   .sys-admin-bottom-note { display: none; }
 }
 </style>
-

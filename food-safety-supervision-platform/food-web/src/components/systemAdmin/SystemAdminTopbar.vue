@@ -8,15 +8,6 @@
       </label>
     </div>
     <div class="sys-admin-topbar__right">
-      <button type="button" @click="$emit('pending-feature', '通知中心')">
-        <span class="material-symbols-outlined">notifications</span>
-      </button>
-      <button type="button" @click="$emit('pending-feature', '系统设置')">
-        <span class="material-symbols-outlined">settings</span>
-      </button>
-      <button type="button" @click="$emit('pending-feature', '帮助中心')">
-        <span class="material-symbols-outlined">help</span>
-      </button>
       <div class="sys-admin-user">
         <strong>{{ username || "Admin User" }}</strong>
         <small>系统管理员</small>
@@ -30,8 +21,6 @@ defineProps({
   username: { type: String, default: "" },
   searchPlaceholder: { type: String, default: "搜索资源或记录..." }
 });
-
-defineEmits(["pending-feature"]);
 </script>
 
 <style scoped>
@@ -84,19 +73,6 @@ defineEmits(["pending-feature"]);
   display: flex;
   align-items: center;
   gap: 8px;
-}
-.sys-admin-topbar__right button {
-  border: 0;
-  background: transparent;
-  color: #64748b;
-  cursor: pointer;
-  width: 32px;
-  height: 32px;
-  border-radius: 99px;
-}
-.sys-admin-topbar__right button:hover {
-  background: #e2e8f0;
-  color: #002660;
 }
 .sys-admin-user {
   border-left: 1px solid #e2e8f0;

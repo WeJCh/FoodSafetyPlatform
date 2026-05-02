@@ -1761,7 +1761,8 @@ textarea::placeholder {
   padding-right: 14px;
   border: none;
   border-radius: 8px;
-  background: var(--surface-container-high);
+  background: rgba(242, 244, 247, 0.82);
+  color: rgba(36, 48, 71, 0.86);
 }
 
 .enterprise-topbar__search-icon {
@@ -1785,6 +1786,7 @@ textarea::placeholder {
   align-items: center;
   gap: 12px;
   justify-content: flex-end;
+  opacity: 0.9;
 }
 
 .enterprise-topbar__icon-button {
@@ -1806,7 +1808,7 @@ textarea::placeholder {
 .enterprise-topbar__divider {
   width: 1px;
   height: 28px;
-  background: rgba(195, 198, 211, 0.7);
+  background: rgba(195, 198, 211, 0.46);
 }
 
 .enterprise-topbar__user {
@@ -1840,7 +1842,7 @@ textarea::placeholder {
 }
 
 .enterprise-topbar__user-lines span:first-child {
-  color: var(--primary);
+  color: rgba(0, 38, 96, 0.84);
   font-weight: 700;
   font-size: 13px;
   white-space: nowrap;

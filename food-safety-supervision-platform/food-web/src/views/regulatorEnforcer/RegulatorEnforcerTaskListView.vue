@@ -147,6 +147,8 @@ import { onMounted, reactive, ref } from "vue";
 import { useRouter } from "vue-router";
 import { fetchMyInspectionTasks, startInspectionTask } from "../../api/regulationOperation";
 import { formatTime } from "../../utils/formatters";
+import { formatStatusLabel, inspectionTaskStatusMap, taskPriorityMap } from "../../utils/statusMaps";
+import { resolveErrorMessage } from "../../utils/uiFeedback";
 import RegulatorEnforcerPageShell from "./RegulatorEnforcerPageShell.vue";
 import { useRegulatorEnforcerShellSession } from "./regulatorEnforcerShared";
 
@@ -155,6 +157,7 @@ const router = useRouter();
 
 const loading = ref(false);
 const records = ref([]);
+const allRecords = ref([]);
 const page = ref(1);
 const size = ref(8);
 const total = ref(0);
@@ -163,49 +166,28 @@ const status = reactive({ message: "", type: "info" });
 const filters = reactive({ enterpriseName: "", status: "", startDate: "", endDate: "" });
 const stats = reactive({ inProgress: 0, highPriority: 0, completedToday: 0 });
 
-const taskStatusMap = {
-  CREATED: "待启动",
-  ASSIGNED: "已指派",
-  IN_PROGRESS: "执行中",
-  COMPLETED: "已完成",
-  CLOSED: "已归档"
-};
-const taskPriorityMap = {
-  LOW: "低",
-  MEDIUM: "中",
-  HIGH: "高"
-};
-
 function setStatus(message = "", type = "info") {
   status.message = message;
   status.type = type;
 }
 
 function formatTaskStatus(value) {
-  return taskStatusMap[value] || value || "-";
+  return formatStatusLabel(value, inspectionTaskStatusMap);
 }
 
 function formatTaskPriority(value) {
-  return taskPriorityMap[value] || value || "-";
+  return formatStatusLabel(value, taskPriorityMap);
 }
 
 async function loadTasks() {
   loading.value = true;
   setStatus("");
   try {
-    const data = await fetchMyInspectionTasks(token.value, {
-      ...filters,
-      page: page.value,
-      size: size.value
-    });
-    records.value = applyTaskFilters(data.records || []);
-    total.value = data.total || records.value.length || 0;
-    page.value = data.page || 1;
-    size.value = data.size || size.value;
-    pages.value = data.pages || 1;
-    await loadTaskStats();
+    allRecords.value = await fetchAllInspectionTasks();
+    applyDisplayState();
+    updateTaskStats(allRecords.value);
   } catch (error) {
-    setStatus(error.message || "加载任务列表失败", "error");
+    setStatus(resolveErrorMessage(error, "加载任务列表失败，请稍后重试。"), "error");
   } finally {
     loading.value = false;
   }
@@ -222,9 +204,9 @@ function resolveCompleteTime(task) {
   return task.completeTime || task.completedTime || task.finishTime || task.updateTime || "";
 }
 
-async function loadTaskStats() {
+async function fetchAllInspectionTasks() {
   const firstPageData = await fetchMyInspectionTasks(token.value, {
-    ...filters,
+    status: filters.status,
     page: 1,
     size: 100
   });
@@ -233,18 +215,32 @@ async function loadTaskStats() {
 
   for (let p = 2; p <= pagesCount && p <= 20; p += 1) {
     const pageData = await fetchMyInspectionTasks(token.value, {
-      ...filters,
+      status: filters.status,
       page: p,
       size: 100
     });
     merged.push(...(pageData?.records || []));
   }
 
-  const all = applyTaskFilters(merged);
+  return merged;
+}
+
+function updateTaskStats(all) {
   const today = new Date();
   stats.inProgress = all.filter((item) => item.status === "IN_PROGRESS").length;
   stats.highPriority = all.filter((item) => item.priority === "HIGH").length;
   stats.completedToday = all.filter((item) => item.status === "COMPLETED" && isSameDay(resolveCompleteTime(item), today)).length;
+}
+
+function applyDisplayState() {
+  const filtered = applyTaskFilters(allRecords.value);
+  total.value = filtered.length;
+  pages.value = Math.max(1, Math.ceil(filtered.length / size.value));
+  if (page.value > pages.value) {
+    page.value = pages.value;
+  }
+  const start = (page.value - 1) * size.value;
+  records.value = filtered.slice(start, start + size.value);
 }
 
 function normalizeDateOnly(value) {
@@ -281,7 +277,7 @@ async function handleSearch() {
 
 async function changePage(nextPage) {
   page.value = nextPage;
-  await loadTasks();
+  applyDisplayState();
 }
 
 function resetFilters() {
@@ -301,7 +297,7 @@ async function handleStartTask(task) {
     setStatus("任务已开始执行", "success");
     await loadTasks();
   } catch (error) {
-    setStatus(error.message || "开始任务失败", "error");
+    setStatus(resolveErrorMessage(error, "开始任务失败，请稍后重试。"), "error");
   } finally {
     loading.value = false;
   }

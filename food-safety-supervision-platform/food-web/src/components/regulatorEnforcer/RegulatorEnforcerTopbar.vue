@@ -8,12 +8,6 @@
       </label>
     </div>
     <div class="enforcer-topbar__right">
-      <button type="button" @click="$emit('pending-feature', '通知中心')">
-        <span class="material-symbols-outlined">notifications</span>
-      </button>
-      <button type="button" @click="$emit('pending-feature', '帮助中心')">
-        <span class="material-symbols-outlined">help</span>
-      </button>
       <div class="enforcer-user">
         <strong>{{ username || "Enforcer User" }}</strong>
         <small>执法人员</small>
@@ -27,8 +21,6 @@ defineProps({
   username: { type: String, default: "" },
   searchPlaceholder: { type: String, default: "搜索功能、任务或企业..." }
 });
-
-defineEmits(["pending-feature"]);
 </script>
 
 <style scoped>
@@ -82,19 +74,6 @@ defineEmits(["pending-feature"]);
   align-items: center;
   gap: 8px;
 }
-.enforcer-topbar__right button {
-  border: 0;
-  background: transparent;
-  color: #64748b;
-  cursor: pointer;
-  width: 32px;
-  height: 32px;
-  border-radius: 99px;
-}
-.enforcer-topbar__right button:hover {
-  background: #e2e8f0;
-  color: #002660;
-}
 .enforcer-user {
   border-left: 1px solid #e2e8f0;
   margin-left: 8px;
@@ -111,4 +90,3 @@ defineEmits(["pending-feature"]);
   font-size: 10px;
 }
 </style>
-

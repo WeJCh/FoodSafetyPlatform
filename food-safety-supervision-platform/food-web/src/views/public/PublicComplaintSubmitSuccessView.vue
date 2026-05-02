@@ -18,12 +18,6 @@
           </nav>
         </div>
         <div class="public-complaint-success-page__toolbar">
-          <button type="button" class="public-complaint-success-page__icon-btn" @click="onFeaturePending('通知中心')">
-            <span class="material-symbols-outlined" aria-hidden="true">notifications</span>
-          </button>
-          <button type="button" class="public-complaint-success-page__icon-btn" @click="onFeaturePending('个人中心')">
-            <span class="material-symbols-outlined" aria-hidden="true">account_circle</span>
-          </button>
           <button type="button" class="ghost public-complaint-success-page__logout" @click="handleLogout">退出登录</button>
         </div>
       </div>
@@ -35,7 +29,7 @@
           <span class="material-symbols-outlined" aria-hidden="true">check_circle</span>
         </div>
         <h1>投诉提交成功</h1>
-        <p>您的投诉信息已进入监管受理流程，可在“我的投诉”中查看实时进度。</p>
+        <p>您的投诉信息已进入受理流程，可在“我的投诉”中持续查看处理进度。</p>
 
         <div class="public-complaint-success-page__code-box">
           <span>投诉编号</span>
@@ -45,7 +39,7 @@
 
         <div class="public-complaint-success-page__meta">
           <span>当前状态：{{ formatStatus(status) }}</span>
-          <span>预计 3-5 个工作日内完成受理分派</span>
+          <span>预计 3 至 5 个工作日内完成受理分派</span>
         </div>
 
         <div class="public-complaint-success-page__actions">
@@ -60,11 +54,11 @@
         <ul>
           <li>平台会通过投诉进度记录持续同步处理节点。</li>
           <li>如需补充凭证，可在后续投诉详情中追加说明。</li>
-          <li>恶意投诉将依法追究责任，请确保材料真实有效。</li>
+          <li>请确保提交材料真实有效，恶意投诉将依法处理。</li>
         </ul>
       </section>
 
-      <div v-if="statusMessage.message" class="status" :class="statusMessage.type">{{ statusMessage.message }}</div>
+      <AppStatusToast :message="statusMessage.message" :type="statusMessage.type" />
     </main>
   </div>
 </template>
@@ -72,7 +66,10 @@
 <script setup>
 import { computed, reactive } from "vue";
 import { useRoute, useRouter } from "vue-router";
+import AppStatusToast from "../../components/common/AppStatusToast.vue";
 import { performLogout } from "../../session/authRuntime";
+import { complaintStatusMap, formatStatusLabel } from "../../utils/statusMaps";
+import { resolveErrorMessage } from "../../utils/uiFeedback";
 
 const route = useRoute();
 const router = useRouter();
@@ -91,6 +88,7 @@ const complaintNo = computed(() => {
   const value = typeof route.query.complaintNo === "string" ? route.query.complaintNo : "";
   return value || "-";
 });
+
 const status = computed(() => {
   const value = typeof route.query.status === "string" ? route.query.status : "";
   return value || "SUBMITTED";
@@ -100,40 +98,35 @@ function setStatus(message, type = "info") {
   statusMessage.message = message;
   statusMessage.type = type;
 }
+
 function formatStatus(value) {
-  const map = {
-    SUBMITTED: "已提交",
-    PENDING: "已受理",
-    ASSIGNED: "已派发",
-    PROCESSING: "处理中",
-    FEEDBACKED: "已反馈",
-    REJECTED: "已驳回（无效投诉）"
-  };
-  return map[value] || value || "-";
+  return formatStatusLabel(value, complaintStatusMap);
 }
+
 function goTo(name) {
   router.push({ name }).catch(() => {});
 }
+
 function goTrack() {
   router.push({ name: "public-complaints" }).catch(() => {});
 }
+
 function goCreate() {
   router.push({ name: "public-complaint-create" }).catch(() => {});
 }
+
 async function handleLogout() {
   await performLogout();
   router.replace({ name: "login" }).catch(() => {});
 }
-function onFeaturePending(name) {
-  window.alert(`${name} 功能待后续完善`);
-}
+
 async function copyComplaintNo() {
   if (!complaintNo.value || complaintNo.value === "-") return;
   try {
     await navigator.clipboard.writeText(complaintNo.value);
-    setStatus("投诉编号已复制", "success");
-  } catch {
-    setStatus("复制失败，请手动复制", "error");
+    setStatus("投诉编号已复制。", "success");
+  } catch (error) {
+    setStatus(resolveErrorMessage(error, "复制失败，请手动复制投诉编号"), "error");
   }
 }
 </script>
@@ -148,7 +141,6 @@ async function copyComplaintNo() {
 .public-complaint-success-page__nav-item { border: none; background: transparent; min-height: var(--public-topbar-min-h); color: var(--on-surface-variant); font-size: var(--public-nav-size); font-weight: 700; border-bottom: 2px solid transparent; cursor: pointer; }
 .public-complaint-success-page__nav-item.is-active { color: var(--primary); border-bottom-color: var(--primary); }
 .public-complaint-success-page__toolbar { display: flex; align-items: center; gap: 10px; }
-.public-complaint-success-page__icon-btn { width: var(--public-btn-compact-min-h); height: var(--public-btn-compact-min-h); border-radius: 8px; border: 1px solid transparent; background: transparent; color: var(--on-surface-variant); cursor: pointer; }
 .public-complaint-success-page__logout { min-height: var(--public-toolbar-min-h); font-size: var(--public-logout-font-size); margin: 0; }
 .public-complaint-success-page__main { max-width: 1080px; margin: 0 auto; padding: 36px 16px 60px; display: grid; gap: 14px; }
 .public-complaint-success-page__panel { border: 1px solid rgba(195,198,211,.32); border-radius: 12px; background: var(--surface-container-lowest); padding: 24px; display: grid; gap: 12px; justify-items: center; text-align: center; }

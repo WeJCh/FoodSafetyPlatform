@@ -3,11 +3,14 @@ package com.mortal.regulation.controller;
 import com.mortal.platform.common.ApiResponse;
 import com.mortal.platform.common.PageResult;
 import com.mortal.regulation.dto.BulletinSaveDTO;
+import com.mortal.regulation.service.AuditLogService;
 import com.mortal.regulation.service.BulletinService;
 import com.mortal.regulation.util.JwtUserResolver;
+import com.mortal.regulation.vo.AuditLogVO;
 import com.mortal.regulation.vo.BulletinDetailVO;
 import com.mortal.regulation.vo.BulletinVO;
 import jakarta.validation.Valid;
+import java.util.List;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -23,11 +26,14 @@ import org.springframework.web.bind.annotation.RestController;
 public class BulletinManageController {
 
     private final BulletinService bulletinService;
+    private final AuditLogService auditLogService;
     private final JwtUserResolver jwtUserResolver;
 
     public BulletinManageController(BulletinService bulletinService,
+                                    AuditLogService auditLogService,
                                     JwtUserResolver jwtUserResolver) {
         this.bulletinService = bulletinService;
+        this.auditLogService = auditLogService;
         this.jwtUserResolver = jwtUserResolver;
     }
 
@@ -67,6 +73,46 @@ public class BulletinManageController {
             }
             if ("bulletin not found".equalsIgnoreCase(ex.getMessage())) {
                 return ApiResponse.failure(404, "bulletin not found");
+            }
+            throw ex;
+        }
+    }
+
+    @GetMapping("/{id}/logs")
+    public ApiResponse<List<AuditLogVO>> listAuditLogs(@RequestHeader("Authorization") String token,
+                                                       @PathVariable Long id,
+                                                       @RequestParam(required = false) Integer limit) {
+        UserIdentity identity = resolveIdentity(token);
+        if (!identity.isRegulator()) {
+            return ApiResponse.failure(403, "regulator only");
+        }
+        try {
+            bulletinService.getAdminDetail(identity.userId(), id);
+            return ApiResponse.success(auditLogService.listBulletinLogs(id, limit == null ? 8 : limit));
+        } catch (IllegalArgumentException ex) {
+            if ("admin only".equalsIgnoreCase(ex.getMessage())) {
+                return ApiResponse.failure(403, "admin only");
+            }
+            if ("bulletin not found".equalsIgnoreCase(ex.getMessage())) {
+                return ApiResponse.failure(404, "bulletin not found");
+            }
+            throw ex;
+        }
+    }
+
+    @GetMapping("/logs/recent")
+    public ApiResponse<List<AuditLogVO>> listRecentAuditLogs(@RequestHeader("Authorization") String token,
+                                                             @RequestParam(required = false) Integer limit) {
+        UserIdentity identity = resolveIdentity(token);
+        if (!identity.isRegulator()) {
+            return ApiResponse.failure(403, "regulator only");
+        }
+        try {
+            bulletinService.listAdmin(identity.userId(), null, null, null, 1, 1);
+            return ApiResponse.success(auditLogService.listRecentBulletinLogs(limit == null ? 10 : limit));
+        } catch (IllegalArgumentException ex) {
+            if ("admin only".equalsIgnoreCase(ex.getMessage())) {
+                return ApiResponse.failure(403, "admin only");
             }
             throw ex;
         }

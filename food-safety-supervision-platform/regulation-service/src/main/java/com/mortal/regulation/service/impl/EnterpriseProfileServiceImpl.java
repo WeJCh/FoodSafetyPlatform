@@ -22,12 +22,14 @@ import com.mortal.regulation.mapper.EnterpriseProfileAttachmentMapper;
 import com.mortal.regulation.mapper.FoodEnterpriseMapper;
 import com.mortal.regulation.mapper.FoodRegulatorMapper;
 import com.mortal.regulation.mapper.FoodRegulatorRegionMapper;
+import com.mortal.regulation.service.AuditLogService;
 import com.mortal.regulation.service.EnterpriseKeyReasonService;
 import com.mortal.regulation.service.EnterpriseProfileService;
 import com.mortal.regulation.support.EnterpriseMasterCacheService;
 import com.mortal.regulation.support.EnterprisePublicCacheService;
 import com.mortal.regulation.support.RegulatorMasterCacheService;
 import com.mortal.regulation.vo.BatchActionResult;
+import com.mortal.regulation.vo.AuditLogVO;
 import com.mortal.regulation.vo.EnterpriseProfileVO;
 import com.mortal.regulation.vo.EnterpriseProfileAttachmentVO;
 import com.mortal.regulation.vo.PublicEnterpriseDetailVO;
@@ -65,6 +67,7 @@ public class EnterpriseProfileServiceImpl implements EnterpriseProfileService {
     private final FoodRegulatorMapper foodRegulatorMapper;
     private final FoodRegulatorRegionMapper foodRegulatorRegionMapper;
     private final UserServiceClient userServiceClient;
+    private final AuditLogService auditLogService;
     private final EnterpriseKeyReasonService enterpriseKeyReasonService;
     private final MinioProperties minioProperties;
     private final EnterpriseMasterCacheService enterpriseMasterCacheService;
@@ -78,6 +81,7 @@ public class EnterpriseProfileServiceImpl implements EnterpriseProfileService {
                                         FoodRegulatorMapper foodRegulatorMapper,
                                         FoodRegulatorRegionMapper foodRegulatorRegionMapper,
                                         UserServiceClient userServiceClient,
+                                        AuditLogService auditLogService,
                                         EnterpriseKeyReasonService enterpriseKeyReasonService,
                                         MinioProperties minioProperties,
                                         EnterpriseMasterCacheService enterpriseMasterCacheService,
@@ -90,6 +94,7 @@ public class EnterpriseProfileServiceImpl implements EnterpriseProfileService {
         this.foodRegulatorMapper = foodRegulatorMapper;
         this.foodRegulatorRegionMapper = foodRegulatorRegionMapper;
         this.userServiceClient = userServiceClient;
+        this.auditLogService = auditLogService;
         this.enterpriseKeyReasonService = enterpriseKeyReasonService;
         this.minioProperties = minioProperties;
         this.enterpriseMasterCacheService = enterpriseMasterCacheService;
@@ -98,8 +103,13 @@ public class EnterpriseProfileServiceImpl implements EnterpriseProfileService {
     }
 
     @Override
-    public EnterpriseProfileVO submitProfile(Long userId, EnterpriseProfileDTO dto) {
+    public EnterpriseProfileVO submitProfile(Long userId,
+                                             String operatorUserType,
+                                             String operatorName,
+                                             EnterpriseProfileDTO dto) {
         FoodEnterprise enterprise = findEnterpriseByUserId(userId);
+        boolean created = enterprise == null;
+        FoodEnterprise before = copyEnterprise(enterprise);
         if (enterprise == null) {
             enterprise = new FoodEnterprise();
             enterprise.setUserId(userId);
@@ -133,6 +143,16 @@ public class EnterpriseProfileServiceImpl implements EnterpriseProfileService {
 
         saveProfileAttachments(enterprise.getId(), userId, dto.getAttachments());
         evictEnterpriseMasterCaches(enterprise);
+        auditLogService.recordEnterpriseAudit(
+            userId,
+            operatorUserType,
+            operatorName,
+            created ? "ENTERPRISE_SUBMIT" : "ENTERPRISE_UPDATE",
+            created ? "企业提交备案档案" : "企业更新备案档案",
+            before,
+            copyEnterprise(enterprise),
+            null
+        );
         EnterpriseProfileVO vo = toVO(enterprise, location.getDetail(), resolveRegionPath(enterprise.getRegionId()));
         attachAttachments(vo, listAttachmentVOs(enterprise.getId()));
         return vo;
@@ -171,6 +191,16 @@ public class EnterpriseProfileServiceImpl implements EnterpriseProfileService {
     }
 
     @Override
+    public List<AuditLogVO> listAuditLogs(Long enterpriseId, Integer limit) {
+        return auditLogService.listEnterpriseLogs(enterpriseId, limit == null ? 10 : limit);
+    }
+
+    @Override
+    public List<AuditLogVO> listRecentAuditLogs(Integer limit) {
+        return auditLogService.listRecentEnterpriseLogs(limit == null ? 10 : limit);
+    }
+
+    @Override
     public PageResult<EnterpriseProfileVO> list(String enterpriseName,
                                                 String status,
                                                 String approvalStatus,
@@ -200,9 +230,9 @@ public class EnterpriseProfileServiceImpl implements EnterpriseProfileService {
     }
 
     /**
-     * 鑾峰彇鍏紬浼佷笟璇︽儏
-     * @param enterpriseId 浼佷笟ID
-     * @return 鍏紬浼佷笟璇︽儏VO
+     * 获取公众企业详情
+     * @param enterpriseId 企业ID
+     * @return 公众企业详情VO
      */
     @Override
     public PublicEnterpriseDetailVO getPublicById(Long enterpriseId) {
@@ -288,10 +318,25 @@ public class EnterpriseProfileServiceImpl implements EnterpriseProfileService {
     }
 
     @Override
-    public EnterpriseProfileVO approve(Long enterpriseId, Long operatorId, EnterpriseApprovalDTO dto) {
+    public EnterpriseProfileVO approve(Long enterpriseId,
+                                       Long operatorId,
+                                       String operatorUserType,
+                                       String operatorName,
+                                       EnterpriseApprovalDTO dto) {
         FoodEnterprise enterprise = requireEnterprise(enterpriseId);
+        FoodEnterprise before = copyEnterprise(enterprise);
         applyApproval(enterprise, APPROVAL_APPROVED, operatorId, dto.getComment(), dto.getRegulatorName());
         evictEnterpriseMasterCaches(enterprise);
+        auditLogService.recordEnterpriseAudit(
+            operatorId,
+            operatorUserType,
+            operatorName,
+            "ENTERPRISE_APPROVE",
+            "企业档案审核通过",
+            before,
+            copyEnterprise(enterprise),
+            dto.getComment()
+        );
         EnterpriseProfileVO vo = toVO(
             enterprise,
             resolveAddressDetail(enterprise.getAddressId()),
@@ -302,10 +347,25 @@ public class EnterpriseProfileServiceImpl implements EnterpriseProfileService {
     }
 
     @Override
-    public EnterpriseProfileVO reject(Long enterpriseId, Long operatorId, EnterpriseApprovalDTO dto) {
+    public EnterpriseProfileVO reject(Long enterpriseId,
+                                      Long operatorId,
+                                      String operatorUserType,
+                                      String operatorName,
+                                      EnterpriseApprovalDTO dto) {
         FoodEnterprise enterprise = requireEnterprise(enterpriseId);
+        FoodEnterprise before = copyEnterprise(enterprise);
         applyApproval(enterprise, APPROVAL_REJECTED, operatorId, dto.getComment(), dto.getRegulatorName());
         evictEnterpriseMasterCaches(enterprise);
+        auditLogService.recordEnterpriseAudit(
+            operatorId,
+            operatorUserType,
+            operatorName,
+            "ENTERPRISE_REJECT",
+            "企业档案审核驳回",
+            before,
+            copyEnterprise(enterprise),
+            dto.getComment()
+        );
         EnterpriseProfileVO vo = toVO(
             enterprise,
             resolveAddressDetail(enterprise.getAddressId()),
@@ -316,24 +376,61 @@ public class EnterpriseProfileServiceImpl implements EnterpriseProfileService {
     }
 
     @Override
-    public BatchActionResult approveBatch(Long operatorId, EnterpriseApprovalBatchDTO dto) {
-        return batchApply(dto.getIds(), operatorId, APPROVAL_APPROVED, dto.getComment(), dto.getRegulatorName());
+    public BatchActionResult approveBatch(Long operatorId,
+                                          String operatorUserType,
+                                          String operatorName,
+                                          EnterpriseApprovalBatchDTO dto) {
+        return batchApply(
+            dto.getIds(),
+            operatorId,
+            operatorUserType,
+            operatorName,
+            APPROVAL_APPROVED,
+            "ENTERPRISE_APPROVE",
+            "企业档案批量审核通过",
+            dto.getComment(),
+            dto.getRegulatorName()
+        );
     }
 
     @Override
-    public BatchActionResult rejectBatch(Long operatorId, EnterpriseApprovalBatchDTO dto) {
-        return batchApply(dto.getIds(), operatorId, APPROVAL_REJECTED, dto.getComment(), dto.getRegulatorName());
+    public BatchActionResult rejectBatch(Long operatorId,
+                                         String operatorUserType,
+                                         String operatorName,
+                                         EnterpriseApprovalBatchDTO dto) {
+        return batchApply(
+            dto.getIds(),
+            operatorId,
+            operatorUserType,
+            operatorName,
+            APPROVAL_REJECTED,
+            "ENTERPRISE_REJECT",
+            "企业档案批量审核驳回",
+            dto.getComment(),
+            dto.getRegulatorName()
+        );
     }
 
     @Override
-    public void deleteEnterprise(Long enterpriseId) {
+    public void deleteEnterprise(Long enterpriseId, Long operatorUserId, String operatorUserType, String operatorName) {
         FoodEnterprise enterprise = requireEnterprise(enterpriseId);
+        FoodEnterprise before = copyEnterprise(enterprise);
         enterprise.setDeleted(1);
         enterprise.setUpdateTime(LocalDateTime.now());
         foodEnterpriseMapper.updateById(enterprise);
         markAddressDeleted(enterprise.getAddressId());
         markAttachmentsDeleted(enterprise.getId());
         evictEnterpriseMasterCaches(enterprise);
+        auditLogService.recordEnterpriseAudit(
+            operatorUserId,
+            operatorUserType,
+            operatorName,
+            "ENTERPRISE_DELETE",
+            "删除企业档案",
+            before,
+            copyEnterprise(enterprise),
+            null
+        );
         if (enterprise.getUserId() != null) {
             userServiceClient.deleteUser(enterprise.getUserId());
         }
@@ -345,7 +442,7 @@ public class EnterpriseProfileServiceImpl implements EnterpriseProfileService {
         if (enterprise == null) {
             throw new IllegalArgumentException("enterprise not found");
         }
-        deleteEnterprise(enterprise.getId());
+        deleteEnterprise(enterprise.getId(), userId, "ENTERPRISE", null);
     }
 
     private FoodEnterprise findEnterpriseByUserId(Long userId) {
@@ -629,7 +726,11 @@ public class EnterpriseProfileServiceImpl implements EnterpriseProfileService {
 
     private BatchActionResult batchApply(List<Long> ids,
                                          Long operatorId,
+                                         String operatorUserType,
+                                         String operatorName,
                                          String status,
+                                         String actionType,
+                                         String actionName,
                                          String comment,
                                          String regulatorName) {
         BatchActionResult result = new BatchActionResult();
@@ -652,8 +753,19 @@ public class EnterpriseProfileServiceImpl implements EnterpriseProfileService {
                 failed.add(id);
                 continue;
             }
+            FoodEnterprise before = copyEnterprise(enterprise);
             applyApproval(enterprise, status, operatorId, comment, regulatorName);
             evictEnterpriseMasterCaches(enterprise);
+            auditLogService.recordEnterpriseAudit(
+                operatorId,
+                operatorUserType,
+                operatorName,
+                actionType,
+                actionName,
+                before,
+                copyEnterprise(enterprise),
+                comment
+            );
             successCount += 1;
         }
         result.setSuccessCount(successCount);
@@ -706,6 +818,33 @@ public class EnterpriseProfileServiceImpl implements EnterpriseProfileService {
         enterpriseMasterCacheService.evict(enterprise.getId(), enterprise.getUserId());
         enterprisePublicCacheService.evict(enterprise.getId());
         regulatorMasterCacheService.bumpScopeEnterpriseVersion();
+    }
+
+    private FoodEnterprise copyEnterprise(FoodEnterprise source) {
+        if (source == null) {
+            return null;
+        }
+        FoodEnterprise copy = new FoodEnterprise();
+        copy.setId(source.getId());
+        copy.setUserId(source.getUserId());
+        copy.setEnterpriseName(source.getEnterpriseName());
+        copy.setLicenseNo(source.getLicenseNo());
+        copy.setCreditCode(source.getCreditCode());
+        copy.setLegalRepresentative(source.getLegalRepresentative());
+        copy.setRegionId(source.getRegionId());
+        copy.setAddressId(source.getAddressId());
+        copy.setPrincipal(source.getPrincipal());
+        copy.setPrincipalPhone(source.getPrincipalPhone());
+        copy.setRegulatorName(source.getRegulatorName());
+        copy.setStatus(source.getStatus());
+        copy.setApprovalStatus(source.getApprovalStatus());
+        copy.setApprovalComment(source.getApprovalComment());
+        copy.setApprovedBy(source.getApprovedBy());
+        copy.setApprovedTime(source.getApprovedTime());
+        copy.setCreateTime(source.getCreateTime());
+        copy.setUpdateTime(source.getUpdateTime());
+        copy.setDeleted(source.getDeleted());
+        return copy;
     }
 
     private PageResult<PublicEnterpriseVO> loadPublicEnterpriseList(String enterpriseName, int page, int size) {
@@ -841,9 +980,10 @@ public class EnterpriseProfileServiceImpl implements EnterpriseProfileService {
             .collect(Collectors.joining("/"));
     }
     /**
-     * 杞崲涓哄叕鍏变紒涓氫俊鎭疺O
-     * @param enterprise 浼佷笟
-     * @param regionPath 琛屾斂鍖鸿矾寰?     * @return 鍏叡浼佷笟淇℃伅VO
+     * 转换为公众企业信息VO
+     * @param enterprise 企业
+     * @param regionPath 行政区路径
+     * @return 公众企业信息VO
      */
     private PublicEnterpriseVO toPublicVO(FoodEnterprise enterprise,
                                           List<RegionVO> regionPath,
@@ -897,7 +1037,10 @@ public class EnterpriseProfileServiceImpl implements EnterpriseProfileService {
     }
 
     /**
-     * 鎵嬫満鍙疯劚鏁?     * @param phone 鎵嬫満鍙?     * @return 鑴辨晱鍚庣殑鎵嬫満鍙?     */
+     * 手机号脱敏
+     * @param phone 手机号
+     * @return 脱敏后的手机号
+     */
     private String maskPhone(String phone) {
         if (!StringUtils.hasText(phone)) {
             return null;

@@ -9,7 +9,6 @@
     <RegulatorEnforcerTopbar
       :username="username"
       :search-placeholder="searchPlaceholder"
-      @pending-feature="$emit('pending-feature', $event)"
     />
     <main class="enforcer-workspace__main">
       <slot />
@@ -25,10 +24,10 @@ import { regulatorEnforcerNavItems } from "../../views/regulatorEnforcer/regulat
 defineProps({
   activeKey: { type: String, default: "overview" },
   username: { type: String, default: "" },
-  searchPlaceholder: { type: String, default: "搜索功能、任务或企业..." }
+  searchPlaceholder: { type: String, default: "搜索任务、企业或记录..." }
 });
 
-defineEmits(["navigate", "logout", "pending-feature"]);
+defineEmits(["navigate", "logout"]);
 </script>
 
 <style scoped>
@@ -41,4 +40,3 @@ defineEmits(["navigate", "logout", "pending-feature"]);
   padding: 88px 16px 20px;
 }
 </style>
-

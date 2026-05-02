@@ -23,7 +23,7 @@
           <p class="enterprise-page-hero__desc">查看并提交企业待处理的合规整改事项。</p>
         </div>
         <div class="enterprise-stat-pill-group">
-          <div class="enterprise-stat-pill">                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          
+          <div class="enterprise-stat-pill">
             <span class="enterprise-stat-pill__label">待处理总数</span>
             <span class="enterprise-stat-pill__value">{{ rectificationTotal }}</span>
           </div>
@@ -183,8 +183,8 @@
         </div>
         <div class="enterprise-rectification-list-page__guide-support">
           <span>Support</span>
-          <h4>联系监管员协助整改</h4>
-          <button type="button" @click="onSupportConsult">在线咨询</button>
+          <h4>按监管要求准备材料</h4>
+          <p>如需线下补充说明，请按任务通知中的监管联系方式处理。</p>
         </div>
       </div>
 
@@ -200,7 +200,7 @@ import { fetchMyRectifications } from "../../api/regulationOperation";
 import EnterpriseEmptyState from "../../components/enterprise/EnterpriseEmptyState.vue";
 import EnterpriseWorkspacePage from "../../components/enterprise/EnterpriseWorkspacePage.vue";
 import { formatTime } from "../../utils/formatters";
-import { enterpriseFeaturePendingNotice, formatRectificationStatus, useEnterpriseShellSession } from "./enterpriseShared";
+import { formatRectificationStatus, useEnterpriseShellSession } from "./enterpriseShared";
 
 const { enterpriseUser, token, handleSidebarNavigate, handleLogout } = useEnterpriseShellSession();
 const status = reactive({ message: "", type: "" });
@@ -294,10 +294,6 @@ function rectificationStatusLabel(status) {
   return label === "-" ? "整改中" : label;
 }
 
-function onSupportConsult() {
-  enterpriseFeaturePendingNotice("联系监管员协助整改");
-}
-
 async function loadRectifications() {
   rectificationLoading.value = true;
   setStatus("");
@@ -343,4 +339,3 @@ onMounted(() => {
   loadRectifications();
 });
 </script>
-

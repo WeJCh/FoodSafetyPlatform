@@ -4,11 +4,10 @@
     :username="enforcerUser.username || enforcerUser.realName || ''"
     @navigate="handleSidebarNavigate"
     @logout="handleLogout"
-    @pending-feature="regulatorEnforcerFeaturePendingNotice"
   >
     <section class="complaint-detail-page">
       <div v-if="loading" class="state-card">加载投诉详情中...</div>
-      <div v-else-if="!complaint" class="state-card state-card--error">投诉信息未找到</div>
+      <div v-else-if="!complaint" class="state-card state-card--error">投诉信息未找到。</div>
       <template v-else>
         <header class="page-head">
           <div>
@@ -23,8 +22,24 @@
           </div>
           <div class="head-actions">
             <button class="ghost" type="button" @click="handleBack">返回列表</button>
-            <button v-if="canStart" class="primary" type="button" :disabled="loadingAction" @click="handleStart">开始处理</button>
-            <button v-if="canHandle" class="primary" type="button" :disabled="loadingAction" @click="handleSubmit">提交处理</button>
+            <button
+              v-if="canStart"
+              class="primary"
+              type="button"
+              :disabled="loadingAction"
+              @click="handleStart"
+            >
+              开始处理
+            </button>
+            <button
+              v-if="canHandle"
+              class="primary"
+              type="button"
+              :disabled="loadingAction"
+              @click="handleSubmit"
+            >
+              提交处理
+            </button>
           </div>
         </header>
 
@@ -97,12 +112,24 @@
             </section>
 
             <section class="panel">
-              <h2>处理记录</h2>
-              <div class="logs">
-                <article v-for="(entry, index) in processingLogs" :key="`${entry.title}-${index}`" class="log-item">
-                  <strong>{{ entry.title }}</strong>
-                  <span>{{ entry.time }}</span>
-                  <p>{{ entry.desc }}</p>
+              <div class="panel-head">
+                <h2>处理记录</h2>
+                <button class="mini-link" type="button" :disabled="auditLoading" @click="loadAuditLogs">
+                  {{ auditLoading ? "加载中..." : "刷新" }}
+                </button>
+              </div>
+              <div v-if="auditLoading" class="note">操作日志加载中...</div>
+              <div v-else-if="auditError" class="note note--error">{{ auditError }}</div>
+              <div v-else-if="!auditLogs.length" class="note">当前暂无投诉操作日志</div>
+              <div v-else class="logs">
+                <article v-for="item in auditLogs" :key="item.id" class="log-item">
+                  <strong>{{ item.title }}</strong>
+                  <span>{{ formatTime(item.createTime) }}</span>
+                  <p>{{ item.desc }}</p>
+                  <p class="log-meta">
+                    <span>{{ item.operatorName || "-" }}</span>
+                    <span v-if="item.remark">· {{ item.remark }}</span>
+                  </p>
                 </article>
               </div>
             </section>
@@ -130,14 +157,17 @@
 <script setup>
 import { computed, onMounted, reactive, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
-import { fetchComplaintDetail, handleComplaint, startComplaintProcess } from "../../api/complaint";
-import RegulatorEnforcerWorkspacePage from "../../components/regulatorEnforcer/RegulatorEnforcerWorkspacePage.vue";
+import {
+  fetchComplaintDetail,
+  fetchComplaintLogs,
+  handleComplaint,
+  startComplaintProcess
+} from "../../api/complaint";
 import { formatByMap, formatTime } from "../../utils/formatters";
 import { complaintStatusMap } from "../../utils/statusMaps";
-import {
-  regulatorEnforcerFeaturePendingNotice,
-  useRegulatorEnforcerShellSession
-} from "./regulatorEnforcerShared";
+import { resolveErrorMessage } from "../../utils/uiFeedback";
+import RegulatorEnforcerWorkspacePage from "../../components/regulatorEnforcer/RegulatorEnforcerWorkspacePage.vue";
+import { useRegulatorEnforcerShellSession } from "./regulatorEnforcerShared";
 
 const route = useRoute();
 const router = useRouter();
@@ -146,6 +176,9 @@ const { token, enforcerUser, handleSidebarNavigate, handleLogout } = useRegulato
 const loading = ref(false);
 const loadingAction = ref(false);
 const detail = ref(null);
+const auditLogs = ref([]);
+const auditLoading = ref(false);
+const auditError = ref("");
 const status = reactive({ message: "", type: "info" });
 const handleForm = reactive({ feedbackSummary: "" });
 const imagePreviewUrls = ref([]);
@@ -159,31 +192,6 @@ const complaintImageList = computed(() => complaint.value?.imageUrls || []);
 const currentImagePreviewUrl = computed(() => imagePreviewUrls.value[imagePreviewIndex.value] || "");
 const canStart = computed(() => complaint.value?.status === "ASSIGNED");
 const canHandle = computed(() => complaint.value?.status === "PROCESSING");
-
-const processingLogs = computed(() => {
-  if (!complaint.value) return [];
-  const rows = [];
-  rows.push({
-    title: "投诉提交",
-    time: formatTime(complaint.value.createTime),
-    desc: "公众投诉已进入执法流转。"
-  });
-  if (complaint.value.assignedTime) {
-    rows.push({
-      title: "投诉派发",
-      time: formatTime(complaint.value.assignedTime),
-      desc: `已派发给 ${complaint.value.assignedToName || "当前执法人员"}`
-    });
-  }
-  handles.value.forEach((item) => {
-    rows.push({
-      title: "处理反馈",
-      time: formatTime(item.handleTime),
-      desc: item.handleResult || item.feedbackSummary || "已提交处理记录"
-    });
-  });
-  return rows.reverse();
-});
 
 function setStatus(message = "", type = "info") {
   status.message = message;
@@ -201,10 +209,38 @@ function statusClass(value) {
   return "is-default";
 }
 
+async function loadAuditLogs() {
+  if (!complaint.value?.id) {
+    auditLogs.value = [];
+    auditError.value = "";
+    return;
+  }
+  auditLoading.value = true;
+  auditError.value = "";
+  try {
+    const data = await fetchComplaintLogs(token.value, complaint.value.id, 12);
+    auditLogs.value = (Array.isArray(data) ? data : []).map((item, index) => ({
+      id: item.id || `complaint-log-${index}`,
+      title: item.actionName || item.actionType || "投诉操作日志",
+      desc: item.summary || "暂无日志摘要",
+      operatorName: item.operatorName || "监管人员",
+      remark: item.remark || "",
+      createTime: item.createTime
+    }));
+  } catch (error) {
+    auditLogs.value = [];
+    auditError.value = resolveErrorMessage(error, "操作日志加载失败");
+  } finally {
+    auditLoading.value = false;
+  }
+}
+
 async function loadDetail() {
   const complaintId = route.params.complaintId;
   if (!complaintId) {
     detail.value = null;
+    auditLogs.value = [];
+    auditError.value = "";
     return;
   }
   loading.value = true;
@@ -212,9 +248,12 @@ async function loadDetail() {
   try {
     detail.value = await fetchComplaintDetail(token.value, complaintId);
     handleForm.feedbackSummary = "";
+    await loadAuditLogs();
   } catch (error) {
     detail.value = null;
-    setStatus(error.message || "加载投诉详情失败", "error");
+    auditLogs.value = [];
+    auditError.value = "";
+    setStatus(resolveErrorMessage(error, "加载投诉详情失败"), "error");
   } finally {
     loading.value = false;
   }
@@ -226,10 +265,10 @@ async function handleStart() {
   setStatus("");
   try {
     await startComplaintProcess(token.value, complaint.value.id);
-    setStatus("投诉已开始处理", "success");
+    setStatus("投诉已开始处理。", "success");
     await loadDetail();
   } catch (error) {
-    setStatus(error.message || "开始处理失败", "error");
+    setStatus(resolveErrorMessage(error, "开始处理失败"), "error");
   } finally {
     loadingAction.value = false;
   }
@@ -238,7 +277,7 @@ async function handleStart() {
 async function handleSubmit() {
   if (!complaint.value?.id) return;
   if (!handleForm.feedbackSummary.trim()) {
-    setStatus("请填写反馈摘要", "error");
+    setStatus("请填写反馈摘要。", "error");
     return;
   }
   loadingAction.value = true;
@@ -247,10 +286,10 @@ async function handleSubmit() {
     await handleComplaint(token.value, complaint.value.id, {
       feedbackSummary: handleForm.feedbackSummary
     });
-    setStatus("投诉处理已完成", "success");
+    setStatus("投诉处理结果已反馈。", "success");
     await loadDetail();
   } catch (error) {
-    setStatus(error.message || "提交处理失败", "error");
+    setStatus(resolveErrorMessage(error, "提交处理失败"), "error");
   } finally {
     loadingAction.value = false;
   }
@@ -393,6 +432,29 @@ h1 {
   font-size: 14px;
   font-weight: 800;
 }
+.panel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+.panel-head h2 {
+  margin: 0;
+}
+.mini-link {
+  border: 0;
+  background: transparent;
+  color: #1d4ed8;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  padding: 0;
+}
+.mini-link:disabled {
+  color: #94a3b8;
+  cursor: default;
+}
 .panel-blue {
   background: linear-gradient(135deg, #002660, #003a8c);
   border-color: #003a8c;
@@ -414,6 +476,11 @@ h1 {
   border: 1px solid #dbe3ee;
   color: #475569;
   font-size: 12px;
+}
+.note--error {
+  background: #fef2f2;
+  border-color: #fecaca;
+  color: #b91c1c;
 }
 .form-label {
   display: grid;
@@ -534,6 +601,10 @@ textarea {
   color: #1e293b;
   font-size: 12px;
   line-height: 1.6;
+}
+.log-meta {
+  color: #94a3b8 !important;
+  font-size: 11px !important;
 }
 .status-banner {
   padding: 10px 12px;

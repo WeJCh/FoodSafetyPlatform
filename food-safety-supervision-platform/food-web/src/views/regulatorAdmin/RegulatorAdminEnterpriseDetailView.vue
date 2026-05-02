@@ -4,13 +4,12 @@
     :username="regulatorUser.username"
     @navigate="handleSidebarNavigate"
     @logout="handleLogout"
-    @pending-feature="onPendingFeature"
   >
     <section class="enterprise-detail-page">
       <header class="detail-header">
         <div>
           <h1>{{ detail?.enterpriseName || "企业详情" }}</h1>
-          <p>主档案 ID: ENT-{{ route.params.enterpriseId || "-" }}</p>
+          <p>主体档案 ID: ENT-{{ route.params.enterpriseId || "-" }}</p>
         </div>
         <div class="detail-header__chips">
           <div class="status-chip-group">
@@ -20,7 +19,7 @@
             </span>
           </div>
           <div class="status-chip-group">
-            <span class="status-chip-label">监管状态</span>
+            <span class="status-chip-label">监管分级</span>
             <span class="chip" :class="statusChipClass(detail?.status)">
               {{ formatStatus(detail?.status) }}
             </span>
@@ -31,17 +30,17 @@
         </div>
       </header>
 
-      <div v-if="loading" class="status info">加载企业详情中...</div>
-      <div v-else-if="!detail" class="status error">企业信息未找到</div>
+      <div v-if="loading" class="status info">企业详情加载中...</div>
+      <div v-else-if="loadError" class="status error">{{ loadError }}</div>
 
-      <template v-else>
+      <template v-else-if="detail">
         <div class="detail-layout">
           <section class="panel">
             <h2>基础信息</h2>
             <div class="base-grid">
               <article><span>统一社会信用代码</span><strong>{{ detail.creditCode || "-" }}</strong></article>
               <article><span>法定代表人</span><strong>{{ detail.legalRepresentative || "-" }}</strong></article>
-              <article><span>食品经营许可证编号</span><strong>{{ detail.licenseNo || "-" }}</strong></article>
+              <article><span>食品经营许可证号</span><strong>{{ detail.licenseNo || "-" }}</strong></article>
               <article><span>负责人</span><strong>{{ detail.principal || "-" }}</strong></article>
               <article><span>负责人电话</span><strong>{{ detail.principalPhone || "-" }}</strong></article>
               <article><span>所属区域</span><strong>{{ regionName || "-" }}</strong></article>
@@ -75,7 +74,7 @@
           <section class="panel panel--table">
             <div class="panel__head">
               <h2>产品档案概览</h2>
-              <span>总计 {{ productRecords.length }} 项</span>
+              <span>共 {{ productRecords.length }} 项</span>
             </div>
             <div v-if="productLoading" class="status info">产品档案加载中...</div>
             <div v-else-if="!productRecords.length" class="status info">当前企业暂无产品档案。</div>
@@ -109,28 +108,26 @@
         <div class="side-layout">
           <section class="panel panel--highlight">
             <h2>风险历史</h2>
-            <div v-if="!riskHistory.length" class="status info">暂无风险历史，保持正常监管。</div>
+            <div v-if="!riskHistory.length" class="status info">暂无风险历史，当前未命中重点风险记录。</div>
             <ul v-else class="risk-list">
               <li v-for="(item, index) in riskHistory" :key="`${item.reasonType}-${index}`">
                 <strong>{{ formatReasonType(item.reasonType) }}</strong>
                 <span>{{ formatTime(item.createTime) }}</span>
-                <p>{{ item.reasonDetail || "触发重点监管规则" }}</p>
+                <p>{{ item.reasonDetail || "命中重点监管规则" }}</p>
               </li>
             </ul>
           </section>
 
           <section class="panel">
-            <h2>审计日志</h2>
-            <ul class="audit-list">
-              <li>
-                <strong>企业档案已加载</strong>
-                <p>{{ formatTime(detail.updateTime) }} · 系统自动同步备案主档。</p>
-              </li>
-              <li>
-                <strong>产品数据同步</strong>
-                <p>已加载 {{ productRecords.length }} 条产品记录。</p>
+            <h2>审核日志</h2>
+            <ul v-if="auditLogs.length" class="audit-list">
+              <li v-for="item in auditLogs" :key="item.id">
+                <strong>{{ item.title }}</strong>
+                <p>{{ item.desc }}</p>
+                <p>{{ item.meta }}</p>
               </li>
             </ul>
+            <div v-else class="status info">当前暂无企业审核日志。</div>
           </section>
         </div>
       </template>
@@ -142,13 +139,11 @@
 import { computed, onMounted, ref, watch } from "vue";
 import { useRoute } from "vue-router";
 import RegulatorAdminWorkspacePage from "../../components/regulatorAdmin/RegulatorAdminWorkspacePage.vue";
-import { fetchEnterpriseDetail, fetchEnterpriseProducts, fetchRegionPath } from "../../api/regulation";
+import { fetchEnterpriseAuditLogs, fetchEnterpriseDetail, fetchEnterpriseProducts, fetchRegionPath } from "../../api/regulation";
 import { formatByMap, formatTime } from "../../utils/formatters";
 import { approvalStatusMap, enterpriseStatusMap } from "../../utils/statusMaps";
-import {
-  regulatorFeaturePendingNotice,
-  useRegulatorAdminShellSession
-} from "./regulatorAdminShared";
+import { resolveErrorMessage } from "../../utils/uiFeedback";
+import { useRegulatorAdminShellSession } from "./regulatorAdminShared";
 
 const route = useRoute();
 const { regulatorUser, token, handleSidebarNavigate, handleLogout } = useRegulatorAdminShellSession();
@@ -158,6 +153,8 @@ const detail = ref(null);
 const regionName = ref("");
 const productLoading = ref(false);
 const productRecords = ref([]);
+const loadError = ref("");
+const auditLogs = ref([]);
 
 const activeNavKey = computed(() => {
   const from = typeof route.query.from === "string" ? route.query.from : "enterprises";
@@ -171,7 +168,8 @@ const activeNavKey = computed(() => {
     "rectification",
     "warnings",
     "bulletins",
-    "stats"
+    "stats",
+    "overview"
   ]);
   return allowed.has(from) ? from : "enterprises";
 });
@@ -180,10 +178,6 @@ const riskHistory = computed(() => {
   if (!detail.value?.keyReasons?.length) return [];
   return detail.value.keyReasons.slice(0, 4);
 });
-
-function onPendingFeature(title) {
-  regulatorFeaturePendingNotice(title);
-}
 
 function handleBack() {
   handleSidebarNavigate(activeNavKey.value);
@@ -231,33 +225,47 @@ async function loadDetail() {
   if (!enterpriseId) {
     detail.value = null;
     productRecords.value = [];
+    auditLogs.value = [];
+    loadError.value = "缺少企业参数";
     return;
   }
 
   loading.value = true;
+  loadError.value = "";
   try {
-    detail.value = await fetchEnterpriseDetail(token.value, enterpriseId);
+    const [enterprise, logs] = await Promise.all([
+      fetchEnterpriseDetail(token.value, enterpriseId),
+      fetchEnterpriseAuditLogs(token.value, enterpriseId, 8).catch(() => [])
+    ]);
+    detail.value = enterprise;
+    auditLogs.value = (Array.isArray(logs) ? logs : []).map((item, index) => ({
+      id: item.id || `audit-${index}`,
+      title: item.actionName || item.actionType || "企业审核日志",
+      desc: item.summary || "暂无日志摘要",
+      meta: `${item.operatorName || "监管人员"} | ${formatTime(item.createTime)}${item.remark ? ` | ${item.remark}` : ""}`
+    }));
     regionName.value = "";
     if (detail.value?.regionId) {
       const path = await fetchRegionPath(token.value, detail.value.regionId).catch(() => []);
-      regionName.value = Array.isArray(path) && path.length
-        ? path.map((item) => item.name).join(" / ")
-        : "";
+      regionName.value = Array.isArray(path) && path.length ? path.map((item) => item.name).join(" / ") : "";
     }
     productLoading.value = true;
     try {
       const products = await fetchEnterpriseProducts(token.value, enterpriseId);
       productRecords.value = Array.isArray(products) ? products : [];
-    } catch {
+    } catch (error) {
       productRecords.value = [];
+      loadError.value = resolveErrorMessage(error, "产品档案加载失败");
     } finally {
       productLoading.value = false;
     }
-  } catch {
+  } catch (error) {
     detail.value = null;
     regionName.value = "";
     productRecords.value = [];
+    auditLogs.value = [];
     productLoading.value = false;
+    loadError.value = resolveErrorMessage(error, "企业详情加载失败");
   } finally {
     loading.value = false;
   }
@@ -360,7 +368,8 @@ td { border-top: 1px solid #edf2f7; padding: 10px; font-size: 13px; color: #1e29
 .audit-list strong { font-size: 13px; }
 .risk-list span { font-size: 11px; opacity: 0.85; }
 .risk-list p,
-.audit-list p { margin: 0; font-size: 12px; line-height: 1.5; }
+.audit-list p { margin: 0; font-size: 12px; line-height: 1.5; color: inherit; }
+.panel:not(.panel--highlight) .audit-list p { color: #64748b; }
 .status { border-radius: 4px; padding: 12px; font-size: 13px; }
 .status.info { background: #eff6ff; color: #1d4ed8; }
 .status.error { background: #fee2e2; color: #991b1b; }

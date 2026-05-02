@@ -2,9 +2,11 @@ package com.mortal.regulation.controller;
 
 import com.mortal.platform.common.ApiResponse;
 import com.mortal.regulation.dto.RegulatorProfileDTO;
+import com.mortal.regulation.dto.RegulatorRegionAdjustDTO;
 import com.mortal.regulation.dto.RegulatorStatusDTO;
 import com.mortal.regulation.service.RegulatorProfileService;
 import com.mortal.regulation.util.JwtUserResolver;
+import com.mortal.regulation.vo.AuditLogVO;
 import com.mortal.regulation.vo.RegulatorProfileVO;
 import jakarta.validation.Valid;
 import java.util.List;
@@ -39,7 +41,7 @@ public class RegulatorProfileController {
         if (!identity.isAdmin()) {
             return ApiResponse.failure(403, "admin only");
         }
-        return ApiResponse.success(regulatorProfileService.createOrUpdate(dto));
+        return ApiResponse.success(regulatorProfileService.createOrUpdate(identity.userId(), identity.username(), dto));
     }
 
     @GetMapping("/user/{userId}")
@@ -87,7 +89,14 @@ public class RegulatorProfileController {
         if (!identity.isRegulator()) {
             return ApiResponse.failure(403, "regulator only");
         }
-        return ApiResponse.success(regulatorProfileService.listEligibleEnforcers(regionId));
+        RegulatorProfileVO profile = regulatorProfileService.getByUserId(identity.userId());
+        if (profile == null) {
+            return ApiResponse.failure(404, "regulator not found");
+        }
+        if (!"REGULATOR_ADMIN".equals(profile.getRoleType())) {
+            return ApiResponse.failure(403, "regulator admin only");
+        }
+        return ApiResponse.success(regulatorProfileService.listEligibleEnforcers(identity.userId(), regionId));
     }
 
     @PutMapping("/{id}/status")
@@ -98,7 +107,7 @@ public class RegulatorProfileController {
         if (!identity.isAdmin()) {
             return ApiResponse.failure(403, "admin only");
         }
-        return ApiResponse.success(regulatorProfileService.updateStatus(id, dto.getStatus()));
+        return ApiResponse.success(regulatorProfileService.updateStatus(identity.userId(), identity.username(), id, dto.getStatus()));
     }
 
     @DeleteMapping("/{id}")
@@ -108,20 +117,55 @@ public class RegulatorProfileController {
         if (!identity.isAdmin()) {
             return ApiResponse.failure(403, "admin only");
         }
-        regulatorProfileService.deleteRegulator(id);
+        regulatorProfileService.deleteRegulator(identity.userId(), identity.username(), id);
         return ApiResponse.success(null);
+    }
+
+    @PutMapping("/{id}/regions")
+    public ApiResponse<RegulatorProfileVO> adjustRegions(@RequestHeader("Authorization") String token,
+                                                         @PathVariable Long id,
+                                                         @Valid @RequestBody RegulatorRegionAdjustDTO dto) {
+        UserIdentity identity = resolveIdentity(token);
+        if (!identity.isAdmin()) {
+            return ApiResponse.failure(403, "admin only");
+        }
+        return ApiResponse.success(
+            regulatorProfileService.adjustRegions(identity.userId(), identity.username(), id, dto.getRegionIds(), dto.getRemark())
+        );
+    }
+
+    @GetMapping("/{id}/audit-logs")
+    public ApiResponse<List<AuditLogVO>> listAuditLogs(@RequestHeader("Authorization") String token,
+                                                       @PathVariable Long id,
+                                                       @RequestParam(required = false) Integer limit) {
+        UserIdentity identity = resolveIdentity(token);
+        if (!identity.isAdmin()) {
+            return ApiResponse.failure(403, "admin only");
+        }
+        return ApiResponse.success(regulatorProfileService.listAuditLogs(id, limit));
+    }
+
+    @GetMapping("/audit-logs/recent")
+    public ApiResponse<List<AuditLogVO>> listRecentAuditLogs(@RequestHeader("Authorization") String token,
+                                                             @RequestParam(required = false) Integer limit) {
+        UserIdentity identity = resolveIdentity(token);
+        if (!identity.isAdmin()) {
+            return ApiResponse.failure(403, "admin only");
+        }
+        return ApiResponse.success(regulatorProfileService.listRecentAuditLogs(limit));
     }
 
     private UserIdentity resolveIdentity(String token) {
         Long userId = jwtUserResolver.resolveUserId(token);
         String userType = jwtUserResolver.resolveUserType(token);
+        String username = jwtUserResolver.resolveUsername(token);
         if (userId == null) {
             throw new IllegalArgumentException("unauthorized");
         }
-        return new UserIdentity(userId, userType);
+        return new UserIdentity(userId, userType, username);
     }
 
-    private record UserIdentity(Long userId, String userType) {
+    private record UserIdentity(Long userId, String userType, String username) {
 
         boolean isAdmin() {
             return "ADMIN".equals(userType);

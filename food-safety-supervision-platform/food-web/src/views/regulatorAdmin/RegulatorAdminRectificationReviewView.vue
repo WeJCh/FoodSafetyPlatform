@@ -4,13 +4,12 @@
     :username="regulatorUser.username"
     @navigate="handleSidebarNavigate"
     @logout="handleLogout"
-    @pending-feature="onPendingFeature"
   >
     <section class="rectification-page">
       <header class="page-head">
         <div>
           <h1>整改复核任务列表</h1>
-          <p>监测整改流程进展，确保食安合规闭环。</p>
+          <p>统一跟踪整改进度，确保问题闭环。</p>
         </div>
       </header>
 
@@ -21,19 +20,19 @@
           <p>当前页 {{ records.length }} 条</p>
         </article>
         <article class="summary-card summary-card--danger">
-          <span>逾期未响应</span>
+          <span>逾期未完成</span>
           <strong>{{ overdueCount }}</strong>
-          <p>高优先处理</p>
+          <p>需要优先跟进</p>
         </article>
         <article class="summary-card summary-card--indigo">
-          <span>处理中</span>
+          <span>整改进行中</span>
           <strong>{{ ongoingCount }}</strong>
-          <p>整改推进中</p>
+          <p>等待企业提交</p>
         </article>
         <article class="summary-card summary-card--green">
-          <span>今日已完成</span>
+          <span>已确认完成</span>
           <strong>{{ confirmedCount }}</strong>
-          <p>已确认复核</p>
+          <p>闭环已完成</p>
         </article>
       </section>
 
@@ -44,7 +43,7 @@
             <option value="">全部</option>
             <option value="ONGOING">整改中</option>
             <option value="SUBMITTED">待复核</option>
-            <option value="REWORK">打回重做</option>
+            <option value="REWORK">退回整改</option>
             <option value="CONFIRMED">已确认</option>
           </select>
         </label>
@@ -65,8 +64,8 @@
                 <th>企业名称</th>
                 <th>问题描述</th>
                 <th>状态</th>
-                <th>整改截止日期</th>
-                <th>预警状态</th>
+                <th>整改截止时间</th>
+                <th>时限状态</th>
                 <th>操作</th>
               </tr>
             </thead>
@@ -79,10 +78,8 @@
                 <td class="desc" :title="item.rectificationDesc || '-'">{{ item.rectificationDesc || "-" }}</td>
                 <td>
                   <div class="status-stack">
-                    <span class="status-pill" :class="statusPillClass(item)">
-                      {{ formatRectificationStatus(item.status) }}
-                    </span>
-                    <span v-if="isRectificationOverdue(item)" class="status-pill is-overdue">已逾期</span>
+                    <AppStatusTag :label="formatRectificationStatus(item.status)" :tone="rectificationTone(item.status)" />
+                    <AppStatusTag v-if="isRectificationOverdue(item)" label="已逾期" tone="danger" />
                   </div>
                 </td>
                 <td class="mono">{{ item.currentDeadline ? formatTime(item.currentDeadline) : "-" }}</td>
@@ -101,14 +98,19 @@
                       :disabled="loading"
                       @click="handleReviewRectification(item, { action: 'CONFIRM' })"
                     >
-                      复核
+                      复核通过
                     </button>
                   </div>
                 </td>
               </tr>
             </tbody>
           </table>
-          <div v-if="!records.length" class="empty">暂无整改任务</div>
+          <AppEmptyState
+            v-if="!records.length"
+            :title="emptyTitle"
+            :description="emptyDescription"
+            class="rectification-page__empty-state"
+          />
         </div>
         <div class="pager">
           <span>共 {{ total }} 条，{{ page }}/{{ pages }} 页</span>
@@ -119,7 +121,7 @@
         </div>
       </section>
 
-      <div v-if="status.message" class="status" :class="status.type">{{ status.message }}</div>
+      <AppStatusToast :message="status.message" :type="status.type" />
     </section>
   </RegulatorAdminWorkspacePage>
 </template>
@@ -127,10 +129,15 @@
 <script setup>
 import { computed, onMounted, reactive, ref } from "vue";
 import { useRoute, useRouter } from "vue-router";
-import { fetchRectifications, reviewRectification } from "../../api/regulationOperation";
+import AppEmptyState from "../../components/common/AppEmptyState.vue";
+import AppStatusTag from "../../components/common/AppStatusTag.vue";
+import AppStatusToast from "../../components/common/AppStatusToast.vue";
 import RegulatorAdminWorkspacePage from "../../components/regulatorAdmin/RegulatorAdminWorkspacePage.vue";
+import { fetchRectifications, reviewRectification } from "../../api/regulationOperation";
 import { formatTime } from "../../utils/formatters";
-import { regulatorFeaturePendingNotice, useRegulatorAdminShellSession } from "./regulatorAdminShared";
+import { formatStatusLabel, getStatusTone, rectificationStatusMap } from "../../utils/statusMaps";
+import { resolveErrorMessage } from "../../utils/uiFeedback";
+import { useRegulatorAdminShellSession } from "./regulatorAdminShared";
 
 const route = useRoute();
 const router = useRouter();
@@ -148,36 +155,28 @@ const filters = reactive({
   enterpriseName: ""
 });
 
-const rectificationStatusMap = {
-  ONGOING: "整改中",
-  SUBMITTED: "待复核",
-  REWORK: "打回重做",
-  CONFIRMED: "已确认"
-};
-
 const overdueCount = computed(() => records.value.filter((item) => item.slaStatus === "OVERDUE").length);
 const ongoingCount = computed(() => records.value.filter((item) => item.status === "ONGOING").length);
 const confirmedCount = computed(() => records.value.filter((item) => item.status === "CONFIRMED").length);
+const hasFilters = computed(() => Boolean(filters.status || filters.enterpriseName.trim()));
+const emptyTitle = computed(() => (hasFilters.value ? "暂无符合条件的整改任务" : "暂无整改任务"));
+const emptyDescription = computed(() => (hasFilters.value ? "可以调整状态或企业名称筛选后再试。" : "待复核的整改任务会显示在这里。"));
 
-function onPendingFeature(title) {
-  regulatorFeaturePendingNotice(title);
-}
-
-function setStatus(message, type = "info") {
+function setStatus(message = "", type = "info") {
   status.message = message;
   status.type = type;
 }
 
 function formatRectificationStatus(value) {
-  return rectificationStatusMap[value] || value || "-";
+  return formatStatusLabel(value, rectificationStatusMap);
+}
+
+function rectificationTone(value) {
+  return getStatusTone(value, "RECTIFICATION");
 }
 
 function isRectificationOverdue(item) {
   return item?.slaStatus === "OVERDUE" && item?.status !== "CONFIRMED";
-}
-
-function statusPillClass(item) {
-  return `is-${String(item?.status || "").toLowerCase()}`;
 }
 
 function formatDurationMinutes(minutes) {
@@ -205,25 +204,21 @@ function formatRectificationSla(item) {
   if (item.slaStatus === "DUE_SOON") return `临期 ${formatDurationMinutes(remaining)}`;
   if (item.slaStatus === "NORMAL") return `剩余 ${formatDurationMinutes(remaining)}`;
   if (item.currentDeadline) return `截止 ${formatTime(item.currentDeadline)}`;
-  return "正常进度";
+  return "正常推进";
 }
 
 async function loadRectifications() {
   loading.value = true;
   setStatus("");
   try {
-    const data = await fetchRectifications(token.value, {
-      ...filters,
-      page: page.value,
-      size: size.value
-    });
+    const data = await fetchRectifications(token.value, { ...filters, page: page.value, size: size.value });
     records.value = data.records || [];
     total.value = data.total || 0;
     page.value = data.page || 1;
     size.value = data.size || size.value;
     pages.value = data.pages || 1;
   } catch (error) {
-    setStatus(error.message || "加载整改任务失败", "error");
+    setStatus(resolveErrorMessage(error, "整改任务加载失败，请稍后重试"), "error");
   } finally {
     loading.value = false;
   }
@@ -245,10 +240,10 @@ async function handleReviewRectification(item, payload) {
   setStatus("");
   try {
     await reviewRectification(token.value, item.id, payload);
-    setStatus(payload.action === "REWORK" ? "整改任务已打回重做" : "整改任务已确认复核", "success");
+    setStatus(payload.action === "REWORK" ? "整改任务已退回整改。" : "整改任务已确认通过。", "success");
     await loadRectifications();
   } catch (error) {
-    setStatus(error.message || "整改复核失败", "error");
+    setStatus(resolveErrorMessage(error, "整改复核失败，请稍后重试"), "error");
   } finally {
     loading.value = false;
   }
@@ -262,9 +257,7 @@ function goDetail(rectificationId) {
 onMounted(async () => {
   await loadRectifications();
   const targetId = Number(route.query.rectificationId || 0);
-  if (targetId > 0) {
-    goDetail(targetId);
-  }
+  if (targetId > 0) goDetail(targetId);
 });
 </script>
 
@@ -272,7 +265,6 @@ onMounted(async () => {
 .rectification-page { display: grid; gap: 16px; }
 .page-head h1 { margin: 0; color: #002660; font-size: 30px; font-weight: 900; letter-spacing: -0.02em; }
 .page-head p { margin: 6px 0 0; color: #64748b; font-size: 14px; }
-
 .summary-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
 .summary-card { background: #fff; border: 1px solid #e2e8f0; border-left-width: 4px; border-radius: 8px; padding: 12px; }
 .summary-card span { font-size: 10px; color: #64748b; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; }
@@ -282,24 +274,12 @@ onMounted(async () => {
 .summary-card--danger { border-left-color: #dc2626; }
 .summary-card--indigo { border-left-color: #475569; }
 .summary-card--green { border-left-color: #00a873; }
-
-.filter-card {
-  background: #fff;
-  border: 1px solid #e2e8f0;
-  border-radius: 10px;
-  padding: 12px;
-  display: grid;
-  grid-template-columns: 1fr 1fr auto;
-  gap: 10px;
-  align-items: end;
-}
+.filter-card { background: #fff; border: 1px solid #e2e8f0; border-radius: 10px; padding: 12px; display: grid; grid-template-columns: 1fr 1fr auto; gap: 10px; align-items: end; }
 .filter-card label { display: grid; gap: 6px; color: #475569; font-size: 12px; font-weight: 800; }
 .filter-card input, .filter-card select { border: 1px solid #dbe2ea; border-radius: 8px; min-height: 38px; padding: 0 10px; font-size: 13px; }
-
 .primary, .ghost { border-radius: 8px; min-height: 38px; font-size: 12px; font-weight: 800; padding: 0 14px; cursor: pointer; }
 .primary { border: 0; background: #002660; color: #fff; }
 .ghost { border: 1px solid #d1d5db; background: #fff; color: #334155; }
-
 .table-card { background: #fff; border: 1px solid #e2e8f0; border-radius: 10px; overflow: hidden; }
 .table-wrap { overflow: auto; }
 table { width: 100%; min-width: 1080px; border-collapse: collapse; }
@@ -312,32 +292,17 @@ tbody tr:hover { background: #f1f5f9; }
 .ent-sub { margin-top: 2px; font-size: 10px; color: #94a3b8; }
 .desc { max-width: 280px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
-
-.status-pill { display: inline-flex; min-height: 22px; align-items: center; padding: 0 8px; border-radius: 6px; font-size: 10px; font-weight: 900; letter-spacing: 0.04em; }
-.status-pill.is-ongoing { background: #c9d7fe; color: #1e3a8a; }
-.status-pill.is-submitted { background: #002660; color: #fff; }
-.status-pill.is-rework { background: #ffdbce; color: #7c2d06; }
-.status-pill.is-confirmed { background: #def7ec; color: #065f46; }
-.status-pill.is-overdue { background: #fee2e2; color: #991b1b; }
 .status-stack { display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap; }
-
 .sla-pill { font-size: 11px; font-weight: 700; }
 .sla-pill--normal { color: #475569; }
 .sla-pill--warning { color: #b45309; }
 .sla-pill--overdue { color: #b91c1c; }
 .sla-pill--none { color: #64748b; }
-
 .action-row { display: flex; gap: 8px; align-items: center; }
 .action-btn { min-height: 30px; padding: 0 10px; font-size: 11px; }
-
-.empty { padding: 16px; text-align: center; color: #64748b; font-size: 13px; }
+.rectification-page__empty-state { margin: 16px; }
 .pager { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 12px 14px; border-top: 1px solid #e2e8f0; font-size: 12px; color: #64748b; font-weight: 700; }
 .pager-actions { display: flex; gap: 8px; }
-
-.status { position: fixed; right: 18px; bottom: 18px; border-radius: 8px; padding: 10px 12px; color: #fff; background: #0f172a; font-size: 13px; z-index: 1200; }
-.status.error { background: #b91c1c; }
-.status.success { background: #166534; }
-
 @media (max-width: 1100px) {
   .summary-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .filter-card { grid-template-columns: 1fr 1fr; }

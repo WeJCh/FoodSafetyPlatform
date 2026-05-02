@@ -67,8 +67,7 @@
               <p v-if="listFiltersActive" class="enterprise-insights-tile__sub">当前筛选 {{ filteredCount }} 条</p>
               <p class="enterprise-insights-tile__note">
                 <span class="material-symbols-outlined" aria-hidden="true" style="font-size: 14px">trending_up</span>
-                <!-- TODO: 接入按月/按季度产品档案增长统计接口后替换下方演示文案 -->
-                较上月增长（演示）12.4%
+                ACTIVE {{ activeProductCount }} / INACTIVE {{ inactiveProductCount }}
               </p>
             </div>
             <span class="material-symbols-outlined enterprise-insights-tile__bg-icon" aria-hidden="true">inventory_2</span>
@@ -95,16 +94,16 @@
                         <span class="material-symbols-outlined">inventory_2</span>
                       </div>
                       <div>
-                        <div class="enterprise-product-table__name">{{ item.productName || "—" }}</div>
+                        <div class="enterprise-product-table__name">{{ item.productName || "-" }}</div>
                         <div class="enterprise-product-table__id">ID: {{ item.id }}</div>
                       </div>
                     </div>
                   </td>
                   <td>
-                    <span class="enterprise-product-cat-pill">{{ item.category || "—" }}</span>
+                    <span class="enterprise-product-cat-pill">{{ item.category || "-" }}</span>
                   </td>
                   <td>
-                    <div class="enterprise-product-table__spec">{{ item.specification || "—" }}</div>
+                    <div class="enterprise-product-table__spec">{{ item.specification || "-" }}</div>
                     <div v-if="item.remark" class="enterprise-product-table__remark">{{ item.remark }}</div>
                   </td>
                   <td>
@@ -173,6 +172,7 @@ import { RouterLink } from "vue-router";
 import { fetchEnterpriseProfile, fetchMyProducts, updateProduct } from "../../api/regulation";
 import EnterpriseEmptyState from "../../components/enterprise/EnterpriseEmptyState.vue";
 import EnterpriseWorkspacePage from "../../components/enterprise/EnterpriseWorkspacePage.vue";
+import { resolveErrorMessage } from "../../utils/uiFeedback";
 import {
   ENTERPRISE_PRODUCT_CATEGORY_PRESETS,
   formatProductStatus,
@@ -216,10 +216,10 @@ const filteredProducts = computed(() => {
 });
 
 const totalProductCount = computed(() => productRecords.value.length);
+const activeProductCount = computed(() => productRecords.value.filter((item) => item.status === "ACTIVE").length);
+const inactiveProductCount = computed(() => productRecords.value.filter((item) => item.status !== "ACTIVE").length);
 const filteredCount = computed(() => filteredProducts.value.length);
-const listFiltersActive = computed(
-  () => Boolean(listKeyword.value.trim() || listCategory.value || listStatus.value)
-);
+const listFiltersActive = computed(() => Boolean(listKeyword.value.trim() || listCategory.value || listStatus.value));
 
 function resetListFilters() {
   listKeyword.value = "";
@@ -243,7 +243,7 @@ async function loadProfileState() {
       approvalStatus.value = "";
       return;
     }
-    setStatus(error.message || "加载备案状态失败", "error");
+    setStatus(resolveErrorMessage(error, "加载备案状态失败，请稍后重试。"), "error");
   }
 }
 
@@ -257,7 +257,7 @@ async function loadProducts() {
   try {
     productRecords.value = await fetchMyProducts(token.value);
   } catch (error) {
-    setStatus(error.message || "加载产品档案失败", "error");
+    setStatus(resolveErrorMessage(error, "加载产品档案失败，请稍后重试"), "error");
   } finally {
     productLoading.value = false;
   }
@@ -275,10 +275,10 @@ async function handleToggleProductStatus(item) {
       status: item.status === "ACTIVE" ? "INACTIVE" : "ACTIVE",
       remark: item.remark
     });
-    setStatus("产品状态更新成功", "success");
+    setStatus("产品状态更新成功。", "success");
     await loadProducts();
   } catch (error) {
-    setStatus(error.message || "更新产品状态失败", "error");
+    setStatus(resolveErrorMessage(error, "更新产品状态失败，请稍后重试。"), "error");
   } finally {
     productLoading.value = false;
   }

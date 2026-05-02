@@ -66,13 +66,13 @@
               <label class="enterprise-product-form-field enterprise-product-form-field--select">
                 <span>产品分类</span>
                 <select v-model="form.category" required>
-                  <option value="" disabled>选择产品所属类别</option>
+                  <option value="" disabled>选择产品所属分类</option>
                   <option v-for="c in categoryOptions" :key="c" :value="c">{{ c }}</option>
                 </select>
                 <span class="material-symbols-outlined" aria-hidden="true">expand_more</span>
               </label>
               <label class="enterprise-product-form-field">
-                <span>规格型号（重量/体积）</span>
+                <span>规格型号（重量 / 体积）</span>
                 <input v-model.trim="form.specification" placeholder="例如：500g、1.5L" autocomplete="off" />
               </label>
               <label class="enterprise-product-form-field enterprise-product-form-grid__full">
@@ -114,9 +114,9 @@
                 <span class="material-symbols-outlined">info</span>
               </div>
               <div>
-                <h4>档案审核提示</h4>
+                <h4>档案维护提示</h4>
                 <p>
-                  设置为 ACTIVE 后，该产品会进入企业正式产品档案，并可能用于监管侧抽检、检查或台账关联展示。请确保产品名称、分类与备案信息一致。
+                  设置为 ACTIVE 后，该产品会进入企业正式产品档案，并可能用于监管抽检、检查或台账关联展示。请确保产品名称、分类与备案信息保持一致。
                 </p>
               </div>
             </div>
@@ -128,7 +128,7 @@
             <span class="material-symbols-outlined enterprise-product-form-policy__bg-icon" aria-hidden="true">policy</span>
             <h4>
               <span class="material-symbols-outlined" style="font-size: 20px" aria-hidden="true">verified_user</span>
-              备案合规指南
+              备案合规指引
             </h4>
             <ul>
               <li>
@@ -162,6 +162,7 @@ import { computed, onMounted, reactive, ref } from "vue";
 import { RouterLink, useRoute, useRouter } from "vue-router";
 import { createProduct, fetchEnterpriseProfile, fetchMyProducts, updateProduct } from "../../api/regulation";
 import EnterpriseWorkspacePage from "../../components/enterprise/EnterpriseWorkspacePage.vue";
+import { resolveErrorMessage } from "../../utils/uiFeedback";
 import {
   ENTERPRISE_PRODUCT_CATEGORY_PRESETS,
   getApprovalStatusLabel,
@@ -224,7 +225,7 @@ async function loadProfileState() {
       approvalStatus.value = "";
       return;
     }
-    setStatus(error.message || "加载备案状态失败", "error");
+    setStatus(resolveErrorMessage(error, "加载备案状态失败，请稍后重试。"), "error");
   }
 }
 
@@ -234,12 +235,12 @@ async function loadExistingProduct() {
     const records = await fetchMyProducts(token.value);
     const matched = (records || []).find((item) => String(item.id) === productId.value);
     if (!matched) {
-      setStatus("未找到要编辑的产品", "error");
+      setStatus("未找到要编辑的产品。", "error");
       return;
     }
     applyForm(matched);
   } catch (error) {
-    setStatus(error.message || "加载产品信息失败", "error");
+    setStatus(resolveErrorMessage(error, "加载产品信息失败，请稍后重试"), "error");
   }
 }
 
@@ -253,7 +254,7 @@ async function handleSaveAndAddAnother() {
     setStatus("已创建，可继续添加下一条。", "success");
     applyForm({ productName: "", category: "", specification: "", status: "ACTIVE", remark: "" });
   } catch (error) {
-    setStatus(error.message || "创建失败", "error");
+    setStatus(resolveErrorMessage(error, "创建产品失败，请稍后重试"), "error");
   } finally {
     loading.value = false;
   }
@@ -261,11 +262,11 @@ async function handleSaveAndAddAnother() {
 
 async function handleSubmit() {
   if (!profileLoaded.value || approvalStatus.value !== "APPROVED") {
-    setStatus("企业备案审核通过后才能维护产品档案", "error");
+    setStatus("企业备案审核通过后才能维护产品档案。", "error");
     return;
   }
   if (!canSubmit.value) {
-    setStatus("请填写产品名称并选择分类", "error");
+    setStatus("请填写产品名称并选择分类。", "error");
     return;
   }
   loading.value = true;
@@ -280,7 +281,7 @@ async function handleSubmit() {
       await router.replace({ name: "enterprise-products" });
     }
   } catch (error) {
-    setStatus(error.message || "保存产品失败", "error");
+    setStatus(resolveErrorMessage(error, "保存产品失败，请稍后重试"), "error");
   } finally {
     loading.value = false;
   }

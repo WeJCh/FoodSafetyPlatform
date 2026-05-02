@@ -3,8 +3,8 @@
     <div class="modal-card rectification-detail-modal">
       <div class="modal-title">整改详情</div>
       <div class="rectification-head">
-        <span class="rectification-status">{{ formatStatus(detail.status) }}</span>
-        <span class="rectification-id">整改ID：{{ detail.id || "-" }}</span>
+        <AppStatusTag class="rectification-status" :label="formatRectificationStatus(detail.status)" :tone="statusTone" />
+        <span class="rectification-id">整改 ID：{{ detail.id || "-" }}</span>
       </div>
 
       <div v-if="!detailLoading" class="rectification-section">
@@ -13,7 +13,7 @@
           <strong>{{ detail.enterpriseName || "-" }}</strong>
         </div>
         <div class="rectification-field">
-          <span>检查记录ID</span>
+          <span>检查记录 ID</span>
           <strong>{{ detail.inspectionId || "-" }}</strong>
         </div>
         <div class="rectification-field rectification-field--full">
@@ -22,7 +22,7 @@
         </div>
         <div class="rectification-field rectification-field--full">
           <span>整改进展</span>
-          <strong>{{ detail.progress || "企业暂未提交整改进展" }}</strong>
+          <strong>{{ detail.progress || "企业暂未提交整改进展。" }}</strong>
         </div>
       </div>
       <div v-else class="detail-loading">整改详情加载中...</div>
@@ -42,7 +42,7 @@
             <div class="timeline-content">
               <div class="timeline-header">
                 <div class="timeline-label">{{ item.label }}</div>
-                <div class="timeline-time">{{ item.time ? formatTime(item.time) : "待到达" }}</div>
+                <div class="timeline-time">{{ item.time ? formatTime(item.time) : "待处理" }}</div>
               </div>
               <div v-if="item.operatorName" class="timeline-meta">操作人：{{ item.operatorName }}</div>
               <div v-if="item.comment" class="timeline-comment">{{ item.comment }}</div>
@@ -72,12 +72,12 @@
       </div>
 
       <div v-if="highlightLatestRework && latestReworkLog" class="rework-highlight">
-        <div class="rework-highlight-title">最近一次打回意见</div>
+        <div class="rework-highlight-title">最近一次退回意见</div>
         <div class="rework-highlight-meta">
           <span>操作人：{{ latestReworkLog.operatorName || "-" }}</span>
           <span>时间：{{ formatTime(latestReworkLog.createTime) }}</span>
         </div>
-        <div class="rework-highlight-content">{{ latestReworkLog.actionComment || "未填写打回意见" }}</div>
+        <div class="rework-highlight-content">{{ latestReworkLog.actionComment || "未填写退回意见。" }}</div>
       </div>
 
       <div v-if="highlightLatestSubmit && latestEnterpriseSubmitLog" class="submit-highlight">
@@ -86,12 +86,12 @@
           <span>提交方：{{ latestEnterpriseSubmitLog.operatorName || "-" }}</span>
           <span>时间：{{ formatTime(latestEnterpriseSubmitLog.createTime) }}</span>
         </div>
-        <div class="submit-highlight-content">{{ latestEnterpriseSubmitLog.actionComment || "未填写整改说明" }}</div>
+        <div class="submit-highlight-content">{{ latestEnterpriseSubmitLog.actionComment || "未填写整改说明。" }}</div>
       </div>
 
       <div v-if="reviewable" class="review-section">
         <label>
-          复核意见（打回重做时必填）
+          复核意见（退回整改时必填）
           <textarea
             v-model.trim="reviewComment"
             rows="3"
@@ -109,7 +109,7 @@
             {{ reviewing ? "处理中..." : "复核通过" }}
           </button>
           <button class="warning" type="button" :disabled="reviewing" @click="handleRework">
-            {{ reviewing ? "处理中..." : "打回重做" }}
+            {{ reviewing ? "处理中..." : "退回整改" }}
           </button>
         </template>
         <button class="ghost" type="button" @click="handleClose">关闭</button>
@@ -141,6 +141,9 @@
 
 <script setup>
 import { computed, nextTick, ref, watch } from "vue";
+import AppStatusTag from "./common/AppStatusTag.vue";
+import { getStatusTone } from "../utils/statusMaps";
+import { formatRectificationActionLabel, formatRectificationStatus } from "../views/enterprise/enterpriseShared";
 
 const props = defineProps({
   visible: {
@@ -189,21 +192,8 @@ const timelineRoot = ref(null);
 const imagePreviewUrls = ref([]);
 const imagePreviewIndex = ref(0);
 
-const statusMap = {
-  ONGOING: "整改中",
-  SUBMITTED: "待复核",
-  REWORK: "打回重做",
-  CONFIRMED: "已确认"
-};
-
-const actionNameMap = {
-  SYSTEM_CREATE: "系统创建整改任务",
-  ENTERPRISE_SUBMIT: "企业提交整改",
-  REVIEW_CONFIRM: "监管复核通过",
-  REVIEW_REWORK: "监管打回重做"
-};
-
 const currentImagePreviewUrl = computed(() => imagePreviewUrls.value[imagePreviewIndex.value] || "");
+const statusTone = computed(() => getStatusTone(props.detail?.status, "RECTIFICATION"));
 
 watch(
   () => [props.visible, props.detail?.id],
@@ -214,17 +204,9 @@ watch(
   }
 );
 
-function formatStatus(value) {
-  return statusMap[value] || value || "-";
-}
-
 function formatTime(value) {
   if (!value) return "-";
   return String(value).replace("T", " ").slice(0, 16);
-}
-
-function resolveActionName(actionType) {
-  return actionNameMap[actionType] || actionType || "未知动作";
 }
 
 function toAttachmentThumbs(urls) {
@@ -237,7 +219,7 @@ const timelineItems = computed(() => {
     return props.actionLogs.map((log, index) => ({
       key: log.id || `${log.actionType}-${index}`,
       actionType: String(log.actionType || "").toUpperCase(),
-      label: log.actionName || resolveActionName(log.actionType),
+      label: formatRectificationActionLabel(log.actionType, log.actionName),
       time: log.createTime,
       operatorName: log.operatorName || null,
       comment: log.actionComment || "",
@@ -277,7 +259,7 @@ const timelineItems = computed(() => {
     {
       key: "rework",
       actionType: "REVIEW_REWORK",
-      label: "监管打回重做",
+      label: "监管退回整改",
       time: reworkDone ? props.detail?.updateTime : null,
       operatorName: null,
       comment: "",
@@ -392,7 +374,7 @@ function handleConfirm() {
 
 function handleRework() {
   if (!reviewComment.value) {
-    reviewError.value = "请填写打回原因";
+    reviewError.value = "请填写退回原因。";
     return;
   }
   reviewError.value = "";
@@ -417,14 +399,7 @@ function handleRework() {
 }
 
 .rectification-status {
-  display: inline-flex;
-  align-items: center;
-  padding: 4px 10px;
-  border-radius: 999px;
-  background: rgba(13, 94, 166, 0.12);
-  color: var(--primary);
-  font-size: 12px;
-  font-weight: 600;
+  min-height: 28px;
 }
 
 .rectification-id {

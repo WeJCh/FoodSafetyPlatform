@@ -59,7 +59,7 @@
         <div v-if="lastReworkLog" class="enterprise-alert-rework">
           <span class="material-symbols-outlined is-filled" aria-hidden="true">info</span>
           <div>
-            <h4 class="enterprise-rectification-detail-page__rework-title">监管部门打回意见</h4>
+            <h4 class="enterprise-rectification-detail-page__rework-title">监管部门退回意见</h4>
             <p class="enterprise-rectification-detail-page__rework-body">{{ reworkAlertBody }}</p>
             <p v-if="reworkAlertTime" class="enterprise-rectification-detail-page__rework-time">{{ formatTime(reworkAlertTime) }}</p>
           </div>
@@ -150,10 +150,6 @@
                   <span class="material-symbols-outlined" aria-hidden="true">upload_file</span>
                   提交整改内容
                 </RouterLink>
-                <button type="button" class="ghost" @click="onExtensionRequest">
-                  <span class="material-symbols-outlined" aria-hidden="true">support_agent</span>
-                  申请延期或咨询
-                </button>
               </div>
             </div>
           </aside>
@@ -181,11 +177,11 @@
 import { computed, reactive, ref, watch } from "vue";
 import { RouterLink, useRoute } from "vue-router";
 import { fetchRectificationActions, fetchRectificationDetail } from "../../api/regulationOperation";
+import { resolveErrorMessage } from "../../utils/uiFeedback";
 import EnterpriseStatusChip from "../../components/enterprise/EnterpriseStatusChip.vue";
 import EnterpriseWorkspacePage from "../../components/enterprise/EnterpriseWorkspacePage.vue";
 import { formatTime } from "../../utils/formatters";
 import {
-  enterpriseFeaturePendingNotice,
   formatRectificationActionLabel,
   formatRectificationStatus,
   rectificationLogTime,
@@ -317,10 +313,6 @@ function formatRectificationSla(item) {
   return "-";
 }
 
-function onExtensionRequest() {
-  enterpriseFeaturePendingNotice("申请延期或咨询");
-}
-
 async function loadDetail() {
   if (!rectificationId.value) {
     detail.value = null;
@@ -342,7 +334,7 @@ async function loadDetail() {
   } catch (error) {
     detail.value = null;
     actionLogs.value = [];
-    status.message = error.message || "加载整改详情失败";
+    status.message = resolveErrorMessage(error, "加载整改详情失败");
     status.type = "error";
   } finally {
     loading.value = false;

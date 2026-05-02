@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <RegulatorEnforcerPageShell
     active-key="rectifications"
     title="整改跟进"
@@ -147,6 +147,8 @@ import {
 } from "../../api/regulationOperation";
 import RegulatorEnforcerPageShell from "./RegulatorEnforcerPageShell.vue";
 import { formatTime } from "../../utils/formatters";
+import { formatStatusLabel, rectificationStatusMap } from "../../utils/statusMaps";
+import { resolveErrorMessage } from "../../utils/uiFeedback";
 import { useRegulatorEnforcerShellSession } from "./regulatorEnforcerShared";
 
 const router = useRouter();
@@ -183,12 +185,6 @@ const timelineRecords = computed(() => {
 const startIndex = computed(() => (total.value && displayedRecords.value.length ? (page.value - 1) * size.value + 1 : 0));
 const endIndex = computed(() => (page.value - 1) * size.value + displayedRecords.value.length);
 
-const rectificationStatusMap = {
-  ONGOING: "整改中",
-  SUBMITTED: "待复核",
-  REWORK: "打回重做",
-  CONFIRMED: "已确认"
-};
 
 function setStatus(message = "", type = "info") {
   status.message = message;
@@ -196,7 +192,7 @@ function setStatus(message = "", type = "info") {
 }
 
 function formatRectificationStatus(value) {
-  return rectificationStatusMap[value] || value || "-";
+  return formatStatusLabel(value, rectificationStatusMap);
 }
 
 function formatDurationMinutes(minutes) {
@@ -273,7 +269,7 @@ async function loadRectifications() {
     size.value = data.size || size.value;
     pages.value = data.pages || 1;
   } catch (error) {
-    setStatus(error.message || "加载整改任务失败", "error");
+    setStatus(resolveErrorMessage(error, "加载整改任务失败"), "error");
   } finally {
     loading.value = false;
   }
@@ -325,7 +321,7 @@ async function handleConfirm(item) {
     setStatus("整改任务已确认闭环", "success");
     await loadRectifications();
   } catch (error) {
-    setStatus(error.message || "整改确认失败", "error");
+    setStatus(resolveErrorMessage(error, "整改确认失败"), "error");
   } finally {
     loading.value = false;
   }

@@ -49,7 +49,9 @@ public class EnterpriseProfileController {
         if (!identity.isEnterprise()) {
             return ApiResponse.failure(403, "enterprise user only");
         }
-        return ApiResponse.success(enterpriseProfileService.submitProfile(identity.userId(), dto));
+        return ApiResponse.success(
+            enterpriseProfileService.submitProfile(identity.userId(), identity.userType(), identity.username(), dto)
+        );
     }
 
     /**
@@ -102,7 +104,9 @@ public class EnterpriseProfileController {
         if (!identity.isRegulator()) {
             return ApiResponse.failure(403, "regulator only");
         }
-        return ApiResponse.success(enterpriseProfileService.approve(id, identity.userId(), dto));
+        return ApiResponse.success(
+            enterpriseProfileService.approve(id, identity.userId(), identity.userType(), identity.username(), dto)
+        );
     }
 
     /**
@@ -120,7 +124,9 @@ public class EnterpriseProfileController {
         if (!identity.isRegulator()) {
             return ApiResponse.failure(403, "regulator only");
         }
-        return ApiResponse.success(enterpriseProfileService.reject(id, identity.userId(), dto));
+        return ApiResponse.success(
+            enterpriseProfileService.reject(id, identity.userId(), identity.userType(), identity.username(), dto)
+        );
     }
 
     /**
@@ -136,7 +142,9 @@ public class EnterpriseProfileController {
         if (!identity.isRegulator()) {
             return ApiResponse.failure(403, "regulator only");
         }
-        return ApiResponse.success(enterpriseProfileService.approveBatch(identity.userId(), dto));
+        return ApiResponse.success(
+            enterpriseProfileService.approveBatch(identity.userId(), identity.userType(), identity.username(), dto)
+        );
     }
 
     /**
@@ -152,7 +160,9 @@ public class EnterpriseProfileController {
         if (!identity.isRegulator()) {
             return ApiResponse.failure(403, "regulator only");
         }
-        return ApiResponse.success(enterpriseProfileService.rejectBatch(identity.userId(), dto));
+        return ApiResponse.success(
+            enterpriseProfileService.rejectBatch(identity.userId(), identity.userType(), identity.username(), dto)
+        );
     }
 
     /**
@@ -168,7 +178,7 @@ public class EnterpriseProfileController {
         if (!identity.isRegulator()) {
             return ApiResponse.failure(403, "regulator only");
         }
-        enterpriseProfileService.deleteEnterprise(id);
+        enterpriseProfileService.deleteEnterprise(id, identity.userId(), identity.userType(), identity.username());
         return ApiResponse.success(null);
     }
 
@@ -195,13 +205,14 @@ public class EnterpriseProfileController {
     private UserIdentity resolveIdentity(String token) {
         Long userId = jwtUserResolver.resolveUserId(token);
         String userType = jwtUserResolver.resolveUserType(token);
+        String username = jwtUserResolver.resolveUsername(token);
         if (userId == null) {
             throw new IllegalArgumentException("unauthorized");
         }
-        return new UserIdentity(userId, userType);
+        return new UserIdentity(userId, userType, username);
     }
 
-    private record UserIdentity(Long userId, String userType) {
+    private record UserIdentity(Long userId, String userType, String username) {
 
         boolean isEnterprise() {
             return "ENTERPRISE".equals(userType);

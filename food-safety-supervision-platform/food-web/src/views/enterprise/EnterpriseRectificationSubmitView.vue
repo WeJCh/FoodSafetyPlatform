@@ -72,7 +72,7 @@
             </div>
             <div class="enterprise-rectification-submit-page__upload-tip">
               <span class="material-symbols-outlined" aria-hidden="true">info</span>
-              <p>支持 JPG / PNG / WebP，单文件大小不超过 5MB。请确保图片清晰，能够体现整改前后对比或关键佐证信息。</p>
+              <p>支持 JPG / PNG / WebP，单文件大小不超过 5MB。请确保图片清晰，能体现整改前后对比或关键佐证信息。</p>
             </div>
           </section>
         </div>
@@ -128,7 +128,7 @@
           </div>
           <div class="enterprise-rectification-submit-page__actions">
             <button type="button" class="ghost" @click="onBackToList">返回整改列表</button>
-            <button type="button" class="ghost" @click="onBackToDetail">返回整改任务详情</button>
+            <button type="button" class="ghost" @click="onBackToDetail">返回任务详情</button>
             <button class="primary" type="submit" :disabled="loading || uploading">
               <span class="material-symbols-outlined" aria-hidden="true">send</span>
               {{ loading ? "提交中..." : "提交审核" }}
@@ -147,6 +147,7 @@ import { computed, onBeforeUnmount, reactive, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { presignUpload } from "../../api/file";
 import { fetchRectificationDetail, submitMyRectification } from "../../api/regulationOperation";
+import { resolveErrorMessage } from "../../utils/uiFeedback";
 import EnterpriseStatusChip from "../../components/enterprise/EnterpriseStatusChip.vue";
 import EnterpriseWorkspacePage from "../../components/enterprise/EnterpriseWorkspacePage.vue";
 import { formatRectificationStatus, useEnterpriseShellSession } from "./enterpriseShared";
@@ -206,7 +207,7 @@ async function loadDetail() {
     detail.value = await fetchRectificationDetail(token.value, rectificationId.value);
   } catch (error) {
     detail.value = null;
-    status.message = error.message || "加载整改任务失败";
+    status.message = resolveErrorMessage(error, "加载整改任务失败");
     status.type = "error";
   } finally {
     loadingDetail.value = false;
@@ -233,7 +234,7 @@ async function uploadFile(item) {
     uploadItems.value = [...uploadItems.value];
   } catch (error) {
     item.uploading = false;
-    item.error = error.message || "上传失败";
+    item.error = resolveErrorMessage(error, "上传失败");
     uploadItems.value = [...uploadItems.value];
   }
 }
@@ -245,7 +246,7 @@ function handleFileChange(event) {
   const remaining = 6 - uploadItems.value.length;
   files.slice(0, remaining).forEach((file) => {
     if (!allowedTypes.includes(file.type)) {
-      status.message = "仅支持 JPG/PNG/WebP 图片";
+      status.message = "仅支持 JPG / PNG / WebP 图片";
       status.type = "error";
       return;
     }
@@ -283,12 +284,12 @@ async function handleSubmit() {
     return;
   }
   if (uploadItems.value.some((item) => item.uploading)) {
-    status.message = "整改凭证仍在上传中，请稍后提交";
+    status.message = "整改凭证仍在上传中，请稍后提交。";
     status.type = "error";
     return;
   }
   if (uploadItems.value.some((item) => item.error)) {
-    status.message = "存在上传失败的整改凭证，请处理后再提交";
+    status.message = "存在上传失败的整改凭证，请处理后再提交。";
     status.type = "error";
     return;
   }
@@ -308,7 +309,7 @@ async function handleSubmit() {
       query: { progress: progress.value.trim() }
     });
   } catch (error) {
-    status.message = error.message || "整改提交失败";
+    status.message = resolveErrorMessage(error, "整改提交失败");
     status.type = "error";
   } finally {
     loading.value = false;

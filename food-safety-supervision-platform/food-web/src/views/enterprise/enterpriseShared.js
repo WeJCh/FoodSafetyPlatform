@@ -1,10 +1,14 @@
 import { computed } from "vue";
 import { useRouter } from "vue-router";
 import { getActiveSession, performLogout } from "../../session/authRuntime";
-
-export function enterpriseFeaturePendingNotice(featureTitle) {
-  window.alert(`${featureTitle}\n\n该功能待后续完善，敬请期待。`);
-}
+import {
+  approvalStatusMap,
+  formatStatusLabel,
+  getStatusTone,
+  inspectionResultMap,
+  productStatusMap,
+  rectificationStatusMap
+} from "../../utils/statusMaps";
 
 export const enterpriseNavItems = [
   { key: "dashboard", label: "工作台", caption: "总览状态与待办入口" },
@@ -54,42 +58,31 @@ export function useEnterpriseShellSession() {
 
 export function getApprovalStatusLabel(loaded, approvalStatus) {
   if (!loaded) return "未提交";
-  if (approvalStatus === "APPROVED") return "已通过";
-  if (approvalStatus === "REJECTED") return "已驳回";
-  if (approvalStatus === "PENDING") return "待审核";
-  return "未提交";
+  return formatStatusLabel(approvalStatus, approvalStatusMap, "未提交");
 }
 
 export function getApprovalStatusTone(loaded, approvalStatus) {
   if (!loaded) return "neutral";
-  if (approvalStatus === "APPROVED") return "success";
-  if (approvalStatus === "REJECTED") return "danger";
-  if (approvalStatus === "PENDING") return "warning";
-  return "neutral";
+  return getStatusTone(approvalStatus, "APPROVAL");
 }
 
 export function formatProductStatus(value) {
-  return { ACTIVE: "启用", INACTIVE: "停用" }[value] || value || "-";
+  return formatStatusLabel(value, productStatusMap);
 }
 
 export function formatInspectionResult(value) {
-  return { PASS: "合格", FAIL: "不合格" }[value] || value || "-";
+  return formatStatusLabel(value, inspectionResultMap);
 }
 
 export function formatRectificationStatus(value) {
-  return {
-    ONGOING: "整改中",
-    SUBMITTED: "待复核",
-    REWORK: "打回重做",
-    CONFIRMED: "已确认"
-  }[value] || value || "-";
+  return formatStatusLabel(value, rectificationStatusMap);
 }
 
 const RECTIFICATION_ACTION_LABELS = {
   SYSTEM_CREATE: "系统创建整改任务",
   ENTERPRISE_SUBMIT: "企业提交整改",
   REVIEW_CONFIRM: "监管复核通过",
-  REVIEW_REWORK: "监管打回重做"
+  REVIEW_REWORK: "监管退回整改"
 };
 
 export function formatRectificationActionLabel(actionType, actionName) {

@@ -38,7 +38,7 @@
           </thead>
           <tbody>
             <tr v-if="!records.length && !loading">
-              <td colspan="6" class="empty">暂无抽检任务</td>
+              <td colspan="6" class="empty">{{ emptyText }}</td>
             </tr>
             <tr v-for="task in records" :key="task.id">
               <td class="mono">{{ task.taskNo || `#${task.id}` }}</td>
@@ -88,6 +88,8 @@ import { useRouter } from "vue-router";
 import { fetchMySamplingTasks } from "../../api/regulationOperation";
 import RegulatorEnforcerPageShell from "./RegulatorEnforcerPageShell.vue";
 import { formatTime } from "../../utils/formatters";
+import { formatStatusLabel, samplingTaskStatusMap } from "../../utils/statusMaps";
+import { getEmptyStateText, resolveErrorMessage } from "../../utils/uiFeedback";
 import { useRegulatorEnforcerShellSession } from "./regulatorEnforcerShared";
 
 const { token } = useRegulatorEnforcerShellSession();
@@ -101,14 +103,7 @@ const total = ref(0);
 const pages = ref(1);
 const status = reactive({ message: "", type: "info" });
 const filters = reactive({ status: "" });
-
-const samplingTaskStatusMap = {
-  CREATED: "待派发",
-  ASSIGNED: "待抽检",
-  IN_PROGRESS: "抽检中",
-  COMPLETED: "已完成",
-  CLOSED: "已归档"
-};
+const emptyText = getEmptyStateText("抽检任务");
 
 function setStatus(message = "", type = "info") {
   status.message = message;
@@ -116,7 +111,7 @@ function setStatus(message = "", type = "info") {
 }
 
 function formatSamplingTaskStatus(value) {
-  return samplingTaskStatusMap[value] || value || "-";
+  return formatStatusLabel(value, samplingTaskStatusMap);
 }
 
 async function loadSamplingTasks() {
@@ -134,7 +129,7 @@ async function loadSamplingTasks() {
     size.value = data.size || size.value;
     pages.value = data.pages || 1;
   } catch (error) {
-    setStatus(error.message || "加载抽检任务失败", "error");
+    setStatus(resolveErrorMessage(error, "加载抽检任务失败，请稍后重试。"), "error");
   } finally {
     loading.value = false;
   }

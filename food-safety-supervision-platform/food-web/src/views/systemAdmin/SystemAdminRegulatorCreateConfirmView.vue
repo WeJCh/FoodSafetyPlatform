@@ -5,7 +5,6 @@
     search-placeholder="全局搜索人员或辖区..."
     @navigate="handleSidebarNavigate"
     @logout="handleLogout"
-    @pending-feature="onPendingFeature"
   >
     <section class="sys-admin-create-confirm-page">
       <header class="sys-admin-confirm-head">
@@ -14,18 +13,18 @@
           <span class="material-symbols-outlined">chevron_right</span>
           <span>新建监管人员</span>
           <span class="material-symbols-outlined">chevron_right</span>
-          <span class="is-current">核对信息</span>
+          <span class="is-current">确认信息</span>
         </nav>
-        <h1>核对人员信息</h1>
-        <p>请在最终确认提交前核对以下信息是否准确。</p>
+        <h1>确认监管人员信息</h1>
+        <p>请在最终提交前，再次核对以下内容是否准确。</p>
       </header>
 
       <section class="sys-admin-stepper">
-        <div class="step is-done"><span>1</span><strong>基础信息录入</strong></div>
+        <div class="step is-done"><span>1</span><strong>填写基础信息</strong></div>
         <div class="line is-active"></div>
-        <div class="step is-active"><span>2</span><strong>核对信息</strong></div>
+        <div class="step is-active"><span>2</span><strong>确认提交信息</strong></div>
         <div class="line"></div>
-        <div class="step"><span>3</span><strong>完成</strong></div>
+        <div class="step"><span>3</span><strong>创建完成</strong></div>
       </section>
 
       <div class="sys-admin-confirm-grid">
@@ -33,8 +32,8 @@
           <article class="sys-admin-card">
             <h2>账号信息</h2>
             <div class="sys-admin-kv-grid">
-              <div><label>用户名</label><p class="is-mono">{{ draft.username }}</p></div>
-              <div><label>初始密码</label><p>已设置（已脱敏）</p></div>
+              <div><label>登录账号</label><p class="is-mono">{{ draft.username }}</p></div>
+              <div><label>初始密码</label><p>已设置，提交后可生效</p></div>
             </div>
           </article>
 
@@ -50,11 +49,11 @@
             <h2>角色与辖区</h2>
             <div class="sys-admin-kv-grid">
               <div><label>角色</label><p>{{ formatRoleType(draft.roleType) }}</p></div>
-              <div><label>辖区ID</label><p class="is-mono">{{ draft.regionId }}</p></div>
+              <div><label>辖区 ID</label><p class="is-mono">{{ draft.regionId }}</p></div>
             </div>
             <div class="sys-admin-path">
               <label>辖区路径</label>
-              <p>{{ regionText || "辖区信息待完善" }}</p>
+              <p>{{ regionText || "辖区信息待补全" }}</p>
             </div>
           </article>
         </section>
@@ -63,9 +62,9 @@
           <article class="sys-admin-risk-card">
             <h3>提交提示</h3>
             <ul>
-              <li>确认后账号将立即激活并可登录系统。</li>
-              <li>系统将自动记录本次创建操作日志。</li>
-              <li>如信息有误，请返回上一步修改。</li>
+              <li>确认提交后，监管账号将立即创建并默认启用。</li>
+              <li>系统会同步写入人员档案与辖区信息。</li>
+              <li>如发现信息有误，请返回上一步修正后再提交。</li>
             </ul>
           </article>
         </aside>
@@ -75,7 +74,7 @@
         <button type="button" class="btn-secondary" :disabled="loading" @click="goBack">返回修改</button>
         <button type="button" class="btn-primary" :disabled="loading" @click="handleCreateConfirm">
           <span class="material-symbols-outlined">task_alt</span>
-          <span>{{ loading ? "提交中..." : "最终确认并创建" }}</span>
+          <span>{{ loading ? "提交中..." : "确认并创建" }}</span>
         </button>
       </footer>
 
@@ -90,6 +89,7 @@ import { useRouter } from "vue-router";
 import { createRegulator } from "../../api/auth";
 import { createRegulatorProfile, fetchRegionPath } from "../../api/regulation";
 import SystemAdminWorkspacePage from "../../components/systemAdmin/SystemAdminWorkspacePage.vue";
+import { resolveErrorMessage } from "../../utils/uiFeedback";
 import { useSystemAdminShellSession } from "./systemAdminShared";
 
 const router = useRouter();
@@ -112,17 +112,15 @@ function setStatus(message, type = "info") {
   status.type = type;
 }
 
-function onPendingFeature() {}
-
 function formatRoleType(roleType) {
-  if (roleType === "REGULATOR_ADMIN") return "区域管理员";
-  if (roleType === "REGULATOR_ENFORCER") return "执法人员";
+  if (roleType === "REGULATOR_ADMIN") return "监管管理员";
+  if (roleType === "REGULATOR_ENFORCER") return "监管执法人员";
   return "未知角色";
 }
 
 function formatPhone(phone) {
   const raw = String(phone || "").replace(/\D/g, "");
-  if (raw.length !== 11) return raw || "—";
+  if (raw.length !== 11) return raw || "-";
   return `${raw.slice(0, 3)}-${raw.slice(3, 7)}-${raw.slice(7)}`;
 }
 
@@ -159,12 +157,13 @@ async function loadRegionText() {
   try {
     const pathList = await fetchRegionPath(token.value, draft.regionId);
     if (!Array.isArray(pathList) || !pathList.length) {
-      regionText.value = `辖区ID: ${draft.regionId}`;
+      regionText.value = `辖区 ID: ${draft.regionId}`;
       return;
     }
     regionText.value = pathList.map((item) => item.name).join(" / ");
-  } catch {
-    regionText.value = `辖区ID: ${draft.regionId}`;
+  } catch (error) {
+    regionText.value = `辖区 ID: ${draft.regionId}`;
+    setStatus(resolveErrorMessage(error, "辖区路径加载失败"), "error");
   }
 }
 
@@ -193,12 +192,12 @@ async function handleCreateConfirm() {
     });
 
     sessionStorage.removeItem("sysAdminCreateRegulatorDraft");
-    setStatus("监管人员创建成功，档案已同步。", "success");
+    setStatus("监管人员创建成功，档案信息已同步", "success");
     setTimeout(() => {
-      router.push({ name: "admin-regulator-list" });
+      router.replace({ name: "admin-regulator-list" });
     }, 450);
   } catch (error) {
-    setStatus(error.message || "创建失败", "error");
+    setStatus(resolveErrorMessage(error, "创建失败"), "error");
   } finally {
     loading.value = false;
   }
@@ -263,4 +262,3 @@ onMounted(async () => {
   .sys-admin-stepper { display: none; }
 }
 </style>
-

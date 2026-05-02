@@ -90,6 +90,7 @@ import { useRouter } from "vue-router";
 import { fetchEnterprises } from "../../api/regulation";
 import { formatByMap, formatTime } from "../../utils/formatters";
 import { approvalStatusMap, enterpriseStatusMap } from "../../utils/statusMaps";
+import { resolveErrorMessage } from "../../utils/uiFeedback";
 import RegulatorEnforcerPageShell from "./RegulatorEnforcerPageShell.vue";
 import { useRegulatorEnforcerShellSession } from "./regulatorEnforcerShared";
 
@@ -132,7 +133,7 @@ async function load() {
     size.value = data.size || size.value;
     pages.value = data.pages || 1;
   } catch (error) {
-    setStatus(error.message || "加载企业列表失败", "error");
+    setStatus(resolveErrorMessage(error, "加载企业列表失败"), "error");
   } finally {
     loading.value = false;
   }
@@ -285,4 +286,3 @@ onMounted(() => {
   }
 }
 </style>
-

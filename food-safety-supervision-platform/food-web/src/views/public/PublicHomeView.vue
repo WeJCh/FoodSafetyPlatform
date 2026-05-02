@@ -28,12 +28,6 @@
               @keyup.enter="handleGlobalSearch"
             />
           </label>
-          <button type="button" class="public-home-page__icon-btn" @click="onFeaturePending('通知中心')">
-            <span class="material-symbols-outlined" aria-hidden="true">notifications</span>
-          </button>
-          <button type="button" class="public-home-page__icon-btn" @click="onFeaturePending('个人中心')">
-            <span class="material-symbols-outlined" aria-hidden="true">account_circle</span>
-          </button>
           <button type="button" class="ghost public-home-page__logout" @click="handleLogout">退出登录</button>
         </div>
       </div>
@@ -161,12 +155,6 @@
     </main>
 
     <footer class="public-home-page__footer">
-      <div>
-        <button type="button" @click="onFeaturePending('关于我们')">关于我们</button>
-        <button type="button" @click="onFeaturePending('隐私政策')">隐私政策</button>
-        <button type="button" @click="onFeaturePending('操作指南')">操作指南</button>
-        <button type="button" @click="onFeaturePending('友情链接')">友情链接</button>
-      </div>
       <p>© 2024 食品安全监管公共服务门户 版权所有</p>
     </footer>
   </div>
@@ -329,10 +317,6 @@ async function loadPublicOverviewStats() {
       samplingTotal: null
     };
   }
-}
-
-function onFeaturePending(name) {
-  window.alert(`${name} 功能待后续完善`);
 }
 
 function onPublicSearch() {
@@ -1038,7 +1022,6 @@ onMounted(() => {
   }
 }
 </style>
-
 
 
 

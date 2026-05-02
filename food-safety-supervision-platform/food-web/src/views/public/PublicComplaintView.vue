@@ -18,12 +18,6 @@
           </nav>
         </div>
         <div class="public-complaint-page__toolbar">
-          <button type="button" class="public-complaint-page__icon-btn" @click="onFeaturePending('通知中心')">
-            <span class="material-symbols-outlined" aria-hidden="true">notifications</span>
-          </button>
-          <button type="button" class="public-complaint-page__icon-btn" @click="onFeaturePending('个人中心')">
-            <span class="material-symbols-outlined" aria-hidden="true">account_circle</span>
-          </button>
           <button type="button" class="ghost public-complaint-page__logout" @click="handleLogout">退出登录</button>
         </div>
       </div>
@@ -45,7 +39,7 @@
                 <i>1</i>
                 <div>
                   <strong>第一步：选择投诉对象</strong>
-                  <span>支持按企业名称搜索并自动回填基础信息。</span>
+                  <span>支持按企业名称搜索，并自动回填基础信息。</span>
                 </div>
               </header>
               <div class="public-complaint-page__step-body public-complaint-page__grid">
@@ -53,7 +47,7 @@
                   <span>投诉企业</span>
                   <input
                     v-model.trim="enterpriseQuery"
-                    placeholder="输入企业名称关键词"
+                    placeholder="输入企业名称关键字"
                     @focus="openEnterpriseDropdown"
                     @input="handleEnterpriseInput"
                     @blur="scheduleCloseEnterpriseDropdown"
@@ -68,7 +62,7 @@
                       @mousedown.prevent="selectEnterprise(item)"
                     >
                       <strong>{{ item.enterpriseName }}</strong>
-                      <small>{{ [item.regionPathText, item.addressDetail].filter(Boolean).join(" · ") || "-" }}</small>
+                      <small>{{ [item.regionPathText, item.addressDetail].filter(Boolean).join(" / ") || "-" }}</small>
                     </button>
                     <div v-if="!enterpriseLoading && !enterpriseOptions.length" class="public-complaint-page__combo-state">
                       暂无匹配企业
@@ -85,11 +79,11 @@
                 </label>
                 <label>
                   <span>企业编号</span>
-                  <input v-model="form.enterpriseId" readonly placeholder="选择企业后自动填充" />
+                  <input v-model="form.enterpriseId" readonly placeholder="选择企业后自动回填" />
                 </label>
                 <label>
                   <span>所在区域</span>
-                  <input v-model.trim="form.region" placeholder="例：浙江省/杭州市/西湖区" @input="regionEdited = true" />
+                  <input v-model.trim="form.region" placeholder="例如：浙江省 杭州市 西湖区" @input="regionEdited = true" />
                 </label>
                 <label>
                   <span>详细地址</span>
@@ -102,7 +96,7 @@
               <header class="public-complaint-page__step-head">
                 <i>2</i>
                 <div>
-                  <strong>第二步：投诉详情</strong>
+                  <strong>第二步：填写投诉详情</strong>
                   <span>请尽量描述清楚时间、地点和问题现象。</span>
                 </div>
               </header>
@@ -140,7 +134,7 @@
                     <span class="material-symbols-outlined" aria-hidden="true">visibility_off</span>
                     <div>
                       <strong>匿名投诉</strong>
-                      <small>启用后，联系方式等个人身份信息仅监管方可见。</small>
+                      <small>启用后，联系方式等个人信息仅监管方可见。</small>
                     </div>
                   </div>
                   <label class="public-complaint-page__checkbox">
@@ -155,8 +149,8 @@
               <header class="public-complaint-page__step-head">
                 <i>4</i>
                 <div>
-                  <strong>第四步：证据上传</strong>
-                  <span>上传现场图片可帮助监管部门快速核实。</span>
+                  <strong>第四步：上传凭证</strong>
+                  <span>上传现场图片，可帮助监管部门更快核实情况。</span>
                 </div>
               </header>
               <div class="public-complaint-page__step-body">
@@ -168,20 +162,22 @@
                   <label class="public-complaint-page__file-picker">
                     <input type="file" multiple accept="image/*" @change="handleFileChange" />
                     <span class="public-complaint-page__file-picker-text">
-                      <strong>上传证据图片</strong>
+                      <strong>上传凭证图片</strong>
                       <small>{{ uploadPickerSubText }}</small>
                     </span>
                   </label>
-                  <div v-if="!uploadItems.length" class="public-complaint-page__upload-empty">
-                    <span class="material-symbols-outlined" aria-hidden="true">add_photo_alternate</span>
-                    <p>点击上方按钮上传证据图片</p>
-                  </div>
+                  <AppEmptyState
+                    v-if="!uploadItems.length"
+                    title="暂未上传凭证"
+                    description="点击上方按钮上传现场图片。"
+                    class="public-complaint-page__upload-empty"
+                  />
                   <div v-if="uploadItems.length" class="public-complaint-page__preview-grid">
                     <article v-for="item in uploadItems" :key="item.id" class="public-complaint-page__preview-item">
                       <img :src="item.previewUrl" alt="投诉图片" />
                       <div class="public-complaint-page__preview-meta" :class="{ 'is-error': item.error }">
                         <span v-if="item.uploading">上传中...</span>
-                        <span v-else-if="item.error">上传失败</span>
+                        <span v-else-if="item.error">{{ item.error }}</span>
                         <span v-else>已上传</span>
                       </div>
                       <button v-if="item.error" type="button" class="ghost" @click="retryUpload(item)">重试</button>
@@ -220,23 +216,26 @@
           </section>
           <section>
             <h4>处理时效</h4>
-            <p>一般将在 3-5 个工作日内完成受理与分派，复杂案件会同步更新进度说明。</p>
+            <p>一般将在 3 至 5 个工作日内完成受理与分派，复杂案件会同步更新进度说明。</p>
           </section>
         </aside>
       </section>
 
-      <div v-if="status.message" class="status" :class="status.type">{{ status.message }}</div>
+      <AppStatusToast :message="status.message" :type="status.type" />
     </main>
   </div>
 </template>
 
 <script setup>
-import { computed, onMounted, reactive, ref } from "vue";
+import { computed, onBeforeUnmount, onMounted, reactive, ref } from "vue";
 import { useRouter } from "vue-router";
 import { submitPublicComplaint } from "../../api/complaint";
 import { presignUpload } from "../../api/file";
 import { fetchPublicEnterprises } from "../../api/regulation";
+import AppEmptyState from "../../components/common/AppEmptyState.vue";
+import AppStatusToast from "../../components/common/AppStatusToast.vue";
 import { getActiveSession, performLogout } from "../../session/authRuntime";
+import { resolveErrorMessage } from "../../utils/uiFeedback";
 
 const router = useRouter();
 const publicToken = getActiveSession()?.token || "";
@@ -279,43 +278,48 @@ const enterpriseHasMore = ref(false);
 const regionEdited = ref(false);
 const addressEdited = ref(false);
 const isUploading = computed(() => uploadItems.value.some((item) => item.uploading));
+
 const uploadPickerSubText = computed(() => {
   if (!uploadItems.value.length) return "支持 JPG/PNG/WebP，最多 5 张";
   const uploadingCount = uploadItems.value.filter((item) => item.uploading).length;
-  if (uploadingCount) return `已选 ${uploadItems.value.length} 张，上传中 ${uploadingCount} 张`;
+  if (uploadingCount) return `已选 ${uploadItems.value.length} 张，正在上传 ${uploadingCount} 张`;
   return `已选择 ${uploadItems.value.length} 张图片`;
 });
+
 let enterpriseSearchTimer = null;
 
 function setStatus(message, type = "info") {
   status.message = message;
   status.type = type;
 }
+
 function goTo(name) {
   router.push({ name }).catch(() => {});
 }
-function onFeaturePending(name) {
-  window.alert(`${name} 功能待后续完善`);
-}
+
 async function handleLogout() {
   await performLogout();
   router.replace({ name: "login" }).catch(() => {});
 }
+
 function handleAnonymousToggle() {
   if (form.anonymous) {
     form.complainantName = "";
     form.contact = "";
   }
 }
+
 function openEnterpriseDropdown() {
   enterpriseDropdownOpen.value = true;
   if (!enterpriseOptions.value.length) loadEnterprises(true);
 }
+
 function scheduleCloseEnterpriseDropdown() {
   window.setTimeout(() => {
     enterpriseDropdownOpen.value = false;
   }, 150);
 }
+
 function handleEnterpriseInput() {
   enterpriseDropdownOpen.value = true;
   if (enterpriseQuery.value !== form.enterpriseName) {
@@ -325,10 +329,11 @@ function handleEnterpriseInput() {
   if (enterpriseSearchTimer) window.clearTimeout(enterpriseSearchTimer);
   enterpriseSearchTimer = window.setTimeout(() => loadEnterprises(true), 300);
 }
+
 async function loadEnterprises(reset) {
   if (enterpriseLoading.value) return;
   if (!publicToken) {
-    setStatus("请先登录后再查询企业", "error");
+    setStatus("请先登录后再查询企业。", "error");
     return;
   }
   enterpriseLoading.value = true;
@@ -344,16 +349,18 @@ async function loadEnterprises(reset) {
     const total = data?.total ?? enterpriseOptions.value.length;
     enterpriseHasMore.value = enterpriseOptions.value.length < total;
   } catch (error) {
-    setStatus(error.message || "企业列表加载失败", "error");
+    setStatus(resolveErrorMessage(error, "企业列表加载失败，请稍后重试"), "error");
   } finally {
     enterpriseLoading.value = false;
   }
 }
+
 function loadMoreEnterprises() {
   if (enterpriseLoading.value || !enterpriseHasMore.value) return;
   enterprisePage.value += 1;
   loadEnterprises(false);
 }
+
 function selectEnterprise(item) {
   form.enterpriseId = String(item.id || "");
   form.enterpriseName = item.enterpriseName || "";
@@ -362,11 +369,13 @@ function selectEnterprise(item) {
   if (!addressEdited.value) form.addressDetail = item.addressDetail || "";
   enterpriseDropdownOpen.value = false;
 }
+
 function validateFile(file) {
   if (!ALLOWED_TYPES.includes(file.type)) return "仅支持 JPG/PNG/WebP 图片";
   if (file.size > MAX_FILE_SIZE) return "单张图片不能超过 5MB";
   return "";
 }
+
 function createUploadItem(file) {
   return {
     id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
@@ -379,6 +388,7 @@ function createUploadItem(file) {
     error: ""
   };
 }
+
 async function uploadFile(item) {
   try {
     const payload = {
@@ -398,20 +408,22 @@ async function uploadFile(item) {
     item.objectKey = presign.objectKey;
     item.uploading = false;
   } catch (error) {
-    item.error = error.message || "上传失败";
+    item.error = resolveErrorMessage(error, "上传失败");
     item.uploading = false;
   }
 }
+
 function handleFileChange(event) {
   if (!publicToken) {
-    setStatus("请先登录后再上传图片", "error");
+    setStatus("请先登录后再上传图片。", "error");
     return;
   }
   const files = Array.from(event.target.files || []);
   if (!files.length) return;
   const remaining = MAX_IMAGE_COUNT - uploadItems.value.length;
   if (remaining <= 0) {
-    setStatus(`最多上传 ${MAX_IMAGE_COUNT} 张图片`, "error");
+    setStatus(`最多上传 ${MAX_IMAGE_COUNT} 张图片。`, "error");
+    event.target.value = "";
     return;
   }
   files.slice(0, remaining).forEach((file) => {
@@ -426,25 +438,29 @@ function handleFileChange(event) {
   });
   event.target.value = "";
 }
+
 function removeImage(id) {
   const target = uploadItems.value.find((item) => item.id === id);
   if (target?.previewUrl) URL.revokeObjectURL(target.previewUrl);
   uploadItems.value = uploadItems.value.filter((item) => item.id !== id);
 }
+
 function retryUpload(item) {
   if (!item || !item.file) return;
   item.error = "";
   item.uploading = true;
   uploadFile(item);
 }
+
 async function handleSubmit() {
-  if (!form.enterpriseId.trim()) return setStatus("请先选择投诉企业", "error");
+  if (!form.enterpriseId.trim()) return setStatus("请先选择投诉企业。", "error");
   const enterpriseId = Number(form.enterpriseId);
-  if (!Number.isFinite(enterpriseId)) return setStatus("企业编号格式不正确", "error");
-  if (!form.content.trim()) return setStatus("请填写投诉内容", "error");
-  if (!form.anonymous && !form.contact.trim()) return setStatus("请填写联系方式或选择匿名投诉", "error");
-  if (isUploading.value) return setStatus("图片上传中，请稍后提交", "error");
-  if (uploadItems.value.some((item) => item.error)) return setStatus("存在上传失败图片，请处理后重试", "error");
+  if (!Number.isFinite(enterpriseId)) return setStatus("企业编号格式不正确。", "error");
+  if (!form.content.trim()) return setStatus("请填写投诉内容。", "error");
+  if (!form.anonymous && !form.contact.trim()) return setStatus("请填写联系方式，或选择匿名投诉。", "error");
+  if (isUploading.value) return setStatus("图片仍在上传中，请稍后再提交。", "error");
+  if (uploadItems.value.some((item) => item.error)) return setStatus("存在上传失败的图片，请处理后再提交。", "error");
+
   loading.value = true;
   setStatus("");
   try {
@@ -458,7 +474,6 @@ async function handleSubmit() {
       imageUrls: imageUrls.length ? imageUrls : undefined
     };
     const result = await submitPublicComplaint(publicToken, payload);
-    setStatus("投诉提交成功", "success");
     router.push({
       name: "public-complaint-submit-success",
       query: {
@@ -467,11 +482,19 @@ async function handleSubmit() {
       }
     }).catch(() => {});
   } catch (error) {
-    setStatus(error.message || "投诉提交失败", "error");
+    setStatus(resolveErrorMessage(error, "投诉提交失败，请稍后重试"), "error");
   } finally {
     loading.value = false;
   }
 }
+
+function clearUploadItems() {
+  uploadItems.value.forEach((item) => {
+    if (item.previewUrl) URL.revokeObjectURL(item.previewUrl);
+  });
+  uploadItems.value = [];
+}
+
 function resetForm() {
   form.enterpriseName = "";
   form.enterpriseId = "";
@@ -482,8 +505,7 @@ function resetForm() {
   form.complainantName = "";
   form.contact = "";
   form.anonymous = false;
-  uploadItems.value.forEach((item) => item.previewUrl && URL.revokeObjectURL(item.previewUrl));
-  uploadItems.value = [];
+  clearUploadItems();
   enterpriseQuery.value = "";
   regionEdited.value = false;
   addressEdited.value = false;
@@ -492,6 +514,11 @@ function resetForm() {
 
 onMounted(() => {
   if (publicToken) loadEnterprises(true);
+});
+
+onBeforeUnmount(() => {
+  if (enterpriseSearchTimer) window.clearTimeout(enterpriseSearchTimer);
+  clearUploadItems();
 });
 </script>
 
@@ -505,7 +532,6 @@ onMounted(() => {
 .public-complaint-page__nav-item { border: none; background: transparent; min-height: var(--public-topbar-min-h); color: var(--on-surface-variant); font-size: var(--public-nav-size); font-weight: 700; border-bottom: 2px solid transparent; cursor: pointer; }
 .public-complaint-page__nav-item.is-active { color: var(--primary); border-bottom-color: var(--primary); }
 .public-complaint-page__toolbar { display: flex; align-items: center; gap: 10px; }
-.public-complaint-page__icon-btn { width: var(--public-btn-compact-min-h); height: var(--public-btn-compact-min-h); border-radius: 8px; border: 1px solid transparent; background: transparent; color: var(--on-surface-variant); cursor: pointer; }
 .public-complaint-page__logout { min-height: var(--public-toolbar-min-h); font-size: var(--public-logout-font-size); margin: 0; }
 .public-complaint-page__main { max-width: 1680px; margin: 0 auto; padding: 24px 16px 48px; display: grid; gap: 14px; }
 .public-complaint-page__head h1 { margin: 4px 0 6px; font-size: var(--public-hero-title-alt); line-height: 1; color: var(--primary); font-family: var(--font-display); }
@@ -598,9 +624,7 @@ onMounted(() => {
   color: var(--on-surface-variant);
   line-height: 1.2;
 }
-.public-complaint-page__upload-empty { min-height: 92px; border: 1px dashed rgba(195,198,211,.6); border-radius: 8px; display: grid; place-items: center; gap: 4px; color: var(--on-surface-variant); background: rgba(248,250,253,.75); }
-.public-complaint-page__upload-empty .material-symbols-outlined { font-size: var(--public-icon-lg); color: #5f6f9b; }
-.public-complaint-page__upload-empty p { margin: 0; font-size: var(--public-overline); }
+.public-complaint-page__upload-empty { min-height: 92px; }
 .public-complaint-page__preview-grid { display: grid; gap: 8px; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); }
 .public-complaint-page__preview-item { border: 1px solid rgba(195,198,211,.46); border-radius: 8px; padding: 6px; display: grid; gap: 4px; background: var(--surface-container-low); }
 .public-complaint-page__preview-item img { width: 100%; height: 90px; object-fit: cover; border-radius: 6px; }

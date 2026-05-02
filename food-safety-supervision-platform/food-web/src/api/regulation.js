@@ -116,6 +116,56 @@ export function updateRegulatorStatus(token, id, status) {
   });
 }
 
+export function adjustRegulatorRegions(token, id, payload) {
+  return requestWithBase(REGULATION_BASE_URL, `/api/regulation/regulators/${id}/regions`, {
+    method: "PUT",
+    headers: {
+      Authorization: `Bearer ${token}`
+    },
+    body: JSON.stringify(payload)
+  });
+}
+
+export function fetchRegulatorAuditLogs(token, id, limit = 10) {
+  const query = limit ? `?limit=${limit}` : "";
+  return requestWithBase(REGULATION_BASE_URL, `/api/regulation/regulators/${id}/audit-logs${query}`, {
+    method: "GET",
+    headers: {
+      Authorization: `Bearer ${token}`
+    }
+  });
+}
+
+export function fetchRecentRegulatorAuditLogs(token, limit = 10) {
+  const query = limit ? `?limit=${limit}` : "";
+  return requestWithBase(REGULATION_BASE_URL, `/api/regulation/regulators/audit-logs/recent${query}`, {
+    method: "GET",
+    headers: {
+      Authorization: `Bearer ${token}`
+    }
+  });
+}
+
+export function fetchEnterpriseAuditLogs(token, id, limit = 10) {
+  const query = limit ? `?limit=${limit}` : "";
+  return requestWithBase(REGULATION_BASE_URL, `/api/regulation/enterprises/${id}/audit-logs${query}`, {
+    method: "GET",
+    headers: {
+      Authorization: `Bearer ${token}`
+    }
+  });
+}
+
+export function fetchRecentEnterpriseAuditLogs(token, limit = 10) {
+  const query = limit ? `?limit=${limit}` : "";
+  return requestWithBase(REGULATION_BASE_URL, `/api/regulation/enterprises/audit-logs/recent${query}`, {
+    method: "GET",
+    headers: {
+      Authorization: `Bearer ${token}`
+    }
+  });
+}
+
 export function fetchEnterprises(token, params = {}) {
   const search = new URLSearchParams();
   if (params.enterpriseName) search.append("enterpriseName", params.enterpriseName);
@@ -185,6 +235,26 @@ export function fetchBulletins(token, params = {}) {
 
 export function fetchBulletinDetail(token, id) {
   return requestWithBase(REGULATION_BASE_URL, `/api/regulation/bulletins/${id}`, {
+    method: "GET",
+    headers: {
+      Authorization: `Bearer ${token}`
+    }
+  });
+}
+
+export function fetchBulletinAuditLogs(token, id, limit = 8) {
+  const query = limit ? `?limit=${limit}` : "";
+  return requestWithBase(REGULATION_BASE_URL, `/api/regulation/bulletins/${id}/logs${query}`, {
+    method: "GET",
+    headers: {
+      Authorization: `Bearer ${token}`
+    }
+  });
+}
+
+export function fetchRecentBulletinAuditLogs(token, limit = 10) {
+  const query = limit ? `?limit=${limit}` : "";
+  return requestWithBase(REGULATION_BASE_URL, `/api/regulation/bulletins/logs/recent${query}`, {
     method: "GET",
     headers: {
       Authorization: `Bearer ${token}`

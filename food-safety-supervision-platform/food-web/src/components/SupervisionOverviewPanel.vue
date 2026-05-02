@@ -2,11 +2,9 @@
   <section class="supervision-overview">
     <div class="overview-head">
       <div>
-        <div class="eyebrow">区域管理员工作台</div>
-        <h2>把企业、执法、投诉和预警收在同一张业务视图里</h2>
-        <p>
-          {{ mode === "enforcer" ? "默认按本人任务口径汇总" : "默认按辖区业务口径汇总" }}
-        </p>
+        <div class="eyebrow">{{ mode === "enforcer" ? "执法工作台" : "区域管理员工作台" }}</div>
+        <h2>把企业、检查、抽检、投诉和预警放在同一张监管视图里</h2>
+        <p>{{ mode === "enforcer" ? "默认按当前执法人员个人口径汇总" : "默认按当前辖区业务口径汇总" }}</p>
       </div>
       <button class="refresh-button" type="button" :disabled="loading" @click="loadOverview">
         {{ loading ? "刷新中..." : "刷新概览" }}
@@ -31,11 +29,11 @@
       </article>
 
       <article class="hero-card hero-card--warning">
-        <span>待处理预警</span>
+        <span>待处置预警</span>
         <strong>{{ formatNumber(overview.openWarningCount) }}</strong>
         <em>当前仍在监管链路中的风险提醒</em>
         <div class="warning-caption">
-          这个数字复用了现有预警统计口径，用来把“业务执行”和“风险联动”放在同一页里看清楚。
+          这里复用了现有预警统计口径，用来把业务执行和风险联动放在同一页里看清楚。
         </div>
       </article>
     </div>
@@ -113,6 +111,40 @@
       </section>
     </div>
 
+    <section v-if="mode === 'enforcer'" class="activity-panel">
+      <div class="activity-panel__head">
+        <div>
+          <h3>最近动态</h3>
+          <p>展示当前执法人员可见的投诉、检查和抽检日志。</p>
+        </div>
+        <button class="refresh-button" type="button" :disabled="loadingRecent" @click="loadRecentFeeds">
+          {{ loadingRecent ? "刷新中..." : "刷新动态" }}
+        </button>
+      </div>
+
+      <div v-if="recentErrorMessage" class="overview-error">
+        {{ recentErrorMessage }}
+      </div>
+      <div v-else-if="!recentFeeds.length" class="activity-panel__empty">当前暂无最近动态。</div>
+      <div v-else class="activity-list">
+        <button
+          v-for="item in recentFeeds"
+          :key="item.id"
+          class="activity-item"
+          type="button"
+          @click="openActivityFeed(item)"
+        >
+          <span class="activity-item__dot" :class="`is-${item.tone}`"></span>
+          <div class="activity-item__main">
+            <strong>{{ item.title }}</strong>
+            <p>{{ item.desc }}</p>
+            <span>{{ item.meta }}</span>
+          </div>
+          <span class="activity-item__action">查看详情</span>
+        </button>
+      </div>
+    </section>
+
     <div v-if="errorMessage" class="overview-error">
       {{ errorMessage }}
     </div>
@@ -121,7 +153,11 @@
 
 <script setup>
 import { computed, onMounted, ref } from "vue";
+import { useRouter } from "vue-router";
+import { fetchRecentComplaintLogs } from "../api/complaint";
+import { fetchRecentOperationAuditLogs } from "../api/regulationOperation";
 import { fetchSupervisionOverview } from "../api/regulation";
+import { formatTime } from "../utils/formatters";
 
 const props = defineProps({
   token: {
@@ -134,8 +170,11 @@ const props = defineProps({
   }
 });
 
+const router = useRouter();
 const loading = ref(false);
+const loadingRecent = ref(false);
 const errorMessage = ref("");
+const recentErrorMessage = ref("");
 const overview = ref({
   enterpriseTotalCount: 0,
   keyEnterpriseCount: 0,
@@ -149,6 +188,8 @@ const overview = ref({
   complaintOverdueCount: 0,
   openWarningCount: 0
 });
+const recentComplaintFeeds = ref([]);
+const recentOperationFeeds = ref([]);
 
 const summaryCards = computed(() => ([
   {
@@ -173,9 +214,15 @@ const summaryCards = computed(() => ([
     key: "overdue",
     label: "投诉超时",
     value: Number(overview.value.complaintOverdueCount) || 0,
-    note: "已分配但超过截止时间的投诉数量"
+    note: "已分派但超过截止时间的投诉数量"
   }
 ]));
+
+const recentFeeds = computed(() =>
+  [...recentComplaintFeeds.value, ...recentOperationFeeds.value]
+    .sort((a, b) => b.sortTime - a.sortTime)
+    .slice(0, 6)
+);
 
 async function loadOverview() {
   loading.value = true;
@@ -187,10 +234,145 @@ async function loadOverview() {
       ...(data || {})
     };
   } catch (error) {
-    errorMessage.value = error instanceof Error ? error.message : "区域管理员工作台加载失败";
+    errorMessage.value = error instanceof Error ? error.message : "监管概览加载失败";
   } finally {
     loading.value = false;
   }
+}
+
+function complaintLogTone(actionType) {
+  if (actionType === "COMPLAINT_REJECT") return "danger";
+  if (actionType === "COMPLAINT_HANDLE") return "success";
+  if (actionType === "COMPLAINT_PROCESS_START") return "info";
+  return "neutral";
+}
+
+function operationLogTone(actionType) {
+  const value = String(actionType || "").toUpperCase();
+  if (value.includes("OFFLINE")) return "danger";
+  if (value.includes("PUBLISH") || value.includes("SUBMIT")) return "success";
+  return "info";
+}
+
+function formatFeedMeta(item) {
+  const operatorName = String(item?.operatorName || "").trim() || "监管人员";
+  const timeText = formatTime(item?.createTime || "");
+  return `${operatorName} | ${timeText && timeText !== "-" ? timeText : "-"}`;
+}
+
+function timeValueOf(value) {
+  const raw = String(value || "").trim();
+  if (!raw) return 0;
+  const timestamp = Date.parse(raw);
+  return Number.isNaN(timestamp) ? 0 : timestamp;
+}
+
+function operationLogTag(targetType) {
+  const value = String(targetType || "").toUpperCase();
+  if (value === "SAMPLING_TASK" || value === "SAMPLING_RESULT") return "抽检";
+  if (value === "INSPECTION_TASK") return "检查";
+  if (value === "RECTIFICATION_TASK") return "整改";
+  return "监管";
+}
+
+function formatOperationFeedTitle(item) {
+  const actionType = String(item?.actionType || "").toUpperCase();
+  if (actionType === "INSPECTION_ASSIGN") return "检查任务已分派";
+  if (actionType === "INSPECTION_START") return "检查任务开始处理";
+  if (actionType === "INSPECTION_SUBMIT") return "检查结果已提交";
+  if (actionType === "INSPECTION_RECTIFICATION_CREATE") return "已触发整改任务";
+  if (actionType === "SAMPLING_ASSIGN") return "抽检任务已分派";
+  if (actionType === "SAMPLING_RESULT_SUBMIT") return "抽检结果已提交";
+  if (actionType === "SAMPLING_RESULT_PUBLISH") return "抽检结果已公示";
+  if (actionType === "SAMPLING_RESULT_OFFLINE") return "抽检结果已下线";
+  return item?.actionName || item?.actionType || "监管动态";
+}
+
+function resolveOperationFeedRoute(item) {
+  const targetType = String(item?.targetType || "").toUpperCase();
+  if (targetType === "INSPECTION_TASK" && item?.targetId) {
+    return {
+      name: "regulator-enforcer-task-detail",
+      params: { taskId: item.targetId },
+      query: { from: "stats" }
+    };
+  }
+  if (targetType === "SAMPLING_TASK" && item?.targetId) {
+    return {
+      name: "regulator-enforcer-sampling-detail",
+      params: { taskId: item.targetId },
+      query: { from: "stats" }
+    };
+  }
+  if (targetType === "SAMPLING_RESULT") {
+    return {
+      name: "regulator-enforcer-sampling",
+      params: {},
+      query: {}
+    };
+  }
+  return null;
+}
+
+async function loadRecentFeeds() {
+  if (props.mode !== "enforcer") {
+    recentComplaintFeeds.value = [];
+    recentOperationFeeds.value = [];
+    recentErrorMessage.value = "";
+    return;
+  }
+  loadingRecent.value = true;
+  recentErrorMessage.value = "";
+  try {
+    const [complaintLogs, operationLogs] = await Promise.all([
+      fetchRecentComplaintLogs(props.token, 6),
+      fetchRecentOperationAuditLogs(props.token, { limit: 6 })
+    ]);
+
+    recentComplaintFeeds.value = (Array.isArray(complaintLogs) ? complaintLogs : [])
+      .filter((item) => item?.targetId)
+      .map((item, index) => ({
+        id: item.id || `complaint-feed-${index}`,
+        title: item.targetName || `投诉 #${item.targetId}`,
+        desc: `[投诉] ${item.summary || item.actionName || item.actionType || "投诉流转日志"}`,
+        meta: formatFeedMeta(item),
+        tone: complaintLogTone(item.actionType),
+        sortTime: timeValueOf(item.createTime),
+        route: {
+          name: "regulator-enforcer-complaint-detail",
+          params: { complaintId: item.targetId },
+          query: { from: "stats" }
+        }
+      }));
+
+    recentOperationFeeds.value = (Array.isArray(operationLogs) ? operationLogs : [])
+      .filter((item) => item?.targetId)
+      .map((item, index) => ({
+        id: item.id || `operation-feed-${index}`,
+        title: item.targetName || `${operationLogTag(item.targetType)} #${item.targetId}`,
+        desc: `[${operationLogTag(item.targetType)}] ${item.summary || formatOperationFeedTitle(item)}`,
+        meta: formatFeedMeta(item),
+        tone: operationLogTone(item.actionType),
+        sortTime: timeValueOf(item.createTime),
+        route: resolveOperationFeedRoute(item)
+      }))
+      .filter((item) => item.route);
+  } catch (error) {
+    recentComplaintFeeds.value = [];
+    recentOperationFeeds.value = [];
+    recentErrorMessage.value = error instanceof Error ? error.message : "最近动态加载失败";
+  } finally {
+    loadingRecent.value = false;
+  }
+}
+
+function openActivityFeed(item) {
+  if (!item?.route?.name) return;
+  router.push({
+    name: item.route.name,
+    params: item.route.params || {},
+    query: item.route.query || {}
+  }).catch(() => {});
 }
 
 function formatNumber(value) {
@@ -199,14 +381,13 @@ function formatNumber(value) {
 
 function formatPercent(value, total) {
   const safeTotal = Number(total) || 0;
-  if (!safeTotal) {
-    return "0%";
-  }
+  if (!safeTotal) return "0%";
   return `${Math.round(((Number(value) || 0) / safeTotal) * 100)}%`;
 }
 
 onMounted(() => {
   loadOverview();
+  loadRecentFeeds();
 });
 </script>
 
@@ -453,6 +634,117 @@ onMounted(() => {
   font-size: 20px;
 }
 
+.activity-panel {
+  margin-top: 12px;
+  border: 1px solid #dbe5f1;
+  border-radius: 4px;
+  background: #ffffff;
+  overflow: hidden;
+}
+
+.activity-panel__head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  padding: 14px 16px 12px;
+  border-bottom: 1px solid #e6edf5;
+}
+
+.activity-panel__head h3 {
+  margin: 0;
+  color: #0f172a;
+  font-size: 16px;
+}
+
+.activity-panel__head p {
+  margin: 6px 0 0;
+  color: #64748b;
+  font-size: 12px;
+}
+
+.activity-panel__empty {
+  padding: 20px 16px;
+  color: #64748b;
+  font-size: 13px;
+}
+
+.activity-list {
+  display: grid;
+}
+
+.activity-item {
+  display: grid;
+  grid-template-columns: 10px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 14px 16px;
+  border: 0;
+  border-bottom: 1px solid #eef2f7;
+  background: #ffffff;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.activity-item:last-child {
+  border-bottom: 0;
+}
+
+.activity-item:hover {
+  background: #f8fbff;
+}
+
+.activity-item__dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: #94a3b8;
+}
+
+.activity-item__dot.is-success {
+  background: #16a34a;
+}
+
+.activity-item__dot.is-danger {
+  background: #dc2626;
+}
+
+.activity-item__dot.is-info {
+  background: #2563eb;
+}
+
+.activity-item__main {
+  min-width: 0;
+}
+
+.activity-item__main strong {
+  display: block;
+  color: #0f172a;
+  font-size: 14px;
+}
+
+.activity-item__main p {
+  margin: 6px 0 0;
+  color: #334155;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.activity-item__main span {
+  display: block;
+  margin-top: 6px;
+  color: #64748b;
+  font-size: 12px;
+}
+
+.activity-item__action {
+  color: #64748b;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
 .overview-error {
   margin-top: 12px;
   padding: 10px 12px;
@@ -503,6 +795,18 @@ onMounted(() => {
 
   .hero-ratio {
     grid-template-columns: 1fr;
+  }
+
+  .activity-panel__head {
+    flex-direction: column;
+  }
+
+  .activity-item {
+    grid-template-columns: 10px minmax(0, 1fr);
+  }
+
+  .activity-item__action {
+    display: none;
   }
 }
 </style>

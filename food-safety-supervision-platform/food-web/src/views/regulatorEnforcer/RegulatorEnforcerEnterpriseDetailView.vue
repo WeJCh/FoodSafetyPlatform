@@ -190,9 +190,14 @@ import { formatByMap, formatTime } from "../../utils/formatters";
 import {
   approvalStatusMap,
   enterpriseStatusMap,
+  formatStatusLabel,
+  inspectionResultMap,
+  productStatusMap,
+  rectificationStatusMap,
   warningLevelMap,
   warningStatusMap
 } from "../../utils/statusMaps";
+import { resolveErrorMessage } from "../../utils/uiFeedback";
 import { useRegulatorEnforcerShellSession } from "./regulatorEnforcerShared";
 
 const route = useRoute();
@@ -214,16 +219,6 @@ const relatedWarnings = ref([]);
 
 const statusMessage = ref("");
 const statusType = ref("info");
-const inspectionResultMap = {
-  PASS: "合格",
-  FAIL: "不合格"
-};
-const rectificationStatusMap = {
-  ONGOING: "整改中",
-  SUBMITTED: "待复核",
-  REWORK: "打回重做",
-  CONFIRMED: "已确认"
-};
 
 function setStatus(message = "", type = "info") {
   statusMessage.value = message;
@@ -239,11 +234,11 @@ function formatApprovalStatus(value) {
 }
 
 function formatInspectionResult(value) {
-  return formatByMap(value, inspectionResultMap);
+  return formatStatusLabel(value, inspectionResultMap);
 }
 
 function formatRectificationStatus(value) {
-  return formatByMap(value, rectificationStatusMap);
+  return formatStatusLabel(value, rectificationStatusMap);
 }
 
 function formatWarningLevel(value) {
@@ -256,7 +251,7 @@ function formatWarningStatus(value) {
 
 function formatProductStatus(value) {
   const map = { ACTIVE: "启用", INACTIVE: "停用" };
-  return map[value] || value || "-";
+  return formatStatusLabel(value, productStatusMap);
 }
 
 function statusBadgeClass(value) {
@@ -347,7 +342,7 @@ async function loadDetail() {
     relatedWarnings.value = Array.isArray(warnings?.records) ? warnings.records : [];
   } catch (error) {
     detail.value = null;
-    setStatus(error.message || "企业详情加载失败", "error");
+    setStatus(resolveErrorMessage(error, "企业详情加载失败"), "error");
   } finally {
     loading.value = false;
     productLoading.value = false;

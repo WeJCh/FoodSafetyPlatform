@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <div class="public-enterprises-page">
     <header class="public-enterprises-page__topbar">
       <div class="public-enterprises-page__topbar-inner">
@@ -15,12 +15,6 @@
             <span class="material-symbols-outlined" aria-hidden="true">search</span>
             <input v-model.trim="filters.enterpriseName" type="text" placeholder="搜索企业..." @keyup.enter="handleSearch" />
           </label>
-          <button type="button" class="public-enterprises-page__icon-btn" @click="onFeaturePending('通知中心')">
-            <span class="material-symbols-outlined" aria-hidden="true">notifications</span>
-          </button>
-          <button type="button" class="public-enterprises-page__icon-btn" @click="onFeaturePending('个人中心')">
-            <span class="material-symbols-outlined" aria-hidden="true">account_circle</span>
-          </button>
           <button type="button" class="ghost public-enterprises-page__logout" @click="handleLogout">退出登录</button>
         </div>
       </div>
@@ -30,7 +24,7 @@
         <div>
           <div class="public-enterprises-page__crumb">政务公开 / 企业公示</div>
           <h1>企业公示</h1>
-          <p>实时展示本行政区域内食品生产经营企业的基本信息与信用等级情况</p>
+          <p>实时展示本行政区域内食品生产经营企业的基本信息与信用等级情况。</p>
         </div>
         <div class="public-enterprises-page__filters">
           <label>
@@ -46,8 +40,9 @@
             <span>监管状态</span>
             <select v-model="filters.status">
               <option value="">全部状态</option>
-              <option value="normal">正常 (A级)</option>
-              <option value="key">重点监管 (B级)</option>
+              <option value="normal">正常监管</option>
+              <option value="key">重点监管</option>
+              <option value="risk">风险关注</option>
             </select>
           </label>
           <div class="public-enterprises-page__filters-actions">
@@ -60,14 +55,22 @@
         <div class="public-enterprises-page__table-head">
           <span>企业名称 / 社会信用代码</span><span>经营地址 / 所在区域</span><span>监管状态</span><span>操作</span>
         </div>
-        <div v-if="!filteredRecords.length" class="public-enterprises-page__empty">暂无符合条件的公示企业</div>
+        <AppEmptyState
+          v-if="!filteredRecords.length"
+          :title="emptyTitle"
+          :description="emptyDescription"
+          class="public-enterprises-page__empty"
+        />
         <div v-for="item in filteredRecords" :key="item.id" class="public-enterprises-page__row">
           <div class="public-enterprises-page__col-main"><strong>{{ item.enterpriseName || "-" }}</strong><small>{{ item.creditCode || "-" }}</small></div>
           <div class="public-enterprises-page__col-sub"><p>{{ item.addressDetail || "-" }}</p><small>{{ item.regionPathText || "未标注区域" }}</small></div>
-          <div class="public-enterprises-page__col-status"><i class="public-enterprises-page__status" :class="`is-${statusClass(item.status)}`">{{ formatStatus(item.status) }}</i></div>
+          <div class="public-enterprises-page__col-status">
+            <AppStatusTag :label="formatStatus(item.status)" :tone="statusTone(item.status)" />
+          </div>
           <div class="public-enterprises-page__col-action"><button type="button" @click="viewEnterprise(item)">查看详情</button></div>
         </div>
       </section>
+      <AppStatusToast :message="status.message" :type="status.type" />
     </main>
   </div>
 </template>
@@ -76,7 +79,12 @@
 import { computed, onMounted, reactive, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { fetchPublicEnterprises } from "../../api/regulation";
+import AppEmptyState from "../../components/common/AppEmptyState.vue";
+import AppStatusTag from "../../components/common/AppStatusTag.vue";
+import AppStatusToast from "../../components/common/AppStatusToast.vue";
 import { getActiveSession, performLogout } from "../../session/authRuntime";
+import { enterpriseStatusMap, formatStatusLabel, getStatusTone } from "../../utils/statusMaps";
+import { getEmptyStateText, resolveErrorMessage } from "../../utils/uiFeedback";
 
 const route = useRoute();
 const router = useRouter();
@@ -85,6 +93,7 @@ const records = ref([]);
 const filters = reactive({ enterpriseName: "", status: "" });
 const page = ref(1);
 const size = ref(8);
+const status = reactive({ message: "", type: "" });
 
 const topNavItems = [
   { key: "home", label: "首页", routeName: "public-home" },
@@ -95,24 +104,13 @@ const topNavItems = [
   { key: "complaints", label: "我的投诉", routeName: "public-complaints" }
 ];
 
-function statusClass(value) {
-  const key = String(value || "").toUpperCase();
-  if (key === "KEY" || key === "B") return "key";
-  if (key === "RISK" || key === "C") return "risk";
-  return "normal";
-}
-function formatStatus(value) {
-  const key = String(value || "").toUpperCase();
-  if (key === "KEY" || key === "B") return "重点监管 (B级)";
-  if (key === "RISK" || key === "C") return "失信惩戒 (C级)";
-  return "正常 (A级)";
-}
 function normalizeStatus(value) {
   const key = String(value || "").toUpperCase();
   if (key === "KEY" || key === "B") return "key";
   if (key === "RISK" || key === "C") return "risk";
   return "normal";
 }
+
 const filteredRecords = computed(() => {
   const nameKeyword = filters.enterpriseName.trim().toLowerCase();
   const selectedStatus = filters.status;
@@ -122,16 +120,35 @@ const filteredRecords = computed(() => {
     return nameMatched && statusMatched;
   });
 });
+
+const hasFilters = computed(() => Boolean(filters.enterpriseName.trim() || filters.status));
+const emptyTitle = computed(() => getEmptyStateText("公示企业", hasFilters.value));
+const emptyDescription = computed(() =>
+  hasFilters.value ? "可以调整企业名称或监管状态后重新查询。" : "当前暂无可公示的企业信息。"
+);
+
+function formatStatus(value) {
+  return formatStatusLabel(value, enterpriseStatusMap, "正常监管");
+}
+
+function statusTone(value) {
+  return getStatusTone(value, "ENTERPRISE");
+}
+
+function setStatus(message, type = "info") {
+  status.message = message;
+  status.type = type;
+}
+
 function goTo(name) {
   router.push({ name }).catch(() => {});
 }
+
 async function handleLogout() {
   await performLogout();
   router.replace({ name: "login" }).catch(() => {});
 }
-function onFeaturePending(name) {
-  window.alert(`${name} 功能待后续完善`);
-}
+
 function resetFilters() {
   filters.enterpriseName = "";
   filters.status = "";
@@ -147,22 +164,34 @@ function handleSearch() {
 
 function viewEnterprise(item) {
   if (!item?.id) return;
-  router.push({ name: "public-enterprise-detail", params: { enterpriseId: item.id } }).catch(() => {});
+  router.push({ name: "public-enterprise-detail", params: { enterpriseId: item.id }, query: buildQuery() }).catch(() => {});
 }
+
 async function loadEnterprises() {
-  const data = await fetchPublicEnterprises(publicToken, { enterpriseName: filters.enterpriseName, page: page.value, size: size.value });
-  records.value = data.records || [];
+  setStatus("");
+  try {
+    const data = await fetchPublicEnterprises(publicToken, { enterpriseName: filters.enterpriseName, page: page.value, size: size.value });
+    records.value = data.records || [];
+  } catch (error) {
+    records.value = [];
+    setStatus(resolveErrorMessage(error, "企业公示列表加载失败，请稍后重试"), "error");
+  }
+}
+
+function buildQuery() {
+  const nextQuery = {};
+  if (filters.enterpriseName.trim()) nextQuery.keyword = filters.enterpriseName.trim();
+  if (filters.status) nextQuery.status = filters.status;
+  return nextQuery;
 }
 
 function syncRouteQuery() {
-  const nextQuery = {};
-  if (filters.enterpriseName.trim()) nextQuery.keyword = filters.enterpriseName.trim();
-  router.replace({ query: nextQuery }).catch(() => {});
+  router.replace({ query: buildQuery() }).catch(() => {});
 }
 
 function applyRouteQuery() {
-  const nextKeyword = typeof route.query.keyword === "string" ? route.query.keyword.trim() : "";
-  filters.enterpriseName = nextKeyword;
+  filters.enterpriseName = typeof route.query.keyword === "string" ? route.query.keyword.trim() : "";
+  filters.status = typeof route.query.status === "string" ? route.query.status : "";
 }
 
 onMounted(() => {
@@ -171,8 +200,11 @@ onMounted(() => {
 });
 
 watch(
-  () => route.query.keyword,
+  () => [route.query.keyword, route.query.status],
   () => {
+    const nextKeyword = typeof route.query.keyword === "string" ? route.query.keyword.trim() : "";
+    const nextStatus = typeof route.query.status === "string" ? route.query.status : "";
+    if (nextKeyword === filters.enterpriseName && nextStatus === filters.status) return;
     applyRouteQuery();
     page.value = 1;
     loadEnterprises();
@@ -252,15 +284,6 @@ watch(
   background: transparent;
   font-size: var(--public-text-md);
   min-width: var(--public-toolbar-input-min-w);
-}
-.public-enterprises-page__icon-btn {
-  width: 34px;
-  height: 34px;
-  border-radius: 8px;
-  border: 1px solid transparent;
-  background: transparent;
-  color: var(--on-surface-variant);
-  cursor: pointer;
 }
 .public-enterprises-page__logout {
   min-height: var(--public-toolbar-min-h);
@@ -405,34 +428,6 @@ watch(
   line-height: 1.5;
   color: var(--on-surface);
 }
-.public-enterprises-page__status {
-  display: inline-flex;
-  min-height: var(--public-chip-min-h);
-  align-items: center;
-  justify-content: center;
-  padding: 0 12px;
-  border-radius: 999px;
-  font-size: var(--public-caption);
-  font-weight: 800;
-  border: 1px solid transparent;
-  white-space: nowrap;
-  font-style: normal;
-}
-.public-enterprises-page__status.is-normal {
-  background: rgba(33, 156, 84, 0.1);
-  color: #1f6e45;
-  border-color: rgba(33, 156, 84, 0.2);
-}
-.public-enterprises-page__status.is-key {
-  background: rgba(210, 122, 0, 0.14);
-  color: #9b5b00;
-  border-color: rgba(210, 122, 0, 0.25);
-}
-.public-enterprises-page__status.is-risk {
-  background: rgba(186, 26, 26, 0.12);
-  color: #93000a;
-  border-color: rgba(186, 26, 26, 0.24);
-}
 .public-enterprises-page__col-action button {
   border: 1px solid rgba(70, 89, 231, 0.24);
   background: rgba(70, 89, 231, 0.06);
@@ -448,11 +443,7 @@ watch(
   background: rgba(70, 89, 231, 0.12);
 }
 .public-enterprises-page__empty {
-  padding: 28px 22px;
-  text-align: center;
-  color: var(--on-surface-variant);
-  font-size: var(--public-body);
-  line-height: 1.55;
+  margin: 22px;
 }
 @media (max-width: 1100px) {
   .public-enterprises-page__nav {
@@ -491,4 +482,3 @@ watch(
   }
 }
 </style>
-

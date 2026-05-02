@@ -10,7 +10,6 @@
     <RegulatorAdminTopbar
       :username="username"
       :search-placeholder="searchPlaceholder"
-      @pending-feature="$emit('pending-feature', $event)"
     />
     <main class="reg-admin-workspace__main">
       <slot />
@@ -29,7 +28,7 @@ defineProps({
   searchPlaceholder: { type: String, default: "搜索企业、任务或预警..." }
 });
 
-defineEmits(["navigate", "logout", "pending-feature"]);
+defineEmits(["navigate", "logout"]);
 </script>
 
 <style scoped>

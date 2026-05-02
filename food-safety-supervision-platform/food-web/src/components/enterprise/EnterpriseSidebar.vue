@@ -28,10 +28,6 @@
     </nav>
 
     <div class="enterprise-sidebar__footer">
-      <button class="enterprise-sidebar__footer-item" type="button" @click="onSettings">
-        <span class="material-symbols-outlined" aria-hidden="true">settings</span>
-        设置
-      </button>
       <button class="enterprise-sidebar__footer-item is-danger" type="button" @click="$emit('logout')">
         <span class="material-symbols-outlined" aria-hidden="true">logout</span>
         退出
@@ -41,8 +37,6 @@
 </template>
 
 <script setup>
-import { enterpriseFeaturePendingNotice } from "../../views/enterprise/enterpriseShared";
-
 const navMaterialIcon = {
   dashboard: "dashboard",
   profile: "domain",
@@ -63,9 +57,4 @@ defineProps({
 });
 
 defineEmits(["navigate", "logout"]);
-
-function onSettings() {
-  // TODO: 企业端设置（通知偏好、密码修改等）待产品定稿与后端接口
-  enterpriseFeaturePendingNotice("企业端设置");
-}
 </script>

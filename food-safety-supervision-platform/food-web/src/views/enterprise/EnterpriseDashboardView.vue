@@ -2,8 +2,8 @@
   <EnterpriseWorkspacePage
     active-key="dashboard"
     title="企业工作台"
-    :subtitle="`欢迎回来，当前待处理整改任务共计 ${pendingRectificationCount} 项。`"
-    top-search-placeholder="搜索监管记录、产品或任务..."
+    :subtitle="`欢迎回来，当前待处理整改任务共 ${pendingRectificationCount} 项。`"
+    top-search-placeholder="搜索检查记录、产品或任务..."
     :username="enterpriseUser.username"
     :user-type="enterpriseUser.userType"
     :status-label="approvalLabel"
@@ -14,7 +14,7 @@
     <section class="enterprise-dashboard-page">
       <div class="enterprise-dashboard-page__head">
         <h2>企业工作台</h2>
-        <p>以下数字均按后端当前总量口径汇总，列表区域仅展示最近记录预览。</p>
+        <p>以下数据均按后端当前统计口径展示，列表区域仅显示最近记录预览。</p>
       </div>
 
       <div class="enterprise-dashboard-bento">
@@ -129,7 +129,7 @@
 
         <aside class="enterprise-dashboard-actions-panel">
           <div class="enterprise-dashboard-actions-panel__block">
-            <h3>快速行动</h3>
+            <h3>快捷入口</h3>
             <div class="enterprise-dashboard-actions-list">
               <RouterLink class="enterprise-dashboard-action" :to="{ name: 'enterprise-profile' }">
                 <span class="enterprise-dashboard-action__icon">档</span>
@@ -150,8 +150,8 @@
               <RouterLink class="enterprise-dashboard-action" :to="{ name: 'enterprise-rectifications' }">
                 <span class="enterprise-dashboard-action__icon">整</span>
                 <div>
-                  <strong>查看整改回复</strong>
-                  <p>提交或反馈整改落实情况</p>
+                  <strong>查看整改进展</strong>
+                  <p>提交或补充整改落实情况</p>
                 </div>
               </RouterLink>
             </div>
@@ -176,12 +176,8 @@
             <span>LAST SYNC: {{ dashboardSyncTime }}</span>
           </div>
         </div>
-        <p>© 2023 企业. All Rights Reserved.</p>
+        <p>© 2023 企业端. All Rights Reserved.</p>
       </footer>
-
-      <button class="enterprise-dashboard-fab" type="button" title="帮助" @click="onHelpFab">
-        <span class="material-symbols-outlined" aria-hidden="true">support_agent</span>
-      </button>
 
       <div v-if="status.message" class="status" :class="status.type">{{ status.message }}</div>
     </section>
@@ -195,8 +191,8 @@ import { fetchEnterpriseProfile, fetchMyProducts } from "../../api/regulation";
 import { fetchEnterpriseInspectionRecords, fetchMyRectifications } from "../../api/regulationOperation";
 import EnterpriseWorkspacePage from "../../components/enterprise/EnterpriseWorkspacePage.vue";
 import { formatTime } from "../../utils/formatters";
+import { resolveErrorMessage } from "../../utils/uiFeedback";
 import {
-  enterpriseFeaturePendingNotice,
   formatInspectionResult,
   getApprovalStatusLabel,
   getApprovalStatusTone,
@@ -235,9 +231,7 @@ const heroDescription = computed(() => {
   if (profile.approvedTime) {
     return `您的企业备案信息已于 ${formatTime(profile.approvedTime)} 审核完成。建议持续维护产品档案、检查记录与整改资料。`;
   }
-  if (profile.approvalComment) {
-    return profile.approvalComment;
-  }
+  if (profile.approvalComment) return profile.approvalComment;
   if (!profileLoaded.value) {
     return "请先提交企业备案资料，备案通过后再完整启用产品建档、检查回看和整改提交流程。";
   }
@@ -263,10 +257,6 @@ function getInspectionGlyph(item) {
   if (item.result === "FAIL") return "!";
   if (item.problemDesc) return "检";
   return "查";
-}
-
-function onHelpFab() {
-  enterpriseFeaturePendingNotice("工作台帮助");
 }
 
 async function loadDashboard() {
@@ -302,7 +292,7 @@ async function loadDashboard() {
     pendingRectificationCount.value = Number(ongoingRectificationData.total || 0) + Number(reworkRectificationData.total || 0);
     dashboardSyncTime.value = formatTime(new Date().toISOString());
   } catch (error) {
-    setStatus(error.message || "加载企业工作台失败。", "error");
+    setStatus(resolveErrorMessage(error, "加载企业工作台失败，请稍后重试。"), "error");
   }
 }
 

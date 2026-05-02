@@ -233,7 +233,7 @@
                   </div>
                 </li>
               </ul>
-              <p v-else class="enterprise-audit-summary__empty">暂无审核轨迹，提交备案后将在此展示。</p>
+              <p v-else class="enterprise-audit-summary__empty">暂无审核轨迹，提交备案后将在此显示。</p>
               <RouterLink class="primary enterprise-link-button enterprise-audit-summary__cta" :to="{ name: 'enterprise-profile-detail' }">
                 <span class="material-symbols-outlined" aria-hidden="true" style="font-size: 18px">open_in_new</span>
                 查看完整轨迹
@@ -263,6 +263,7 @@ import { fetchEnterpriseProfile, fetchRegions, submitEnterpriseProfile } from ".
 import EnterpriseStatusChip from "../../components/enterprise/EnterpriseStatusChip.vue";
 import EnterpriseWorkspacePage from "../../components/enterprise/EnterpriseWorkspacePage.vue";
 import { formatTime } from "../../utils/formatters";
+import { resolveErrorMessage } from "../../utils/uiFeedback";
 import { getApprovalStatusLabel, getApprovalStatusTone, useEnterpriseShellSession } from "./enterpriseShared";
 import { buildApprovalTimeline, createEmptyStageBData, ENTERPRISE_ATTACHMENT_FIELDS } from "./enterpriseProfileStageB";
 
@@ -380,7 +381,7 @@ async function loadProfile() {
       applyStageB(createEmptyStageBData());
       return;
     }
-    setStatus(error.message || "加载备案信息失败", "error");
+    setStatus(resolveErrorMessage(error, "加载备案信息失败，请稍后重试"), "error");
   }
 }
 
@@ -410,7 +411,7 @@ async function handleSubmit() {
     profileLoaded.value = true;
     setStatus("提交成功，已进入审核流程。", "success");
   } catch (error) {
-    setStatus(error.message || "提交备案失败", "error");
+    setStatus(resolveErrorMessage(error, "提交备案失败，请稍后重试"), "error");
   } finally {
     loading.value = false;
   }
@@ -420,7 +421,7 @@ async function loadRegions(parentId, targetKey) {
   try {
     regionOptions[targetKey] = await fetchRegions(token.value, parentId);
   } catch (error) {
-    setStatus(error.message || "加载行政区失败", "error");
+    setStatus(resolveErrorMessage(error, "加载行政区失败，请稍后重试。"), "error");
   }
 }
 
@@ -542,7 +543,7 @@ async function processProfileAttachment(type, label, file) {
     ];
     setStatus(`${label}上传成功`, "success");
   } catch (error) {
-    setStatus(error.message || `${label}上传失败`, "error");
+    setStatus(resolveErrorMessage(error, `${label}上传失败，请稍后重试`), "error");
   } finally {
     uploading.value = false;
   }

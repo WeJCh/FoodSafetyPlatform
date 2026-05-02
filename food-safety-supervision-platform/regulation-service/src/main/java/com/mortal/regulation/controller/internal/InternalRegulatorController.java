@@ -210,7 +210,7 @@ public class InternalRegulatorController {
             return ApiResponse.success(false);
         }
         boolean matched = findDirectRegionIds(id).stream()
-            .anyMatch(directRegionId -> isAncestorRegion(regionId, directRegionId));
+            .anyMatch(directRegionId -> isAncestorRegion(directRegionId, regionId));
         return ApiResponse.success(matched);
     }
 

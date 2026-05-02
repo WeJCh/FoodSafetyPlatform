@@ -4,13 +4,12 @@
     :username="regulatorUser.username"
     @navigate="handleSidebarNavigate"
     @logout="handleLogout"
-    @pending-feature="onPendingFeature"
   >
     <section class="approval-page">
       <header class="approval-page__head">
         <div>
           <h1>企业备案审核</h1>
-          <p>当前有 {{ pendingRecords.length }} 个待处理备案申请，请及时审核。</p>
+          <p>当前共有 {{ pendingRecords.length }} 条待处理申请，请及时完成审核闭环。</p>
         </div>
         <div class="approval-page__head-actions">
           <button type="button" class="ghost" :disabled="approvalLoading" @click="openBatchAuditModal('reject')">批量驳回</button>
@@ -20,8 +19,8 @@
 
       <section class="approval-table">
         <div class="approval-table__head">
-          <div class="title"><span class="material-symbols-outlined">list_alt</span>待审核名录</div>
-          <span>更新于 {{ refreshedAt }}</span>
+          <div class="title"><span class="material-symbols-outlined">list_alt</span>待审核列表</div>
+          <span>最近刷新：{{ refreshedAt }}</span>
         </div>
         <div class="approval-table__content">
           <table>
@@ -32,18 +31,18 @@
                 <th>企业信息</th>
                 <th>备案类型</th>
                 <th>申请备注</th>
-                <th>联系信息</th>
-                <th>操作动作</th>
+                <th>联系人</th>
+                <th>操作</th>
               </tr>
             </thead>
             <tbody v-if="pendingRecords.length">
               <tr v-for="item in pendingRecords" :key="item.id">
-                <td class="check-cell"><input type="checkbox" :value="item.id" v-model="selectedIds" /></td>
+                <td class="check-cell"><input v-model="selectedIds" type="checkbox" :value="item.id" /></td>
                 <td>{{ formatTime(item.updateTime) }}</td>
                 <td>
                   <strong>{{ item.enterpriseName || "-" }}</strong>
-                  <p>信用代码：{{ item.creditCode || "-" }}</p>
-                  <p>区域：{{ formatRegionName(item.regionId) }}</p>
+                  <p>统一社会信用代码：{{ item.creditCode || "-" }}</p>
+                  <p>所属区域：{{ formatRegionName(item.regionId) }}</p>
                 </td>
                 <td>{{ item.enterpriseType || "备案申请" }}</td>
                 <td>{{ item.approvalComment || item.description || "暂无备注" }}</td>
@@ -61,23 +60,30 @@
               </tr>
             </tbody>
           </table>
-          <div v-if="!pendingRecords.length" class="empty">暂无待审核企业</div>
+          <AppEmptyState
+            v-if="!pendingRecords.length"
+            title="暂无待审核企业"
+            description="新的企业备案申请会显示在这里。"
+            class="approval-table__empty-state"
+          />
         </div>
       </section>
 
       <section class="approval-bottom">
         <article class="guideline-panel">
-          <h3>审核准则</h3>
-          <ul>
-            <li>证照图像必须清晰，公章完整。</li>
-            <li>信用代码必须与全国企业信息库一致。</li>
-            <li>经营范围需符合申请备案类型。</li>
+          <h3>最近审核日志</h3>
+          <ul v-if="auditLogs.length">
+            <li v-for="item in auditLogs" :key="item.id">
+              <strong>{{ item.title }}</strong>
+              <p>{{ item.desc }}</p>
+              <p>{{ item.meta }}</p>
+            </li>
           </ul>
-          <button type="button" @click="onPendingFeature('查看完整审核条例')">查看完整审核条例</button>
+          <div v-else class="status info">当前暂无企业审核日志。</div>
         </article>
       </section>
 
-      <div v-if="status.message" class="status" :class="status.type">{{ status.message }}</div>
+      <AppStatusToast :message="status.message" :type="status.type" />
 
       <div v-if="auditModal.visible" class="audit-modal-mask" @click.self="closeAuditModal">
         <div class="audit-modal">
@@ -89,12 +95,8 @@
               <input v-model.trim="approvalForm.regulatorName" placeholder="可选填写" />
             </label>
             <label>
-              审批意见
-              <textarea
-                v-model.trim="approvalForm.comment"
-                rows="4"
-                placeholder="请输入审批意见（必填）"
-              ></textarea>
+              审核意见
+              <textarea v-model.trim="approvalForm.comment" rows="4" placeholder="请输入审核意见（必填）" />
             </label>
           </div>
           <div class="audit-modal__actions">
@@ -112,23 +114,25 @@
 <script setup>
 import { computed, onMounted, reactive, ref } from "vue";
 import { useRouter } from "vue-router";
+import AppEmptyState from "../../components/common/AppEmptyState.vue";
+import AppStatusToast from "../../components/common/AppStatusToast.vue";
+import RegulatorAdminWorkspacePage from "../../components/regulatorAdmin/RegulatorAdminWorkspacePage.vue";
 import {
   approveEnterprise,
   approveEnterpriseBatch,
   fetchPendingEnterprises,
+  fetchRecentEnterpriseAuditLogs,
   fetchRegionPath,
   rejectEnterprise,
   rejectEnterpriseBatch
 } from "../../api/regulation";
-import RegulatorAdminWorkspacePage from "../../components/regulatorAdmin/RegulatorAdminWorkspacePage.vue";
 import { formatTime } from "../../utils/formatters";
-import {
-  regulatorFeaturePendingNotice,
-  useRegulatorAdminShellSession
-} from "./regulatorAdminShared";
+import { resolveErrorMessage } from "../../utils/uiFeedback";
+import { useRegulatorAdminShellSession } from "./regulatorAdminShared";
 
 const router = useRouter();
 const { regulatorUser, token, handleSidebarNavigate, handleLogout } = useRegulatorAdminShellSession();
+
 const pendingRecords = ref([]);
 const approvalLoading = ref(false);
 const status = reactive({ message: "", type: "" });
@@ -136,6 +140,7 @@ const approvalForm = reactive({ regulatorName: "", comment: "" });
 const selectedIds = ref([]);
 const regionNameMap = reactive({});
 const refreshedAt = ref("-");
+const auditLogs = ref([]);
 const auditModal = reactive({
   visible: false,
   actionType: "approve",
@@ -150,13 +155,9 @@ const allSelected = computed(() => {
   return selectedIds.value.length === pendingRecords.value.length;
 });
 
-function setStatus(message, type = "info") {
+function setStatus(message = "", type = "info") {
   status.message = message;
   status.type = type;
-}
-
-function onPendingFeature(title) {
-  regulatorFeaturePendingNotice(title);
 }
 
 function formatRegionName(regionId) {
@@ -168,9 +169,7 @@ async function ensureRegionName(regionId) {
   if (!regionId || regionNameMap[regionId]) return;
   try {
     const path = await fetchRegionPath(token.value, regionId);
-    regionNameMap[regionId] = Array.isArray(path) && path.length
-      ? path.map((item) => item.name).join(" / ")
-      : `区域 ${regionId}`;
+    regionNameMap[regionId] = Array.isArray(path) && path.length ? path.map((item) => item.name).join(" / ") : `区域 ${regionId}`;
   } catch {
     regionNameMap[regionId] = `区域 ${regionId}`;
   }
@@ -180,13 +179,22 @@ async function loadPending() {
   approvalLoading.value = true;
   setStatus("");
   try {
-    const data = await fetchPendingEnterprises(token.value);
-    pendingRecords.value = data || [];
+    const [data, logs] = await Promise.all([
+      fetchPendingEnterprises(token.value),
+      fetchRecentEnterpriseAuditLogs(token.value, 6).catch(() => [])
+    ]);
+    pendingRecords.value = Array.isArray(data) ? data : [];
+    auditLogs.value = (Array.isArray(logs) ? logs : []).map((item, index) => ({
+      id: item.id || `audit-${index}`,
+      title: item.actionName || item.actionType || "企业审核日志",
+      desc: item.summary || `${item.targetName || "企业"}发生了一条新的审核操作`,
+      meta: `${item.operatorName || "监管人员"} | ${formatTime(item.createTime)}`
+    }));
     selectedIds.value = [];
     refreshedAt.value = formatTime(new Date().toISOString());
-    await Promise.all((pendingRecords.value || []).map((item) => ensureRegionName(item.regionId)));
+    await Promise.all(pendingRecords.value.map((item) => ensureRegionName(item.regionId)));
   } catch (error) {
-    setStatus(error.message || "加载待审核企业失败", "error");
+    setStatus(resolveErrorMessage(error, "待审核企业加载失败，请稍后重试"), "error");
   } finally {
     approvalLoading.value = false;
   }
@@ -204,7 +212,7 @@ function openSingleAuditModal(item, actionType) {
 
 function openBatchAuditModal(actionType) {
   if (!selectedIds.value.length) {
-    setStatus("请选择需要审批的企业", "error");
+    setStatus("请先选择需要审核的企业。", "error");
     return;
   }
   auditModal.visible = true;
@@ -222,19 +230,20 @@ function closeAuditModal() {
 
 async function submitAuditAction() {
   if (!approvalForm.comment.trim()) {
-    setStatus("审批意见必填", "error");
+    setStatus("请填写审核意见。", "error");
     return;
   }
+
   approvalLoading.value = true;
   setStatus("");
   try {
     if (auditModal.mode === "single") {
       if (auditModal.actionType === "approve") {
         await approveEnterprise(token.value, auditModal.enterpriseId, approvalForm);
-        setStatus("审批通过成功", "success");
+        setStatus("审核通过成功。", "success");
       } else {
         await rejectEnterprise(token.value, auditModal.enterpriseId, approvalForm);
-        setStatus("驳回成功", "success");
+        setStatus("驳回成功。", "success");
       }
     } else if (auditModal.actionType === "approve") {
       await approveEnterpriseBatch(token.value, {
@@ -242,19 +251,20 @@ async function submitAuditAction() {
         comment: approvalForm.comment,
         regulatorName: approvalForm.regulatorName
       });
-      setStatus("批量通过成功", "success");
+      setStatus("批量通过成功。", "success");
     } else {
       await rejectEnterpriseBatch(token.value, {
         ids: selectedIds.value,
         comment: approvalForm.comment,
         regulatorName: approvalForm.regulatorName
       });
-      setStatus("批量驳回成功", "success");
+      setStatus("批量驳回成功。", "success");
     }
+
     closeAuditModal();
     await loadPending();
   } catch (error) {
-    setStatus(error.message || "审核提交失败", "error");
+    setStatus(resolveErrorMessage(error, "审核提交失败，请稍后重试"), "error");
   } finally {
     approvalLoading.value = false;
   }
@@ -263,9 +273,9 @@ async function submitAuditAction() {
 function toggleSelectAll(event) {
   if (event.target.checked) {
     selectedIds.value = pendingRecords.value.map((item) => item.id);
-  } else {
-    selectedIds.value = [];
+    return;
   }
+  selectedIds.value = [];
 }
 
 function handleViewDetail(item) {
@@ -304,26 +314,9 @@ onMounted(() => {
   justify-content: center;
   transition: all 0.2s ease;
 }
-.approval-page__head-actions .ghost {
-  background: #eef2f7;
-  color: #334155;
-}
-.approval-page__head-actions .ghost:hover:not(:disabled) {
-  background: #e2e8f0;
-}
-.approval-page__head-actions .primary {
-  background: #002660;
-  color: #fff;
-  box-shadow: 0 6px 14px rgba(0, 38, 96, 0.22);
-}
-.approval-page__head-actions .primary:hover:not(:disabled) {
-  background: #003a8c;
-}
-.approval-page__head-actions button:disabled {
-  opacity: 0.55;
-  cursor: not-allowed;
-  box-shadow: none;
-}
+.approval-page__head-actions .ghost { background: #eef2f7; color: #334155; }
+.approval-page__head-actions .primary { background: #002660; color: #fff; box-shadow: 0 6px 14px rgba(0, 38, 96, 0.22); }
+.approval-page__head-actions button:disabled { opacity: 0.55; cursor: not-allowed; box-shadow: none; }
 .guideline-panel h3 { margin: 0 0 10px; font-size: 16px; color: #0f172a; }
 .approval-table { background: #fff; border-radius: 12px; overflow: hidden; border: 1px solid #e2e8f0; }
 .approval-table__head { display: flex; align-items: center; justify-content: space-between; background: #eef2f7; padding: 12px; font-size: 12px; color: #64748b; }
@@ -340,16 +333,19 @@ td p { margin: 2px 0 0; color: #64748b; font-size: 12px; }
 .check-cell input { display: block; margin: 0 auto; }
 .actions { display: flex; gap: 6px; align-items: center; justify-content: flex-start; }
 .actions button { min-height: 28px; line-height: 1; display: inline-flex; align-items: center; justify-content: center; }
-.actions .link { background: #eef2ff; color: #1d4ed8; }
-.actions .reject { background: #fee2e2; color: #991b1b; }
+.actions .link { background: #eff6ff; color: #1d4ed8; }
+.actions .reject { background: #fee2e2; color: #b91c1c; }
 .actions .pass { background: #dcfce7; color: #166534; }
-.empty { padding: 16px; color: #64748b; font-size: 13px; }
 .approval-bottom { display: grid; grid-template-columns: 1fr; gap: 12px; }
-.guideline-panel { background: #fff; border-radius: 12px; padding: 16px; }
-.guideline-panel ul { margin: 0; padding-left: 16px; color: #475569; display: grid; gap: 8px; font-size: 13px; }
-.guideline-panel button { margin-top: 12px; width: 100%; background: #eff6ff; color: #1d4ed8; }
-.status { position: fixed; right: 18px; bottom: 18px; background: #0f172a; color: #fff; border-radius: 8px; padding: 10px 12px; font-size: 13px; }
-.status.error { background: #b91c1c; }
+.guideline-panel {
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 14px 16px;
+}
+.guideline-panel ul { margin: 0; padding-left: 18px; color: #475569; display: grid; gap: 10px; }
+.guideline-panel li strong { display: block; color: #0f172a; font-size: 13px; }
+.guideline-panel li p { margin: 4px 0 0; color: #64748b; font-size: 12px; }
 .audit-modal-mask { position: fixed; inset: 0; background: rgba(15, 23, 42, 0.45); display: grid; place-items: center; z-index: 1000; }
 .audit-modal { width: min(520px, 92vw); background: #fff; border-radius: 12px; padding: 16px; box-shadow: 0 20px 50px rgba(2, 6, 23, 0.25); }
 .audit-modal h3 { margin: 0; color: #0f172a; font-size: 18px; }
@@ -362,7 +358,7 @@ td p { margin: 2px 0 0; color: #64748b; font-size: 12px; }
 .audit-modal__actions .ghost, .audit-modal__actions .primary { border: 0; border-radius: 8px; padding: 8px 14px; font-size: 13px; cursor: pointer; }
 .audit-modal__actions .ghost { background: #e2e8f0; color: #334155; }
 .audit-modal__actions .primary { background: #002660; color: #fff; }
-@media (max-width: 1200px) {
-  .approval-bottom { grid-template-columns: 1fr; }
+@media (max-width: 960px) {
+  .approval-page__head { flex-direction: column; align-items: stretch; }
 }
 </style>

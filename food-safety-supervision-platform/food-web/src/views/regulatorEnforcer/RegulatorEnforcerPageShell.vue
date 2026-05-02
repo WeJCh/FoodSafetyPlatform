@@ -4,7 +4,6 @@
     :username="enforcerUser.username || enforcerUser.realName || ''"
     @navigate="handleSidebarNavigate"
     @logout="handleLogout"
-    @pending-feature="regulatorEnforcerFeaturePendingNotice"
   >
     <section class="shell-panel">
       <header class="shell-panel__header">
@@ -13,7 +12,7 @@
       </header>
       <div class="shell-panel__body">
         <slot>
-          <div class="placeholder-note">阶段 1 已完成：页面骨架已就绪，后续阶段将逐页迁入真实业务逻辑与接口。</div>
+          <div class="placeholder-note">当前页面内容暂未提供。</div>
         </slot>
       </div>
     </section>
@@ -22,10 +21,7 @@
 
 <script setup>
 import RegulatorEnforcerWorkspacePage from "../../components/regulatorEnforcer/RegulatorEnforcerWorkspacePage.vue";
-import {
-  regulatorEnforcerFeaturePendingNotice,
-  useRegulatorEnforcerShellSession
-} from "./regulatorEnforcerShared";
+import { useRegulatorEnforcerShellSession } from "./regulatorEnforcerShared";
 
 defineProps({
   activeKey: { type: String, default: "overview" },
@@ -71,4 +67,3 @@ const { enforcerUser, handleSidebarNavigate, handleLogout } = useRegulatorEnforc
   padding: 14px;
 }
 </style>
-

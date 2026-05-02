@@ -21,7 +21,7 @@
           </nav>
           <h1 class="enterprise-page-hero__title">检查记录列表</h1>
           <p class="enterprise-page-hero__desc">
-            聚合查看检查日期、对应任务以及关联整改任务状态。
+            集中查看检查日期、对应任务以及关联整改任务状态。
           </p>
         </div>
         <div class="enterprise-stat-pill-group">
@@ -128,7 +128,7 @@
                 </tr>
               </tbody>
             </table>
-            <EnterpriseEmptyState v-else title="暂无检查记录" description="检查记录同步后会展示在这里。" />
+            <EnterpriseEmptyState v-else title="暂无检查记录" description="检查记录同步后会显示在这里。" />
           </div>
 
           <div class="enterprise-inspections-pagination">
@@ -169,6 +169,7 @@ import { fetchEnterpriseInspectionRecords } from "../../api/regulationOperation"
 import EnterpriseEmptyState from "../../components/enterprise/EnterpriseEmptyState.vue";
 import EnterpriseWorkspacePage from "../../components/enterprise/EnterpriseWorkspacePage.vue";
 import { formatTime } from "../../utils/formatters";
+import { resolveErrorMessage } from "../../utils/uiFeedback";
 import { formatInspectionResult, formatRectificationStatus, useEnterpriseShellSession } from "./enterpriseShared";
 
 const { enterpriseUser, token, handleSidebarNavigate, handleLogout } = useEnterpriseShellSession();
@@ -222,12 +223,12 @@ function toggleDateFilters() {
 
 function inspectionDateParts(record) {
   const rawDate = record?.inspectionDate ? String(record.inspectionDate) : "";
-  const time = record?.updateTime ? formatTime(record.updateTime).split(" ").slice(-1)[0] : "—";
-  return { date: rawDate || "—", time: time || "—" };
+  const time = record?.updateTime ? formatTime(record.updateTime).split(" ").slice(-1)[0] : "-";
+  return { date: rawDate || "-", time: time || "-" };
 }
 
 function inspectionTaskId(record) {
-  return String(record?.taskNo || "").trim() || `INS-${record?.id ?? "—"}`;
+  return String(record?.taskNo || "").trim() || `INS-${record?.id ?? "-"}`;
 }
 
 function inspectionTaskType(record) {
@@ -235,7 +236,7 @@ function inspectionTaskType(record) {
 }
 
 function inspectionSummary(record) {
-  return String(record?.problemDesc || "").trim() || "—";
+  return String(record?.problemDesc || "").trim() || "-";
 }
 
 function rectificationStatusText(record) {
@@ -274,7 +275,7 @@ async function loadInspections() {
     inspectionSize.value = size;
     inspectionPages.value = Number(data.pages) > 0 ? Number(data.pages) : Math.max(1, Math.ceil(inspectionTotal.value / size));
   } catch (error) {
-    setStatus(error.message || "加载检查记录失败", "error");
+    setStatus(resolveErrorMessage(error, "加载检查记录失败，请稍后重试。"), "error");
   } finally {
     inspectionLoading.value = false;
   }

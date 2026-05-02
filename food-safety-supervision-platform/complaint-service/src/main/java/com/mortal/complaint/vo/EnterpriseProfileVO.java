@@ -5,7 +5,7 @@ import java.util.List;
 import lombok.Data;
 
 /**
- * 浼佷笟姒傚喌VO
+ * 企业概况VO
  */
 @Data
 public class EnterpriseProfileVO {

@@ -64,12 +64,13 @@
 
             <section class="sd-card">
               <h3 class="sd-card__h"><span class="sd-card__icon">⟲</span>审计追踪与历史</h3>
-              <div class="sd-timeline">
-                <div v-for="(ev, idx) in timeline" :key="idx" class="sd-timeline__item">
+              <div v-if="timeline.length" class="sd-timeline">
+                <div v-for="(ev, idx) in timeline" :key="ev.key || idx" class="sd-timeline__item">
                   <span class="sd-timeline__dot" :class="ev.dotClass" />
                   <div><div class="sd-timeline__title">{{ ev.title }}</div><div class="sd-timeline__sub">{{ ev.sub }}</div></div>
                 </div>
               </div>
+              <div v-else class="sd-timeline-empty">暂无操作日志</div>
             </section>
           </div>
 
@@ -125,10 +126,11 @@
 <script setup>
 import { computed, reactive, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
-import { findSamplingTaskById, offlineSamplingResult, publishSamplingResult } from "../../api/regulationOperation";
+import { fetchOperationAuditLogs, findSamplingTaskById, offlineSamplingResult, publishSamplingResult } from "../../api/regulationOperation";
 import { fetchEnterpriseDetail, fetchRegionPath } from "../../api/regulation";
 import RegulatorAdminWorkspacePage from "../../components/regulatorAdmin/RegulatorAdminWorkspacePage.vue";
 import { formatTime } from "../../utils/formatters";
+import { formatStatusLabel, inspectionResultMap, samplingPublicStatusMap } from "../../utils/statusMaps";
 import { useRegulatorAdminShellSession } from "./regulatorAdminShared";
 
 const route = useRoute();
@@ -140,21 +142,21 @@ const loadError = ref("");
 const task = ref(null);
 const enterprise = ref(null);
 const regionLabel = ref("—");
+const auditLogs = ref([]);
 const actionLoading = ref(false);
-const samplingPublicStatusMap = { DRAFT: "草稿", PUBLISHED: "已公示", OFFLINE: "已下线" };
-const inspectionResultMap = { PASS: "合格", FAIL: "不合格" };
 function setStatus(message, type = "info") { status.message = message; status.type = type; }
-function formatSamplingPublicStatus(value) { if (!value) return "草稿"; return samplingPublicStatusMap[value] || value; }
-function formatInspectionResult(value) { if (!value) return "待处理"; return inspectionResultMap[value] || value || "—"; }
+function formatSamplingPublicStatus(value) { if (!value) return "草稿"; return formatStatusLabel(value, samplingPublicStatusMap); }
+function formatInspectionResult(value) { if (!value) return "待处理"; return formatStatusLabel(value, inspectionResultMap, "—"); }
 function resultPillClass(value) { if (value === "PASS") return "is-pass"; if (value === "FAIL") return "is-fail"; return "is-pending"; }
 const timeline = computed(() => {
   const t = task.value; if (!t) return [];
-  const rows = [{ title: "任务创建", sub: `${formatTime(t.createTime)}${t.createdByName ? ` · ${t.createdByName}` : ""}`, dotClass: "is-on" }];
-  if (t.assignedTime) rows.push({ title: "任务指派", sub: `${formatTime(t.assignedTime)}${t.assignedByName ? ` · ${t.assignedByName}` : ""}`, dotClass: "is-on" });
-  if (t.sampledTime) rows.push({ title: "采样完成", sub: `${formatTime(t.sampledTime)}${t.assignedToName ? ` · ${t.assignedToName}` : ""}`, dotClass: "is-on" });
-  if (t.samplingResult) rows.push({ title: `检测结果上传 — ${formatInspectionResult(t.samplingResult)}`, sub: t.updateTime ? formatTime(t.updateTime) : "—", dotClass: t.samplingResult === "FAIL" ? "is-alert" : "is-on" });
-  rows.push({ title: "公示状态", sub: `${formatSamplingPublicStatus(t.samplingPublicStatus)}${t.samplingPublishedTime ? ` · ${formatTime(t.samplingPublishedTime)}` : ""}`, dotClass: "is-muted" });
-  return rows;
+  if (!auditLogs.value.length) return [];
+  return auditLogs.value.map((item, index) => ({
+    key: `${item.targetType || "target"}-${item.id || index}`,
+    title: formatSamplingAuditTitle(item),
+    sub: `${formatTime(item.createTime)}${item.operatorName ? ` · ${item.operatorName}` : ""}`,
+    dotClass: samplingAuditDotClass(item)
+  }));
 });
 const planLines = computed(() => {
   const t = task.value; if (!t) return ["加载中…"];
@@ -163,12 +165,21 @@ const planLines = computed(() => {
   return ["待执法人员提交抽检结果后生成处置建议。"];
 });
 async function loadDetail() {
+  auditLogs.value = [];
   pageLoading.value = true; loadError.value = ""; task.value = null; enterprise.value = null; regionLabel.value = "—"; setStatus("");
   const id = route.params.taskId; if (!id) { loadError.value = "缺少任务 ID"; pageLoading.value = false; return; }
   try {
     const row = await findSamplingTaskById(token.value, id);
     if (!row) { loadError.value = "未找到该抽检任务，请从列表重新进入。"; return; }
     task.value = row;
+    const [taskLogs, resultLogs] = await Promise.all([
+      fetchOperationAuditLogs(token.value, "SAMPLING_TASK", row.id, 12).catch(() => []),
+      row.samplingResultId
+        ? fetchOperationAuditLogs(token.value, "SAMPLING_RESULT", row.samplingResultId, 12).catch(() => [])
+        : Promise.resolve([])
+    ]);
+    auditLogs.value = [...taskLogs, ...resultLogs]
+      .sort((a, b) => new Date(b.createTime || 0).getTime() - new Date(a.createTime || 0).getTime());
     if (row.enterpriseId) {
       try {
         const ent = await fetchEnterpriseDetail(token.value, row.enterpriseId);
@@ -194,6 +205,20 @@ async function handleOffline() {
   catch (e) { setStatus(e?.message || "下线失败", "error"); } finally { actionLoading.value = false; }
 }
 function goList() { router.push({ name: "regulator-admin-sampling" }).catch(() => {}); }
+function formatSamplingAuditTitle(item) {
+  const actionType = String(item?.actionType || "").toUpperCase();
+  if (actionType === "SAMPLING_ASSIGN") return "任务分派";
+  if (actionType === "SAMPLING_RESULT_SUBMIT") return "提交抽检结果";
+  if (actionType === "SAMPLING_RESULT_PUBLISH") return "结果公示";
+  if (actionType === "SAMPLING_RESULT_OFFLINE") return "结果下线";
+  return item?.actionName || item?.actionType || "抽检任务日志";
+}
+function samplingAuditDotClass(item) {
+  const actionType = String(item?.actionType || "").toUpperCase();
+  if (actionType === "SAMPLING_RESULT_OFFLINE") return "is-muted";
+  if (String(item?.summary || "").includes("FAIL")) return "is-alert";
+  return "is-on";
+}
 watch(() => route.params.taskId, () => loadDetail(), { immediate: true });
 </script>
 
@@ -257,6 +282,7 @@ watch(() => route.params.taskId, () => loadDetail(), { immediate: true });
 .sd-timeline__dot.is-muted { background: #cbd5e1; }
 .sd-timeline__title { font-size: 12px; font-weight: 800; color: #0f172a; }
 .sd-timeline__sub { font-size: 10px; color: #64748b; margin-top: 4px; }
+.sd-timeline-empty { color: #64748b; font-size: 12px; padding: 4px 0; }
 .sd-pub { display: flex; justify-content: space-between; align-items: center; gap: 20px; flex-wrap: wrap; padding: 28px 32px; border-radius: 12px; background: linear-gradient(135deg, #002660 0%, #003a8c 100%); color: #fff; box-shadow: 0 12px 28px rgba(0, 38, 96, 0.28); }
 .sd-pub__badge { display: inline-flex; align-items: center; gap: 8px; padding: 6px 10px; background: rgba(255, 255, 255, 0.12); border-radius: 6px; font-size: 10px; font-weight: 900; letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 12px; }
 .sd-pub__pulse { width: 8px; height: 8px; border-radius: 50%; background: #fff; animation: sd-pulse 1.8s ease-in-out infinite; }

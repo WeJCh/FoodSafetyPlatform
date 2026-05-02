@@ -5,7 +5,6 @@
     search-placeholder="全局搜索人员或辖区..."
     @navigate="handleSidebarNavigate"
     @logout="handleLogout"
-    @pending-feature="onPendingFeature"
   >
     <section class="sys-admin-create-page">
       <header class="sys-admin-create-page__header">
@@ -15,15 +14,15 @@
           <span class="is-current">新建监管人员</span>
         </nav>
         <h1>新建监管人员</h1>
-        <p>创建新的监管账号并完善基础档案信息</p>
+        <p>创建新的监管账号，并补全基础档案信息。</p>
       </header>
 
       <section class="sys-admin-stepper">
-        <div class="step is-active"><span>1</span><strong>基础信息录入</strong></div>
+        <div class="step is-active"><span>1</span><strong>填写基础信息</strong></div>
         <div class="line is-active"></div>
-        <div class="step"><span>2</span><strong>核对信息</strong></div>
+        <div class="step"><span>2</span><strong>确认提交信息</strong></div>
         <div class="line"></div>
-        <div class="step"><span>3</span><strong>完成</strong></div>
+        <div class="step"><span>3</span><strong>创建完成</strong></div>
       </section>
 
       <div class="sys-admin-create-layout">
@@ -33,8 +32,8 @@
               <h2><span class="material-symbols-outlined">account_circle</span>账号信息</h2>
               <div class="grid2">
                 <label>
-                  <span>用户名</span>
-                  <input v-model.trim="regulatorForm.username" required type="text" placeholder="请输入账号登录名" />
+                  <span>登录账号</span>
+                  <input v-model.trim="regulatorForm.username" required type="text" placeholder="请输入登录账号" />
                 </label>
                 <label>
                   <span>初始密码</span>
@@ -43,7 +42,7 @@
                 <div class="full-row account-switch">
                   <div>
                     <strong>账号状态</strong>
-                    <p>默认启用，创建后可立即登录系统执行任务</p>
+                    <p>新建完成后默认启用，可直接登录系统继续工作。</p>
                   </div>
                   <span class="enabled-chip">默认启用</span>
                 </div>
@@ -55,7 +54,7 @@
               <div class="grid2">
                 <label>
                   <span>姓名</span>
-                  <input v-model.trim="regulatorForm.name" required type="text" placeholder="真实姓名" />
+                  <input v-model.trim="regulatorForm.name" required type="text" placeholder="请输入真实姓名" />
                 </label>
                 <label>
                   <span>手机号</span>
@@ -77,15 +76,15 @@
                 <label class="role-card" :class="{ active: regulatorForm.roleType === 'REGULATOR_ADMIN' }">
                   <input v-model="regulatorForm.roleType" type="radio" value="REGULATOR_ADMIN" />
                   <div>
-                    <strong>区域管理员</strong>
-                    <p>具备辖区内全量数据管理权限与人员调配权</p>
+                    <strong>监管管理员</strong>
+                    <p>负责辖区内综合管理、任务协调与人员调度。</p>
                   </div>
                 </label>
                 <label class="role-card" :class="{ active: regulatorForm.roleType === 'REGULATOR_ENFORCER' }">
                   <input v-model="regulatorForm.roleType" type="radio" value="REGULATOR_ENFORCER" />
                   <div>
-                    <strong>执法人员</strong>
-                    <p>执行现场核查、采样及简易处罚权限</p>
+                    <strong>监管执法人员</strong>
+                    <p>负责现场检查、抽检执行与证据采集等工作。</p>
                   </div>
                 </label>
               </div>
@@ -115,7 +114,7 @@
             <footer class="form-actions">
               <button type="button" class="btn-secondary" @click="handleSidebarNavigate('list')">取消</button>
               <button type="submit" class="btn-primary" :disabled="loading">
-                {{ loading ? "处理中..." : "下一步：核对信息" }}
+                {{ loading ? "处理中..." : "下一步：确认信息" }}
                 <span class="material-symbols-outlined">arrow_forward</span>
               </button>
             </footer>
@@ -124,22 +123,22 @@
 
         <aside class="side-col">
           <section class="notice-card">
-            <h3>创建须知</h3>
+            <h3>创建说明</h3>
             <ul>
-              <li>监管人员账号必须关联真实的行政执法证编号。</li>
-              <li>初始密码会在首次登录时强制要求修改。</li>
-              <li>辖区确认后跨区跨级操作需由上级管理员授权。</li>
+              <li>监管账号应与实际岗位和辖区保持一致。</li>
+              <li>初始密码建议在首次登录后立即修改。</li>
+              <li>角色与辖区一旦提交，后续应通过编辑流程调整。</li>
             </ul>
           </section>
 
           <section class="log-card">
-            <h4>操作记录</h4>
+            <h4>当前操作</h4>
             <div class="log-item">
-              <strong>创建会话已开启</strong>
+              <strong>创建会话已开始</strong>
               <small>{{ nowText }}</small>
             </div>
             <div class="log-item muted">
-              <strong>等待表单提交...</strong>
+              <strong>等待表单提交</strong>
             </div>
           </section>
         </aside>
@@ -155,10 +154,8 @@ import { onMounted, reactive, ref } from "vue";
 import { useRouter } from "vue-router";
 import { fetchRegions } from "../../api/regulation";
 import SystemAdminWorkspacePage from "../../components/systemAdmin/SystemAdminWorkspacePage.vue";
-import {
-  systemAdminFeaturePendingNotice,
-  useSystemAdminShellSession
-} from "./systemAdminShared";
+import { resolveErrorMessage } from "../../utils/uiFeedback";
+import { useSystemAdminShellSession } from "./systemAdminShared";
 
 const { adminUser, token, handleSidebarNavigate, handleLogout } = useSystemAdminShellSession();
 const router = useRouter();
@@ -176,10 +173,6 @@ const regulatorForm = reactive({
 const regulatorRegions = reactive({ provinces: [], cities: [], counties: [], streets: [] });
 const regulatorRegion = reactive({ provinceId: "", cityId: "", countyId: "", streetId: "" });
 
-function onPendingFeature(title) {
-  systemAdminFeaturePendingNotice(title);
-}
-
 function setStatus(message, type = "info") {
   status.message = message;
   status.type = type;
@@ -189,7 +182,7 @@ async function loadRegulatorRegions(parentId, targetKey) {
   try {
     regulatorRegions[targetKey] = await fetchRegions(token.value, parentId);
   } catch (error) {
-    setStatus(error.message || "加载行政区失败", "error");
+    setStatus(resolveErrorMessage(error, "加载行政区失败"), "error");
   }
 }
 
@@ -243,7 +236,7 @@ async function loadProvinces() {
   try {
     regulatorRegions.provinces = await fetchRegions(token.value, null);
   } catch (error) {
-    setStatus(error.message || "加载行政区失败", "error");
+    setStatus(resolveErrorMessage(error, "加载行政区失败"), "error");
   }
 }
 
@@ -260,11 +253,12 @@ async function goConfirm() {
     const regionId = resolveRegulatorRegionIdByRole();
     if (!regionId) {
       setStatus(
-        regulatorForm.roleType === "REGULATOR_ADMIN" ? "区域管理员需选择区/县级辖区" : "执法人员需选择街道级辖区",
+        regulatorForm.roleType === "REGULATOR_ADMIN" ? "监管管理员需选择区县级辖区" : "监管执法人员需选择街道级辖区",
         "error"
       );
       return;
     }
+
     const draft = {
       username: regulatorForm.username.trim(),
       password: regulatorForm.password,
@@ -276,7 +270,7 @@ async function goConfirm() {
     sessionStorage.setItem("sysAdminCreateRegulatorDraft", JSON.stringify(draft));
     router.push({ name: "admin-regulator-create-confirm" });
   } catch (error) {
-    setStatus(error.message || "信息校验失败", "error");
+    setStatus(resolveErrorMessage(error, "信息校验失败"), "error");
   } finally {
     loading.value = false;
   }

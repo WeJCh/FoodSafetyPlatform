@@ -107,7 +107,7 @@ gateway:
       ip-window-seconds: ${GATEWAY_LOGIN_RATE_LIMIT_IP_WINDOW_SECONDS:60}
       ip-max-requests: ${GATEWAY_LOGIN_RATE_LIMIT_IP_MAX_REQUESTS:10}
       user-window-seconds: ${GATEWAY_LOGIN_RATE_LIMIT_USER_WINDOW_SECONDS:600}
-      user-max-requests: ${GATEWAY_LOGIN_RATE_LIMIT_USER_MAX_REQUESTS:5}
+      user-max-requests: ${GATEWAY_LOGIN_RATE_LIMIT_USER_MAX_REQUESTS:10}
 
 platform:
   redis:

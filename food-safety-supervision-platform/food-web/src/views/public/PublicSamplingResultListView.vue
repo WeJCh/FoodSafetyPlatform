@@ -23,16 +23,10 @@
             <input
               v-model.trim="filters.enterpriseName"
               type="text"
-              placeholder="搜索抽检企业..."
+              placeholder="搜索抽检企业"
               @keyup.enter="handleSearch"
             />
           </label>
-          <button type="button" class="public-sampling-results-page__icon-btn" @click="onFeaturePending('通知中心')">
-            <span class="material-symbols-outlined" aria-hidden="true">notifications</span>
-          </button>
-          <button type="button" class="public-sampling-results-page__icon-btn" @click="onFeaturePending('个人中心')">
-            <span class="material-symbols-outlined" aria-hidden="true">account_circle</span>
-          </button>
           <button type="button" class="ghost public-sampling-results-page__logout" @click="handleLogout">退出登录</button>
         </div>
       </div>
@@ -60,10 +54,10 @@
           </label>
           <label>
             <span>产品名称</span>
-            <input v-model.trim="filters.productName" type="text" placeholder="支持全库模糊匹配" @keyup.enter="handleSearch" />
+            <input v-model.trim="filters.productName" type="text" placeholder="支持模糊匹配" @keyup.enter="handleSearch" />
           </label>
           <div class="public-sampling-results-page__filters-actions">
-            <button type="button" :disabled="loading" @click="handleSearch">{{ loading ? "查询中…" : "查询" }}</button>
+            <button type="button" :disabled="loading" @click="handleSearch">{{ loading ? "查询中..." : "查询" }}</button>
             <button type="button" class="ghost" @click="resetFilters">重置</button>
           </div>
         </div>
@@ -77,7 +71,14 @@
           <span>抽检结果</span>
           <span>操作</span>
         </div>
-        <div v-if="!records.length" class="public-sampling-results-page__empty">{{ emptyMessage }}</div>
+
+        <AppEmptyState
+          v-if="!records.length"
+          :title="emptyTitle"
+          :description="emptyDescription"
+          class="public-sampling-results-page__empty-state"
+        />
+
         <div v-for="item in records" :key="item.id" class="public-sampling-results-page__row">
           <div class="public-sampling-results-page__col-main">
             <strong>{{ item.enterpriseName || "-" }}</strong>
@@ -92,9 +93,7 @@
             <p><span>公示</span>{{ formatDateShort(item.publishedTime || item.updateTime) }}</p>
           </div>
           <div class="public-sampling-results-page__col-status">
-            <i class="public-sampling-results-page__status" :class="item.result === 'FAIL' ? 'is-risk' : 'is-normal'">
-              {{ formatResult(item.result) }}
-            </i>
+            <AppStatusTag :label="formatResult(item.result)" :tone="item.result === 'FAIL' ? 'danger' : 'success'" />
           </div>
           <div class="public-sampling-results-page__col-action">
             <button type="button" @click="viewResult(item)">查看详情</button>
@@ -115,17 +114,22 @@
         </div>
       </section>
 
-      <div v-if="status.message" class="status" :class="status.type">{{ status.message }}</div>
+      <AppStatusToast :message="status.message" :type="status.type" />
     </main>
   </div>
 </template>
 
 <script setup>
-import { computed, onMounted, reactive, ref } from "vue";
-import { useRouter } from "vue-router";
+import { computed, onMounted, reactive, ref, watch } from "vue";
+import { useRoute, useRouter } from "vue-router";
+import AppEmptyState from "../../components/common/AppEmptyState.vue";
+import AppStatusTag from "../../components/common/AppStatusTag.vue";
+import AppStatusToast from "../../components/common/AppStatusToast.vue";
 import { fetchPublicSamplingResults } from "../../api/regulationOperation";
 import { getActiveSession, performLogout } from "../../session/authRuntime";
+import { resolveErrorMessage } from "../../utils/uiFeedback";
 
+const route = useRoute();
 const router = useRouter();
 const publicToken = getActiveSession()?.token || "";
 const filters = reactive({ enterpriseName: "", productName: "", result: "" });
@@ -167,14 +171,12 @@ const pagerSummary = computed(() => {
   return `显示 ${pagerStart.value} 到 ${pagerEnd.value} 条，共 ${total.value} 条记录`;
 });
 
-const emptyMessage = computed(() => "暂无已公示抽检结果");
+const hasFilters = computed(() => Boolean(filters.enterpriseName.trim() || filters.productName.trim() || filters.result));
+const emptyTitle = computed(() => (hasFilters.value ? "暂无符合条件的抽检结果" : "暂无抽检结果"));
+const emptyDescription = computed(() => (hasFilters.value ? "可以调整企业名称、产品名称或结果筛选后再试。" : "已公示的抽检结果会展示在这里。"));
 
 function goTo(name) {
   router.push({ name }).catch(() => {});
-}
-
-function onFeaturePending(name) {
-  window.alert(`${name} 功能待后续完善`);
 }
 
 async function handleLogout() {
@@ -182,7 +184,7 @@ async function handleLogout() {
   router.replace({ name: "login" }).catch(() => {});
 }
 
-function setStatus(message, type = "info") {
+function setStatus(message = "", type = "info") {
   status.message = message;
   status.type = type;
 }
@@ -231,14 +233,32 @@ async function loadResults() {
     pages.value = data.pages || 1;
   } catch (error) {
     records.value = [];
-    setStatus(error.message || "加载抽检结果失败", "error");
+    setStatus(resolveErrorMessage(error, "抽检结果加载失败，请稍后重试"), "error");
   } finally {
     loading.value = false;
   }
 }
 
+function syncRouteQuery() {
+  const nextQuery = {};
+  if (filters.enterpriseName.trim()) nextQuery.enterpriseName = filters.enterpriseName.trim();
+  if (filters.productName.trim()) nextQuery.productName = filters.productName.trim();
+  if (filters.result) nextQuery.result = filters.result;
+  router.replace({ query: nextQuery }).catch(() => {});
+}
+
+function applyRouteQuery() {
+  const nextEnterpriseName = typeof route.query.enterpriseName === "string" ? route.query.enterpriseName.trim() : "";
+  const nextProductName = typeof route.query.productName === "string" ? route.query.productName.trim() : "";
+  const nextResult = typeof route.query.result === "string" ? route.query.result.trim().toUpperCase() : "";
+  filters.enterpriseName = nextEnterpriseName;
+  filters.productName = nextProductName;
+  filters.result = nextResult === "PASS" || nextResult === "FAIL" ? nextResult : "";
+}
+
 function handleSearch() {
   page.value = 1;
+  syncRouteQuery();
   loadResults();
 }
 
@@ -247,6 +267,7 @@ function resetFilters() {
   filters.productName = "";
   filters.result = "";
   page.value = 1;
+  syncRouteQuery();
   loadResults();
 }
 
@@ -259,15 +280,32 @@ function viewResult(item) {
   if (!item?.id) {
     return;
   }
+  const nextQuery = {};
+  if (filters.enterpriseName.trim()) nextQuery.enterpriseName = filters.enterpriseName.trim();
+  if (filters.productName.trim()) nextQuery.productName = filters.productName.trim();
+  if (filters.result) nextQuery.result = filters.result;
   router
     .push({
       name: "public-sampling-result-detail",
-      params: { samplingResultId: item.id }
+      params: { samplingResultId: item.id },
+      query: nextQuery
     })
     .catch(() => {});
 }
 
-onMounted(loadResults);
+onMounted(() => {
+  applyRouteQuery();
+  loadResults();
+});
+
+watch(
+  () => [route.query.enterpriseName, route.query.productName, route.query.result],
+  () => {
+    applyRouteQuery();
+    page.value = 1;
+    loadResults();
+  }
+);
 </script>
 
 <style scoped>
@@ -353,16 +391,6 @@ onMounted(loadResults);
   min-width: var(--public-toolbar-input-min-w);
 }
 
-.public-sampling-results-page__icon-btn {
-  width: 34px;
-  height: 34px;
-  border-radius: 8px;
-  border: 1px solid transparent;
-  background: transparent;
-  color: var(--on-surface-variant);
-  cursor: pointer;
-}
-
 .public-sampling-results-page__logout {
   min-height: var(--public-toolbar-min-h);
   font-size: var(--public-text-md);
@@ -438,13 +466,6 @@ onMounted(loadResults);
   color: #243047;
 }
 
-.public-sampling-results-page__filters input:focus,
-.public-sampling-results-page__filters select:focus {
-  outline: none;
-  border-color: #7393d7;
-  box-shadow: none;
-}
-
 .public-sampling-results-page__filters-actions {
   display: inline-flex;
   gap: 8px;
@@ -463,15 +484,6 @@ onMounted(loadResults);
 .public-sampling-results-page__filters-actions button:first-child {
   background: #0a3d86;
   color: #fff;
-}
-
-.public-sampling-results-page__filters-actions button:first-child:hover:not(:disabled) {
-  background: #124898;
-}
-
-.public-sampling-results-page__filters-actions button:first-child:disabled {
-  opacity: 0.65;
-  cursor: not-allowed;
 }
 
 .public-sampling-results-page__filters-actions button.ghost {
@@ -550,32 +562,6 @@ onMounted(loadResults);
   font-weight: 600;
 }
 
-.public-sampling-results-page__status {
-  display: inline-flex;
-  min-height: var(--public-chip-min-h);
-  align-items: center;
-  justify-content: center;
-  padding: 0 12px;
-  border-radius: 999px;
-  font-size: var(--public-caption);
-  font-weight: 800;
-  border: 1px solid transparent;
-  white-space: nowrap;
-  font-style: normal;
-}
-
-.public-sampling-results-page__status.is-normal {
-  background: rgba(33, 156, 84, 0.1);
-  color: #1f6e45;
-  border-color: rgba(33, 156, 84, 0.2);
-}
-
-.public-sampling-results-page__status.is-risk {
-  background: rgba(186, 26, 26, 0.12);
-  color: #93000a;
-  border-color: rgba(186, 26, 26, 0.24);
-}
-
 .public-sampling-results-page__col-action button {
   border: 1px solid rgba(70, 89, 231, 0.24);
   background: rgba(70, 89, 231, 0.06);
@@ -588,16 +574,8 @@ onMounted(loadResults);
   padding: 0 14px;
 }
 
-.public-sampling-results-page__col-action button:hover {
-  background: rgba(70, 89, 231, 0.12);
-}
-
-.public-sampling-results-page__empty {
-  padding: 28px 22px;
-  text-align: center;
-  color: var(--on-surface-variant);
-  font-size: var(--public-body);
-  line-height: 1.55;
+.public-sampling-results-page__empty-state {
+  margin: 20px;
 }
 
 .public-sampling-results-page__pager {
@@ -635,16 +613,6 @@ onMounted(loadResults);
   cursor: pointer;
   font-size: var(--public-text-md);
   font-weight: 700;
-  transition:
-    background-color 120ms ease,
-    border-color 120ms ease,
-    color 120ms ease;
-}
-
-.public-sampling-results-page__pager button:hover:not(:disabled):not(.is-active) {
-  border-color: rgba(0, 38, 96, 0.22);
-  color: var(--primary);
-  background: #fff;
 }
 
 .public-sampling-results-page__pager button.is-active {

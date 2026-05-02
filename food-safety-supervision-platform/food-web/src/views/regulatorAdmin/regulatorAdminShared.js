@@ -15,10 +15,6 @@ export const regulatorAdminNavItems = [
   { key: "stats", label: "统计分析", icon: "analytics", routeName: "regulator-admin-stats", subtitle: "监管统计看板" }
 ];
 
-export function regulatorFeaturePendingNotice(featureTitle) {
-  window.alert(`${featureTitle}\n\nTODO: 当前后端未提供该能力，先保留 UI 占位。`);
-}
-
 export function useRegulatorAdminShellSession() {
   const router = useRouter();
   const session = computed(() => getActiveSession() || {});

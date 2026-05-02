@@ -2,6 +2,8 @@ package com.mortal.regulation.operation.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.mortal.platform.common.PageResult;
 import com.mortal.regulation.operation.client.regulation.vo.InternalEnterpriseDetailVO;
 import com.mortal.regulation.operation.client.regulation.vo.InternalProductDetailVO;
@@ -16,6 +18,7 @@ import com.mortal.regulation.operation.entity.SamplingResult;
 import com.mortal.regulation.operation.entity.SamplingTask;
 import com.mortal.regulation.operation.mapper.SamplingResultMapper;
 import com.mortal.regulation.operation.mapper.SamplingTaskMapper;
+import com.mortal.regulation.operation.service.AuditLogService;
 import com.mortal.regulation.operation.service.SamplingTaskService;
 import com.mortal.regulation.operation.service.WarningEventOutboxService;
 import com.mortal.regulation.operation.support.OperationLockSupport;
@@ -26,6 +29,7 @@ import com.mortal.regulation.operation.vo.SamplingTaskVO;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -58,6 +62,12 @@ public class SamplingTaskServiceImpl implements SamplingTaskService {
     private static final String WARNING_BIZ_TYPE_SAMPLING = "SAMPLING";
     private static final String WARNING_EVENT_SAMPLING_FAIL = "SAMPLING_FAIL";
     private static final String WARNING_SOURCE_SERVICE = "regulation-operation-service";
+    private static final String TARGET_TYPE_SAMPLING_TASK = "SAMPLING_TASK";
+    private static final String TARGET_TYPE_SAMPLING_RESULT = "SAMPLING_RESULT";
+    private static final String ACTION_SAMPLING_ASSIGN = "SAMPLING_ASSIGN";
+    private static final String ACTION_SAMPLING_RESULT_SUBMIT = "SAMPLING_RESULT_SUBMIT";
+    private static final String ACTION_SAMPLING_RESULT_PUBLISH = "SAMPLING_RESULT_PUBLISH";
+    private static final String ACTION_SAMPLING_RESULT_OFFLINE = "SAMPLING_RESULT_OFFLINE";
 
     private final SamplingTaskMapper samplingTaskMapper;
     private final SamplingResultMapper samplingResultMapper;
@@ -65,19 +75,25 @@ public class SamplingTaskServiceImpl implements SamplingTaskService {
     private final OperationLockSupport operationLockSupport;
     private final SamplingPublicCacheService samplingPublicCacheService;
     private final WarningEventOutboxService warningEventOutboxService;
+    private final AuditLogService auditLogService;
+    private final ObjectMapper objectMapper;
 
     public SamplingTaskServiceImpl(SamplingTaskMapper samplingTaskMapper,
                                    SamplingResultMapper samplingResultMapper,
                                    OperationMasterDataSupport masterDataSupport,
                                    OperationLockSupport operationLockSupport,
                                    SamplingPublicCacheService samplingPublicCacheService,
-                                   WarningEventOutboxService warningEventOutboxService) {
+                                   WarningEventOutboxService warningEventOutboxService,
+                                   AuditLogService auditLogService,
+                                   ObjectMapper objectMapper) {
         this.samplingTaskMapper = samplingTaskMapper;
         this.samplingResultMapper = samplingResultMapper;
         this.masterDataSupport = masterDataSupport;
         this.operationLockSupport = operationLockSupport;
         this.samplingPublicCacheService = samplingPublicCacheService;
         this.warningEventOutboxService = warningEventOutboxService;
+        this.auditLogService = auditLogService;
+        this.objectMapper = objectMapper;
     }
     /**
      * 创建抽检任务
@@ -129,6 +145,7 @@ public class SamplingTaskServiceImpl implements SamplingTaskService {
     public SamplingTaskVO assignTask(Long userId, Long taskId, SamplingTaskAssignDTO dto) {
         InternalRegulatorIdentityVO operator = masterDataSupport.requireAdmin(userId);
         SamplingTask task = requireTask(taskId);
+        SamplingTask before = copyTask(task);
         ensureTaskNotExpired(task, "assign");
         if (STATUS_COMPLETED.equals(task.getStatus()) || STATUS_CLOSED.equals(task.getStatus())) {
             throw new IllegalArgumentException("task already completed");
@@ -144,6 +161,8 @@ public class SamplingTaskServiceImpl implements SamplingTaskService {
         task.setStatus(STATUS_ASSIGNED);
         task.setUpdateTime(LocalDateTime.now());
         samplingTaskMapper.updateById(task);
+        recordSamplingTaskAudit(userId, operator.getName(), ACTION_SAMPLING_ASSIGN, before, task,
+            "assignedTo=" + assignee.getId());
         return toVO(task,
             loadEnterpriseNames(List.of(task)),
             loadProductSummaries(List.of(task)),
@@ -256,6 +275,8 @@ public class SamplingTaskServiceImpl implements SamplingTaskService {
         result.setUpdateTime(LocalDateTime.now());
         result.setDeleted(0);
         samplingResultMapper.insert(result);
+        recordSamplingResultAudit(userId, regulator.getName(), ACTION_SAMPLING_RESULT_SUBMIT, null, result,
+            "taskId=" + task.getId());
         samplingPublicCacheService.evict(result.getId());
 
         if (RESULT_FAIL.equals(result.getResult())) {
@@ -277,6 +298,7 @@ public class SamplingTaskServiceImpl implements SamplingTaskService {
     public SamplingResultVO publishResult(Long userId, Long resultId) {
         InternalRegulatorIdentityVO regulator = masterDataSupport.requireAdmin(userId);
         SamplingResult result = requireResult(resultId);
+        SamplingResult before = copyResult(result);
         SamplingTask task = requireTask(result.getTaskId());
         masterDataSupport.requireRegionInScope(regulator.getId(), task.getRegionId());
         if (!PUBLIC_STATUS_PUBLISHED.equalsIgnoreCase(result.getPublicStatus())) {
@@ -284,6 +306,7 @@ public class SamplingTaskServiceImpl implements SamplingTaskService {
             result.setPublishedTime(LocalDateTime.now());
             result.setUpdateTime(LocalDateTime.now());
             samplingResultMapper.updateById(result);
+            recordSamplingResultAudit(userId, regulator.getName(), ACTION_SAMPLING_RESULT_PUBLISH, before, result, null);
             samplingPublicCacheService.evict(resultId);
         }
         return toResultVO(result, task,
@@ -296,6 +319,7 @@ public class SamplingTaskServiceImpl implements SamplingTaskService {
     public SamplingResultVO offlineResult(Long userId, Long resultId) {
         InternalRegulatorIdentityVO regulator = masterDataSupport.requireAdmin(userId);
         SamplingResult result = requireResult(resultId);
+        SamplingResult before = copyResult(result);
         SamplingTask task = requireTask(result.getTaskId());
         masterDataSupport.requireRegionInScope(regulator.getId(), task.getRegionId());
         if (!PUBLIC_STATUS_PUBLISHED.equalsIgnoreCase(result.getPublicStatus())) {
@@ -304,6 +328,7 @@ public class SamplingTaskServiceImpl implements SamplingTaskService {
         result.setPublicStatus(PUBLIC_STATUS_OFFLINE);
         result.setUpdateTime(LocalDateTime.now());
         samplingResultMapper.updateById(result);
+        recordSamplingResultAudit(userId, regulator.getName(), ACTION_SAMPLING_RESULT_OFFLINE, before, result, null);
         samplingPublicCacheService.evict(resultId);
         return toResultVO(result, task,
             loadEnterpriseNames(List.of(task)),
@@ -792,5 +817,127 @@ public class SamplingTaskServiceImpl implements SamplingTaskService {
 
     private boolean isDeleted(Integer deleted) {
         return deleted != null && deleted == 1;
+    }
+
+    private SamplingResult copyResult(SamplingResult result) {
+        SamplingResult copy = new SamplingResult();
+        copy.setId(result.getId());
+        copy.setTaskId(result.getTaskId());
+        copy.setEnterpriseId(result.getEnterpriseId());
+        copy.setProductId(result.getProductId());
+        copy.setSampledBy(result.getSampledBy());
+        copy.setSampledTime(result.getSampledTime());
+        copy.setResult(result.getResult());
+        copy.setConclusion(result.getConclusion());
+        copy.setDisposalSuggestion(result.getDisposalSuggestion());
+        copy.setPublicStatus(result.getPublicStatus());
+        copy.setPublishedTime(result.getPublishedTime());
+        copy.setCreateTime(result.getCreateTime());
+        copy.setUpdateTime(result.getUpdateTime());
+        copy.setDeleted(result.getDeleted());
+        return copy;
+    }
+
+    private void recordSamplingTaskAudit(Long operatorUserId,
+                                         String operatorName,
+                                         String actionType,
+                                         SamplingTask before,
+                                         SamplingTask after,
+                                         String remark) {
+        SamplingTask target = after != null ? after : before;
+        if (target == null) {
+            return;
+        }
+        auditLogService.recordAudit(
+            operatorUserId,
+            "REGULATOR",
+            operatorName,
+            TARGET_TYPE_SAMPLING_TASK,
+            target.getId(),
+            null,
+            target.getTaskNo(),
+            WARNING_BIZ_TYPE_SAMPLING,
+            actionType,
+            actionType,
+            writeSamplingTaskSnapshot(before),
+            writeSamplingTaskSnapshot(after),
+            remark
+        );
+    }
+
+    private void recordSamplingResultAudit(Long operatorUserId,
+                                           String operatorName,
+                                           String actionType,
+                                           SamplingResult before,
+                                           SamplingResult after,
+                                           String remark) {
+        SamplingResult target = after != null ? after : before;
+        if (target == null) {
+            return;
+        }
+        auditLogService.recordAudit(
+            operatorUserId,
+            "REGULATOR",
+            operatorName,
+            TARGET_TYPE_SAMPLING_RESULT,
+            target.getId(),
+            null,
+            "RESULT#" + target.getId(),
+            WARNING_BIZ_TYPE_SAMPLING,
+            actionType,
+            actionType,
+            writeSamplingResultSnapshot(before),
+            writeSamplingResultSnapshot(after),
+            remark
+        );
+    }
+
+    private String writeSamplingTaskSnapshot(SamplingTask task) {
+        if (task == null) {
+            return "{}";
+        }
+        Map<String, Object> snapshot = new LinkedHashMap<>();
+        snapshot.put("taskId", task.getId());
+        snapshot.put("taskNo", task.getTaskNo());
+        snapshot.put("enterpriseId", task.getEnterpriseId());
+        snapshot.put("productId", task.getProductId());
+        snapshot.put("regionId", task.getRegionId());
+        snapshot.put("taskTitle", task.getTaskTitle());
+        snapshot.put("priority", task.getPriority());
+        snapshot.put("status", task.getStatus());
+        snapshot.put("createdBy", task.getCreatedBy());
+        snapshot.put("assignedTo", task.getAssignedTo());
+        snapshot.put("assignedBy", task.getAssignedBy());
+        snapshot.put("assignedTime", task.getAssignedTime());
+        snapshot.put("completedTime", task.getCompletedTime());
+        snapshot.put("deadline", task.getDeadline());
+        return writeJson(snapshot);
+    }
+
+    private String writeSamplingResultSnapshot(SamplingResult result) {
+        if (result == null) {
+            return "{}";
+        }
+        Map<String, Object> snapshot = new LinkedHashMap<>();
+        snapshot.put("resultId", result.getId());
+        snapshot.put("taskId", result.getTaskId());
+        snapshot.put("enterpriseId", result.getEnterpriseId());
+        snapshot.put("productId", result.getProductId());
+        snapshot.put("sampledBy", result.getSampledBy());
+        snapshot.put("sampledTime", result.getSampledTime());
+        snapshot.put("result", result.getResult());
+        snapshot.put("conclusion", result.getConclusion());
+        snapshot.put("disposalSuggestion", result.getDisposalSuggestion());
+        snapshot.put("publicStatus", result.getPublicStatus());
+        snapshot.put("publishedTime", result.getPublishedTime());
+        return writeJson(snapshot);
+    }
+
+    private String writeJson(Map<String, Object> snapshot) {
+        try {
+            return objectMapper.writeValueAsString(snapshot);
+        } catch (JsonProcessingException ex) {
+            throw new IllegalStateException("failed to serialize sampling audit snapshot", ex);
+        }
     }
 }

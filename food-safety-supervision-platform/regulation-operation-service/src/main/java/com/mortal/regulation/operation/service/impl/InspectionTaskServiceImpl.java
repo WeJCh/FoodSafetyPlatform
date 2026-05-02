@@ -2,6 +2,8 @@ package com.mortal.regulation.operation.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.mortal.platform.common.PageResult;
 import com.mortal.regulation.operation.client.regulation.vo.InternalEnterpriseDetailVO;
 import com.mortal.regulation.operation.client.regulation.vo.InternalRegulatorIdentityVO;
@@ -17,6 +19,7 @@ import com.mortal.regulation.operation.entity.InspectionTask;
 import com.mortal.regulation.operation.mapper.InspectionItemMapper;
 import com.mortal.regulation.operation.mapper.InspectionRecordMapper;
 import com.mortal.regulation.operation.mapper.InspectionTaskMapper;
+import com.mortal.regulation.operation.service.AuditLogService;
 import com.mortal.regulation.operation.service.InspectionTaskService;
 import com.mortal.regulation.operation.service.RectificationService;
 import com.mortal.regulation.operation.service.WarningEventOutboxService;
@@ -27,6 +30,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -55,6 +59,11 @@ public class InspectionTaskServiceImpl implements InspectionTaskService {
     private static final String WARNING_BIZ_TYPE_INSPECTION = "INSPECTION";
     private static final String WARNING_EVENT_CONSECUTIVE_FAIL = "INSPECTION_CONSECUTIVE_FAIL";
     private static final String WARNING_SOURCE_SERVICE = "regulation-operation-service";
+    private static final String TARGET_TYPE_INSPECTION_TASK = "INSPECTION_TASK";
+    private static final String ACTION_INSPECTION_ASSIGN = "INSPECTION_ASSIGN";
+    private static final String ACTION_INSPECTION_START = "INSPECTION_START";
+    private static final String ACTION_INSPECTION_SUBMIT = "INSPECTION_SUBMIT";
+    private static final String ACTION_INSPECTION_RECTIFICATION_CREATE = "INSPECTION_RECTIFICATION_CREATE";
 
     private final InspectionTaskMapper inspectionTaskMapper;
     private final InspectionRecordMapper inspectionRecordMapper;
@@ -63,6 +72,8 @@ public class InspectionTaskServiceImpl implements InspectionTaskService {
     private final OperationLockSupport operationLockSupport;
     private final RectificationService rectificationService;
     private final WarningEventOutboxService warningEventOutboxService;
+    private final AuditLogService auditLogService;
+    private final ObjectMapper objectMapper;
 
     @Value("${regulation.inspection.key-threshold:2}")
     private int consecutiveFailThreshold = 2;
@@ -73,7 +84,9 @@ public class InspectionTaskServiceImpl implements InspectionTaskService {
                                      OperationMasterDataSupport masterDataSupport,
                                      OperationLockSupport operationLockSupport,
                                      RectificationService rectificationService,
-                                     WarningEventOutboxService warningEventOutboxService) {
+                                     WarningEventOutboxService warningEventOutboxService,
+                                     AuditLogService auditLogService,
+                                     ObjectMapper objectMapper) {
         this.inspectionTaskMapper = inspectionTaskMapper;
         this.inspectionRecordMapper = inspectionRecordMapper;
         this.inspectionItemMapper = inspectionItemMapper;
@@ -81,6 +94,8 @@ public class InspectionTaskServiceImpl implements InspectionTaskService {
         this.operationLockSupport = operationLockSupport;
         this.rectificationService = rectificationService;
         this.warningEventOutboxService = warningEventOutboxService;
+        this.auditLogService = auditLogService;
+        this.objectMapper = objectMapper;
     }
 
     @Override
@@ -110,6 +125,7 @@ public class InspectionTaskServiceImpl implements InspectionTaskService {
     public InspectionTaskVO assignTask(Long userId, Long taskId, InspectionTaskAssignDTO dto) {
         InternalRegulatorIdentityVO operator = masterDataSupport.requireAdmin(userId);
         InspectionTask task = requireTask(taskId);
+        InspectionTask before = copyTask(task);
         ensureTaskNotExpired(task, "assign");
         if (STATUS_IN_PROGRESS.equals(task.getStatus())
             || STATUS_COMPLETED.equals(task.getStatus())
@@ -127,6 +143,8 @@ public class InspectionTaskServiceImpl implements InspectionTaskService {
         task.setStatus(STATUS_ASSIGNED);
         task.setUpdateTime(LocalDateTime.now());
         inspectionTaskMapper.updateById(task);
+        recordInspectionTaskAudit(userId, operator.getName(), ACTION_INSPECTION_ASSIGN, before, task,
+            "assignedTo=" + assignee.getId());
         return toVO(task, loadEnterpriseNames(List.of(task)), loadRegulatorNames(List.of(task)));
     }
 
@@ -182,6 +200,7 @@ public class InspectionTaskServiceImpl implements InspectionTaskService {
     public InspectionTaskVO startTask(Long userId, Long taskId) {
         InternalRegulatorIdentityVO regulator = masterDataSupport.requireEnforcer(userId);
         InspectionTask task = requireTask(taskId);
+        InspectionTask before = copyTask(task);
         ensureTaskNotExpired(task, "start");
         if (!Objects.equals(task.getAssignedTo(), regulator.getId())) {
             throw new IllegalArgumentException("task not assigned to you");
@@ -193,6 +212,7 @@ public class InspectionTaskServiceImpl implements InspectionTaskService {
         task.setStartedTime(LocalDateTime.now());
         task.setUpdateTime(LocalDateTime.now());
         inspectionTaskMapper.updateById(task);
+        recordInspectionTaskAudit(userId, regulator.getName(), ACTION_INSPECTION_START, before, task, null);
         return toVO(task, loadEnterpriseNames(List.of(task)), loadRegulatorNames(List.of(task)));
     }
 
@@ -205,6 +225,7 @@ public class InspectionTaskServiceImpl implements InspectionTaskService {
     private InspectionTaskVO doSubmitTask(Long userId, Long taskId, InspectionSubmitDTO dto) {
         InternalRegulatorIdentityVO regulator = masterDataSupport.requireEnforcer(userId);
         InspectionTask task = requireTask(taskId);
+        InspectionTask before = copyTask(task);
         if (!Objects.equals(task.getAssignedTo(), regulator.getId())) {
             throw new IllegalArgumentException("task not assigned to you");
         }
@@ -246,7 +267,8 @@ public class InspectionTaskServiceImpl implements InspectionTaskService {
             throw new IllegalArgumentException("at least one inspection item required");
         }
 
-        if (needRectification(record.getResult(), items)) {
+        boolean rectificationCreated = needRectification(record.getResult(), items);
+        if (rectificationCreated) {
             rectificationService.createFromInspection(
                 record.getId(),
                 task.getEnterpriseId(),
@@ -259,6 +281,12 @@ public class InspectionTaskServiceImpl implements InspectionTaskService {
         task.setCompletedTime(LocalDateTime.now());
         task.setUpdateTime(LocalDateTime.now());
         inspectionTaskMapper.updateById(task);
+        recordInspectionTaskAudit(userId, regulator.getName(), ACTION_INSPECTION_SUBMIT, before, task,
+            "result=" + record.getResult());
+        if (rectificationCreated) {
+            recordInspectionTaskAudit(userId, regulator.getName(), ACTION_INSPECTION_RECTIFICATION_CREATE, before, task,
+                "inspectionRecordId=" + record.getId());
+        }
         return toVO(task, loadEnterpriseNames(List.of(task)), loadRegulatorNames(List.of(task)));
     }
 
@@ -515,5 +543,85 @@ public class InspectionTaskServiceImpl implements InspectionTaskService {
 
     private boolean isDeleted(Integer deleted) {
         return deleted != null && deleted == 1;
+    }
+
+    private InspectionTask copyTask(InspectionTask task) {
+        InspectionTask copy = new InspectionTask();
+        copy.setId(task.getId());
+        copy.setTaskNo(task.getTaskNo());
+        copy.setEnterpriseId(task.getEnterpriseId());
+        copy.setRegionId(task.getRegionId());
+        copy.setTaskTitle(task.getTaskTitle());
+        copy.setTaskDesc(task.getTaskDesc());
+        copy.setPriority(task.getPriority());
+        copy.setStatus(task.getStatus());
+        copy.setCreatedBy(task.getCreatedBy());
+        copy.setAssignedTo(task.getAssignedTo());
+        copy.setAssignedBy(task.getAssignedBy());
+        copy.setAssignedTime(task.getAssignedTime());
+        copy.setStartedTime(task.getStartedTime());
+        copy.setCompletedTime(task.getCompletedTime());
+        copy.setDeadline(task.getDeadline());
+        copy.setCreateTime(task.getCreateTime());
+        copy.setUpdateTime(task.getUpdateTime());
+        copy.setDeleted(task.getDeleted());
+        return copy;
+    }
+
+    private void recordInspectionTaskAudit(Long operatorUserId,
+                                           String operatorName,
+                                           String actionType,
+                                           InspectionTask before,
+                                           InspectionTask after,
+                                           String remark) {
+        InspectionTask target = after != null ? after : before;
+        if (target == null) {
+            return;
+        }
+        auditLogService.recordAudit(
+            operatorUserId,
+            "REGULATOR",
+            operatorName,
+            TARGET_TYPE_INSPECTION_TASK,
+            target.getId(),
+            null,
+            target.getTaskNo(),
+            WARNING_BIZ_TYPE_INSPECTION,
+            actionType,
+            actionType,
+            writeInspectionTaskSnapshot(before),
+            writeInspectionTaskSnapshot(after),
+            remark
+        );
+    }
+
+    private String writeInspectionTaskSnapshot(InspectionTask task) {
+        if (task == null) {
+            return "{}";
+        }
+        Map<String, Object> snapshot = new LinkedHashMap<>();
+        snapshot.put("taskId", task.getId());
+        snapshot.put("taskNo", task.getTaskNo());
+        snapshot.put("enterpriseId", task.getEnterpriseId());
+        snapshot.put("regionId", task.getRegionId());
+        snapshot.put("taskTitle", task.getTaskTitle());
+        snapshot.put("priority", task.getPriority());
+        snapshot.put("status", task.getStatus());
+        snapshot.put("createdBy", task.getCreatedBy());
+        snapshot.put("assignedTo", task.getAssignedTo());
+        snapshot.put("assignedBy", task.getAssignedBy());
+        snapshot.put("assignedTime", task.getAssignedTime());
+        snapshot.put("startedTime", task.getStartedTime());
+        snapshot.put("completedTime", task.getCompletedTime());
+        snapshot.put("deadline", task.getDeadline());
+        return writeJson(snapshot);
+    }
+
+    private String writeJson(Map<String, Object> snapshot) {
+        try {
+            return objectMapper.writeValueAsString(snapshot);
+        } catch (JsonProcessingException ex) {
+            throw new IllegalStateException("failed to serialize inspection audit snapshot", ex);
+        }
     }
 }

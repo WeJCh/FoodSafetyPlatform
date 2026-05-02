@@ -70,6 +70,38 @@ export function fetchComplaintDetail(token, id) {
   });
 }
 
+export function fetchComplaintLogs(token, id, limit = 10) {
+  const search = new URLSearchParams();
+  if (limit) search.append("limit", limit);
+  const query = search.toString();
+  return requestWithBase(
+    COMPLAINT_BASE_URL,
+    `/api/complaints/${id}/logs${query ? `?${query}` : ""}`,
+    {
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${token}`
+      }
+    }
+  );
+}
+
+export function fetchRecentComplaintLogs(token, limit = 10) {
+  const search = new URLSearchParams();
+  if (limit) search.append("limit", limit);
+  const query = search.toString();
+  return requestWithBase(
+    COMPLAINT_BASE_URL,
+    `/api/complaints/logs/recent${query ? `?${query}` : ""}`,
+    {
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${token}`
+      }
+    }
+  );
+}
+
 export function acceptComplaint(token, id) {
   return requestWithBase(COMPLAINT_BASE_URL, `/api/complaints/${id}/accept`, {
     method: "PUT",

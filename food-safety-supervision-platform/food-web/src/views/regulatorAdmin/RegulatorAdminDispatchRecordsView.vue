@@ -148,6 +148,8 @@ import { useRouter } from "vue-router";
 import { fetchInspectionRecordDetail, fetchInspectionRecords } from "../../api/regulationOperation";
 import RegulatorAdminWorkspacePage from "../../components/regulatorAdmin/RegulatorAdminWorkspacePage.vue";
 import { formatTime } from "../../utils/formatters";
+import { formatStatusLabel, inspectionResultMap } from "../../utils/statusMaps";
+import { resolveErrorMessage } from "../../utils/uiFeedback";
 import { useRegulatorAdminShellSession } from "./regulatorAdminShared";
 
 const router = useRouter();
@@ -168,10 +170,6 @@ const inspectionTotal = ref(0);
 const inspectionPages = ref(1);
 const inspectionDetail = ref(null);
 
-const inspectionResultMap = {
-  PASS: "合格",
-  FAIL: "不合格"
-};
 
 function goToDispatchTasks() {
   router.push({ name: "regulator-admin-dispatch" });
@@ -183,7 +181,7 @@ function setStatus(message, type = "info") {
 }
 
 function formatInspectionResult(value) {
-  return inspectionResultMap[value] || value || "-";
+  return formatStatusLabel(value, inspectionResultMap);
 }
 
 function resultClass(value) {
@@ -207,7 +205,7 @@ async function loadInspections() {
     inspectionSize.value = data.size || inspectionSize.value;
     inspectionPages.value = data.pages || 1;
   } catch (error) {
-    setStatus(error.message || "加载检查记录失败", "error");
+    setStatus(resolveErrorMessage(error, "加载检查记录失败"), "error");
   } finally {
     inspectionLoading.value = false;
   }
@@ -229,7 +227,7 @@ async function openInspectionDetail(record) {
   try {
     inspectionDetail.value = await fetchInspectionRecordDetail(token.value, record.id);
   } catch (error) {
-    setStatus(error.message || "加载检查记录失败", "error");
+    setStatus(resolveErrorMessage(error, "加载检查记录失败"), "error");
   } finally {
     inspectionLoading.value = false;
   }

@@ -4,7 +4,6 @@
     :username="regulatorUser.username"
     @navigate="handleSidebarNavigate"
     @logout="handleLogout"
-    @pending-feature="onPendingFeature"
   >
     <section class="create-page">
       <header class="create-page__head">
@@ -65,7 +64,7 @@
             <div class="form-grid">
               <label class="span-all">
                 任务标题
-                <input v-model.trim="form.taskTitle" :disabled="submitting" placeholder="例：乳制品例行抽检" />
+                <input v-model.trim="form.taskTitle" :disabled="submitting" placeholder="例如：乳制品例行抽检" />
               </label>
               <label class="span-all">
                 任务描述
@@ -99,7 +98,8 @@ import { useRouter } from "vue-router";
 import { createSamplingTask } from "../../api/regulationOperation";
 import { fetchEnterprises, fetchEnterpriseProducts } from "../../api/regulation";
 import RegulatorAdminWorkspacePage from "../../components/regulatorAdmin/RegulatorAdminWorkspacePage.vue";
-import { regulatorFeaturePendingNotice, useRegulatorAdminShellSession } from "./regulatorAdminShared";
+import { resolveErrorMessage } from "../../utils/uiFeedback";
+import { useRegulatorAdminShellSession } from "./regulatorAdminShared";
 
 const router = useRouter();
 const { regulatorUser, token, handleSidebarNavigate, handleLogout } = useRegulatorAdminShellSession();
@@ -119,16 +119,11 @@ const form = reactive({
   deadline: ""
 });
 
-function onPendingFeature(title) {
-  regulatorFeaturePendingNotice(title);
-}
-
 function setStatus(message, type = "info") {
   status.message = message;
   status.type = type;
 }
 
-/** 与后端 LocalDateTime yyyy-MM-dd'T'HH:mm:ss 对齐（datetime-local 常为无秒） */
 function normalizeSamplingDeadline(value) {
   if (!value) return null;
   const v = String(value).trim();
@@ -147,7 +142,7 @@ async function loadEnterprises() {
     const data = await fetchEnterprises(token.value, { approvalStatus: "APPROVED", page: 1, size: 100 });
     enterprises.value = data.records || [];
   } catch (error) {
-    setStatus(error.message || "加载企业列表失败", "error");
+    setStatus(resolveErrorMessage(error, "加载企业列表失败"), "error");
   } finally {
     pageLoading.value = false;
   }
@@ -164,7 +159,7 @@ async function loadProducts(enterpriseId) {
     products.value = Array.isArray(data) ? data.filter((item) => item?.status === "ACTIVE") : [];
   } catch (error) {
     products.value = [];
-    setStatus(error.message || "加载企业产品失败", "error");
+    setStatus(resolveErrorMessage(error, "加载企业产品失败"), "error");
   } finally {
     productLoading.value = false;
   }
@@ -204,7 +199,7 @@ async function handleSubmit() {
       router.push({ name: "regulator-admin-sampling" });
     }, 400);
   } catch (error) {
-    setStatus(error.message || "创建抽检任务失败", "error");
+    setStatus(resolveErrorMessage(error, "创建抽检任务失败"), "error");
   } finally {
     submitting.value = false;
   }
@@ -225,27 +220,22 @@ h1 { margin: 6px 0 0; color: #002660; font-size: 30px; font-weight: 800; }
 .primary { border: 0; background: #002660; color: #fff; box-shadow: 0 12px 24px rgba(0, 38, 96, 0.2); }
 .primary:disabled { opacity: 0.65; cursor: not-allowed; }
 .ghost { border: 1px solid #d1d5db; background: #fff; color: #334155; }
-
 .grid-layout { display: grid; gap: 16px; }
 .main-col { display: grid; gap: 16px; }
 .panel { background: #fff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 14px; }
 .panel-title { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
 .panel-title i { width: 4px; height: 18px; border-radius: 999px; background: #002660; display: block; }
 .panel-title h2 { margin: 0; font-size: 16px; color: #002660; font-weight: 800; }
-
 .form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; align-items: end; }
 .form-grid--2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 label { display: grid; gap: 6px; font-size: 12px; color: #64748b; font-weight: 700; }
 .form-grid .span-all { grid-column: 1 / -1; }
 input, select, textarea { border: 0; background: #f1f5f9; border-radius: 6px; padding: 10px; color: #1e293b; }
 textarea { resize: vertical; min-height: 88px; }
-
 .hint-warn { margin: 8px 0 0; font-size: 12px; color: #b45309; }
-
 .status { position: fixed; right: 18px; bottom: 18px; border-radius: 8px; padding: 10px 12px; color: #fff; background: #0f172a; font-size: 13px; }
 .status.error { background: #b91c1c; }
 .status.success { background: #166534; }
-
 @media (max-width: 900px) {
   .create-page__head { flex-direction: column; align-items: flex-start; }
   .head-actions { width: 100%; }

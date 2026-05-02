@@ -19,8 +19,8 @@ const SystemAdminRegulatorCreateView = () => import("../views/systemAdmin/System
 const SystemAdminRegulatorCreateConfirmView = () => import("../views/systemAdmin/SystemAdminRegulatorCreateConfirmView.vue");
 const SystemAdminRegulatorDetailView = () => import("../views/systemAdmin/SystemAdminRegulatorDetailView.vue");
 const SystemAdminRegulatorEditView = () => import("../views/systemAdmin/SystemAdminRegulatorEditView.vue");
+const SystemAdminRegulatorRegionAdjustView = () => import("../views/systemAdmin/SystemAdminRegulatorRegionAdjustView.vue");
 const SystemAdminRegulatorStatusConfirmView = () => import("../views/systemAdmin/SystemAdminRegulatorStatusConfirmView.vue");
-const EnterpriseDetailView = () => import("../views/EnterpriseDetailView.vue");
 const EnterpriseRegisterView = () => import("../views/EnterpriseRegisterView.vue");
 const EnterpriseDashboardView = () => import("../views/enterprise/EnterpriseDashboardView.vue");
 const EnterpriseInspectionDetailView = () => import("../views/enterprise/EnterpriseInspectionDetailView.vue");
@@ -54,6 +54,8 @@ const RegulatorAdminDispatchCreateView = () => import("../views/regulatorAdmin/R
 const RegulatorAdminDispatchRecordsView = () => import("../views/regulatorAdmin/RegulatorAdminDispatchRecordsView.vue");
 const RegulatorAdminEnterpriseDetailView = () => import("../views/regulatorAdmin/RegulatorAdminEnterpriseDetailView.vue");
 const RegulatorAdminDispatchTasksView = () => import("../views/regulatorAdmin/RegulatorAdminDispatchTasksView.vue");
+const RegulatorAdminInspectionTaskDetailView = () =>
+  import("../views/regulatorAdmin/RegulatorAdminInspectionTaskDetailView.vue");
 const RegulatorAdminComplaintFlowView = () =>
   import("../views/regulatorAdmin/RegulatorAdminComplaintFlowView.vue");
 const RegulatorAdminRectificationReviewView = () =>
@@ -288,6 +290,12 @@ const routes = [
     meta: { title: "编辑监管人员", requiresRole: "ADMIN" }
   },
   {
+    path: "/admin/regulators/:userId/region-adjust",
+    name: "admin-regulator-region-adjust",
+    component: SystemAdminRegulatorRegionAdjustView,
+    meta: { title: "调整监管辖区", requiresRole: "ADMIN" }
+  },
+  {
     path: "/admin/regulators/:userId/status-confirm",
     name: "admin-regulator-status-confirm",
     component: SystemAdminRegulatorStatusConfirmView,
@@ -394,6 +402,12 @@ const routes = [
     name: "regulator-admin-dispatch",
     component: RegulatorAdminDispatchTasksView,
     meta: { title: "任务派发", requiresRole: "REGULATOR_ADMIN" }
+  },
+  {
+    path: "/regulator/admin/dispatch/tasks/:taskId",
+    name: "regulator-admin-inspection-task-detail",
+    component: RegulatorAdminInspectionTaskDetailView,
+    meta: { title: "检查任务详情", requiresRole: "REGULATOR_ADMIN" }
   },
   {
     path: "/regulator/admin/dispatch/create",

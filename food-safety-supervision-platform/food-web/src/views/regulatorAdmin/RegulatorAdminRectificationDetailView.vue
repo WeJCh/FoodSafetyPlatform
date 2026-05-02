@@ -186,6 +186,8 @@ import { useRoute, useRouter } from "vue-router";
 import { fetchRectificationActions, fetchRectificationDetail, reviewRectification } from "../../api/regulationOperation";
 import RegulatorAdminWorkspacePage from "../../components/regulatorAdmin/RegulatorAdminWorkspacePage.vue";
 import { formatTime } from "../../utils/formatters";
+import { formatStatusLabel, rectificationStatusMap } from "../../utils/statusMaps";
+import { resolveErrorMessage } from "../../utils/uiFeedback";
 import { useRegulatorAdminShellSession } from "./regulatorAdminShared";
 
 const route = useRoute();
@@ -201,12 +203,6 @@ const showAllOriginalAttachments = ref(false);
 const showAllSubmitAttachments = ref(false);
 const status = reactive({ message: "", type: "" });
 
-const rectificationStatusMap = {
-  ONGOING: "整改中",
-  SUBMITTED: "待复核",
-  REWORK: "打回重做",
-  CONFIRMED: "已确认"
-};
 
 const actionNameMap = {
   SYSTEM_CREATE: "系统创建整改任务",
@@ -243,7 +239,7 @@ function setStatus(message = "", type = "") {
 }
 
 function formatRectificationStatus(value) {
-  return rectificationStatusMap[value] || value || "-";
+  return formatStatusLabel(value, rectificationStatusMap);
 }
 
 function resolveActionName(value) {
@@ -300,7 +296,7 @@ async function loadDetail() {
   } catch (error) {
     detail.value = null;
     actionLogs.value = [];
-    setStatus(error.message || "加载整改详情失败", "error");
+    setStatus(resolveErrorMessage(error, "加载整改详情失败"), "error");
   } finally {
     loading.value = false;
   }
@@ -322,7 +318,7 @@ async function handleReview(payload) {
     setStatus(payload.action === "REWORK" ? "整改任务已打回重做" : "整改任务已确认复核", "success");
     await loadDetail();
   } catch (error) {
-    setStatus(error.message || "整改复核失败", "error");
+    setStatus(resolveErrorMessage(error, "整改复核失败"), "error");
   } finally {
     actionLoading.value = false;
   }

@@ -5,6 +5,10 @@ COLLATE utf8mb4_general_ci;
 
 USE food_complaint_db;
 
+DROP TABLE IF EXISTS audit_log;
+DROP TABLE IF EXISTS complaint;
+DROP TABLE IF EXISTS complaint_handle;
+
 CREATE TABLE IF NOT EXISTS complaint (
   id BIGINT PRIMARY KEY AUTO_INCREMENT,
   complaint_no VARCHAR(40) COMMENT '投诉单号',
@@ -46,3 +50,29 @@ CREATE TABLE IF NOT EXISTS complaint_handle (
   deleted TINYINT DEFAULT 0 COMMENT '逻辑删除 1-已删 0-未删',
   UNIQUE KEY uk_complaint_handle (complaint_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='投诉处理记录表';
+
+CREATE TABLE IF NOT EXISTS audit_log (
+  id BIGINT PRIMARY KEY AUTO_INCREMENT,
+  service_name VARCHAR(64) NOT NULL COMMENT '服务名称',
+  operator_user_id BIGINT COMMENT '操作人用户ID',
+  operator_user_type VARCHAR(32) COMMENT '操作人类型',
+  operator_name VARCHAR(64) COMMENT '操作人名称',
+  target_type VARCHAR(64) COMMENT '目标对象类型',
+  target_id BIGINT COMMENT '目标对象ID',
+  target_user_id BIGINT COMMENT '目标用户ID',
+  target_name VARCHAR(128) COMMENT '目标名称',
+  biz_type VARCHAR(64) COMMENT '业务类型',
+  action_type VARCHAR(64) NOT NULL COMMENT '操作类型',
+  action_name VARCHAR(128) COMMENT '操作名称',
+  before_data JSON COMMENT '变更前快照',
+  after_data JSON COMMENT '变更后快照',
+  success_flag TINYINT DEFAULT 1 COMMENT '是否成功 1-成功 0-失败',
+  error_message VARCHAR(500) COMMENT '错误信息',
+  remark VARCHAR(255) COMMENT '备注',
+  client_ip VARCHAR(64) COMMENT '客户端IP',
+  trace_id VARCHAR(64) COMMENT '链路追踪ID',
+  create_time DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  KEY idx_audit_target (target_type, target_id),
+  KEY idx_audit_operator (operator_user_id, create_time),
+  KEY idx_audit_action (action_type, create_time)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='审计日志表';

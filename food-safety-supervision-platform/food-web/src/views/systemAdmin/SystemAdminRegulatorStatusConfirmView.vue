@@ -2,19 +2,18 @@
   <SystemAdminWorkspacePage
     active-key="list"
     :username="adminUser.username"
-    search-placeholder="全局搜索人员、证书或案件..."
+    search-placeholder="全局搜索人员、证件或案件..."
     @navigate="handleSidebarNavigate"
     @logout="handleLogout"
-    @pending-feature="onPendingFeature"
   >
     <section class="sys-admin-status-confirm-page">
       <div class="sys-admin-status-confirm-card">
         <header class="sys-admin-status-confirm-card__head">
           <div class="sys-admin-title">
             <span class="material-symbols-outlined">manage_accounts</span>
-            <h1>账号状态切换确认</h1>
+            <h1>确认切换账号状态</h1>
           </div>
-          <p>您正在修改受监管人员的系统访问权限，此操作将被记录在审核日志中。</p>
+          <p>你正在修改监管人员的系统访问状态，该操作会写入操作日志，请确认后继续。</p>
         </header>
 
         <div class="sys-admin-status-confirm-card__body">
@@ -23,11 +22,11 @@
             <div class="sys-admin-summary-grid">
               <article>
                 <label>姓名</label>
-                <p>{{ profile?.name || "—" }}</p>
+                <p>{{ profile?.name || "-" }}</p>
               </article>
               <article>
                 <label>账号标识</label>
-                <p>{{ profile?.userId ? `REGULATOR-${profile.userId}` : "—" }}</p>
+                <p>{{ profile?.userId ? `REGULATOR-${profile.userId}` : "-" }}</p>
               </article>
               <article>
                 <label>当前角色</label>
@@ -37,7 +36,7 @@
           </section>
 
           <section>
-            <h2>状态对比</h2>
+            <h2>状态变更</h2>
             <div class="sys-admin-compare">
               <div class="sys-admin-compare-col">
                 <span class="sys-admin-compare-label">当前状态</span>
@@ -45,7 +44,7 @@
                   <span class="material-symbols-outlined">
                     {{ currentStatus === 1 ? "check_circle" : "cancel" }}
                   </span>
-                  <strong>{{ currentStatus === 1 ? "在岗 (ACTIVE)" : "停用 (INACTIVE)" }}</strong>
+                  <strong>{{ currentStatus === 1 ? "启用" : "停用" }}</strong>
                 </div>
               </div>
               <div class="sys-admin-compare-arrow">
@@ -57,7 +56,7 @@
                   <span class="material-symbols-outlined">
                     {{ targetStatus === 1 ? "check_circle" : "cancel" }}
                   </span>
-                  <strong>{{ targetStatus === 1 ? "在岗 (ACTIVE)" : "停用 (INACTIVE)" }}</strong>
+                  <strong>{{ targetStatus === 1 ? "启用" : "停用" }}</strong>
                 </div>
               </div>
             </div>
@@ -66,18 +65,18 @@
           <section class="sys-admin-risk-box">
             <div class="sys-admin-risk-title">
               <span class="material-symbols-outlined">warning</span>
-              <h3>风险提示与影响确认</h3>
+              <h3>操作影响提示</h3>
             </div>
             <ul>
-              <li>{{ targetStatus === 0 ? "停用后该人员将立即无法登录系统。" : "启用后该人员将恢复系统登录能力。" }}</li>
-              <li>该操作将写入合规操作日志并保留审计痕迹。</li>
-              <li>建议在业务低峰期执行状态切换，避免任务处理中断。</li>
+              <li>{{ targetStatus === 0 ? "停用后该人员将无法继续登录系统。" : "启用后该人员将恢复系统登录权限。" }}</li>
+              <li>本次操作会写入审计日志，并保留变更痕迹。</li>
+              <li>建议在业务低峰期执行，避免影响正在进行中的任务处理。</li>
             </ul>
           </section>
         </div>
 
         <footer class="sys-admin-status-confirm-card__foot">
-          <button type="button" class="btn-cancel" :disabled="loading" @click="goBack">取消操作</button>
+          <button type="button" class="btn-cancel" :disabled="loading" @click="goBack">取消</button>
           <button
             type="button"
             class="btn-confirm"
@@ -91,12 +90,6 @@
         </footer>
       </div>
 
-      <div class="sys-admin-protocol">
-        <div class="line"></div>
-        <span>Sentinel Governance Protocol</span>
-        <div class="line"></div>
-      </div>
-
       <div v-if="status.message" class="sys-admin-status" :class="status.type">{{ status.message }}</div>
     </section>
   </SystemAdminWorkspacePage>
@@ -107,6 +100,7 @@ import { computed, onMounted, reactive, ref } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { fetchRegulatorProfileByUserId, updateRegulatorStatus } from "../../api/regulation";
 import SystemAdminWorkspacePage from "../../components/systemAdmin/SystemAdminWorkspacePage.vue";
+import { resolveErrorMessage } from "../../utils/uiFeedback";
 import { useSystemAdminShellSession } from "./systemAdminShared";
 
 const route = useRoute();
@@ -131,11 +125,9 @@ function setStatus(message, type = "info") {
   status.type = type;
 }
 
-function onPendingFeature() {}
-
 function formatRoleType(roleType) {
-  if (roleType === "REGULATOR_ADMIN") return "区域管理员";
-  if (roleType === "REGULATOR_ENFORCER") return "执法人员";
+  if (roleType === "REGULATOR_ADMIN") return "监管管理员";
+  if (roleType === "REGULATOR_ENFORCER") return "监管执法人员";
   return roleType ? String(roleType) : "未知角色";
 }
 
@@ -144,7 +136,23 @@ function goBack() {
     router.push({ name: "admin-regulator-list" });
     return;
   }
-  router.push({ name: "admin-regulator-detail", params: { userId: userId.value } });
+  router.push({
+    name: "admin-regulator-detail",
+    params: { userId: userId.value },
+    query: { refreshedAt: String(Date.now()) }
+  });
+}
+
+function goAfterSubmit() {
+  if (fromPage.value === "list") {
+    router.replace({ name: "admin-regulator-list" });
+    return;
+  }
+  router.replace({
+    name: "admin-regulator-detail",
+    params: { userId: userId.value },
+    query: { refreshedAt: String(Date.now()) }
+  });
 }
 
 async function loadDetail() {
@@ -157,7 +165,7 @@ async function loadDetail() {
   try {
     profile.value = await fetchRegulatorProfileByUserId(token.value, userId.value);
   } catch (error) {
-    setStatus(error.message || "加载监管人员信息失败", "error");
+    setStatus(resolveErrorMessage(error, "加载监管人员信息失败"), "error");
   } finally {
     loading.value = false;
   }
@@ -176,10 +184,10 @@ async function handleConfirm() {
     await updateRegulatorStatus(token.value, profile.value.id, targetStatus.value);
     setStatus(targetStatus.value === 1 ? "账号已启用" : "账号已停用", targetStatus.value === 1 ? "success" : "warning");
     setTimeout(() => {
-      goBack();
+      goAfterSubmit();
     }, 450);
   } catch (error) {
-    setStatus(error.message || "状态切换失败", "error");
+    setStatus(resolveErrorMessage(error, "状态切换失败"), "error");
   } finally {
     loading.value = false;
   }
@@ -229,10 +237,6 @@ onMounted(() => {
 .btn-confirm.is-enable { background: #166534; color: #fff; }
 .btn-cancel:disabled, .btn-confirm:disabled { opacity: 0.6; cursor: default; }
 
-.sys-admin-protocol { display: flex; align-items: center; gap: 8px; opacity: 0.55; }
-.sys-admin-protocol .line { width: 28px; height: 2px; background: #94a3b8; }
-.sys-admin-protocol span { font-size: 10px; font-weight: 900; letter-spacing: 0.2em; text-transform: uppercase; color: #64748b; }
-
 .sys-admin-status { position: fixed; right: 18px; bottom: 18px; color: #fff; border-radius: 8px; padding: 10px 12px; font-size: 12px; background: #0f172a; z-index: 70; }
 .sys-admin-status.error { background: #b91c1c; }
 .sys-admin-status.success { background: #166534; }
@@ -244,4 +248,3 @@ onMounted(() => {
   .sys-admin-compare-arrow { display: grid; place-items: center; transform: rotate(90deg); }
 }
 </style>
-

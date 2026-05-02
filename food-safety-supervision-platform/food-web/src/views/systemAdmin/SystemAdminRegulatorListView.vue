@@ -5,7 +5,6 @@
     search-placeholder="全局搜索指令..."
     @navigate="handleSidebarNavigate"
     @logout="handleLogout"
-    @pending-feature="onPendingFeature"
   >
     <section class="sys-admin-list-page">
       <header class="sys-admin-list-page__header">
@@ -94,11 +93,7 @@
                 <div class="sys-admin-row-actions">
                   <button type="button" @click="goDetail(item)">详情</button>
                   <button type="button" @click="goEdit(item)">编辑</button>
-                  <button
-                    type="button"
-                    :class="{ 'is-danger': Number(item.status) === 1 }"
-                    @click="goStatusConfirm(item)"
-                  >
+                  <button type="button" :class="{ 'is-danger': Number(item.status) === 1 }" @click="goStatusConfirm(item)">
                     {{ Number(item.status) === 1 ? "停用" : "启用" }}
                   </button>
                 </div>
@@ -144,10 +139,18 @@
         <article class="sys-admin-bottom-card sys-admin-log-card">
           <h4>最近操作日志</h4>
           <ul>
+            <li v-if="!opLogs.length" class="is-empty">暂无日志数据</li>
             <li v-for="item in opLogs" :key="item.id">
-              <strong>{{ item.title }}</strong>
-              <p>{{ item.desc }}</p>
-              <small>{{ item.time }}</small>
+              <button
+                type="button"
+                class="sys-admin-log-link"
+                :disabled="!item.targetUserId"
+                @click="goAuditTarget(item.targetUserId)"
+              >
+                <strong>{{ item.title }}</strong>
+                <p>{{ item.desc }}</p>
+                <small>{{ item.time }}</small>
+              </button>
             </li>
           </ul>
         </article>
@@ -161,12 +164,10 @@
 <script setup>
 import { computed, onMounted, reactive, ref, watch } from "vue";
 import { useRouter } from "vue-router";
-import { fetchRegulatorProfiles, fetchRegionPath } from "../../api/regulation";
+import { fetchRecentRegulatorAuditLogs, fetchRegulatorProfiles, fetchRegionPath } from "../../api/regulation";
+import { resolveErrorMessage } from "../../utils/uiFeedback";
 import SystemAdminWorkspacePage from "../../components/systemAdmin/SystemAdminWorkspacePage.vue";
-import {
-  systemAdminFeaturePendingNotice,
-  useSystemAdminShellSession
-} from "./systemAdminShared";
+import { useSystemAdminShellSession } from "./systemAdminShared";
 
 const { adminUser, token, handleSidebarNavigate, handleLogout } = useSystemAdminShellSession();
 const router = useRouter();
@@ -199,9 +200,7 @@ const pageNumbers = computed(() => {
   const pages = [];
   let start = Math.max(1, pagination.page - 2);
   let end = Math.min(totalPages.value, start + maxVisible - 1);
-  if (end - start < maxVisible - 1) {
-    start = Math.max(1, end - maxVisible + 1);
-  }
+  if (end - start < maxVisible - 1) start = Math.max(1, end - maxVisible + 1);
   for (let i = start; i <= end; i += 1) pages.push(i);
   return pages;
 });
@@ -223,15 +222,10 @@ function getAvatarText(name) {
   return String(name || "监").trim().slice(0, 1);
 }
 
-function onPendingFeature(title) {
-  // TODO: 详情页、编辑页、日志中心与筛选联动后续接入真实后端能力
-  systemAdminFeaturePendingNotice(title);
-}
-
 function goDetail(item) {
   const uid = Number(item?.userId || 0) || null;
   if (!uid) {
-    onPendingFeature("监管人员详情（缺少 userId）");
+    setStatus("缺少监管人员 userId 参数", "error");
     return;
   }
   router.push({ name: "admin-regulator-detail", params: { userId: uid } });
@@ -240,7 +234,7 @@ function goDetail(item) {
 function goEdit(item) {
   const uid = Number(item?.userId || 0) || null;
   if (!uid) {
-    onPendingFeature("编辑监管人员（缺少 userId）");
+    setStatus("缺少监管人员 userId 参数", "error");
     return;
   }
   router.push({ name: "admin-regulator-edit", params: { userId: uid } });
@@ -249,7 +243,7 @@ function goEdit(item) {
 function goStatusConfirm(item) {
   const uid = Number(item?.userId || 0) || null;
   if (!uid) {
-    onPendingFeature("状态切换（缺少 userId）");
+    setStatus("缺少监管人员 userId 参数", "error");
     return;
   }
   const targetStatus = Number(item.status) === 1 ? 0 : 1;
@@ -260,8 +254,17 @@ function goStatusConfirm(item) {
   });
 }
 
-function buildNowTimeText() {
-  return new Date().toLocaleString("zh-CN", { hour12: false });
+function goAuditTarget(targetUserId) {
+  const userId = Number(targetUserId || 0);
+  if (!userId) return;
+  router.push({ name: "admin-regulator-detail", params: { userId } });
+}
+
+function formatAuditTime(value) {
+  if (!value) return "--";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return String(value);
+  return date.toLocaleString("zh-CN", { hour12: false });
 }
 
 function resetFilters() {
@@ -273,8 +276,7 @@ function resetFilters() {
 }
 
 function goPage(page) {
-  const next = Math.min(Math.max(1, page), totalPages.value);
-  pagination.page = next;
+  pagination.page = Math.min(Math.max(1, page), totalPages.value);
 }
 
 function goPrevPage() {
@@ -301,7 +303,10 @@ async function loadRegulators() {
   loading.value = true;
   setStatus("");
   try {
-    const records = await fetchRegulatorProfiles(token.value).catch(() => []);
+    const [records, logs] = await Promise.all([
+      fetchRegulatorProfiles(token.value).catch(() => []),
+      fetchRecentRegulatorAuditLogs(token.value, 6).catch(() => [])
+    ]);
     const normalized = Array.isArray(records) ? records : [];
     const mapped = await Promise.all(
       normalized.map(async (item) => ({
@@ -310,15 +315,16 @@ async function loadRegulators() {
       }))
     );
     rows.value = mapped;
-    // TODO: 接入独立审计日志 API 后替换为真实日志流
-    opLogs.value = mapped.slice(0, 6).map((item, index) => ({
-      id: item.id || String(index),
-      title: "人员状态变更",
-      desc: `${item.name || "监管员"} 当前状态：${Number(item.status) === 1 ? "在岗" : "停用"}`,
-      time: buildNowTimeText()
+    const auditLogs = Array.isArray(logs) ? logs : [];
+    opLogs.value = auditLogs.map((item, index) => ({
+      id: item.id || `log-${index}`,
+      title: item.actionName || item.actionType || "监管人员操作",
+      desc: item.summary || `${item.targetName || "监管人员"} 发生了一条新的操作记录`,
+      time: formatAuditTime(item.createTime),
+      targetUserId: item.targetUserId || null
     }));
   } catch (error) {
-    setStatus(error.message || "加载监管人员列表失败", "error");
+    setStatus(resolveErrorMessage(error, "加载监管人员列表失败"), "error");
   } finally {
     loading.value = false;
   }
@@ -639,7 +645,37 @@ watch(totalPages, (next) => {
   background: #f8fafc;
   border: 1px solid #e2e8f0;
   border-radius: 2px;
+}
+.sys-admin-log-card li.is-empty {
+  grid-column: 1 / -1;
+  text-align: center;
+  color: #64748b;
   padding: 8px 10px;
+}
+.sys-admin-log-link {
+  width: 100%;
+  border: 0;
+  background: transparent;
+  text-align: left;
+  padding: 8px 10px;
+  cursor: pointer;
+  outline: none;
+  box-shadow: none;
+  appearance: none;
+}
+.sys-admin-log-link:disabled {
+  cursor: default;
+}
+.sys-admin-log-link:not(:disabled):hover {
+  background: rgba(0, 38, 96, 0.04);
+}
+.sys-admin-log-link:not(:disabled):hover strong {
+  color: #002660;
+}
+.sys-admin-log-link:focus,
+.sys-admin-log-link:focus-visible {
+  outline: none;
+  box-shadow: none;
 }
 .sys-admin-log-card strong {
   color: #191c1e;

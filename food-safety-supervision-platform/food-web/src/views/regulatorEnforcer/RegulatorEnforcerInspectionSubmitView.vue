@@ -4,7 +4,6 @@
     :username="enforcerUser.username || enforcerUser.realName || ''"
     @navigate="handleSidebarNavigate"
     @logout="handleLogout"
-    @pending-feature="regulatorEnforcerFeaturePendingNotice"
   >
     <section class="inspection-submit-page">
       <header class="page-head">
@@ -18,10 +17,10 @@
             <template v-if="task?.id">
               <span class="crumb-sep">/</span>
             </template>
-            <span class="crumb-current">检查结果提交</span>
+            <span class="crumb-current">提交检查结果</span>
           </nav>
-          <h1>检查结果提交页</h1>
-          <p>参考执法端原型结构，完成检查项填报、问题说明与最终结论提交。</p>
+          <h1>提交检查结果</h1>
+          <p>填写检查项目、问题说明与最终结论，提交本次现场检查记录。</p>
         </div>
         <div class="head-actions">
           <button class="ghost-btn" type="button" :disabled="actionLoading" @click="goDetail">
@@ -135,7 +134,7 @@
                       v-model.trim="item.problemDesc"
                       rows="2"
                       maxlength="500"
-                      placeholder="如该项不合格，请填写问题描述；无问题可留空。"
+                      placeholder="若该项不合格，请填写问题描述；无问题可留空。"
                     ></textarea>
                   </div>
                 </article>
@@ -147,7 +146,7 @@
                 <h2>问题说明</h2>
               </div>
               <div class="notice-strip">
-                当前接口未提供独立“备注信息”字段，页面将按后端语义把本区说明提交到“总体问题描述”。
+                当前接口未提供独立“备注”字段，本区域内容会按后端语义写入“总体问题描述”。
               </div>
               <label class="field-block">
                 <span>检查日期</span>
@@ -159,7 +158,7 @@
                   v-model.trim="form.problemDesc"
                   rows="5"
                   maxlength="1000"
-                  placeholder="请汇总填写现场发现的问题、证据情况和处置要点。若最终结论不是合格，建议明确写出核心问题。"
+                  placeholder="请汇总填写现场发现的问题、证据情况和处置要点。若最终结论为不合格，建议写明核心问题。"
                 ></textarea>
               </label>
             </section>
@@ -178,7 +177,7 @@
                   @click="form.decision = 'PASS'"
                 >
                   <strong>检查合格</strong>
-                  <span>提交为 PASS，不触发整改流程</span>
+                  <span>按 PASS 提交，不触发整改流程。</span>
                 </button>
                 <button
                   type="button"
@@ -187,7 +186,7 @@
                   @click="form.decision = 'RECTIFY'"
                 >
                   <strong>限期整改</strong>
-                  <span>按不合格提交，系统会自动生成整改任务</span>
+                  <span>按不合格提交，并触发后续整改任务。</span>
                 </button>
                 <button
                   type="button"
@@ -196,7 +195,7 @@
                   @click="form.decision = 'FAIL'"
                 >
                   <strong>检查不合格</strong>
-                  <span>按 FAIL 提交，并进入后续风险与整改联动</span>
+                  <span>按 FAIL 提交，并进入风险与整改联动。</span>
                 </button>
               </div>
             </section>
@@ -207,9 +206,9 @@
               </div>
               <ul class="tip-list">
                 <li>至少保留 1 个检查项，且检查项名称不能为空。</li>
-                <li>若任一检查项判定为不合格，则不能将最终结论提交为“检查合格”。</li>
-                <li>选择“限期整改”或“检查不合格”时，建议同步补充总体问题描述。</li>
-                <li>后端检查接口仅支持 `PASS/FAIL`；“限期整改”会映射为 `FAIL` 并自动触发整改任务。</li>
+                <li>若存在不合格检查项，则最终结论不能提交为“检查合格”。</li>
+                <li>选择“限期整改”或“检查不合格”时，建议补充总体问题描述。</li>
+                <li>后端仅支持 `PASS/FAIL`，其中“限期整改”会映射为 `FAIL` 并触发整改任务。</li>
               </ul>
             </section>
 
@@ -246,10 +245,8 @@ import { fetchEnterpriseDetail, fetchRegionPath } from "../../api/regulation";
 import { findMyInspectionTaskById, submitInspectionTask } from "../../api/regulationOperation";
 import RegulatorEnforcerWorkspacePage from "../../components/regulatorEnforcer/RegulatorEnforcerWorkspacePage.vue";
 import { formatTime } from "../../utils/formatters";
-import {
-  regulatorEnforcerFeaturePendingNotice,
-  useRegulatorEnforcerShellSession
-} from "./regulatorEnforcerShared";
+import { resolveErrorMessage } from "../../utils/uiFeedback";
+import { useRegulatorEnforcerShellSession } from "./regulatorEnforcerShared";
 
 const route = useRoute();
 const router = useRouter();
@@ -304,17 +301,17 @@ const timeline = computed(() => {
       dotClass: "is-on"
     },
     {
-      title: current.startedTime ? "现场检查完成" : "等待现场检查",
+      title: current.startedTime ? "现场检查进行中" : "等待现场检查",
       time: current.startedTime ? formatTime(current.startedTime) : "--",
       desc: current.startedTime
         ? `${current.assignedToName || "当前执法人员"} 已开始执行任务，可继续录入检查结果。`
-        : "任务尚未开始执行，请先从任务列表或详情页启动。",
+        : "任务尚未开始执行，请先从任务列表或详情页进入。",
       dotClass: current.startedTime ? "is-on" : "is-muted"
     },
     {
       title: "等待结果提交",
       time: "当前环节",
-      desc: "提交后任务状态将变为已完成，检查记录会写入检查记录列表。",
+      desc: "提交后任务状态将变更为已完成，并写入检查记录。",
       dotClass: "is-alert"
     }
   ];
@@ -413,7 +410,7 @@ async function loadPage() {
       }
     }
   } catch (error) {
-    loadError.value = error?.message || "检查结果提交页加载失败";
+    loadError.value = resolveErrorMessage(error, "检查结果提交页加载失败");
   } finally {
     pageLoading.value = false;
   }
@@ -474,7 +471,7 @@ async function handleSubmit() {
       query: { submitted: "1" }
     });
   } catch (error) {
-    setStatus(error?.message || "提交检查结果失败", "error");
+    setStatus(resolveErrorMessage(error, "提交检查结果失败"), "error");
   } finally {
     actionLoading.value = false;
   }

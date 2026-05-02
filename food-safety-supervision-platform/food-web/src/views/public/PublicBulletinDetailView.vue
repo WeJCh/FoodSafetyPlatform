@@ -20,22 +20,16 @@
         <div class="public-bulletin-detail-page__toolbar">
           <label class="public-bulletin-detail-page__search-box">
             <span class="material-symbols-outlined" aria-hidden="true">search</span>
-            <input v-model.trim="searchKeyword" type="text" placeholder="搜索公告标题或类别" @keyup.enter="goBackToList" />
+            <input v-model.trim="searchKeyword" type="text" placeholder="搜索公告标题或关键词" @keyup.enter="goBackToList" />
           </label>
-          <button type="button" class="public-bulletin-detail-page__icon-btn" @click="onFeaturePending('通知中心')">
-            <span class="material-symbols-outlined" aria-hidden="true">notifications</span>
-          </button>
-          <button type="button" class="public-bulletin-detail-page__icon-btn" @click="onFeaturePending('个人中心')">
-            <span class="material-symbols-outlined" aria-hidden="true">account_circle</span>
-          </button>
           <button class="ghost public-bulletin-detail-page__logout" type="button" @click="handleLogout">退出登录</button>
         </div>
       </div>
     </header>
 
     <main class="public-bulletin-detail-page__main">
-      <div v-if="loading" class="status info">加载中...</div>
-      <div v-else-if="!detail" class="status error">公告信息未找到</div>
+      <AppStatusToast v-if="loading" message="详情加载中..." type="info" />
+      <AppStatusToast v-else-if="!detail" message="未找到对应的公告信息。" type="error" />
       <template v-else>
         <section class="public-bulletin-detail-page__hero">
           <button type="button" class="public-bulletin-detail-page__hero-back" @click="goBackToList">
@@ -43,7 +37,7 @@
             返回公告列表
           </button>
           <h1>{{ detail.title || "-" }}</h1>
-          <p>监管公告详情 · Regulatory Announcement Detail</p>
+          <p>Regulatory Announcement Detail</p>
         </section>
 
         <section class="public-bulletin-detail-page__content">
@@ -71,10 +65,17 @@
 
             <div v-if="attachmentList.length" class="public-bulletin-detail-page__attachments">
               <h3>附件下载</h3>
-              <button v-for="(item, index) in attachmentList" :key="`${item.name}-${index}`" type="button" @click="onFeaturePending('附件下载')">
+              <a
+                v-for="(item, index) in attachmentList"
+                :key="`${item.name}-${index}`"
+                class="public-bulletin-detail-page__attachment-link"
+                :href="item.url"
+                target="_blank"
+                rel="noreferrer"
+              >
                 <span class="material-symbols-outlined" aria-hidden="true">description</span>
                 <span>{{ item.name }}</span>
-              </button>
+              </a>
             </div>
           </article>
 
@@ -82,14 +83,13 @@
             <div class="public-bulletin-detail-page__side-card">
               <h3>公告信息</h3>
               <p><span>类别</span><strong>{{ formatCategory(detail.category) }}</strong></p>
-              <p><span>时间</span><strong>{{ formatDate(detail.publishedTime) }}</strong></p>
+              <p><span>日期</span><strong>{{ formatDate(detail.publishedTime) }}</strong></p>
               <p><span>发布人</span><strong>{{ detail.publishedByName || "监管部门" }}</strong></p>
             </div>
 
             <div class="public-bulletin-detail-page__side-card">
               <h3>操作</h3>
               <button type="button" @click="goBackToList">返回公告列表</button>
-              <button type="button" @click="onFeaturePending('分享公告')">分享公告</button>
             </div>
           </aside>
         </section>
@@ -101,6 +101,7 @@
 <script setup>
 import { computed, onMounted, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
+import AppStatusToast from "../../components/common/AppStatusToast.vue";
 import { fetchPublicBulletinDetail } from "../../api/regulation";
 import { getActiveSession, performLogout } from "../../session/authRuntime";
 import { formatTime } from "../../utils/formatters";
@@ -110,7 +111,7 @@ const route = useRoute();
 const publicToken = getActiveSession()?.token || "";
 const loading = ref(false);
 const detail = ref(null);
-const searchKeyword = ref("");
+const searchKeyword = ref(String(route.query.keyword || ""));
 
 const topNavItems = [
   { key: "home", label: "首页", routeName: "public-home" },
@@ -136,9 +137,10 @@ const attachmentList = computed(() => {
   if (!Array.isArray(raw)) return [];
   return raw
     .map((item) => ({
-      name: String(item?.name || item?.fileName || "").trim()
+      name: String(item?.name || item?.fileName || "").trim(),
+      url: String(item?.url || item?.fileUrl || item?.attachmentUrl || "").trim()
     }))
-    .filter((item) => item.name);
+    .filter((item) => item.name && item.url);
 });
 
 function formatCategory(value) {
@@ -213,11 +215,15 @@ function goTo(name) {
 }
 
 function goBackToList() {
-  router.push({ name: "public-bulletins" }).catch(() => {});
-}
-
-function onFeaturePending(name) {
-  window.alert(`${name} 功能待后续完善`);
+  const keyword = searchKeyword.value.trim();
+  const category = typeof route.query.category === "string" ? route.query.category.trim().toUpperCase() : "";
+  const nextQuery = {};
+  if (keyword) nextQuery.keyword = keyword;
+  if (category) nextQuery.category = category;
+  router.push({
+    name: "public-bulletins",
+    query: nextQuery
+  }).catch(() => {});
 }
 
 onMounted(loadDetail);
@@ -236,7 +242,6 @@ watch(() => route.params.bulletinId, loadDetail);
 .public-bulletin-detail-page__toolbar { display: flex; align-items: center; gap: 10px; }
 .public-bulletin-detail-page__search-box { display: inline-flex; align-items: center; gap: 6px; border-radius: 8px; border: 1px solid rgba(195,198,211,.44); background: rgba(255,255,255,.75); padding: 0 14px; min-height: var(--public-toolbar-min-h); }
 .public-bulletin-detail-page__search-box input { border: none; background: transparent; font-size: var(--public-toolbar-input-size); min-width: var(--public-toolbar-input-min-w); }
-.public-bulletin-detail-page__icon-btn { width: var(--public-btn-compact-min-h); height: var(--public-btn-compact-min-h); border-radius: 8px; border: 1px solid transparent; background: transparent; color: var(--on-surface-variant); cursor: pointer; }
 .public-bulletin-detail-page__logout { min-height: var(--public-toolbar-min-h); font-size: var(--public-logout-font-size); margin: 0; }
 .public-bulletin-detail-page__main { max-width: 1680px; margin: 0 auto; padding: 24px 16px 48px; }
 .public-bulletin-detail-page__hero { margin-bottom: 24px; border-radius: 12px; padding: 24px 28px; color: #fff; background: linear-gradient(135deg, #002660 0%, #003a8c 100%); }
@@ -251,16 +256,14 @@ watch(() => route.params.bulletinId, loadDetail);
 .public-bulletin-detail-page__meta-grid strong { margin-top: 4px; display: block; font-size: var(--public-meta-strong); color: var(--primary); }
 .public-bulletin-detail-page__article-body { margin-top: 18px; line-height: 1.8; color: var(--on-surface); font-size: var(--public-article-body); }
 .public-bulletin-detail-page__article-body :deep(p) { margin: 0 0 12px; text-indent: 2em; }
-.public-bulletin-detail-page__article-body :deep(h2),
-.public-bulletin-detail-page__article-body :deep(h3) { margin: 16px 0 10px; color: var(--primary); line-height: 1.4; text-indent: 0; }
-.public-bulletin-detail-page__article-body :deep(ul),
-.public-bulletin-detail-page__article-body :deep(ol) { margin: 10px 0 10px 24px; padding: 0; }
+.public-bulletin-detail-page__article-body :deep(h2), .public-bulletin-detail-page__article-body :deep(h3) { margin: 16px 0 10px; color: var(--primary); line-height: 1.4; text-indent: 0; }
+.public-bulletin-detail-page__article-body :deep(ul), .public-bulletin-detail-page__article-body :deep(ol) { margin: 10px 0 10px 24px; padding: 0; }
 .public-bulletin-detail-page__article-body :deep(li) { margin: 4px 0; }
 .public-bulletin-detail-page__article-body :deep(a) { color: #1d4ed8; text-decoration: underline; word-break: break-all; }
 .public-bulletin-detail-page__article-body :deep(blockquote) { margin: 12px 0; padding: 8px 12px; border-left: 3px solid rgba(0,38,96,.35); background: rgba(242,244,247,.7); }
 .public-bulletin-detail-page__attachments { margin-top: 18px; padding-top: 14px; border-top: 1px solid rgba(195,198,211,.35); display: grid; gap: 8px; }
 .public-bulletin-detail-page__attachments h3 { margin: 0; font-size: var(--public-caption); color: var(--primary); }
-.public-bulletin-detail-page__attachments button { border: 1px solid rgba(195,198,211,.5); background: var(--surface-container-low); min-height: 36px; padding: 0 10px; display: inline-flex; align-items: center; gap: 6px; justify-content: flex-start; cursor: pointer; }
+.public-bulletin-detail-page__attachment-link { color: inherit; text-decoration: none; border: 1px solid rgba(195,198,211,.5); background: var(--surface-container-low); min-height: 36px; padding: 0 10px; display: inline-flex; align-items: center; gap: 6px; justify-content: flex-start; }
 .public-bulletin-detail-page__side { display: grid; gap: 12px; align-content: start; }
 .public-bulletin-detail-page__side-card { padding: 16px; }
 .public-bulletin-detail-page__side-card h3 { margin: 0 0 10px; color: var(--primary); font-size: var(--public-table-head-overline); letter-spacing: .08em; font-weight: 800; text-transform: uppercase; }

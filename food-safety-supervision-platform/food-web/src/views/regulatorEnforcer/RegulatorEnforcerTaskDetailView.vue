@@ -113,28 +113,14 @@
         <aside class="right">
           <article class="card">
             <h2>状态流转时间线</h2>
-            <ul class="timeline">
-              <li>
-                <strong>任务状态：{{ formatTaskStatus(task.status) }}</strong>
-                <span>{{ formatTime(task.updateTime || task.createTime) }}</span>
-                <p>系统记录该任务最近一次状态变更。</p>
-              </li>
-              <li>
-                <strong>任务下达</strong>
-                <span>{{ formatTime(task.createTime) }}</span>
-                <p>任务由派发中心下发至当前执法人员。</p>
-              </li>
-              <li>
-                <strong>检查结果提交</strong>
-                <span>{{ inspectionRecord?.record?.inspectionDate || (canSubmit ? "待处理" : formatTaskStatus(task.status)) }}</span>
-                <p>
-                  {{ inspectionRecord?.record?.id
-                    ? `已生成检查记录 #${inspectionRecord.record.id}，检查结论为${formatInspectionResult(inspectionRecord.record.result)}。`
-                    : "当前任务尚未提交检查结果，提交后会同步生成检查记录。"
-                  }}
-                </p>
+            <ul class="timeline" v-if="timelineItems.length">
+              <li v-for="item in timelineItems" :key="item.key">
+                <strong>{{ item.title }}</strong>
+                <span>{{ item.time }}</span>
+                <p>{{ item.desc }}</p>
               </li>
             </ul>
+            <div v-else class="timeline-empty">暂无操作日志</div>
           </article>
 
           <article class="card">
@@ -160,11 +146,14 @@ import { useRoute, useRouter } from "vue-router";
 import RegulatorEnforcerWorkspacePage from "../../components/regulatorEnforcer/RegulatorEnforcerWorkspacePage.vue";
 import { fetchEnterpriseDetail, fetchRegionPath } from "../../api/regulation";
 import {
+  fetchOperationAuditLogs,
   fetchInspectionRecordDetail,
   findMyInspectionRecordByTaskId,
   findMyInspectionTaskById
 } from "../../api/regulationOperation";
 import { formatTime } from "../../utils/formatters";
+import { formatStatusLabel, inspectionResultMap, inspectionTaskStatusMap, taskPriorityMap } from "../../utils/statusMaps";
+import { resolveErrorMessage } from "../../utils/uiFeedback";
 import { useRegulatorEnforcerShellSession } from "./regulatorEnforcerShared";
 
 const route = useRoute();
@@ -176,30 +165,20 @@ const regionPathName = ref("-");
 const statusMessage = ref("");
 const statusClass = ref("info");
 const inspectionRecord = ref(null);
+const auditLogs = ref([]);
 const taskId = computed(() => Number(route.params.taskId));
 
 const { enforcerUser, token, handleSidebarNavigate, handleLogout } = useRegulatorEnforcerShellSession();
 
-const taskStatusMap = {
-  CREATED: "待启动",
-  ASSIGNED: "已指派",
-  IN_PROGRESS: "执行中",
-  COMPLETED: "已完成",
-  CLOSED: "已归档"
-};
-
-const taskPriorityMap = {
-  LOW: "低优先级",
-  MEDIUM: "中优先级",
-  HIGH: "高优先级"
-};
-
-const inspectionResultMap = {
-  PASS: "合格",
-  FAIL: "不合格"
-};
-
 const canSubmit = computed(() => task.value?.status === "IN_PROGRESS");
+const timelineItems = computed(() =>
+  (auditLogs.value || []).map((item, index) => ({
+    key: `${item.id || item.actionType || "inspection"}-${index}`,
+    title: formatInspectionAuditTitle(item),
+    time: formatTime(item.createTime) || "-",
+    desc: item.summary || item.remark || item.actionName || item.actionType || "检查任务操作"
+  }))
+);
 
 const inspectionItems = computed(() =>
   (inspectionRecord.value?.items || []).map((item, index) => ({
@@ -226,15 +205,15 @@ const inspectionEmptyText = computed(() => {
 });
 
 function formatTaskStatus(value) {
-  return taskStatusMap[value] || value || "-";
+  return formatStatusLabel(value, inspectionTaskStatusMap);
 }
 
 function formatTaskPriority(value) {
-  return taskPriorityMap[value] || value || "-";
+  return formatStatusLabel(value, taskPriorityMap);
 }
 
 function formatInspectionResult(value) {
-  return inspectionResultMap[String(value || "").toUpperCase()] || value || "-";
+  return formatStatusLabel(String(value || "").toUpperCase(), inspectionResultMap);
 }
 
 function resultClass(value) {
@@ -267,6 +246,7 @@ async function loadTaskDetail() {
     enterprise.value = null;
     regionPathName.value = "-";
     inspectionRecord.value = null;
+    auditLogs.value = [];
     setStatus("任务参数无效。", "error");
     return;
   }
@@ -277,6 +257,7 @@ async function loadTaskDetail() {
   enterprise.value = null;
   regionPathName.value = "-";
   inspectionRecord.value = null;
+  auditLogs.value = [];
 
   try {
     const detail = await findMyInspectionTaskById(token.value, taskId.value);
@@ -292,6 +273,9 @@ async function loadTaskDetail() {
     }
 
     await loadInspectionRecord(detail);
+    if (detail?.id) {
+      auditLogs.value = await fetchOperationAuditLogs(token.value, "INSPECTION_TASK", detail.id, 12).catch(() => []);
+    }
 
     if (route.query.submitted === "1") {
       if (inspectionRecord.value?.record?.id) {
@@ -301,7 +285,7 @@ async function loadTaskDetail() {
       }
     }
   } catch (error) {
-    setStatus(error?.message || "加载任务详情失败", "error");
+    setStatus(resolveErrorMessage(error, "加载任务详情失败，请稍后重试。"), "error");
   } finally {
     loading.value = false;
   }
@@ -336,6 +320,15 @@ function openInspectionRecord() {
   }).catch(() => {});
 }
 
+function formatInspectionAuditTitle(item) {
+  const actionType = String(item?.actionType || "").toUpperCase();
+  if (actionType === "INSPECTION_ASSIGN") return "任务分派";
+  if (actionType === "INSPECTION_START") return "开始处理";
+  if (actionType === "INSPECTION_SUBMIT") return "提交检查结果";
+  if (actionType === "INSPECTION_RECTIFICATION_CREATE") return "触发整改任务";
+  return item?.actionName || item?.actionType || "检查任务日志";
+}
+
 watch(
   () => [route.params.taskId, route.query.submitted],
   () => {
@@ -346,7 +339,7 @@ watch(
 </script>
 
 <style scoped>
-.task-detail-page { min-height: calc(100vh - 108px); }
+.task-detail-page { min-height: calc(100vh - 108px); width: 100%; }
 .task-hero { display: flex; justify-content: space-between; gap: 16px; padding: 16px; border: 1px solid #dbe3ee; background: #fff; }
 .chips { display: flex; gap: 8px; margin-bottom: 8px; flex-wrap: wrap; }
 .chip { font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 2px; }
@@ -364,9 +357,18 @@ h1 { margin: 0; color: #002660; font-size: 30px; font-weight: 800; }
 .btn-primary { background: #002660; color: #fff; border-color: #002660; font-weight: 700; }
 .btn-primary:disabled { opacity: 0.45; cursor: not-allowed; }
 .btn-ghost { background: #fff; color: #334155; }
-.detail-layout { margin-top: 14px; display: grid; grid-template-columns: 2fr 1fr; gap: 14px; }
-.left,.right { display: grid; gap: 14px; align-content: start; }
-.card { background: #fff; border: 1px solid #dbe3ee; padding: 16px; }
+.detail-layout {
+  margin-top: 14px;
+  display: grid;
+  width: 100%;
+  grid-template-columns: minmax(0, 1.7fr) 360px;
+  gap: 14px;
+  align-items: start;
+  justify-items: stretch;
+}
+.left,
+.right { display: grid; gap: 14px; min-width: 0; align-content: start; justify-items: stretch; }
+.card { background: #fff; border: 1px solid #dbe3ee; padding: 16px; width: 100%; }
 .card-accent { border-left: 4px solid #003a8c; }
 h2 { margin: 0 0 10px; font-size: 14px; color: #003a8c; font-weight: 800; }
 .meta-grid { margin-top: 12px; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; background: #f8fafc; border: 1px solid #e2e8f0; padding: 10px; }
@@ -374,8 +376,21 @@ h2 { margin: 0 0 10px; font-size: 14px; color: #003a8c; font-weight: 800; }
 .meta-grid strong { font-size: 13px; color: #0f172a; }
 .card-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
 .card-head span { font-size: 11px; color: #64748b; }
-.check-table { width: 100%; border-collapse: collapse; font-size: 12px; }
-.check-table th,.check-table td { border-bottom: 1px solid #e2e8f0; padding: 10px; text-align: left; vertical-align: top; }
+.check-table { width: 100%; border-collapse: collapse; font-size: 12px; table-layout: fixed; }
+.check-table th:nth-child(1),
+.check-table td:nth-child(1) { width: 26%; }
+.check-table th:nth-child(2),
+.check-table td:nth-child(2) { width: 50%; }
+.check-table th:nth-child(3),
+.check-table td:nth-child(3) { width: 24%; }
+.check-table th,
+.check-table td {
+  border-bottom: 1px solid #e2e8f0;
+  padding: 10px;
+  text-align: left;
+  vertical-align: top;
+  word-break: break-word;
+}
 .empty-cell { text-align: center; color: #64748b; padding: 18px 10px; }
 .result-pill { display: inline-flex; align-items: center; justify-content: center; min-height: 24px; padding: 0 8px; border-radius: 2px; background: #f1f5f9; color: #334155; font-weight: 700; border: 1px solid transparent; }
 .result-pill.is-pass { background: #f0fdf4; color: #166534; border-color: #86efac; }
@@ -387,6 +402,7 @@ h2 { margin: 0 0 10px; font-size: 14px; color: #003a8c; font-weight: 800; }
 .timeline strong { display: block; font-size: 13px; color: #0f172a; }
 .timeline span { font-size: 11px; color: #64748b; }
 .timeline p { margin: 4px 0 0; font-size: 12px; color: #475569; line-height: 1.6; }
+.timeline-empty { color: #64748b; font-size: 12px; padding: 8px 0; }
 .info-list p { margin: 0 0 8px; display: flex; justify-content: space-between; gap: 8px; font-size: 12px; }
 .info-list span { color: #64748b; }
 .info-list strong { color: #0f172a; text-align: right; }
@@ -394,7 +410,7 @@ h2 { margin: 0 0 10px; font-size: 14px; color: #003a8c; font-weight: 800; }
 .status { margin-top: 12px; border: 1px solid #fecaca; background: #fef2f2; color: #b91c1c; padding: 10px 12px; }
 .status.info { border-color: #bfdbfe; background: #eff6ff; color: #1d4ed8; }
 .status.success { border-color: #bbf7d0; background: #f0fdf4; color: #166534; }
-@media (max-width: 1200px) {
+@media (max-width: 1280px) {
   .detail-layout { grid-template-columns: 1fr; }
   .task-hero { flex-direction: column; }
 }

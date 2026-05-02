@@ -4,12 +4,13 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.mortal.complaint.client.regulation.vo.InternalEnterpriseDetailVO;
 import com.mortal.complaint.client.regulation.vo.InternalRegulatorIdentityVO;
-import com.mortal.platform.common.PageResult;
-import com.mortal.complaint.domain.entity.Complaint;
-import com.mortal.complaint.infrastructure.mapper.ComplaintMapper;
+import com.mortal.complaint.vo.AuditLogVO;
 import com.mortal.complaint.vo.ComplaintDetailVO;
 import com.mortal.complaint.vo.ComplaintListVO;
 import com.mortal.complaint.vo.ComplaintVO;
+import com.mortal.platform.common.PageResult;
+import com.mortal.complaint.domain.entity.Complaint;
+import com.mortal.complaint.infrastructure.mapper.ComplaintMapper;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -23,6 +24,7 @@ import org.springframework.util.StringUtils;
 public class ComplaintQueryService {
 
     private final ComplaintMapper complaintMapper;
+    private final AuditLogService auditLogService;
     private final ComplaintDataSupport complaintDataSupport;
 
     /**
@@ -31,8 +33,10 @@ public class ComplaintQueryService {
      * @param complaintDataSupport 投诉数据支持
      */
     public ComplaintQueryService(ComplaintMapper complaintMapper,
+                                 AuditLogService auditLogService,
                                  ComplaintDataSupport complaintDataSupport) {
         this.complaintMapper = complaintMapper;
+        this.auditLogService = auditLogService;
         this.complaintDataSupport = complaintDataSupport;
     }
     /**
@@ -172,6 +176,43 @@ public class ComplaintQueryService {
         detail.setEnterprise(complaintDataSupport.toEnterpriseProfileVO(enterprise));
         detail.setHandles(complaintDataSupport.loadHandleDetails(complaint.getId()));
         return detail;
+    }
+
+    public List<AuditLogVO> listLogs(Long operatorUserId, Long complaintId, int limit) {
+        InternalRegulatorIdentityVO regulator = complaintDataSupport.requireRegulatorByUserId(operatorUserId);
+        Complaint complaint = complaintDataSupport.requireComplaint(complaintId);
+        if (!complaintDataSupport.isComplaintInRegion(regulator, complaint.getEnterpriseId())) {
+            throw new IllegalArgumentException("complaint not in regulator region");
+        }
+        if (ComplaintDataSupport.ROLE_ENFORCER.equalsIgnoreCase(regulator.getRoleType())
+            && !Objects.equals(complaint.getAssignedTo(), regulator.getId())) {
+            throw new IllegalArgumentException("complaint not assigned to you");
+        }
+        return auditLogService.listComplaintLogs(complaintId, limit);
+    }
+
+    public List<AuditLogVO> listRecentLogs(Long operatorUserId, int limit) {
+        InternalRegulatorIdentityVO regulator = complaintDataSupport.requireRegulatorByUserId(operatorUserId);
+        List<Long> visibleComplaintIds = resolveVisibleComplaintIds(regulator, limit);
+        return auditLogService.listRecentComplaintLogs(visibleComplaintIds, limit);
+    }
+
+    private List<Long> resolveVisibleComplaintIds(InternalRegulatorIdentityVO regulator, int limit) {
+        int size = limit <= 0 ? 10 : Math.min(limit * 5, 200);
+        LambdaQueryWrapper<Complaint> wrapper = new LambdaQueryWrapper<Complaint>()
+            .eq(Complaint::getDeleted, 0)
+            .orderByDesc(Complaint::getUpdateTime)
+            .last("LIMIT " + size);
+        if (ComplaintDataSupport.ROLE_ENFORCER.equalsIgnoreCase(regulator.getRoleType())) {
+            wrapper.eq(Complaint::getAssignedTo, regulator.getId());
+            return complaintMapper.selectList(wrapper).stream().map(Complaint::getId).toList();
+        }
+        List<Long> enterpriseIds = complaintDataSupport.resolveEnterpriseIdsByRegion(regulator);
+        if (enterpriseIds.isEmpty()) {
+            return List.of();
+        }
+        wrapper.in(Complaint::getEnterpriseId, enterpriseIds);
+        return complaintMapper.selectList(wrapper).stream().map(Complaint::getId).toList();
     }
 }
 

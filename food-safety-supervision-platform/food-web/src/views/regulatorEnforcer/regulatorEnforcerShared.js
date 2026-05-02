@@ -13,10 +13,6 @@ export const regulatorEnforcerNavItems = [
   { key: "stats", label: "数据统计", icon: "monitoring", routeName: "regulator-enforcer-stats" }
 ];
 
-export function regulatorEnforcerFeaturePendingNotice(featureTitle) {
-  window.alert(`${featureTitle}\n\nTODO: 当前后端未提供该能力，先保留 UI 占位。`);
-}
-
 export function useRegulatorEnforcerShellSession() {
   const router = useRouter();
   const session = computed(() => getActiveSession() || {});
@@ -38,4 +34,3 @@ export function useRegulatorEnforcerShellSession() {
 
   return { enforcerUser, token, handleSidebarNavigate, handleLogout };
 }
-

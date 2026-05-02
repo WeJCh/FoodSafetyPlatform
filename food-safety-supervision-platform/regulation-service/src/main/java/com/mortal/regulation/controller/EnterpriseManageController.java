@@ -4,7 +4,9 @@ import com.mortal.platform.common.ApiResponse;
 import com.mortal.platform.common.PageResult;
 import com.mortal.regulation.service.EnterpriseProfileService;
 import com.mortal.regulation.util.JwtUserResolver;
+import com.mortal.regulation.vo.AuditLogVO;
 import com.mortal.regulation.vo.EnterpriseProfileVO;
+import java.util.List;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestHeader;
@@ -75,6 +77,27 @@ public class EnterpriseManageController {
             return ApiResponse.failure(404, "enterprise not found");
         }
         return ApiResponse.success(enterprise);
+    }
+
+    @GetMapping("/{id}/audit-logs")
+    public ApiResponse<List<AuditLogVO>> listAuditLogs(@RequestHeader("Authorization") String token,
+                                                       @PathVariable Long id,
+                                                       @RequestParam(required = false) Integer limit) {
+        UserIdentity identity = resolveIdentity(token);
+        if (!identity.isRegulator()) {
+            return ApiResponse.failure(403, "regulator only");
+        }
+        return ApiResponse.success(enterpriseProfileService.listAuditLogs(id, limit));
+    }
+
+    @GetMapping("/audit-logs/recent")
+    public ApiResponse<List<AuditLogVO>> listRecentAuditLogs(@RequestHeader("Authorization") String token,
+                                                             @RequestParam(required = false) Integer limit) {
+        UserIdentity identity = resolveIdentity(token);
+        if (!identity.isRegulator()) {
+            return ApiResponse.failure(403, "regulator only");
+        }
+        return ApiResponse.success(enterpriseProfileService.listRecentAuditLogs(limit));
     }
 
     /**

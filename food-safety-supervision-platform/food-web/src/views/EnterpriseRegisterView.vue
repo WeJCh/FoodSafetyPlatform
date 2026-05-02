@@ -20,7 +20,7 @@
           </div>
 
           <div class="auth-register-hero__copy">
-            <h1>企业准入与<br />数字台账接入</h1>
+            <h1>企业准入入口<br />数字台账接入</h1>
             <p>欢迎加入食品安全数字监管体系。当前先完成企业账号创建，登录后再继续完善企业主体资料与经营档案。</p>
           </div>
 
@@ -70,6 +70,7 @@
 import { reactive, ref } from "vue";
 import { useRouter } from "vue-router";
 import { registerEnterprise } from "../api/auth";
+import { resolveErrorMessage } from "../utils/uiFeedback";
 import AuthFooter from "../components/auth/AuthFooter.vue";
 import AuthHeader from "../components/auth/AuthHeader.vue";
 import AuthLayout from "../components/auth/AuthLayout.vue";
@@ -100,7 +101,7 @@ function navigateTo(target) {
 
 async function handleEnterpriseRegister() {
   if (!agreed.value) {
-    setStatus("请先阅读并同意企业服务协议与隐私权政策。", "error");
+    setStatus("请先阅读并同意企业服务协议与隐私政策。", "error");
     return;
   }
 
@@ -113,7 +114,7 @@ async function handleEnterpriseRegister() {
       navigateTo("login");
     }, 200);
   } catch (error) {
-    setStatus(error.message || "注册失败", "error");
+    setStatus(resolveErrorMessage(error, "注册失败"), "error");
   } finally {
     loading.value = false;
   }

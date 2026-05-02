@@ -132,6 +132,8 @@ import { useRouter } from "vue-router";
 import { fetchMyInspectionRecords } from "../../api/regulationOperation";
 import RegulatorEnforcerPageShell from "./RegulatorEnforcerPageShell.vue";
 import { formatTime } from "../../utils/formatters";
+import { formatStatusLabel, inspectionResultMap } from "../../utils/statusMaps";
+import { resolveErrorMessage } from "../../utils/uiFeedback";
 import { useRegulatorEnforcerShellSession } from "./regulatorEnforcerShared";
 
 const router = useRouter();
@@ -146,7 +148,6 @@ const pages = ref(1);
 const status = reactive({ message: "", type: "info" });
 const filters = reactive({ enterpriseName: "", result: "", startDate: "", endDate: "" });
 
-const inspectionResultMap = { PASS: "合格", FAIL: "不合格" };
 
 const passCount = computed(() => records.value.filter((item) => item.result === "PASS").length);
 const failCount = computed(() => records.value.filter((item) => item.result === "FAIL").length);
@@ -181,7 +182,7 @@ function setStatus(message = "", type = "info") {
 }
 
 function formatInspectionResult(value) {
-  return inspectionResultMap[value] || value || "-";
+  return formatStatusLabel(value, inspectionResultMap);
 }
 
 function resultClass(value) {
@@ -213,7 +214,7 @@ async function loadRecords() {
       ? nextPages
       : Math.max(1, Math.ceil(total.value / size.value));
   } catch (error) {
-    setStatus(error.message || "加载检查记录失败", "error");
+    setStatus(resolveErrorMessage(error, "加载检查记录失败"), "error");
   } finally {
     loading.value = false;
   }

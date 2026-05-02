@@ -17,7 +17,7 @@
       </div>
       <h1>整改材料已提交</h1>
       <p class="secondary-text" style="max-width: 420px; margin: 0 auto 22px; line-height: 1.6">
-        系统已接收本次整改进展，状态将更新为「待复核」。您可随时在任务详情中查看监管意见。
+        系统已接收本次整改进展，状态将更新为“待复核”。您可随时在任务详情中查看监管意见。
       </p>
       <div class="enterprise-panel" style="max-width: 520px; margin: 0 auto 24px; text-align: left">
         <div class="enterprise-readonly-field">

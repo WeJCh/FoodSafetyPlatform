@@ -11,7 +11,11 @@
       <template v-else>
         <header class="page-head">
           <div>
-            <nav class="crumbs"><span>投诉流转</span><span class="sep">/</span><span>投诉详情</span></nav>
+            <nav class="crumbs">
+              <span>投诉流转</span>
+              <span class="sep">/</span>
+              <span>投诉详情</span>
+            </nav>
             <div class="title-row">
               <h1>{{ complaint.complaintNo || "-" }}</h1>
               <span class="status-chip">{{ formatComplaintStatus(complaint.status) }}</span>
@@ -19,8 +23,24 @@
           </div>
           <div class="head-actions">
             <button class="ghost" type="button" @click="handleBack">返回列表</button>
-            <button v-if="canReject" class="danger" type="button" :disabled="loadingAction" @click="handleRejectQuick">驳回投诉</button>
-            <button v-if="canAssign" class="primary" type="button" :disabled="loadingAction" @click="scrollToActions">确认流转</button>
+            <button
+              v-if="canReject"
+              class="danger"
+              type="button"
+              :disabled="loadingAction"
+              @click="handleRejectQuick"
+            >
+              驳回投诉
+            </button>
+            <button
+              v-if="canAssign"
+              class="primary"
+              type="button"
+              :disabled="loadingAction"
+              @click="scrollToActions"
+            >
+              确认流转
+            </button>
           </div>
         </header>
 
@@ -29,8 +49,15 @@
           <div class="timeline">
             <div class="timeline-line timeline-line--all"></div>
             <div class="timeline-line timeline-line--done" :style="{ width: `${timelineProgress}%` }"></div>
-            <article v-for="item in timelineItems" :key="item.key" class="timeline-node" :class="item.state">
-              <span class="dot"></span><strong>{{ item.label }}</strong><em>{{ item.time }}</em>
+            <article
+              v-for="item in timelineItems"
+              :key="item.key"
+              class="timeline-node"
+              :class="item.state"
+            >
+              <span class="dot"></span>
+              <strong>{{ item.label }}</strong>
+              <em>{{ item.time }}</em>
             </article>
           </div>
         </section>
@@ -47,6 +74,7 @@
                   <div><dt>更新时间</dt><dd>{{ formatTime(complaint.updateTime) }}</dd></div>
                 </dl>
               </section>
+
               <section class="panel">
                 <h4>涉事企业</h4>
                 <div class="enterprise-head">
@@ -56,26 +84,52 @@
                     <p class="sub">统一社会信用代码：{{ enterprise?.creditCode || "-" }}</p>
                   </div>
                 </div>
-                <div class="address-box"><span>经营地址</span><p>{{ enterprise?.addressDetail || "-" }}</p></div>
+                <div class="address-box">
+                  <span>经营地址</span>
+                  <p>{{ enterprise?.addressDetail || "-" }}</p>
+                </div>
               </section>
             </div>
+
             <section class="panel panel-large">
               <h4>投诉详情描述</h4>
               <div class="content-box">{{ complaint.content || "-" }}</div>
               <div v-if="complaintImageList.length" class="image-grid">
-                <button v-for="(url, index) in complaintImageList" :key="`${url}-${index}`" class="image-thumb" type="button" @click="openImagePreview(complaintImageList, index)">
+                <button
+                  v-for="(url, index) in complaintImageList"
+                  :key="`${url}-${index}`"
+                  class="image-thumb"
+                  type="button"
+                  @click="openImagePreview(complaintImageList, index)"
+                >
                   <img :src="url" alt="投诉现场图片" />
                 </button>
               </div>
               <div v-else class="muted-text">暂无现场图片</div>
             </section>
+
             <section class="panel panel-large">
-              <h4>流转日志 / Processing Log</h4>
-              <div class="logs">
-                <article v-for="(entry, index) in processingLogs" :key="`${entry.title}-${index}`" class="log-item">
+              <div class="panel-head">
+                <h4>流转日志</h4>
+                <button class="mini-link" type="button" :disabled="auditLoading" @click="loadAuditLogs">
+                  {{ auditLoading ? "加载中..." : "刷新" }}
+                </button>
+              </div>
+              <div v-if="auditLoading" class="muted-text">操作日志加载中...</div>
+              <div v-else-if="auditError" class="muted-text muted-text--error">{{ auditError }}</div>
+              <div v-else-if="!auditLogs.length" class="muted-text">当前暂无投诉操作日志</div>
+              <div v-else class="logs">
+                <article v-for="item in auditLogs" :key="item.id" class="log-item">
                   <span class="log-dot"></span>
-                  <div class="log-main"><strong>{{ entry.title }}</strong><p>{{ entry.desc }}</p></div>
-                  <time>{{ entry.time }}</time>
+                  <div class="log-main">
+                    <strong>{{ item.title }}</strong>
+                    <p>{{ item.desc }}</p>
+                    <p class="log-meta">
+                      <span>{{ item.operatorName || "-" }}</span>
+                      <span v-if="item.remark">· {{ item.remark }}</span>
+                    </p>
+                  </div>
+                  <time>{{ formatTime(item.createTime) }}</time>
                 </article>
               </div>
             </section>
@@ -83,33 +137,67 @@
 
           <div class="right-col">
             <section class="panel panel-blue">
-              <h4>当前执行人 / Enforcer</h4>
+              <h4>当前执行人</h4>
               <div class="enforcer-row">
                 <div class="enforcer-avatar">{{ enforcerInitial }}</div>
-                <div><p class="name">{{ complaint.assignedToName || "暂未指派" }}</p><p class="sub">指派时间：{{ formatTime(complaint.assignedTime) }}</p></div>
+                <div>
+                  <p class="name">{{ complaint.assignedToName || "暂未指派" }}</p>
+                  <p class="sub">指派时间：{{ formatTime(complaint.assignedTime) }}</p>
+                </div>
               </div>
               <dl class="enforcer-meta">
                 <div><dt>联系电话</dt><dd>-</dd></div>
                 <div><dt>办理时限</dt><dd>{{ formatTime(complaint.deadlineTime) }}</dd></div>
               </dl>
             </section>
+
             <section ref="actionPanelRef" class="panel">
-              <h4>操作指令 / Actions</h4>
+              <h4>操作指令</h4>
               <div class="action-stack">
-                <div v-if="canAccept" class="action-tip">该投诉尚未受理，请先完成受理。<button class="primary" type="button" :disabled="loadingAction" @click="handleAccept">受理投诉</button></div>
+                <div v-if="canAccept" class="action-tip">
+                  该投诉尚未受理，请先完成受理。
+                  <button class="primary" type="button" :disabled="loadingAction" @click="handleAccept">
+                    受理投诉
+                  </button>
+                </div>
+
                 <template v-if="canAssign">
-                  <label>指派执法人员<select v-model="assignForm.regulatorId"><option value="">请选择</option><option v-for="item in enforcers" :key="item.id" :value="item.id">{{ item.name }}</option></select></label>
-                  <label>办理时限<input v-model="assignForm.deadlineTime" type="datetime-local" /></label>
-                  <button class="primary" type="button" :disabled="loadingAction" @click="handleAssign">确认执行流转</button>
+                  <label>
+                    指派执法人员
+                    <select v-model="assignForm.regulatorId">
+                      <option value="">请选择</option>
+                      <option v-for="item in enforcers" :key="item.id" :value="item.id">
+                        {{ item.name }}
+                      </option>
+                    </select>
+                  </label>
+                  <label>
+                    办理时限
+                    <input v-model="assignForm.deadlineTime" type="datetime-local" />
+                  </label>
+                  <button class="primary" type="button" :disabled="loadingAction" @click="handleAssign">
+                    确认执行流转
+                  </button>
                 </template>
+
                 <template v-if="canReject">
-                  <label>驳回原因<textarea v-model.trim="rejectForm.reason" rows="3" placeholder="请输入驳回原因"></textarea></label>
-                  <button class="ghost" type="button" :disabled="loadingAction" @click="handleReject">提交驳回</button>
+                  <label>
+                    驳回原因
+                    <textarea
+                      v-model.trim="rejectForm.reason"
+                      rows="3"
+                      placeholder="请输入驳回原因"
+                    ></textarea>
+                  </label>
+                  <button class="ghost" type="button" :disabled="loadingAction" @click="handleReject">
+                    提交驳回
+                  </button>
                 </template>
               </div>
             </section>
           </div>
         </div>
+
         <div v-if="status.message" class="status" :class="status.type">{{ status.message }}</div>
       </template>
     </section>
@@ -118,9 +206,18 @@
       <div class="image-preview-card">
         <img :src="currentImagePreviewUrl" alt="现场图片大图" />
         <div class="image-preview-actions">
-          <button class="ghost" type="button" :disabled="imagePreviewIndex <= 0" @click="showPrevImage">上一张</button>
+          <button class="ghost" type="button" :disabled="imagePreviewIndex <= 0" @click="showPrevImage">
+            上一张
+          </button>
           <span>{{ imagePreviewIndex + 1 }}/{{ imagePreviewUrls.length }}</span>
-          <button class="ghost" type="button" :disabled="imagePreviewIndex >= imagePreviewUrls.length - 1" @click="showNextImage">下一张</button>
+          <button
+            class="ghost"
+            type="button"
+            :disabled="imagePreviewIndex >= imagePreviewUrls.length - 1"
+            @click="showNextImage"
+          >
+            下一张
+          </button>
           <button class="primary" type="button" @click="closeImagePreview">关闭</button>
         </div>
       </div>
@@ -131,91 +228,262 @@
 <script setup>
 import { computed, onMounted, reactive, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
-import { acceptComplaint, assignComplaint, fetchComplaintDetail, rejectComplaint } from "../../api/complaint";
+import {
+  acceptComplaint,
+  assignComplaint,
+  fetchComplaintDetail,
+  fetchComplaintLogs,
+  rejectComplaint
+} from "../../api/complaint";
 import { fetchEligibleRegulators } from "../../api/regulation";
 import RegulatorAdminWorkspacePage from "../../components/regulatorAdmin/RegulatorAdminWorkspacePage.vue";
 import { formatByMap, formatTime } from "../../utils/formatters";
 import { complaintStatusMap } from "../../utils/statusMaps";
+import { resolveErrorMessage } from "../../utils/uiFeedback";
 import { useRegulatorAdminShellSession } from "./regulatorAdminShared";
 
 const route = useRoute();
 const router = useRouter();
 const { token, regulatorUser, handleSidebarNavigate, handleLogout } = useRegulatorAdminShellSession();
+
 const loading = ref(false);
 const loadingAction = ref(false);
 const detail = ref(null);
 const enforcers = ref([]);
+const auditLogs = ref([]);
+const auditLoading = ref(false);
+const auditError = ref("");
 const status = reactive({ message: "", type: "" });
 const assignForm = reactive({ regulatorId: "", deadlineTime: "" });
 const rejectForm = reactive({ reason: "" });
 const imagePreviewUrls = ref([]);
 const imagePreviewIndex = ref(0);
 const actionPanelRef = ref(null);
+
 const complaint = computed(() => detail.value?.complaint || null);
 const enterprise = computed(() => detail.value?.enterprise || null);
-const handles = computed(() => (Array.isArray(detail.value?.handles) ? detail.value.handles : []));
 const currentImagePreviewUrl = computed(() => imagePreviewUrls.value[imagePreviewIndex.value] || "");
 const complaintImageList = computed(() => complaint.value?.imageUrls || []);
 const canAccept = computed(() => complaint.value?.status === "SUBMITTED");
 const canAssign = computed(() => ["PENDING", "ASSIGNED", "PROCESSING"].includes(complaint.value?.status || ""));
 const canReject = computed(() => ["SUBMITTED", "PENDING"].includes(complaint.value?.status || ""));
+
 const enforcerInitial = computed(() => {
   const name = complaint.value?.assignedToName || "";
   return name ? name.slice(0, 1) : "执";
 });
+
 const timelineItems = computed(() => {
   const c = complaint.value;
   if (!c) return [];
   return [
     { key: "SUBMITTED", label: "已提交", time: formatTime(c.createTime), state: "done" },
-    { key: "PENDING", label: "待审核", time: formatTime(c.acceptedTime), state: c.acceptedTime ? "done" : "waiting" },
-    { key: "ASSIGNED", label: "已派发", time: formatTime(c.assignedTime), state: c.assignedTime ? "active" : "waiting" },
-    { key: "PROCESSING", label: "处理中", time: formatTime(c.processedTime), state: c.status === "PROCESSING" ? "active" : c.processedTime ? "done" : "waiting" },
-    { key: "FEEDBACKED", label: "已反馈", time: c.feedbackSummary ? formatTime(c.updateTime) : "--", state: c.status === "FEEDBACKED" ? "done" : "waiting" }
+    { key: "PENDING", label: "已受理", time: formatTime(c.acceptedTime), state: c.acceptedTime ? "done" : "waiting" },
+    { key: "ASSIGNED", label: "已分派", time: formatTime(c.assignedTime), state: c.assignedTime ? "active" : "waiting" },
+    {
+      key: "PROCESSING",
+      label: "处理中",
+      time: c.status === "PROCESSING" ? formatTime(c.updateTime) : "--",
+      state: c.status === "PROCESSING" ? "active" : ["FEEDBACKED", "REJECTED"].includes(c.status) ? "done" : "waiting"
+    },
+    {
+      key: "DONE",
+      label: c.status === "REJECTED" ? "已驳回" : "已反馈",
+      time: c.status === "REJECTED" ? formatTime(c.rejectedTime) : formatTime(c.processedTime || c.updateTime),
+      state: ["FEEDBACKED", "REJECTED"].includes(c.status) ? "done" : "waiting"
+    }
   ];
 });
+
 const timelineProgress = computed(() => {
   const nodes = timelineItems.value;
-  if (!nodes.length) return 0;
+  if (nodes.length <= 1) return 0;
   const done = nodes.filter((node) => node.state === "done" || node.state === "active").length;
   return ((Math.max(done - 1, 0)) / (nodes.length - 1)) * 100;
 });
-const processingLogs = computed(() => {
-  const c = complaint.value;
-  if (!c) return [];
-  const rows = [];
-  if (c.assignedTime) rows.push({ title: "投诉件已分配", desc: `系统分配至执法人员：${c.assignedToName || "-"}`, time: formatTime(c.assignedTime) });
-  if (c.acceptedTime) rows.push({ title: "初审通过", desc: `受理人：${c.acceptedByName || "-"}`, time: formatTime(c.acceptedTime) });
-  handles.value.forEach((item) => rows.push({ title: "处理反馈", desc: item.handleResult || "已提交处理记录", time: formatTime(item.handleTime) }));
-  rows.push({ title: "系统接入手续", desc: "投诉平台同步数据完成。", time: formatTime(c.createTime) });
-  return rows;
-});
-function formatComplaintStatus(value) { return formatByMap(value, complaintStatusMap); }
-function setStatus(message = "", type = "") { status.message = message; status.type = type; }
-function normalizeDateTime(value) { if (!value) return undefined; return value.length === 16 ? `${value}:00` : value; }
-async function loadEnforcers(regionId) { enforcers.value = []; if (!regionId) return; try { const data = await fetchEligibleRegulators(token.value, regionId); enforcers.value = Array.isArray(data) ? data : []; } catch { enforcers.value = []; } }
+
+function formatComplaintStatus(value) {
+  return formatByMap(value, complaintStatusMap);
+}
+
+function setStatus(message = "", type = "") {
+  status.message = message;
+  status.type = type;
+}
+
+function normalizeDateTime(value) {
+  if (!value) return undefined;
+  return value.length === 16 ? `${value}:00` : value;
+}
+
+async function loadEnforcers(regionId) {
+  enforcers.value = [];
+  if (!regionId) return;
+  try {
+    const data = await fetchEligibleRegulators(token.value, regionId);
+    enforcers.value = Array.isArray(data) ? data : [];
+  } catch {
+    enforcers.value = [];
+  }
+}
+
+async function loadAuditLogs() {
+  if (!complaint.value?.id) {
+    auditLogs.value = [];
+    auditError.value = "";
+    return;
+  }
+  auditLoading.value = true;
+  auditError.value = "";
+  try {
+    const data = await fetchComplaintLogs(token.value, complaint.value.id, 12);
+    auditLogs.value = (Array.isArray(data) ? data : []).map((item, index) => ({
+      id: item.id || `complaint-log-${index}`,
+      title: item.actionName || item.actionType || "投诉操作日志",
+      desc: item.summary || "暂无日志摘要",
+      operatorName: item.operatorName || "监管人员",
+      remark: item.remark || "",
+      createTime: item.createTime
+    }));
+  } catch (error) {
+    auditLogs.value = [];
+    auditError.value = resolveErrorMessage(error, "操作日志加载失败");
+  } finally {
+    auditLoading.value = false;
+  }
+}
+
 async function loadDetail() {
   const complaintId = route.params.complaintId;
-  if (!complaintId) { detail.value = null; return; }
-  loading.value = true; setStatus("");
-  try { detail.value = await fetchComplaintDetail(token.value, complaintId); assignForm.regulatorId = ""; assignForm.deadlineTime = ""; rejectForm.reason = ""; await loadEnforcers(detail.value?.enterprise?.regionId); }
-  catch (error) { detail.value = null; setStatus(error.message || "加载投诉详情失败", "error"); }
-  finally { loading.value = false; }
+  if (!complaintId) {
+    detail.value = null;
+    auditLogs.value = [];
+    auditError.value = "";
+    return;
+  }
+  loading.value = true;
+  setStatus("");
+  try {
+    detail.value = await fetchComplaintDetail(token.value, complaintId);
+    assignForm.regulatorId = "";
+    assignForm.deadlineTime = "";
+    rejectForm.reason = "";
+    await Promise.all([
+      loadEnforcers(detail.value?.enterprise?.regionId),
+      loadAuditLogs()
+    ]);
+  } catch (error) {
+    detail.value = null;
+    auditLogs.value = [];
+    auditError.value = "";
+    setStatus(resolveErrorMessage(error, "加载投诉详情失败"), "error");
+  } finally {
+    loading.value = false;
+  }
 }
-async function handleAccept() { if (!complaint.value?.id) return; loadingAction.value = true; setStatus(""); try { await acceptComplaint(token.value, complaint.value.id); setStatus("投诉已受理", "success"); await loadDetail(); } catch (error) { setStatus(error.message || "投诉受理失败", "error"); } finally { loadingAction.value = false; } }
-async function handleAssign() { if (!complaint.value?.id) return; if (!assignForm.regulatorId) { setStatus("请选择执法人员", "error"); return; } loadingAction.value = true; setStatus(""); try { await assignComplaint(token.value, complaint.value.id, { regulatorId: assignForm.regulatorId, deadlineTime: normalizeDateTime(assignForm.deadlineTime) }); setStatus("派发成功", "success"); await loadDetail(); } catch (error) { setStatus(error.message || "派发失败", "error"); } finally { loadingAction.value = false; } }
-async function handleReject() { if (!complaint.value?.id) return; if (!rejectForm.reason.trim()) { setStatus("请填写驳回原因", "error"); return; } loadingAction.value = true; setStatus(""); try { await rejectComplaint(token.value, complaint.value.id, { reason: rejectForm.reason }); setStatus("投诉已驳回", "success"); await loadDetail(); } catch (error) { setStatus(error.message || "驳回失败", "error"); } finally { loadingAction.value = false; } }
-function handleRejectQuick() { actionPanelRef.value?.scrollIntoView({ behavior: "smooth", block: "center" }); }
-function scrollToActions() { actionPanelRef.value?.scrollIntoView({ behavior: "smooth", block: "center" }); }
-function openImagePreview(urls, index) { if (!Array.isArray(urls) || !urls.length) return; imagePreviewUrls.value = urls; imagePreviewIndex.value = Math.min(Math.max(index || 0, 0), urls.length - 1); }
-function closeImagePreview() { imagePreviewUrls.value = []; imagePreviewIndex.value = 0; }
-function showPrevImage() { if (imagePreviewIndex.value <= 0) return; imagePreviewIndex.value -= 1; }
-function showNextImage() { if (imagePreviewIndex.value >= imagePreviewUrls.value.length - 1) return; imagePreviewIndex.value += 1; }
+
+async function handleAccept() {
+  if (!complaint.value?.id) return;
+  loadingAction.value = true;
+  setStatus("");
+  try {
+    await acceptComplaint(token.value, complaint.value.id);
+    setStatus("投诉已受理", "success");
+    await loadDetail();
+  } catch (error) {
+    setStatus(resolveErrorMessage(error, "投诉受理失败"), "error");
+  } finally {
+    loadingAction.value = false;
+  }
+}
+
+async function handleAssign() {
+  if (!complaint.value?.id) return;
+  if (!assignForm.regulatorId) {
+    setStatus("请选择执法人员", "error");
+    return;
+  }
+  loadingAction.value = true;
+  setStatus("");
+  try {
+    await assignComplaint(token.value, complaint.value.id, {
+      regulatorId: assignForm.regulatorId,
+      deadlineTime: normalizeDateTime(assignForm.deadlineTime)
+    });
+    setStatus("派发成功", "success");
+    await loadDetail();
+  } catch (error) {
+    setStatus(resolveErrorMessage(error, "派发失败"), "error");
+  } finally {
+    loadingAction.value = false;
+  }
+}
+
+async function handleReject() {
+  if (!complaint.value?.id) return;
+  if (!rejectForm.reason.trim()) {
+    setStatus("请填写驳回原因", "error");
+    return;
+  }
+  loadingAction.value = true;
+  setStatus("");
+  try {
+    await rejectComplaint(token.value, complaint.value.id, { reason: rejectForm.reason });
+    setStatus("投诉已驳回", "success");
+    await loadDetail();
+  } catch (error) {
+    setStatus(resolveErrorMessage(error, "驳回失败"), "error");
+  } finally {
+    loadingAction.value = false;
+  }
+}
+
+function handleRejectQuick() {
+  actionPanelRef.value?.scrollIntoView({ behavior: "smooth", block: "center" });
+}
+
+function scrollToActions() {
+  actionPanelRef.value?.scrollIntoView({ behavior: "smooth", block: "center" });
+}
+
+function openImagePreview(urls, index) {
+  if (!Array.isArray(urls) || !urls.length) return;
+  imagePreviewUrls.value = urls;
+  imagePreviewIndex.value = Math.min(Math.max(index || 0, 0), urls.length - 1);
+}
+
+function closeImagePreview() {
+  imagePreviewUrls.value = [];
+  imagePreviewIndex.value = 0;
+}
+
+function showPrevImage() {
+  if (imagePreviewIndex.value <= 0) return;
+  imagePreviewIndex.value -= 1;
+}
+
+function showNextImage() {
+  if (imagePreviewIndex.value >= imagePreviewUrls.value.length - 1) return;
+  imagePreviewIndex.value += 1;
+}
+
 function handleBack() {
   const fromSection = typeof route.query.from === "string" ? route.query.from : "complaints";
-  const routeNameMap = { enterprises: "regulator-admin-enterprises", approvals: "regulator-admin-approvals", dispatch: "regulator-admin-dispatch", sampling: "regulator-admin-sampling", inspections: "regulator-admin-dispatch-records", complaints: "regulator-admin-complaints", rectification: "regulator-admin-rectifications", warnings: "regulator-admin-warnings", bulletins: "regulator-admin-bulletins", stats: "regulator-admin-stats" };
+  const routeNameMap = {
+    enterprises: "regulator-admin-enterprises",
+    approvals: "regulator-admin-approvals",
+    dispatch: "regulator-admin-dispatch",
+    sampling: "regulator-admin-sampling",
+    inspections: "regulator-admin-dispatch-records",
+    complaints: "regulator-admin-complaints",
+    rectification: "regulator-admin-rectifications",
+    warnings: "regulator-admin-warnings",
+    bulletins: "regulator-admin-bulletins",
+    stats: "regulator-admin-stats"
+  };
   router.push({ name: routeNameMap[fromSection] || "regulator-admin-complaints" }).catch(() => {});
 }
+
 onMounted(loadDetail);
 watch(() => route.params.complaintId, loadDetail);
 </script>
@@ -228,8 +496,8 @@ watch(() => route.params.complaintId, loadDetail);
 .crumbs { display: flex; gap: 6px; color: #64748b; font-size: 11px; font-weight: 700; }
 .sep { opacity: 0.55; }
 .title-row { margin-top: 8px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
-.title-row h1 { margin: 0; font-size: 30px; font-weight: 900; color: #002660; letter-spacing: -0.02em; }
-.status-chip { display: inline-flex; min-height: 22px; align-items: center; padding: 0 10px; border-radius: 999px; background: #dbeafe; color: #1e3a8a; font-size: 10px; font-weight: 900; text-transform: uppercase; }
+.title-row h1 { margin: 0; font-size: 30px; font-weight: 900; color: #002660; }
+.status-chip { display: inline-flex; min-height: 22px; align-items: center; padding: 0 10px; border-radius: 999px; background: #dbeafe; color: #1e3a8a; font-size: 10px; font-weight: 900; }
 .head-actions { display: flex; gap: 8px; }
 .primary, .ghost, .danger { border-radius: 8px; min-height: 38px; font-size: 12px; font-weight: 800; padding: 0 14px; cursor: pointer; }
 .primary { border: 0; background: #002660; color: #fff; }
@@ -253,6 +521,10 @@ watch(() => route.params.complaintId, loadDetail);
 .panel { background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 14px; }
 .panel-large { padding: 16px; }
 .panel h4 { margin: 0 0 12px; color: #002660; font-size: 12px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.08em; }
+.panel-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
+.panel-head h4 { margin: 0; }
+.mini-link { border: 0; background: transparent; color: #1d4ed8; font-size: 12px; font-weight: 700; cursor: pointer; padding: 0; }
+.mini-link:disabled { color: #94a3b8; cursor: default; }
 .kv-list { margin: 0; display: grid; gap: 10px; }
 .kv-list div { display: flex; justify-content: space-between; gap: 12px; padding-bottom: 8px; border-bottom: 1px solid #f1f5f9; }
 .kv-list dt { color: #64748b; font-size: 12px; }
@@ -269,12 +541,14 @@ watch(() => route.params.complaintId, loadDetail);
 .image-thumb { padding: 0; border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden; background: #fff; cursor: pointer; }
 .image-thumb img { display: block; width: 100%; height: 96px; object-fit: cover; }
 .muted-text { color: #94a3b8; font-size: 12px; }
+.muted-text--error { color: #b91c1c; }
 .logs { position: relative; display: grid; gap: 12px; }
 .logs::before { content: ""; position: absolute; left: 5px; top: 8px; bottom: 8px; width: 2px; background: #e2e8f0; }
 .log-item { position: relative; display: grid; grid-template-columns: 1fr auto; gap: 8px 12px; padding-left: 20px; }
 .log-dot { position: absolute; left: 0; top: 4px; width: 12px; height: 12px; border-radius: 50%; background: #002660; border: 2px solid #fff; box-shadow: 0 0 0 1px #cbd5e1; }
 .log-main strong { color: #0f172a; font-size: 12px; }
 .log-main p { margin: 4px 0 0; color: #64748b; font-size: 12px; line-height: 1.5; }
+.log-main .log-meta { color: #94a3b8; font-size: 11px; }
 .log-item time { color: #94a3b8; font-size: 10px; white-space: nowrap; }
 .panel-blue { background: linear-gradient(135deg, #002660, #003a8c); color: #fff; border: 0; box-shadow: 0 12px 24px rgba(0, 38, 96, 0.22); }
 .panel-blue h4 { color: rgba(255, 255, 255, 0.76); }

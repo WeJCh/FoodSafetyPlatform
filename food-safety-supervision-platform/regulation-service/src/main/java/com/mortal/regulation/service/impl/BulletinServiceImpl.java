@@ -8,6 +8,7 @@ import com.mortal.regulation.entity.FoodRegulator;
 import com.mortal.regulation.entity.PublicBulletin;
 import com.mortal.regulation.mapper.FoodRegulatorMapper;
 import com.mortal.regulation.mapper.PublicBulletinMapper;
+import com.mortal.regulation.service.AuditLogService;
 import com.mortal.regulation.service.BulletinService;
 import com.mortal.regulation.support.BulletinPublicCacheService;
 import com.mortal.regulation.vo.BulletinDetailVO;
@@ -37,13 +38,16 @@ public class BulletinServiceImpl implements BulletinService {
     private final PublicBulletinMapper publicBulletinMapper;
     private final FoodRegulatorMapper foodRegulatorMapper;
     private final BulletinPublicCacheService bulletinPublicCacheService;
+    private final AuditLogService auditLogService;
 
     public BulletinServiceImpl(PublicBulletinMapper publicBulletinMapper,
                                FoodRegulatorMapper foodRegulatorMapper,
-                               BulletinPublicCacheService bulletinPublicCacheService) {
+                               BulletinPublicCacheService bulletinPublicCacheService,
+                               AuditLogService auditLogService) {
         this.publicBulletinMapper = publicBulletinMapper;
         this.foodRegulatorMapper = foodRegulatorMapper;
         this.bulletinPublicCacheService = bulletinPublicCacheService;
+        this.auditLogService = auditLogService;
     }
 
     @Override
@@ -83,54 +87,109 @@ public class BulletinServiceImpl implements BulletinService {
 
     @Override
     public BulletinDetailVO create(Long userId, BulletinSaveDTO dto) {
-        requireAdmin(userId);
+        FoodRegulator operator = requireAdmin(userId);
         PublicBulletin bulletin = new PublicBulletin();
         bulletin.setTitle(dto.getTitle().trim());
         bulletin.setCategory(normalizeCategory(dto.getCategory()));
         bulletin.setContent(normalizeContent(dto.getContent()));
         bulletin.setStatus(STATUS_DRAFT);
         bulletin.setCreatedBy(userId);
+        bulletin.setUpdateTime(LocalDateTime.now());
         bulletin.setDeleted(0);
         publicBulletinMapper.insert(bulletin);
         bulletinPublicCacheService.evict(bulletin.getId());
         PublicBulletin saved = publicBulletinMapper.selectById(bulletin.getId());
+        auditLogService.recordBulletinAudit(
+            userId,
+            ROLE_ADMIN,
+            operator.getName(),
+            "BULLETIN_CREATE",
+            "创建公告草稿",
+            null,
+            saved,
+            "创建公告草稿，当前状态=" + saved.getStatus()
+        );
         return toDetailVO(saved, loadRegulatorNameMap(List.of(saved)));
     }
 
     @Override
     public BulletinDetailVO update(Long userId, Long bulletinId, BulletinSaveDTO dto) {
-        requireAdmin(userId);
+        FoodRegulator operator = requireAdmin(userId);
         PublicBulletin bulletin = requireBulletin(bulletinId);
+        PublicBulletin before = copyBulletin(bulletin);
         bulletin.setTitle(dto.getTitle().trim());
         bulletin.setCategory(normalizeCategory(dto.getCategory()));
         bulletin.setContent(normalizeContent(dto.getContent()));
+        bulletin.setUpdateTime(LocalDateTime.now());
         publicBulletinMapper.updateById(bulletin);
         bulletinPublicCacheService.evict(bulletinId);
         PublicBulletin saved = publicBulletinMapper.selectById(bulletinId);
+        if (hasBulletinCoreChanges(before, saved)) {
+            auditLogService.recordBulletinAudit(
+                userId,
+                ROLE_ADMIN,
+                operator.getName(),
+                "BULLETIN_UPDATE",
+                "更新公告",
+                before,
+                saved,
+                "更新公告内容：标题/分类/正文已调整"
+            );
+        }
         return toDetailVO(saved, loadRegulatorNameMap(List.of(saved)));
     }
 
     @Override
     public BulletinDetailVO publish(Long userId, Long bulletinId) {
-        requireAdmin(userId);
+        FoodRegulator operator = requireAdmin(userId);
         PublicBulletin bulletin = requireBulletin(bulletinId);
+        if (STATUS_PUBLISHED.equalsIgnoreCase(bulletin.getStatus())) {
+            return toDetailVO(bulletin, loadRegulatorNameMap(List.of(bulletin)));
+        }
+        PublicBulletin before = copyBulletin(bulletin);
         bulletin.setStatus(STATUS_PUBLISHED);
         bulletin.setPublishedBy(userId);
         bulletin.setPublishedTime(LocalDateTime.now());
+        bulletin.setUpdateTime(LocalDateTime.now());
         publicBulletinMapper.updateById(bulletin);
         bulletinPublicCacheService.evict(bulletinId);
         PublicBulletin saved = publicBulletinMapper.selectById(bulletinId);
+        auditLogService.recordBulletinAudit(
+            userId,
+            ROLE_ADMIN,
+            operator.getName(),
+            "BULLETIN_PUBLISH",
+            "发布公告",
+            before,
+            saved,
+            "公告状态由 " + before.getStatus() + " 调整为 " + saved.getStatus()
+        );
         return toDetailVO(saved, loadRegulatorNameMap(List.of(saved)));
     }
 
     @Override
     public BulletinDetailVO offline(Long userId, Long bulletinId) {
-        requireAdmin(userId);
+        FoodRegulator operator = requireAdmin(userId);
         PublicBulletin bulletin = requireBulletin(bulletinId);
+        if (STATUS_OFFLINE.equalsIgnoreCase(bulletin.getStatus())) {
+            return toDetailVO(bulletin, loadRegulatorNameMap(List.of(bulletin)));
+        }
+        PublicBulletin before = copyBulletin(bulletin);
         bulletin.setStatus(STATUS_OFFLINE);
+        bulletin.setUpdateTime(LocalDateTime.now());
         publicBulletinMapper.updateById(bulletin);
         bulletinPublicCacheService.evict(bulletinId);
         PublicBulletin saved = publicBulletinMapper.selectById(bulletinId);
+        auditLogService.recordBulletinAudit(
+            userId,
+            ROLE_ADMIN,
+            operator.getName(),
+            "BULLETIN_OFFLINE",
+            "下线公告",
+            before,
+            saved,
+            "公告状态由 " + before.getStatus() + " 调整为 " + saved.getStatus()
+        );
         return toDetailVO(saved, loadRegulatorNameMap(List.of(saved)));
     }
 
@@ -293,5 +352,34 @@ public class BulletinServiceImpl implements BulletinService {
 
     private String normalize(String value) {
         return StringUtils.hasText(value) ? value.trim().toUpperCase(Locale.ROOT) : null;
+    }
+
+    private boolean hasBulletinCoreChanges(PublicBulletin before, PublicBulletin after) {
+        if (before == null || after == null) {
+            return true;
+        }
+        return !Objects.equals(before.getTitle(), after.getTitle())
+            || !Objects.equals(before.getCategory(), after.getCategory())
+            || !Objects.equals(before.getContent(), after.getContent())
+            || !Objects.equals(before.getStatus(), after.getStatus());
+    }
+
+    private PublicBulletin copyBulletin(PublicBulletin source) {
+        if (source == null) {
+            return null;
+        }
+        PublicBulletin copy = new PublicBulletin();
+        copy.setId(source.getId());
+        copy.setTitle(source.getTitle());
+        copy.setCategory(source.getCategory());
+        copy.setContent(source.getContent());
+        copy.setStatus(source.getStatus());
+        copy.setCreatedBy(source.getCreatedBy());
+        copy.setPublishedBy(source.getPublishedBy());
+        copy.setPublishedTime(source.getPublishedTime());
+        copy.setCreateTime(source.getCreateTime());
+        copy.setUpdateTime(source.getUpdateTime());
+        copy.setDeleted(source.getDeleted());
+        return copy;
     }
 }

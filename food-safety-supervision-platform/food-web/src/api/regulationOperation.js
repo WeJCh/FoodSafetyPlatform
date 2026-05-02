@@ -42,12 +42,26 @@ export function fetchInspectionTasks(token, params = {}) {
   );
 }
 
+export async function findInspectionTaskById(token, id) {
+  const target = String(id);
+  let page = 1;
+  const size = 50;
+  const maxPages = 40;
+  while (page <= maxPages) {
+    const data = await fetchInspectionTasks(token, { page, size });
+    const records = data?.records || [];
+    const found = records.find((task) => String(task.id) === target);
+    if (found) return found;
+    const pages = data?.pages || 1;
+    if (page >= pages || !records.length) break;
+    page += 1;
+  }
+  return null;
+}
+
 export function fetchMyInspectionTasks(token, params = {}) {
   const search = new URLSearchParams();
-  if (params.enterpriseName) search.append("enterpriseName", params.enterpriseName);
   if (params.status) search.append("status", params.status);
-  if (params.startDate) search.append("startDate", params.startDate);
-  if (params.endDate) search.append("endDate", params.endDate);
   if (params.page) search.append("page", params.page);
   if (params.size) search.append("size", params.size);
   const query = search.toString();
@@ -436,6 +450,32 @@ export async function findMyInspectionRecordByTaskId(token, taskId) {
   return latest;
 }
 
+export async function findInspectionRecordByTaskId(token, taskId) {
+  const target = String(taskId);
+  let page = 1;
+  const size = 50;
+  const maxPages = 40;
+  let latest = null;
+
+  while (page <= maxPages) {
+    const data = await fetchInspectionRecords(token, { page, size });
+    const records = data?.records || [];
+    const matched = records.filter((record) => String(record?.taskId) === target);
+    if (matched.length) {
+      matched.sort((a, b) =>
+        String(b?.inspectionDate || b?.updateTime || "").localeCompare(String(a?.inspectionDate || a?.updateTime || ""))
+      );
+      latest = matched[0];
+      break;
+    }
+    const pages = data?.pages || 1;
+    if (page >= pages || !records.length) break;
+    page += 1;
+  }
+
+  return latest;
+}
+
 export function fetchEnterpriseInspectionRecords(token, params = {}) {
   const search = new URLSearchParams();
   if (params.result) search.append("result", params.result);
@@ -479,6 +519,39 @@ export function fetchMyRegulatorRectifications(token, params = {}) {
   return requestWithBase(
     REGULATION_OPERATION_BASE_URL,
     `/api/regulation-operation/rectifications/regulator/my${query ? `?${query}` : ""}`,
+    {
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${token}`
+      }
+    }
+  );
+}
+
+export function fetchOperationAuditLogs(token, targetType, targetId, limit = 10) {
+  const search = new URLSearchParams();
+  if (limit) search.append("limit", limit);
+  const query = search.toString();
+  return requestWithBase(
+    REGULATION_OPERATION_BASE_URL,
+    `/api/regulation-operation/audit-logs/${encodeURIComponent(targetType)}/${targetId}${query ? `?${query}` : ""}`,
+    {
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${token}`
+      }
+    }
+  );
+}
+
+export function fetchRecentOperationAuditLogs(token, params = {}) {
+  const search = new URLSearchParams();
+  if (params.bizType) search.append("bizType", params.bizType);
+  if (params.limit) search.append("limit", params.limit);
+  const query = search.toString();
+  return requestWithBase(
+    REGULATION_OPERATION_BASE_URL,
+    `/api/regulation-operation/audit-logs/recent${query ? `?${query}` : ""}`,
     {
       method: "GET",
       headers: {

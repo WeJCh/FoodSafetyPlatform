@@ -9,7 +9,6 @@
     <SystemAdminTopbar
       :username="username"
       :search-placeholder="searchPlaceholder"
-      @pending-feature="$emit('pending-feature', $event)"
     />
     <main class="sys-admin-workspace__main">
       <slot />
@@ -28,7 +27,7 @@ defineProps({
   searchPlaceholder: { type: String, default: "搜索资源或记录..." }
 });
 
-defineEmits(["navigate", "logout", "pending-feature"]);
+defineEmits(["navigate", "logout"]);
 </script>
 
 <style scoped>

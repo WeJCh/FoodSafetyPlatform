@@ -4,7 +4,7 @@
       <div class="hero-content">
         <span class="badge">企业详情</span>
         <h1>企业备案与产品档案</h1>
-        <p>只读展示企业备案详情与产品档案，监管人员不可在此修改。</p>
+        <p>只读展示企业备案信息、附件材料与产品档案，不在此页面进行编辑。</p>
       </div>
     </div>
 
@@ -12,11 +12,11 @@
       <div class="card">
         <div class="section-title">企业信息</div>
         <div v-if="loading" class="status info">加载中...</div>
-        <div v-else-if="!detail" class="status error">企业信息未找到</div>
+        <div v-else-if="!detail" class="status error">未找到企业信息。</div>
         <div v-else class="detail-grid">
           <div>
             <span>企业名称</span>
-            <strong>{{ detail.enterpriseName }}</strong>
+            <strong>{{ detail.enterpriseName || "-" }}</strong>
           </div>
           <div>
             <span>食品经营许可证编号</span>
@@ -108,7 +108,7 @@
                 <strong>{{ reason.reasonLabel || formatReasonType(reason.reasonType) }}</strong>
                 <span>{{ formatTime(reason.createTime) }}</span>
               </div>
-              <p>{{ reason.reasonDetail || "已触发重点监管规则" }}</p>
+              <p>{{ reason.reasonDetail || "已触发重点监管规则。" }}</p>
             </div>
           </div>
         </div>
@@ -173,9 +173,7 @@ async function loadDetail() {
     regionName.value = "";
     if (detail.value?.regionId) {
       const path = await fetchRegionPath(token.value, detail.value.regionId).catch(() => []);
-      regionName.value = Array.isArray(path) && path.length
-        ? path.map((item) => item.name).join("/")
-        : "";
+      regionName.value = Array.isArray(path) && path.length ? path.map((item) => item.name).join("/") : "";
     }
 
     productLoading.value = true;
@@ -242,192 +240,3 @@ function formatReasonType(value) {
 onMounted(loadDetail);
 watch(() => route.params.enterpriseId, loadDetail);
 </script>
-
-<style scoped>
-.detail-shell {
-  grid-template-columns: 1fr;
-}
-
-.detail-shell .hero-panel {
-  padding: 40px 80px 24px;
-}
-
-.detail-shell .form-panel {
-  padding: 10px 80px 60px;
-  align-items: flex-start;
-}
-
-.detail-shell .card {
-  max-width: 900px;
-  width: 100%;
-}
-
-.detail-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 16px 24px;
-  margin-top: 10px;
-}
-
-.detail-grid span {
-  display: block;
-  font-size: 12px;
-  color: var(--muted);
-  margin-bottom: 6px;
-}
-
-.detail-grid strong {
-  font-size: 14px;
-}
-
-.back-btn {
-  margin-top: 20px;
-}
-
-.key-reason-panel {
-  margin-top: 22px;
-  padding-top: 18px;
-  border-top: 1px solid var(--stroke);
-}
-
-.section-title--sub {
-  margin-bottom: 12px;
-}
-
-.product-panel {
-  margin-top: 22px;
-  padding-top: 18px;
-  border-top: 1px solid var(--stroke);
-}
-
-.attachment-panel {
-  margin-top: 22px;
-  padding-top: 18px;
-  border-top: 1px solid var(--stroke);
-}
-
-.attachment-list {
-  display: grid;
-  gap: 12px;
-}
-
-.attachment-item {
-  padding: 14px 16px;
-  border-radius: 14px;
-  border: 1px solid var(--stroke);
-  background: var(--card-strong);
-  display: grid;
-  gap: 8px;
-}
-
-.attachment-item__head {
-  display: flex;
-  justify-content: space-between;
-  gap: 12px;
-  align-items: center;
-  flex-wrap: wrap;
-}
-
-.attachment-item__head span {
-  color: var(--muted);
-  font-size: 12px;
-}
-
-.attachment-item p {
-  margin: 0;
-  color: var(--text);
-  font-size: 13px;
-  line-height: 1.6;
-}
-
-.inline-link {
-  text-decoration: none;
-}
-
-.inline-link:hover {
-  text-decoration: underline;
-}
-
-.product-list {
-  display: grid;
-  gap: 12px;
-}
-
-.product-item {
-  padding: 14px 16px;
-  border-radius: 14px;
-  border: 1px solid var(--stroke);
-  background: var(--card-strong);
-  display: grid;
-  gap: 8px;
-}
-
-.product-item__head,
-.product-item__meta {
-  display: flex;
-  justify-content: space-between;
-  gap: 12px;
-  flex-wrap: wrap;
-}
-
-.product-item__meta {
-  font-size: 12px;
-  color: var(--muted);
-}
-
-.product-item p {
-  margin: 0;
-  color: var(--text);
-  font-size: 13px;
-  line-height: 1.6;
-}
-
-.key-reason-list {
-  display: grid;
-  gap: 12px;
-}
-
-.key-reason-item {
-  padding: 14px 16px;
-  border-radius: 14px;
-  border: 1px solid rgba(194, 118, 12, 0.18);
-  background: rgba(255, 246, 232, 0.9);
-}
-
-.key-reason-head {
-  display: flex;
-  justify-content: space-between;
-  gap: 12px;
-  align-items: center;
-}
-
-.key-reason-head span {
-  margin-bottom: 0;
-}
-
-.key-reason-item p {
-  margin: 8px 0 0;
-  color: var(--text);
-  font-size: 13px;
-  line-height: 1.6;
-}
-
-.status.info {
-  background: var(--card-strong);
-  color: var(--muted);
-}
-
-@media (max-width: 900px) {
-  .detail-shell .hero-panel {
-    padding: 32px 40px 20px;
-  }
-
-  .detail-shell .form-panel {
-    padding: 10px 40px 50px;
-  }
-
-  .detail-grid {
-    grid-template-columns: 1fr;
-  }
-}
-</style>

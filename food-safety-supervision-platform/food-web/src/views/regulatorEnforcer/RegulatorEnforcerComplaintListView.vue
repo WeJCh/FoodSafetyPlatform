@@ -10,8 +10,8 @@
           投诉状态
           <select v-model="filters.status">
             <option value="">全部状态</option>
-            <option value="SUBMITTED">已提交</option>
-            <option value="PENDING">已受理</option>
+            <option value="SUBMITTED">待受理</option>
+            <option value="PENDING">待分派</option>
             <option value="ASSIGNED">已派发</option>
             <option value="PROCESSING">处理中</option>
             <option value="FEEDBACKED">已反馈</option>
@@ -115,6 +115,7 @@ import { fetchComplaints, startComplaintProcess } from "../../api/complaint";
 import RegulatorEnforcerPageShell from "./RegulatorEnforcerPageShell.vue";
 import { formatByMap, formatTime } from "../../utils/formatters";
 import { complaintStatusMap } from "../../utils/statusMaps";
+import { resolveErrorMessage } from "../../utils/uiFeedback";
 import { useRegulatorEnforcerShellSession } from "./regulatorEnforcerShared";
 
 const router = useRouter();
@@ -173,7 +174,7 @@ async function loadComplaints() {
     size.value = data.size || size.value;
     pages.value = data.pages || 1;
   } catch (error) {
-    setStatus(error.message || "加载投诉列表失败", "error");
+    setStatus(resolveErrorMessage(error, "加载投诉列表失败"), "error");
   } finally {
     loading.value = false;
   }
@@ -213,7 +214,7 @@ async function handleStart(item) {
     setStatus("投诉已开始处理", "success");
     await loadComplaints();
   } catch (error) {
-    setStatus(error.message || "开始处理失败", "error");
+    setStatus(resolveErrorMessage(error, "开始处理失败"), "error");
   } finally {
     loading.value = false;
   }

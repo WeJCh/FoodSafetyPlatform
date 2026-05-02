@@ -122,6 +122,7 @@ import { fetchMyWarningRecords, processMyWarning } from "../../api/regulation";
 import RegulatorEnforcerPageShell from "./RegulatorEnforcerPageShell.vue";
 import { formatByMap, formatTime } from "../../utils/formatters";
 import { warningActionMap, warningLevelMap, warningStatusMap } from "../../utils/statusMaps";
+import { resolveErrorMessage } from "../../utils/uiFeedback";
 import { useRegulatorEnforcerShellSession } from "./regulatorEnforcerShared";
 
 const router = useRouter();
@@ -193,7 +194,7 @@ async function loadWarnings() {
     size.value = data.size || size.value;
     pages.value = data.pages || 1;
   } catch (error) {
-    setStatus(error.message || "加载预警列表失败", "error");
+    setStatus(resolveErrorMessage(error, "加载预警列表失败"), "error");
   } finally {
     loading.value = false;
   }
@@ -238,7 +239,7 @@ async function handleWarningAction(target, actionType) {
     setStatus(`预警已执行${formatWarningAction(actionType)}`, "success");
     await loadWarnings();
   } catch (error) {
-    setStatus(error.message || "预警处理失败", "error");
+    setStatus(resolveErrorMessage(error, "预警处理失败"), "error");
   } finally {
     actionLoading.value = false;
   }

@@ -48,7 +48,9 @@
           </select>
         </label>
         <div class="filter-actions">
-          <button class="primary" type="button" :disabled="loading" @click="handleSearch">{{ loading ? "查询中..." : "查询" }}</button>
+          <button class="primary" type="button" :disabled="loading" @click="handleSearch">
+            {{ loading ? "查询中..." : "查询" }}
+          </button>
           <button class="ghost" type="button" :disabled="loading" @click="resetFilters">重置</button>
         </div>
       </section>
@@ -59,10 +61,11 @@
             <thead>
               <tr>
                 <th class="col-check"><input type="checkbox" :checked="allChecked" @change="toggleAll($event)" /></th>
-                <th>公告标题 & 类型</th>
+                <th>公告标题 / 类别</th>
                 <th>状态</th>
                 <th>发布日期</th>
-                <th>创建者</th>
+                <th>最后操作时间</th>
+                <th>创建人</th>
                 <th class="right">操作</th>
               </tr>
             </thead>
@@ -80,13 +83,18 @@
                   </div>
                 </td>
                 <td>
-                  <span :class="['status-pill', `status-pill--${statusClass(item.status)}`]">{{ formatStatus(item.status) }}</span>
+                  <span :class="['status-pill', `status-pill--${statusClass(item.status)}`]">
+                    {{ formatStatus(item.status) }}
+                  </span>
                 </td>
-                <td class="mono">{{ formatTime(item.publishedTime || item.updateTime || item.createTime) }}</td>
+                <td class="mono">{{ formatTime(item.publishedTime) }}</td>
+                <td class="mono">{{ formatLastOperateTime(item) }}</td>
                 <td>{{ item.createdByName || item.publishedByName || "监管部门" }}</td>
                 <td>
                   <div class="action-row">
-                    <button class="icon-btn" type="button" :disabled="actionLoading" title="编辑" @click="openEdit(item)">编辑</button>
+                    <button class="icon-btn" type="button" :disabled="actionLoading" title="编辑" @click="openEdit(item)">
+                      编辑
+                    </button>
                     <button
                       v-if="item.status !== 'PUBLISHED'"
                       class="icon-btn icon-btn--ok"
@@ -112,7 +120,7 @@
               </tr>
             </tbody>
           </table>
-          <div v-if="!records.length" class="empty">暂无公告</div>
+          <div v-if="!records.length" class="empty">{{ emptyText }}</div>
         </div>
         <div class="pager">
           <span>共 {{ total }} 条，{{ page }}/{{ pages }} 页</span>
@@ -138,6 +146,8 @@ import {
 } from "../../api/regulation";
 import RegulatorAdminWorkspacePage from "../../components/regulatorAdmin/RegulatorAdminWorkspacePage.vue";
 import { formatTime } from "../../utils/formatters";
+import { bulletinStatusMap, formatStatusLabel } from "../../utils/statusMaps";
+import { getEmptyStateText, resolveErrorMessage } from "../../utils/uiFeedback";
 import { useRegulatorAdminShellSession } from "./regulatorAdminShared";
 
 const { regulatorUser, token, handleSidebarNavigate, handleLogout } = useRegulatorAdminShellSession();
@@ -174,6 +184,7 @@ const publishedCount = computed(() => records.value.filter((item) => item.status
 const draftCount = computed(() => records.value.filter((item) => item.status === "DRAFT").length);
 const offlineCount = computed(() => records.value.filter((item) => item.status === "OFFLINE").length);
 const allChecked = computed(() => records.value.length > 0 && records.value.every((item) => selectedIds.value.has(item.id)));
+const emptyText = getEmptyStateText("公告");
 
 function setStatus(message, type = "info") {
   status.message = message;
@@ -181,12 +192,7 @@ function setStatus(message, type = "info") {
 }
 
 function formatStatus(value) {
-  const map = {
-    DRAFT: "草稿",
-    PUBLISHED: "已发布",
-    OFFLINE: "已下线"
-  };
-  return map[value] || value || "-";
+  return formatStatusLabel(value, bulletinStatusMap);
 }
 
 function statusClass(value) {
@@ -197,6 +203,10 @@ function statusClass(value) {
 
 function formatCategory(value) {
   return categoryLabelMap[String(value || "").toUpperCase()] || "未分类";
+}
+
+function formatLastOperateTime(item) {
+  return formatTime(item?.updateTime || item?.publishedTime || item?.createTime);
 }
 
 function toggleAll(event) {
@@ -250,7 +260,7 @@ async function loadBulletins() {
     selectedIds.value = new Set();
   } catch (error) {
     records.value = [];
-    setStatus(error.message || "加载公告列表失败", "error");
+    setStatus(resolveErrorMessage(error, "加载公告列表失败，请稍后重试。"), "error");
   } finally {
     loading.value = false;
   }
@@ -272,10 +282,10 @@ async function handlePublish(item) {
   setStatus("");
   try {
     await publishBulletin(token.value, item.id);
-    setStatus("公告已发布", "success");
+    setStatus("公告已发布。", "success");
     await loadBulletins();
   } catch (error) {
-    setStatus(error.message || "发布公告失败", "error");
+    setStatus(resolveErrorMessage(error, "发布公告失败，请稍后重试。"), "error");
   } finally {
     actionLoading.value = false;
   }
@@ -287,10 +297,10 @@ async function handleOffline(item) {
   setStatus("");
   try {
     await offlineBulletin(token.value, item.id);
-    setStatus("公告已下线", "success");
+    setStatus("公告已下线。", "success");
     await loadBulletins();
   } catch (error) {
-    setStatus(error.message || "下线公告失败", "error");
+    setStatus(resolveErrorMessage(error, "下线公告失败，请稍后重试。"), "error");
   } finally {
     actionLoading.value = false;
   }
@@ -338,14 +348,14 @@ onMounted(loadBulletins);
 
 .table-card { background: #fff; border: 1px solid #e2e8f0; border-radius: 4px; overflow: hidden; }
 .table-wrap { overflow: auto; }
-table { width: 100%; min-width: 1080px; border-collapse: collapse; }
+table { width: 100%; min-width: 1180px; border-collapse: collapse; }
 thead tr { background: #f2f4f7; border-bottom: 1px solid #dbe2ea; }
 th { padding: 12px 14px; text-align: left; color: #64748b; font-size: 10px; font-weight: 900; letter-spacing: 0.08em; text-transform: uppercase; }
 td { padding: 12px 14px; border-top: 1px solid #eef2f7; font-size: 13px; color: #1f2937; vertical-align: middle; }
 tbody tr:nth-child(even) { background: #fafbfc; }
 tbody tr:hover { background: #f4f7fb; }
 .col-check { width: 42px; text-align: center; }
-.mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12px; color: #64748b; }
+.mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12px; color: #64748b; white-space: nowrap; }
 .right { text-align: right; }
 .title-cell strong { display: block; color: #002660; font-size: 14px; }
 .subline { margin-top: 6px; display: flex; gap: 6px; align-items: center; }

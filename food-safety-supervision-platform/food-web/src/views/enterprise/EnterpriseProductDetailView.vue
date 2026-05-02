@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <EnterpriseWorkspacePage
     active-key="products"
     title="产品详情"
@@ -38,7 +38,6 @@
           </div>
           <div class="enterprise-product-hero__actions" role="toolbar" aria-label="产品详情操作">
             <RouterLink class="enterprise-toolbar-button" :to="{ name: 'enterprise-products' }">返回列表</RouterLink>
-            <button type="button" class="enterprise-product-hero__danger-btn" @click="onDeleteProduct">删除</button>
             <RouterLink class="primary enterprise-link-button enterprise-product-hero__edit-btn" :to="{ name: 'enterprise-product-edit', params: { productId } }">
               <span class="material-symbols-outlined" aria-hidden="true">edit</span>
               编辑产品
@@ -76,10 +75,7 @@
             </section>
 
             <section class="enterprise-panel">
-              <div class="enterprise-product-detail-audit-head">
-                <h3 class="enterprise-product-detail-section-title">备案历史 / FILING HISTORY</h3>
-                <button type="button" class="enterprise-product-detail-audit-link" @click="onFullAuditLog">查看全部日志</button>
-              </div>
+              <h3 class="enterprise-product-detail-section-title">备案历史 / FILING HISTORY</h3>
               <div class="enterprise-audit-trail-v">
                 <div v-for="item in filingHistoryPreview" :key="item.key" class="enterprise-audit-node">
                   <span class="enterprise-audit-node__dot" :class="{ 'is-muted': item.muted }" />
@@ -90,7 +86,6 @@
                   <p>{{ item.desc }}</p>
                 </div>
               </div>
-              <p class="enterprise-product-detail-note">完整审计轨迹待后端提供专用查询接口。</p>
             </section>
           </div>
 
@@ -117,10 +112,11 @@
 import { computed, reactive, ref, watch } from "vue";
 import { RouterLink, useRoute } from "vue-router";
 import { fetchMyProducts } from "../../api/regulation";
+import { resolveErrorMessage } from "../../utils/uiFeedback";
 import EnterpriseStatusChip from "../../components/enterprise/EnterpriseStatusChip.vue";
 import EnterpriseWorkspacePage from "../../components/enterprise/EnterpriseWorkspacePage.vue";
 import { formatTime } from "../../utils/formatters";
-import { enterpriseFeaturePendingNotice, useEnterpriseShellSession } from "./enterpriseShared";
+import { useEnterpriseShellSession } from "./enterpriseShared";
 
 const route = useRoute();
 const { enterpriseUser, token, handleSidebarNavigate, handleLogout } = useEnterpriseShellSession();
@@ -146,15 +142,6 @@ const filingHistoryPreview = computed(() => [
   }
 ]);
 
-function onDeleteProduct() {
-  // TODO: 接入删除产品档案接口，并补充二次确认对话框
-  enterpriseFeaturePendingNotice("删除产品档案");
-}
-
-function onFullAuditLog() {
-  enterpriseFeaturePendingNotice("备案历史全量日志");
-}
-
 async function loadProduct() {
   loading.value = true;
   try {
@@ -165,7 +152,7 @@ async function loadProduct() {
     }
     product.value = (records || []).find((item) => String(item.id) === productId.value) || null;
   } catch (error) {
-    status.message = error.message || "加载产品详情失败";
+    status.message = resolveErrorMessage(error, "加载产品详情失败");
     status.type = "error";
   } finally {
     loading.value = false;
@@ -180,4 +167,3 @@ watch(
   { immediate: true }
 );
 </script>
-

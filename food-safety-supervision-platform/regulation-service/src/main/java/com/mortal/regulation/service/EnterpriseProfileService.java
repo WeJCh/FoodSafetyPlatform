@@ -4,6 +4,7 @@ import com.mortal.platform.common.PageResult;
 import com.mortal.regulation.dto.EnterpriseApprovalBatchDTO;
 import com.mortal.regulation.dto.EnterpriseApprovalDTO;
 import com.mortal.regulation.dto.EnterpriseProfileDTO;
+import com.mortal.regulation.vo.AuditLogVO;
 import com.mortal.regulation.vo.BatchActionResult;
 import com.mortal.regulation.vo.EnterpriseProfileVO;
 import com.mortal.regulation.vo.PublicEnterpriseDetailVO;
@@ -12,11 +13,15 @@ import java.util.List;
 
 public interface EnterpriseProfileService {
 
-    EnterpriseProfileVO submitProfile(Long userId, EnterpriseProfileDTO dto);
+    EnterpriseProfileVO submitProfile(Long userId, String operatorUserType, String operatorName, EnterpriseProfileDTO dto);
 
     EnterpriseProfileVO getProfile(Long userId);
 
     EnterpriseProfileVO getById(Long enterpriseId);
+
+    List<AuditLogVO> listAuditLogs(Long enterpriseId, Integer limit);
+
+    List<AuditLogVO> listRecentAuditLogs(Integer limit);
 
     /**
      * 获取企业列表
@@ -86,7 +91,11 @@ public interface EnterpriseProfileService {
      * @param dto 审核DTO
      * @return 企业信息VO
      */
-    EnterpriseProfileVO approve(Long enterpriseId, Long operatorId, EnterpriseApprovalDTO dto);
+    EnterpriseProfileVO approve(Long enterpriseId,
+                                Long operatorId,
+                                String operatorUserType,
+                                String operatorName,
+                                EnterpriseApprovalDTO dto);
 
     /**
      * 拒绝企业
@@ -95,7 +104,11 @@ public interface EnterpriseProfileService {
      * @param dto 拒绝DTO
      * @return 企业信息VO
      */
-    EnterpriseProfileVO reject(Long enterpriseId, Long operatorId, EnterpriseApprovalDTO dto);
+    EnterpriseProfileVO reject(Long enterpriseId,
+                               Long operatorId,
+                               String operatorUserType,
+                               String operatorName,
+                               EnterpriseApprovalDTO dto);
 
     /**
      * 批量审核企业
@@ -103,7 +116,10 @@ public interface EnterpriseProfileService {
      * @param dto 审核DTO
      * @return 批量审核结果
      */
-    BatchActionResult approveBatch(Long operatorId, EnterpriseApprovalBatchDTO dto);
+    BatchActionResult approveBatch(Long operatorId,
+                                   String operatorUserType,
+                                   String operatorName,
+                                   EnterpriseApprovalBatchDTO dto);
 
     /**
      * 批量拒绝企业
@@ -111,13 +127,16 @@ public interface EnterpriseProfileService {
      * @param dto 拒绝DTO
      * @return 批量拒绝结果
      */
-    BatchActionResult rejectBatch(Long operatorId, EnterpriseApprovalBatchDTO dto);
+    BatchActionResult rejectBatch(Long operatorId,
+                                  String operatorUserType,
+                                  String operatorName,
+                                  EnterpriseApprovalBatchDTO dto);
 
     /**
      * 删除企业
      * @param enterpriseId 企业ID
      */
-    void deleteEnterprise(Long enterpriseId);
+    void deleteEnterprise(Long enterpriseId, Long operatorUserId, String operatorUserType, String operatorName);
 
     /**
      * 删除企业

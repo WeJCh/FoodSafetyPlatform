@@ -20,22 +20,17 @@
         <div class="public-enterprise-detail-page__toolbar">
           <label class="public-enterprise-detail-page__search-box">
             <span class="material-symbols-outlined" aria-hidden="true">search</span>
-            <input type="text" placeholder="搜索企业..." @keyup.enter="goToListWithSearch" />
+            <input v-model.trim="searchKeyword" type="text" placeholder="搜索企业..." @keyup.enter="goToListWithSearch" />
           </label>
-          <button type="button" class="public-enterprise-detail-page__icon-btn" @click="onFeaturePending('通知中心')">
-            <span class="material-symbols-outlined" aria-hidden="true">notifications</span>
-          </button>
-          <button type="button" class="public-enterprise-detail-page__icon-btn" @click="onFeaturePending('个人中心')">
-            <span class="material-symbols-outlined" aria-hidden="true">account_circle</span>
-          </button>
           <button type="button" class="ghost public-enterprise-detail-page__logout" @click="handleLogout">退出登录</button>
         </div>
       </div>
     </header>
 
     <main class="public-enterprise-detail-page__main">
-      <div v-if="loading" class="status info">加载中...</div>
-      <div v-else-if="!detail" class="status error">企业公示信息未找到</div>
+      <AppStatusToast v-if="loading" message="详情加载中..." type="info" />
+      <AppStatusToast v-else-if="!detail" :message="status.message || '未找到对应的企业公示信息。'" type="error" />
+
       <template v-else>
         <section class="public-enterprise-detail-page__hero">
           <div class="public-enterprise-detail-page__hero-bar">
@@ -46,7 +41,7 @@
             <span class="public-enterprise-detail-page__hero-badge">企业公示</span>
           </div>
           <h1>{{ detail.enterpriseName || "-" }}</h1>
-          <p class="public-enterprise-detail-page__hero-en">企业公示详情 · Enterprise Public Disclosure</p>
+          <p class="public-enterprise-detail-page__hero-en">Enterprise Public Disclosure</p>
           <p class="public-enterprise-detail-page__hero-sub">统一社会信用代码：{{ detail.creditCode || "-" }}</p>
         </section>
 
@@ -81,7 +76,12 @@
 
             <div class="public-enterprise-detail-page__attachments-wrap">
               <h3>附件信息</h3>
-              <div v-if="!attachmentList.length" class="public-enterprise-detail-page__empty-tip">当前企业暂无备案附件。</div>
+              <AppEmptyState
+                v-if="!attachmentList.length"
+                title="暂无备案附件"
+                description="当前企业未公开可查看的备案附件。"
+                class="public-enterprise-detail-page__empty-tip"
+              />
               <div v-else class="public-enterprise-detail-page__attachments">
                 <article
                   v-for="(item, index) in attachmentList"
@@ -118,7 +118,6 @@
             <div class="public-enterprise-detail-page__side-card">
               <h3>操作</h3>
               <button type="button" @click="goBack">返回企业公示列表</button>
-              <button type="button" @click="onFeaturePending('分享企业信息')">分享</button>
             </div>
           </aside>
         </section>
@@ -128,16 +127,21 @@
 </template>
 
 <script setup>
-import { computed, onMounted, ref, watch } from "vue";
+import { computed, onMounted, reactive, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { fetchPublicEnterpriseDetail } from "../../api/regulation";
+import AppEmptyState from "../../components/common/AppEmptyState.vue";
+import AppStatusToast from "../../components/common/AppStatusToast.vue";
 import { getActiveSession, performLogout } from "../../session/authRuntime";
+import { resolveErrorMessage } from "../../utils/uiFeedback";
 
 const router = useRouter();
 const route = useRoute();
 const publicToken = getActiveSession()?.token || "";
 const loading = ref(false);
 const detail = ref(null);
+const searchKeyword = ref(String(route.query.keyword || ""));
+const status = reactive({ message: "", type: "" });
 
 const publicCode = computed(() => `EP-${String(detail.value?.id || "").padStart(6, "0")}`);
 
@@ -172,29 +176,49 @@ function goTo(name) {
   router.push({ name }).catch(() => {});
 }
 
-function goToListWithSearch() {
-  router.push({ name: "public-enterprises" }).catch(() => {});
+function buildListQuery() {
+  const query = {};
+  const keyword = searchKeyword.value.trim();
+  const routeKeyword = typeof route.query.keyword === "string" ? route.query.keyword.trim() : "";
+  const statusValue = typeof route.query.status === "string" ? route.query.status : "";
+  if (keyword || routeKeyword) query.keyword = keyword || routeKeyword;
+  if (statusValue) query.status = statusValue;
+  return query;
 }
 
-function onFeaturePending(name) {
-  window.alert(`${name} 功能待后续完善`);
+function goToListWithSearch() {
+  const keyword = searchKeyword.value.trim();
+  const nextQuery = {};
+  if (keyword) nextQuery.keyword = keyword;
+  if (typeof route.query.status === "string" && route.query.status) {
+    nextQuery.status = route.query.status;
+  }
+  router.push({ name: "public-enterprises", query: nextQuery }).catch(() => {});
 }
 
 async function loadDetail() {
   const enterpriseId = route.params.enterpriseId;
-  if (!enterpriseId) return;
+  if (!enterpriseId) {
+    detail.value = null;
+    status.message = "缺少企业编号。";
+    status.type = "error";
+    return;
+  }
   loading.value = true;
+  status.message = "";
   try {
     detail.value = await fetchPublicEnterpriseDetail(publicToken, enterpriseId);
-  } catch {
+  } catch (error) {
     detail.value = null;
+    status.message = resolveErrorMessage(error, "企业公示详情加载失败，请稍后重试");
+    status.type = "error";
   } finally {
     loading.value = false;
   }
 }
 
 function goBack() {
-  router.push({ name: "public-enterprises" }).catch(() => {});
+  router.push({ name: "public-enterprises", query: buildListQuery() }).catch(() => {});
 }
 
 async function handleLogout() {
@@ -292,16 +316,6 @@ watch(() => route.params.enterpriseId, loadDetail);
   background: transparent;
   font-size: var(--public-toolbar-input-size);
   min-width: var(--public-toolbar-input-min-w);
-}
-
-.public-enterprise-detail-page__icon-btn {
-  width: var(--public-btn-compact-min-h);
-  height: var(--public-btn-compact-min-h);
-  border-radius: 8px;
-  border: 1px solid transparent;
-  background: transparent;
-  color: var(--on-surface-variant);
-  cursor: pointer;
 }
 
 .public-enterprise-detail-page__logout {
@@ -486,13 +500,6 @@ watch(() => route.params.enterpriseId, loadDetail);
 
 .public-enterprise-detail-page__empty-tip {
   margin: 0;
-  padding: 16px;
-  text-align: center;
-  color: var(--on-surface-variant);
-  font-size: var(--public-caption);
-  background: rgba(242, 244, 247, 0.55);
-  border-radius: 10px;
-  border: 1px dashed rgba(195, 198, 211, 0.55);
 }
 
 .public-enterprise-detail-page__attachments {

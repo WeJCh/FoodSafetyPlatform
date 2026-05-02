@@ -198,6 +198,8 @@ import {
   fetchRectificationDetail
 } from "../../api/regulationOperation";
 import { formatTime } from "../../utils/formatters";
+import { formatStatusLabel, rectificationStatusMap } from "../../utils/statusMaps";
+import { resolveErrorMessage } from "../../utils/uiFeedback";
 import RegulatorEnforcerPageShell from "./RegulatorEnforcerPageShell.vue";
 import { useRegulatorEnforcerShellSession } from "./regulatorEnforcerShared";
 
@@ -213,12 +215,6 @@ const showAllOriginalAttachments = ref(false);
 const showAllSubmitAttachments = ref(false);
 const status = reactive({ message: "", type: "info" });
 
-const rectificationStatusMap = {
-  ONGOING: "整改中",
-  SUBMITTED: "待复核",
-  REWORK: "打回重做",
-  CONFIRMED: "已确认"
-};
 
 const actionNameMap = {
   SYSTEM_CREATE: "系统创建整改任务",
@@ -259,7 +255,7 @@ function setStatus(message = "", type = "info") {
 }
 
 function formatRectificationStatus(value) {
-  return rectificationStatusMap[value] || value || "-";
+  return formatStatusLabel(value, rectificationStatusMap);
 }
 
 function resolveActionName(value) {
@@ -325,7 +321,7 @@ async function loadDetail() {
   } catch (error) {
     detail.value = null;
     actionLogs.value = [];
-    setStatus(error.message || "加载整改详情失败", "error");
+    setStatus(resolveErrorMessage(error, "加载整改详情失败"), "error");
   } finally {
     loading.value = false;
   }
@@ -340,7 +336,7 @@ async function handleConfirm() {
     setStatus("整改任务已确认闭环", "success");
     await loadDetail();
   } catch (error) {
-    setStatus(error.message || "整改确认失败", "error");
+    setStatus(resolveErrorMessage(error, "整改确认失败"), "error");
   } finally {
     actionLoading.value = false;
   }

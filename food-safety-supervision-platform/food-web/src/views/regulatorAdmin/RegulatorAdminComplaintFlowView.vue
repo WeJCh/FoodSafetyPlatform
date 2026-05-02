@@ -4,13 +4,12 @@
     :username="regulatorUser.username"
     @navigate="handleSidebarNavigate"
     @logout="handleLogout"
-    @pending-feature="onPendingFeature"
   >
     <section class="complaint-page">
       <header class="complaint-page__head">
         <div>
           <h1>投诉流转中心</h1>
-          <p>受理、指派及反馈全流程数字化闭环管理。</p>
+          <p>统一查看投诉受理、分派、处理和反馈进度。</p>
         </div>
       </header>
 
@@ -30,9 +29,9 @@
               当前状态
               <select v-model="filters.status">
                 <option value="">全部状态</option>
-                <option value="SUBMITTED">已提交</option>
-                <option value="PENDING">已受理</option>
-                <option value="ASSIGNED">已派发</option>
+                <option value="SUBMITTED">待受理</option>
+                <option value="PENDING">待分派</option>
+                <option value="ASSIGNED">已分派</option>
                 <option value="PROCESSING">处理中</option>
                 <option value="FEEDBACKED">已反馈</option>
                 <option value="REJECTED">已驳回</option>
@@ -56,10 +55,10 @@
                 <th>投诉时间</th>
                 <th>编号</th>
                 <th>涉及企业</th>
-                <th>投诉简述</th>
+                <th>投诉摘要</th>
                 <th>责任人</th>
                 <th>状态</th>
-                <th class="th-right">操作项</th>
+                <th class="th-right">操作</th>
               </tr>
             </thead>
             <tbody v-if="displayRecords.length">
@@ -107,7 +106,7 @@
 
       <section class="stats-bento">
         <article class="progress-card">
-          <h3>流转处理进度分布</h3>
+          <h3>流转进度分布</h3>
           <div class="flow-track">
             <div v-for="item in progressStats" :key="item.key" class="flow-node">
               <span class="dot">{{ item.count }}</span>
@@ -129,7 +128,8 @@ import { acceptComplaint, fetchComplaints } from "../../api/complaint";
 import RegulatorAdminWorkspacePage from "../../components/regulatorAdmin/RegulatorAdminWorkspacePage.vue";
 import { formatTime } from "../../utils/formatters";
 import { complaintStatusMap } from "../../utils/statusMaps";
-import { regulatorFeaturePendingNotice, useRegulatorAdminShellSession } from "./regulatorAdminShared";
+import { resolveErrorMessage } from "../../utils/uiFeedback";
+import { useRegulatorAdminShellSession } from "./regulatorAdminShared";
 
 const router = useRouter();
 const { regulatorUser, token, handleSidebarNavigate, handleLogout } = useRegulatorAdminShellSession();
@@ -143,12 +143,8 @@ const total = ref(0);
 const pages = ref(1);
 const filters = reactive({
   complaintType: "",
-  status: "",
+  status: ""
 });
-
-function onPendingFeature(title) {
-  regulatorFeaturePendingNotice(title);
-}
 
 function setStatus(message, type = "info") {
   status.message = message;
@@ -217,9 +213,9 @@ const progressStats = computed(() => {
     if (stats[key] !== undefined) stats[key] += 1;
   });
   return [
-    { key: "SUBMITTED", label: "提交", count: stats.SUBMITTED },
-    { key: "PENDING", label: "受理", count: stats.PENDING },
-    { key: "ASSIGNED", label: "指派", count: stats.ASSIGNED },
+    { key: "SUBMITTED", label: "待受理", count: stats.SUBMITTED },
+    { key: "PENDING", label: "待分派", count: stats.PENDING },
+    { key: "ASSIGNED", label: "分派", count: stats.ASSIGNED },
     { key: "PROCESSING", label: "处理", count: stats.PROCESSING },
     { key: "FEEDBACKED", label: "反馈", count: stats.FEEDBACKED }
   ];
@@ -240,7 +236,7 @@ async function loadComplaints() {
     size.value = data.size || size.value;
     pages.value = data.pages || 1;
   } catch (error) {
-    setStatus(error.message || "加载投诉列表失败", "error");
+    setStatus(resolveErrorMessage(error, "加载投诉列表失败"), "error");
   } finally {
     loading.value = false;
   }
@@ -276,7 +272,7 @@ async function handleAccept(item) {
     setStatus("投诉已受理", "success");
     await loadComplaints();
   } catch (error) {
-    setStatus(error.message || "投诉受理失败", "error");
+    setStatus(resolveErrorMessage(error, "投诉受理失败"), "error");
   } finally {
     loading.value = false;
   }
@@ -289,53 +285,14 @@ onMounted(loadComplaints);
 .complaint-page { display: grid; gap: 16px; }
 .complaint-page__head h1 { margin: 0; color: #002660; font-size: 30px; font-weight: 900; letter-spacing: -0.02em; }
 .complaint-page__head p { margin: 6px 0 0; color: #64748b; font-size: 14px; }
-
-.filter-card {
-  background: #f8fafc;
-  border: 1px solid #e2e8f0;
-  border-radius: 12px;
-  padding: 14px;
-}
-.filter-toolbar {
-  display: flex;
-  align-items: stretch;
-  gap: 14px;
-  flex-wrap: wrap;
-}
-.filter-grid {
-  flex: 1 1 540px;
-  min-width: 0;
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px 14px;
-  padding: 6px 2px;
-}
+.filter-card { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 14px; }
+.filter-toolbar { display: flex; align-items: stretch; gap: 14px; flex-wrap: wrap; }
+.filter-grid { flex: 1 1 540px; min-width: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px 14px; padding: 6px 2px; }
 .filter-grid label { display: grid; gap: 7px; font-size: 12px; font-weight: 800; color: #475569; }
-.filter-grid input, .filter-grid select {
-  border: 1px solid #d6dee8;
-  background: #fff;
-  border-radius: 8px;
-  min-height: 38px;
-  padding: 0 12px;
-  font-size: 13px;
-  color: #0f172a;
-}
-.filter-grid input:focus, .filter-grid select:focus {
-  outline: none;
-  border-color: #003a8c;
-  box-shadow: 0 0 0 3px rgba(0, 58, 140, 0.1);
-}
-.filter-actions {
-  flex: 0 0 auto;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 6px 2px;
-}
-
+.filter-grid input, .filter-grid select { border: 1px solid #d6dee8; background: #fff; border-radius: 8px; min-height: 38px; padding: 0 12px; font-size: 13px; color: #0f172a; }
+.filter-actions { flex: 0 0 auto; display: flex; align-items: center; gap: 8px; padding: 6px 2px; }
 .primary { border: 0; background: #002660; color: #fff; border-radius: 8px; padding: 10px 18px; font-size: 13px; font-weight: 700; cursor: pointer; }
 .ghost { border: 1px solid #d1d5db; background: #fff; color: #334155; border-radius: 8px; padding: 10px 16px; font-size: 13px; cursor: pointer; }
-
 .table-card { background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden; }
 .table-wrap { overflow: auto; }
 table { width: 100%; min-width: 1080px; border-collapse: collapse; }
@@ -350,80 +307,27 @@ tbody tr:hover { background: #f1f5f9; }
 .muted { color: #94a3b8; font-style: italic; }
 .th-right, .td-right { text-align: right; }
 .action-row { display: inline-flex; align-items: center; gap: 8px; }
-
-.status-pill {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 24px;
-  padding: 0 10px;
-  border-radius: 999px;
-  font-size: 10px;
-  font-weight: 800;
-  border: 1px solid transparent;
-}
+.status-pill { display: inline-flex; align-items: center; justify-content: center; min-height: 24px; padding: 0 10px; border-radius: 999px; font-size: 10px; font-weight: 800; border: 1px solid transparent; }
 .status-pill.is-submitted { color: #1e3a8a; background: #dbeafe; border-color: #bfdbfe; }
 .status-pill.is-pending { color: #9a3412; background: #ffedd5; border-color: #fed7aa; }
 .status-pill.is-assigned { color: #0f766e; background: #ccfbf1; border-color: #99f6e4; }
 .status-pill.is-processing { color: #7c2d12; background: #ffedd5; border-color: #fed7aa; }
 .status-pill.is-feedbacked { color: #166534; background: #dcfce7; border-color: #bbf7d0; }
 .status-pill.is-rejected { color: #991b1b; background: #fee2e2; border-color: #fecaca; }
-
 .empty { padding: 18px; text-align: center; color: #64748b; font-size: 13px; }
-.pager {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 10px;
-  padding: 12px 14px;
-  border-top: 1px solid #e2e8f0;
-  color: #64748b;
-  font-size: 12px;
-  font-weight: 700;
-}
+.pager { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 12px 14px; border-top: 1px solid #e2e8f0; color: #64748b; font-size: 12px; font-weight: 700; }
 .pager-actions { display: flex; gap: 8px; }
-
 .stats-bento { display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; }
-.progress-card {
-  background: #fff;
-  border: 1px solid #e2e8f0;
-  border-radius: 12px;
-  padding: 16px;
-}
+.progress-card { background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 16px; }
 .progress-card h3 { margin: 0 0 14px; font-size: 15px; color: #002660; }
 .flow-track { display: flex; justify-content: space-between; gap: 8px; position: relative; padding: 12px 0 0; }
-.flow-track::before {
-  content: "";
-  position: absolute;
-  top: 27px;
-  left: 0;
-  right: 0;
-  height: 2px;
-  background: #e2e8f0;
-}
+.flow-track::before { content: ""; position: absolute; top: 27px; left: 0; right: 0; height: 2px; background: #e2e8f0; }
 .flow-node { position: relative; z-index: 1; display: grid; justify-items: center; gap: 6px; flex: 1; }
-.dot {
-  width: 34px;
-  height: 34px;
-  border-radius: 50%;
-  background: #002660;
-  color: #fff;
-  font-size: 12px;
-  font-weight: 800;
-  display: grid;
-  place-items: center;
-}
+.dot { width: 34px; height: 34px; border-radius: 50%; background: #002660; color: #fff; font-size: 12px; font-weight: 800; display: grid; place-items: center; }
 .flow-node em { font-style: normal; font-size: 11px; color: #334155; font-weight: 700; }
-
 .status { position: fixed; right: 18px; bottom: 18px; border-radius: 8px; padding: 10px 12px; color: #fff; background: #0f172a; font-size: 13px; z-index: 1200; }
 .status.error { background: #b91c1c; }
 .status.success { background: #166534; }
-
-@media (max-width: 1100px) {
-  .filter-toolbar { align-items: stretch; gap: 10px; }
-  .filter-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .stats-bento { grid-template-columns: 1fr; }
-}
 @media (max-width: 760px) {
   .filter-grid { grid-template-columns: 1fr; }
   .filter-actions { justify-content: stretch; width: 100%; }

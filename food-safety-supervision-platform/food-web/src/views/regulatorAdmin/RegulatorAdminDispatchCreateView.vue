@@ -4,7 +4,6 @@
     :username="regulatorUser.username"
     @navigate="handleSidebarNavigate"
     @logout="handleLogout"
-    @pending-feature="onPendingFeature"
   >
     <section class="create-page">
       <header class="create-page__head">
@@ -15,7 +14,7 @@
             <span class="is-current">发起新任务</span>
           </nav>
           <h1>发起检查任务</h1>
-          <p>创建新的安全合规检查任务，并可在创建成功后直接完成执法人员分配。</p>
+          <p>创建新的食品安全检查任务，并可在提交后直接完成执法人员分配。</p>
         </div>
         <div class="head-actions">
           <button class="ghost" type="button" @click="goBackToList">取消</button>
@@ -35,7 +34,7 @@
             <div class="form-grid">
               <label class="span-all">
                 任务名称
-                <input v-model.trim="form.taskTitle" placeholder="例如：2026Q2餐饮服务食品安全常规检查" />
+                <input v-model.trim="form.taskTitle" placeholder="例如：2026Q2 餐饮服务食品安全常规检查" />
               </label>
               <label>
                 优先级
@@ -58,12 +57,11 @@
                 <i></i>
                 <h2>目标企业选择</h2>
               </div>
-              <button class="link-btn" type="button" @click="onPendingFeature('高级筛选')">高级筛选</button>
             </div>
             <label class="search-input">
               <input
                 v-model.trim="enterpriseKeyword"
-                placeholder="输入企业名称、社会信用代码或法人姓名..."
+                placeholder="输入企业名称、社会信用代码或法人姓名"
               />
             </label>
             <div class="enterprise-list">
@@ -92,9 +90,9 @@
           <section class="panel">
             <div class="panel-title">
               <i></i>
-              <h2>执行人员分配</h2>
+              <h2>执法人员分配</h2>
             </div>
-            <p class="side-tips">当前选择会在任务创建成功后立即调用分配接口</p>
+            <p class="side-tips">当前选择会在任务创建成功后立即调用分配接口。</p>
             <div class="enforcer-list">
               <button
                 v-for="item in enforcers"
@@ -114,7 +112,7 @@
             </div>
             <label class="remark-box">
               任务备注
-              <textarea v-model.trim="form.taskDesc" rows="4" placeholder="请输入具体的检查指令和注意事项..." />
+              <textarea v-model.trim="form.taskDesc" rows="4" placeholder="请输入具体的检查指令和注意事项" />
             </label>
           </section>
         </aside>
@@ -163,7 +161,8 @@ import { useRouter } from "vue-router";
 import { assignInspectionTask, createInspectionTask } from "../../api/regulationOperation";
 import { fetchEligibleRegulators, fetchEnterprises } from "../../api/regulation";
 import RegulatorAdminWorkspacePage from "../../components/regulatorAdmin/RegulatorAdminWorkspacePage.vue";
-import { regulatorFeaturePendingNotice, useRegulatorAdminShellSession } from "./regulatorAdminShared";
+import { resolveErrorMessage } from "../../utils/uiFeedback";
+import { useRegulatorAdminShellSession } from "./regulatorAdminShared";
 
 const router = useRouter();
 const { regulatorUser, token, handleSidebarNavigate, handleLogout } = useRegulatorAdminShellSession();
@@ -189,10 +188,6 @@ const filteredEnterprises = computed(() => {
     return text.includes(key);
   });
 });
-
-function onPendingFeature(title) {
-  regulatorFeaturePendingNotice(title);
-}
 
 function setStatus(message, type = "info") {
   status.message = message;
@@ -239,7 +234,7 @@ async function loadOptions() {
     enterprises.value = enterpriseData?.records || [];
     enforcers.value = Array.isArray(enforcerData) ? enforcerData : [];
   } catch (error) {
-    setStatus(error.message || "加载数据失败", "error");
+    setStatus(resolveErrorMessage(error, "加载数据失败"), "error");
   } finally {
     loading.value = false;
   }
@@ -269,9 +264,9 @@ async function handleSubmitTask() {
     if (form.regulatorId && createdTask?.id) {
       try {
         await assignInspectionTask(token.value, createdTask.id, { regulatorId: form.regulatorId });
-        setStatus("任务已创建并完成执法人员分配", "success");
+        setStatus("任务已创建，并完成执法人员分配", "success");
       } catch (assignError) {
-        setStatus(assignError.message || "任务已创建，但执法人员分配失败，请前往列表页重试", "error");
+        setStatus(resolveErrorMessage(assignError, "任务已创建，但执法人员分配失败，请到列表页重试"), "error");
       }
     } else {
       setStatus("任务已创建", "success");
@@ -281,7 +276,7 @@ async function handleSubmitTask() {
       router.push({ name: "regulator-admin-dispatch" });
     }, 500);
   } catch (error) {
-    setStatus(error.message || "创建任务失败", "error");
+    setStatus(resolveErrorMessage(error, "创建任务失败"), "error");
   } finally {
     loading.value = false;
   }
@@ -311,7 +306,6 @@ p { margin: 6px 0 0; color: #64748b; }
 .panel-title__left { display: flex; align-items: center; gap: 8px; }
 .panel-title i { width: 4px; height: 18px; border-radius: 999px; background: #002660; display: block; }
 .panel-title h2 { margin: 0; font-size: 16px; color: #002660; font-weight: 800; }
-.link-btn { border: 0; background: transparent; color: #0f4ec7; font-size: 12px; font-weight: 700; cursor: pointer; }
 
 .form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
 label { display: grid; gap: 6px; font-size: 12px; color: #64748b; font-weight: 700; }

@@ -186,6 +186,8 @@ import { computed, onMounted, reactive, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { fetchInspectionRecordDetail } from "../../api/regulationOperation";
 import { formatTime } from "../../utils/formatters";
+import { formatStatusLabel, inspectionResultMap, rectificationStatusMap } from "../../utils/statusMaps";
+import { resolveErrorMessage } from "../../utils/uiFeedback";
 import RegulatorEnforcerPageShell from "./RegulatorEnforcerPageShell.vue";
 import { useRegulatorEnforcerShellSession } from "./regulatorEnforcerShared";
 
@@ -198,13 +200,6 @@ const loading = ref(false);
 const detail = ref(null);
 const status = reactive({ message: "", type: "info" });
 
-const inspectionResultMap = { PASS: "合格", FAIL: "不合格" };
-const rectificationStatusMap = {
-  ONGOING: "整改中",
-  SUBMITTED: "待复核",
-  REWORK: "打回重做",
-  CONFIRMED: "已确认"
-};
 
 const itemCount = computed(() => (Array.isArray(detail.value?.items) ? detail.value.items.length : 0));
 const abnormalItemCount = computed(() =>
@@ -222,11 +217,11 @@ function setStatus(message = "", type = "info") {
 }
 
 function formatInspectionResult(value) {
-  return inspectionResultMap[value] || value || "-";
+  return formatStatusLabel(value, inspectionResultMap);
 }
 
 function formatRectificationStatus(value) {
-  return rectificationStatusMap[value] || value || "未触发";
+  return formatStatusLabel(value, rectificationStatusMap, "未触发");
 }
 
 function resultClass(value) {
@@ -246,7 +241,7 @@ async function loadDetail() {
     detail.value = await fetchInspectionRecordDetail(token.value, inspectionId.value);
   } catch (error) {
     detail.value = null;
-    setStatus(error.message || "加载检查记录详情失败", "error");
+    setStatus(resolveErrorMessage(error, "加载检查记录详情失败"), "error");
   } finally {
     loading.value = false;
   }

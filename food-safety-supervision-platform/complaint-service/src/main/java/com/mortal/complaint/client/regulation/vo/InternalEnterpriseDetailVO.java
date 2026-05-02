@@ -2,7 +2,7 @@ package com.mortal.complaint.client.regulation.vo;
 
 import lombok.Data;
 /**
- * 鍐呴儴浼佷笟璇︽儏VO
+ * 内部企业详情VO
  */
 @Data
 public class InternalEnterpriseDetailVO {

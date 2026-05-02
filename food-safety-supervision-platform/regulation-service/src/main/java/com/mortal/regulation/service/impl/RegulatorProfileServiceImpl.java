@@ -10,19 +10,23 @@ import com.mortal.regulation.entity.FoodRegulatorRegion;
 import com.mortal.regulation.mapper.AddrRegionMapper;
 import com.mortal.regulation.mapper.FoodRegulatorMapper;
 import com.mortal.regulation.mapper.FoodRegulatorRegionMapper;
+import com.mortal.regulation.service.AuditLogService;
 import com.mortal.regulation.service.RegulatorProfileService;
 import com.mortal.regulation.support.RegulatorMasterCacheService;
+import com.mortal.regulation.vo.AuditLogVO;
 import com.mortal.regulation.vo.RegulatorProfileVO;
 import java.time.LocalDateTime;
 import java.util.ArrayDeque;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 @Service
@@ -37,21 +41,25 @@ public class RegulatorProfileServiceImpl implements RegulatorProfileService {
     private final AddrRegionMapper addrRegionMapper;
     private final UserServiceClient userServiceClient;
     private final RegulatorMasterCacheService regulatorMasterCacheService;
+    private final AuditLogService auditLogService;
 
     public RegulatorProfileServiceImpl(FoodRegulatorMapper foodRegulatorMapper,
                                        FoodRegulatorRegionMapper foodRegulatorRegionMapper,
                                        AddrRegionMapper addrRegionMapper,
                                        UserServiceClient userServiceClient,
-                                       RegulatorMasterCacheService regulatorMasterCacheService) {
+                                       RegulatorMasterCacheService regulatorMasterCacheService,
+                                       AuditLogService auditLogService) {
         this.foodRegulatorMapper = foodRegulatorMapper;
         this.foodRegulatorRegionMapper = foodRegulatorRegionMapper;
         this.addrRegionMapper = addrRegionMapper;
         this.userServiceClient = userServiceClient;
         this.regulatorMasterCacheService = regulatorMasterCacheService;
+        this.auditLogService = auditLogService;
     }
 
     @Override
-    public RegulatorProfileVO createOrUpdate(RegulatorProfileDTO dto) {
+    @Transactional(rollbackFor = Exception.class)
+    public RegulatorProfileVO createOrUpdate(Long operatorUserId, String operatorName, RegulatorProfileDTO dto) {
         String roleType = normalize(dto.getRoleType());
         if (!ROLE_TYPES.contains(roleType)) {
             throw new IllegalArgumentException("invalid regulator role");
@@ -60,6 +68,9 @@ public class RegulatorProfileServiceImpl implements RegulatorProfileService {
         FoodRegulator regulator = foodRegulatorMapper.selectOne(new LambdaQueryWrapper<FoodRegulator>()
             .eq(FoodRegulator::getUserId, dto.getUserId())
             .eq(FoodRegulator::getDeleted, 0));
+        boolean created = regulator == null;
+        FoodRegulator beforeRegulator = regulator == null ? null : copyRegulator(regulator);
+        List<Long> beforeRegionIds = regulator == null ? List.of() : findRegionIds(regulator.getId());
         if (regulator == null) {
             regulator = new FoodRegulator();
             regulator.setUserId(dto.getUserId());
@@ -80,6 +91,17 @@ public class RegulatorProfileServiceImpl implements RegulatorProfileService {
         }
         updateRegions(regulator.getId(), regionIds);
         evictRegulatorCaches(regulator);
+        auditLogService.recordRegulatorAudit(
+            operatorUserId,
+            operatorName,
+            created ? "REGULATOR_CREATE" : "REGULATOR_UPDATE",
+            created ? "创建监管人员" : "更新监管人员",
+            beforeRegulator,
+            copyRegulator(regulator),
+            beforeRegionIds,
+            regionIds,
+            null
+        );
         return toVO(regulator, regionIds);
     }
 
@@ -137,28 +159,34 @@ public class RegulatorProfileServiceImpl implements RegulatorProfileService {
     }
 
     @Override
-    public List<RegulatorProfileVO> listEligibleEnforcers(Long regionId) {
+    public List<RegulatorProfileVO> listEligibleEnforcers(Long currentUserId, Long regionId) {
+        FoodRegulator currentRegulator = foodRegulatorMapper.selectOne(new LambdaQueryWrapper<FoodRegulator>()
+            .eq(FoodRegulator::getUserId, currentUserId)
+            .eq(FoodRegulator::getDeleted, 0));
+        if (currentRegulator == null
+            || isDeleted(currentRegulator.getDeleted())
+            || !"REGULATOR_ADMIN".equals(currentRegulator.getRoleType())) {
+            return List.of();
+        }
+        List<Long> scopeRegionIds = resolveScopeRegionIds(currentRegulator.getId(), regionId);
+        if (scopeRegionIds.isEmpty()) {
+            return List.of();
+        }
         LambdaQueryWrapper<FoodRegulator> wrapper = new LambdaQueryWrapper<FoodRegulator>()
             .eq(FoodRegulator::getDeleted, 0)
             .eq(FoodRegulator::getRoleType, "REGULATOR_ENFORCER")
             .eq(FoodRegulator::getStatus, 1);
-        if (regionId != null) {
-            List<Long> matchRegionIds = resolveAssignableRegionIds(regionId);
-            if (matchRegionIds.isEmpty()) {
-                return List.of();
-            }
-            List<Long> regulatorIds = foodRegulatorRegionMapper.selectList(new LambdaQueryWrapper<FoodRegulatorRegion>()
-                    .in(FoodRegulatorRegion::getRegionId, matchRegionIds)
-                    .eq(FoodRegulatorRegion::getDeleted, 0))
-                .stream()
-                .map(FoodRegulatorRegion::getRegulatorId)
-                .distinct()
-                .toList();
-            if (regulatorIds.isEmpty()) {
-                return List.of();
-            }
-            wrapper.in(FoodRegulator::getId, regulatorIds);
+        List<Long> regulatorIds = foodRegulatorRegionMapper.selectList(new LambdaQueryWrapper<FoodRegulatorRegion>()
+                .in(FoodRegulatorRegion::getRegionId, scopeRegionIds)
+                .eq(FoodRegulatorRegion::getDeleted, 0))
+            .stream()
+            .map(FoodRegulatorRegion::getRegulatorId)
+            .distinct()
+            .toList();
+        if (regulatorIds.isEmpty()) {
+            return List.of();
         }
+        wrapper.in(FoodRegulator::getId, regulatorIds);
         List<FoodRegulator> regulators = foodRegulatorMapper.selectList(wrapper);
         Map<Long, List<Long>> regionMap = loadRegionMap(regulators);
         return regulators.stream()
@@ -167,7 +195,8 @@ public class RegulatorProfileServiceImpl implements RegulatorProfileService {
     }
 
     @Override
-    public RegulatorProfileVO updateStatus(Long id, Integer status) {
+    @Transactional(rollbackFor = Exception.class)
+    public RegulatorProfileVO updateStatus(Long operatorUserId, String operatorName, Long id, Integer status) {
         if (status == null || (status != 0 && status != 1)) {
             throw new IllegalArgumentException("status must be 0 or 1");
         }
@@ -175,20 +204,35 @@ public class RegulatorProfileServiceImpl implements RegulatorProfileService {
         if (regulator == null || isDeleted(regulator.getDeleted())) {
             throw new IllegalArgumentException("regulator not found");
         }
+        List<Long> regionIds = findRegionIds(regulator.getId());
+        FoodRegulator before = copyRegulator(regulator);
         regulator.setStatus(status);
         regulator.setUpdateTime(LocalDateTime.now());
         foodRegulatorMapper.updateById(regulator);
         evictRegulatorCaches(regulator);
-        List<Long> regionIds = findRegionIds(regulator.getId());
+        auditLogService.recordRegulatorAudit(
+            operatorUserId,
+            operatorName,
+            "REGULATOR_STATUS_CHANGE",
+            "调整账号状态",
+            before,
+            copyRegulator(regulator),
+            regionIds,
+            regionIds,
+            "调整前状态=" + before.getStatus() + "，调整后状态=" + regulator.getStatus()
+        );
         return toVO(regulator, regionIds);
     }
 
     @Override
-    public void deleteRegulator(Long id) {
+    @Transactional(rollbackFor = Exception.class)
+    public void deleteRegulator(Long operatorUserId, String operatorName, Long id) {
         FoodRegulator regulator = foodRegulatorMapper.selectById(id);
         if (regulator == null || isDeleted(regulator.getDeleted())) {
             return;
         }
+        List<Long> beforeRegionIds = findRegionIds(id);
+        FoodRegulator beforeRegulator = copyRegulator(regulator);
         regulator.setDeleted(1);
         regulator.setStatus(0);
         regulator.setUpdateTime(LocalDateTime.now());
@@ -200,9 +244,62 @@ public class RegulatorProfileServiceImpl implements RegulatorProfileService {
                 .set(FoodRegulatorRegion::getDeleted, 1)
         );
         evictRegulatorCaches(regulator);
+        auditLogService.recordRegulatorAudit(
+            operatorUserId,
+            operatorName,
+            "REGULATOR_DELETE",
+            "删除监管人员",
+            beforeRegulator,
+            copyRegulator(regulator),
+            beforeRegionIds,
+            List.of(),
+            null
+        );
         if (regulator.getUserId() != null) {
             userServiceClient.deleteUser(regulator.getUserId());
         }
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public RegulatorProfileVO adjustRegions(Long operatorUserId,
+                                            String operatorName,
+                                            Long id,
+                                            List<Long> regionIds,
+                                            String remark) {
+        FoodRegulator regulator = foodRegulatorMapper.selectById(id);
+        if (regulator == null || isDeleted(regulator.getDeleted())) {
+            throw new IllegalArgumentException("regulator not found");
+        }
+        List<Long> beforeRegionIds = findRegionIds(id);
+        FoodRegulator beforeRegulator = copyRegulator(regulator);
+        List<Long> validatedRegionIds = validateRegionIds(regulator.getRoleType(), regionIds);
+        updateRegions(id, validatedRegionIds);
+        regulator.setUpdateTime(LocalDateTime.now());
+        foodRegulatorMapper.updateById(regulator);
+        evictRegulatorCaches(regulator);
+        auditLogService.recordRegulatorAudit(
+            operatorUserId,
+            operatorName,
+            "REGULATOR_REGION_ADJUST",
+            "调整监管辖区",
+            beforeRegulator,
+            copyRegulator(regulator),
+            beforeRegionIds,
+            validatedRegionIds,
+            remark
+        );
+        return toVO(regulator, validatedRegionIds);
+    }
+
+    @Override
+    public List<AuditLogVO> listAuditLogs(Long id, Integer limit) {
+        return auditLogService.listRegulatorLogs(id, limit == null ? 10 : limit);
+    }
+
+    @Override
+    public List<AuditLogVO> listRecentAuditLogs(Integer limit) {
+        return auditLogService.listRecentRegulatorLogs(limit == null ? 10 : limit);
     }
 
     private void updateRegions(Long regulatorId, List<Long> regionIds) {
@@ -330,6 +427,26 @@ public class RegulatorProfileServiceImpl implements RegulatorProfileService {
         return resolveRegionIds(regionId);
     }
 
+    private List<Long> resolveScopeRegionIds(Long regulatorId, Long requestedRegionId) {
+        List<Long> directRegionIds = findRegionIds(regulatorId);
+        if (directRegionIds.isEmpty()) {
+            return List.of();
+        }
+        if (requestedRegionId != null) {
+            boolean inScope = directRegionIds.stream()
+                .anyMatch(directRegionId -> isAncestorRegion(directRegionId, requestedRegionId));
+            if (!inScope) {
+                return List.of();
+            }
+            return resolveAssignableRegionIds(requestedRegionId);
+        }
+        Set<Long> result = new LinkedHashSet<>();
+        for (Long directRegionId : directRegionIds) {
+            result.addAll(resolveRegionIds(directRegionId));
+        }
+        return result.stream().toList();
+    }
+
     private List<Long> validateRegionIds(String roleType, List<Long> regionIds) {
         List<Long> cleaned = sanitizeRegionIds(regionIds);
         if (cleaned.size() != 1) {
@@ -352,6 +469,39 @@ public class RegulatorProfileServiceImpl implements RegulatorProfileService {
 
     private boolean isDeleted(Integer deleted) {
         return deleted != null && deleted == 1;
+    }
+
+    private boolean isAncestorRegion(Long ancestorId, Long regionId) {
+        if (ancestorId == null || regionId == null) {
+            return false;
+        }
+        Long cursor = regionId;
+        while (cursor != null) {
+            if (ancestorId.equals(cursor)) {
+                return true;
+            }
+            AddrRegion current = addrRegionMapper.selectById(cursor);
+            if (current == null || isDeleted(current.getDeleted())) {
+                break;
+            }
+            cursor = current.getParentId();
+        }
+        return false;
+    }
+
+    private FoodRegulator copyRegulator(FoodRegulator regulator) {
+        FoodRegulator copy = new FoodRegulator();
+        copy.setId(regulator.getId());
+        copy.setUserId(regulator.getUserId());
+        copy.setName(regulator.getName());
+        copy.setPhone(regulator.getPhone());
+        copy.setRoleType(regulator.getRoleType());
+        copy.setStatus(regulator.getStatus());
+        copy.setWorkIdUrl(regulator.getWorkIdUrl());
+        copy.setCreateTime(regulator.getCreateTime());
+        copy.setUpdateTime(regulator.getUpdateTime());
+        copy.setDeleted(regulator.getDeleted());
+        return copy;
     }
 
     private String normalize(String value) {

@@ -20,14 +20,13 @@
         <div class="public-bulletins-page__toolbar">
           <label class="public-bulletins-page__search-box">
             <span class="material-symbols-outlined" aria-hidden="true">search</span>
-            <input v-model.trim="filters.keyword" type="text" placeholder="搜索公告标题或类别" @keyup.enter="handleSearch" />
+            <input
+              v-model.trim="filters.keyword"
+              type="text"
+              placeholder="搜索公告标题或关键词"
+              @keyup.enter="handleSearch"
+            />
           </label>
-          <button type="button" class="public-bulletins-page__icon-btn" @click="onFeaturePending('通知中心')">
-            <span class="material-symbols-outlined" aria-hidden="true">notifications</span>
-          </button>
-          <button type="button" class="public-bulletins-page__icon-btn" @click="onFeaturePending('个人中心')">
-            <span class="material-symbols-outlined" aria-hidden="true">account_circle</span>
-          </button>
           <button class="ghost public-bulletins-page__logout" type="button" @click="handleLogout">退出登录</button>
         </div>
       </div>
@@ -64,14 +63,27 @@
             <span>类别</span>
             <span>发布日期</span>
           </div>
-          <div v-if="!records.length" class="public-bulletins-page__empty">暂无已发布公告</div>
-          <button v-for="item in records" :key="item.id" type="button" class="public-bulletins-page__row" @click="viewBulletin(item)">
+
+          <AppEmptyState
+            v-if="!records.length"
+            :title="emptyTitle"
+            :description="emptyDescription"
+            class="public-bulletins-page__empty-state"
+          />
+
+          <button
+            v-for="item in records"
+            :key="item.id"
+            type="button"
+            class="public-bulletins-page__row"
+            @click="viewBulletin(item)"
+          >
             <div class="public-bulletins-page__row-main">
-              <strong>{{ item.title || '-' }}</strong>
+              <strong>{{ item.title || "-" }}</strong>
               <p>{{ bulletinSubline(item) }}</p>
             </div>
             <div class="public-bulletins-page__row-status">
-              <i class="public-bulletins-page__status-chip is-published">{{ formatCategory(item.category) }}</i>
+              <AppStatusTag :label="formatCategory(item.category)" tone="success" />
             </div>
             <div class="public-bulletins-page__row-time">{{ bulletinDate(item) }}</div>
           </button>
@@ -91,7 +103,7 @@
         </section>
       </section>
 
-      <div class="status" :class="status.type" v-if="status.message">{{ status.message }}</div>
+      <AppStatusToast :message="status.message" :type="status.type" />
     </main>
   </div>
 </template>
@@ -99,9 +111,13 @@
 <script setup>
 import { computed, onMounted, reactive, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
+import AppEmptyState from "../../components/common/AppEmptyState.vue";
+import AppStatusTag from "../../components/common/AppStatusTag.vue";
+import AppStatusToast from "../../components/common/AppStatusToast.vue";
 import { fetchPublicBulletins } from "../../api/regulation";
 import { getActiveSession, performLogout } from "../../session/authRuntime";
 import { formatTime } from "../../utils/formatters";
+import { resolveErrorMessage } from "../../utils/uiFeedback";
 
 const route = useRoute();
 const router = useRouter();
@@ -133,16 +149,18 @@ const categoryOptions = [
 ];
 
 const categoryLabelMap = Object.fromEntries(categoryOptions.filter((item) => item.key).map((item) => [item.key, item.label]));
-
 const pagerStart = computed(() => (total.value === 0 ? 0 : (page.value - 1) * size.value + 1));
 const pagerEnd = computed(() => Math.min(page.value * size.value, total.value));
+const hasFilters = computed(() => Boolean(filters.keyword.trim() || filters.category));
+const emptyTitle = computed(() => (hasFilters.value ? "暂无符合条件的公告" : "暂无公告"));
+const emptyDescription = computed(() => (hasFilters.value ? "可以调整关键词或公告类别后再试。" : "已发布的监管公告会展示在这里。"));
 
 async function handleLogout() {
   await performLogout();
   router.replace({ name: "login" }).catch(() => {});
 }
 
-function setStatus(message, type = "info") {
+function setStatus(message = "", type = "info") {
   status.message = message;
   status.type = type;
 }
@@ -168,7 +186,7 @@ async function loadBulletins() {
     pages.value = data.pages || 1;
   } catch (error) {
     records.value = [];
-    setStatus(error.message || "加载公告列表失败", "error");
+    setStatus(resolveErrorMessage(error, "公告列表加载失败，请稍后重试"), "error");
   } finally {
     loading.value = false;
   }
@@ -194,9 +212,13 @@ function setCategory(next) {
 
 function viewBulletin(item) {
   if (!item?.id) return;
+  const nextQuery = {};
+  if (filters.keyword.trim()) nextQuery.keyword = filters.keyword.trim();
+  if (filters.category) nextQuery.category = filters.category;
   router.push({
     name: "public-bulletin-detail",
-    params: { bulletinId: item.id }
+    params: { bulletinId: item.id },
+    query: nextQuery
   }).catch(() => {});
 }
 
@@ -216,10 +238,6 @@ function applyRouteQuery() {
   const nextCategory = typeof route.query.category === "string" ? route.query.category.trim().toUpperCase() : "";
   filters.keyword = nextKeyword;
   filters.category = categoryOptions.some((item) => item.key === nextCategory) ? nextCategory : "";
-}
-
-function onFeaturePending(name) {
-  window.alert(`${name} 功能待后续完善`);
 }
 
 function bulletinDate(item) {
@@ -331,16 +349,6 @@ watch(
   background: transparent;
   font-size: var(--public-toolbar-input-size);
   min-width: var(--public-toolbar-input-min-w);
-}
-
-.public-bulletins-page__icon-btn {
-  width: var(--public-btn-compact-min-h);
-  height: var(--public-btn-compact-min-h);
-  border-radius: 8px;
-  border: 1px solid transparent;
-  background: transparent;
-  cursor: pointer;
-  color: var(--on-surface-variant);
 }
 
 .public-bulletins-page__logout {
@@ -510,23 +518,6 @@ watch(
   text-align: center;
 }
 
-.public-bulletins-page__status-chip {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 4px;
-  padding: 3px 10px;
-  font-size: var(--public-caption);
-  font-weight: 800;
-  border: 1px solid transparent;
-}
-
-.public-bulletins-page__status-chip.is-published {
-  background: rgba(26, 127, 90, 0.1);
-  color: #1a7f5a;
-  border-color: rgba(26, 127, 90, 0.18);
-}
-
 .public-bulletins-page__row-time {
   text-align: right;
   color: var(--on-surface-variant);
@@ -534,12 +525,8 @@ watch(
   font-family: var(--font-display);
 }
 
-.public-bulletins-page__empty {
-  padding: 30px 20px;
-  text-align: center;
-  color: var(--on-surface-variant);
-  font-size: var(--public-empty);
-  line-height: 1.55;
+.public-bulletins-page__empty-state {
+  margin: 20px 24px;
 }
 
 .public-bulletins-page__pager {

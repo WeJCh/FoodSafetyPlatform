@@ -5,12 +5,8 @@ import { getActiveSession, performLogout } from "../../session/authRuntime";
 export const systemAdminNavItems = [
   { key: "dashboard", label: "工作台", icon: "dashboard", routeName: "admin-dashboard", subtitle: "系统总览与动态" },
   { key: "list", label: "监管人员列表", icon: "group", routeName: "admin-regulator-list", subtitle: "人员账号与状态管理" },
-  { key: "create", label: "新建监管人员", icon: "person_add", routeName: "admin-regulator-create", subtitle: "创建新监管人员账号" }
+  { key: "create", label: "新建监管人员", icon: "person_add", routeName: "admin-regulator-create", subtitle: "创建新的监管账号" }
 ];
-
-export function systemAdminFeaturePendingNotice(featureTitle) {
-  window.alert(`${featureTitle}\n\nTODO: 当前后端未提供该能力，先保留 UI 占位。`);
-}
 
 export function useSystemAdminShellSession() {
   const router = useRouter();

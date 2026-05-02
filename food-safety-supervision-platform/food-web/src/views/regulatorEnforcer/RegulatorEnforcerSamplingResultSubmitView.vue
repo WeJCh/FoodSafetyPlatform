@@ -4,7 +4,6 @@
     :username="enforcerUser.username || enforcerUser.realName || ''"
     @navigate="handleSidebarNavigate"
     @logout="handleLogout"
-    @pending-feature="regulatorEnforcerFeaturePendingNotice"
   >
     <section class="sampling-submit-page">
       <header class="page-head">
@@ -24,9 +23,7 @@
           <p>请准确录入实验室检测结论，提交后将进入审核流程。</p>
         </div>
         <div class="head-actions">
-          <button class="ghost-btn" type="button" :disabled="actionLoading" @click="goDetail">
-            取消
-          </button>
+          <button class="ghost-btn" type="button" :disabled="actionLoading" @click="goDetail">取消</button>
           <button class="primary-btn" type="button" :disabled="actionLoading || pageLoading" @click="handleSubmit">
             {{ actionLoading ? "提交中..." : "确认并提交" }}
           </button>
@@ -53,7 +50,7 @@
                   <strong>{{ task.productBatchNo || task.taskNo || "-" }}</strong>
                 </article>
                 <article>
-                  <span>生产商</span>
+                  <span>生产企业</span>
                   <strong>{{ enterprise?.enterpriseName || task.enterpriseName || "-" }}</strong>
                 </article>
                 <article>
@@ -84,21 +81,11 @@
                 <div class="full">
                   <span class="field-label">结论判定</span>
                   <div class="result-choice-grid">
-                    <button
-                      type="button"
-                      class="result-choice"
-                      :class="{ 'is-active is-pass': samplingForm.result === 'PASS' }"
-                      @click="samplingForm.result = 'PASS'"
-                    >
+                    <button type="button" class="result-choice" :class="{ 'is-active is-pass': samplingForm.result === 'PASS' }" @click="samplingForm.result = 'PASS'">
                       <span class="result-choice__icon">✓</span>
                       <strong>合格 (PASS)</strong>
                     </button>
-                    <button
-                      type="button"
-                      class="result-choice"
-                      :class="{ 'is-active is-fail': samplingForm.result === 'FAIL' }"
-                      @click="samplingForm.result = 'FAIL'"
-                    >
+                    <button type="button" class="result-choice" :class="{ 'is-active is-fail': samplingForm.result === 'FAIL' }" @click="samplingForm.result = 'FAIL'">
                       <span class="result-choice__icon">×</span>
                       <strong>不合格 (FAIL)</strong>
                     </button>
@@ -107,20 +94,12 @@
 
                 <label class="full">
                   <span>抽检结论</span>
-                  <textarea
-                    v-model.trim="samplingForm.conclusion"
-                    rows="6"
-                    placeholder="请填写抽检结论，可补充关键指标、现场情况与实验室结论。"
-                  ></textarea>
+                  <textarea v-model.trim="samplingForm.conclusion" rows="6" placeholder="请填写抽检结论，可补充关键指标、现场情况与实验室结论。"></textarea>
                 </label>
 
                 <label class="full">
                   <span>处置建议</span>
-                  <textarea
-                    v-model.trim="samplingForm.disposalSuggestion"
-                    rows="7"
-                    placeholder="请填写后续建议，例如复检申请、风险处置或后续跟进建议。"
-                  ></textarea>
+                  <textarea v-model.trim="samplingForm.disposalSuggestion" rows="7" placeholder="请填写后续建议，如复检申请、风险处置或跟进建议。"></textarea>
                 </label>
               </form>
             </section>
@@ -174,10 +153,9 @@ import { fetchEnterpriseDetail, fetchRegionPath } from "../../api/regulation";
 import { findMySamplingTaskById, submitSamplingResult } from "../../api/regulationOperation";
 import RegulatorEnforcerWorkspacePage from "../../components/regulatorEnforcer/RegulatorEnforcerWorkspacePage.vue";
 import { formatTime } from "../../utils/formatters";
-import {
-  regulatorEnforcerFeaturePendingNotice,
-  useRegulatorEnforcerShellSession
-} from "./regulatorEnforcerShared";
+import { formatStatusLabel, inspectionResultMap, samplingTaskStatusMap } from "../../utils/statusMaps";
+import { resolveErrorMessage } from "../../utils/uiFeedback";
+import { useRegulatorEnforcerShellSession } from "./regulatorEnforcerShared";
 
 const route = useRoute();
 const router = useRouter();
@@ -197,18 +175,9 @@ const samplingForm = reactive({
   disposalSuggestion: ""
 });
 
-const samplingTaskStatusMap = {
-  CREATED: "待派发",
-  ASSIGNED: "待抽检",
-  IN_PROGRESS: "抽检中",
-  COMPLETED: "已完成",
-  CLOSED: "已归档"
-};
-
 const timeline = computed(() => {
   const current = task.value;
   if (!current) return [];
-
   return [
     {
       title: "任务已下达",
@@ -239,13 +208,11 @@ function setStatus(message = "", type = "info") {
 }
 
 function formatSamplingTaskStatus(value) {
-  return samplingTaskStatusMap[value] || value || "-";
+  return formatStatusLabel(value, samplingTaskStatusMap);
 }
 
 function formatInspectionResult(value) {
-  if (value === "PASS") return "合格";
-  if (value === "FAIL") return "不合格";
-  return "待录入";
+  return value ? formatStatusLabel(value, inspectionResultMap) : "待录入";
 }
 
 function normalizeDateTimeInput(value) {
@@ -263,14 +230,8 @@ function goList() {
 }
 
 function goDetail() {
-  if (!task.value?.id) {
-    goList();
-    return;
-  }
-  router.push({
-    name: "regulator-enforcer-sampling-detail",
-    params: { taskId: task.value.id }
-  }).catch(() => {});
+  if (!task.value?.id) return goList();
+  router.push({ name: "regulator-enforcer-sampling-detail", params: { taskId: task.value.id } }).catch(() => {});
 }
 
 async function loadPage() {
@@ -314,7 +275,7 @@ async function loadPage() {
       }
     }
   } catch (error) {
-    loadError.value = error?.message || "抽检结果提交页加载失败";
+    loadError.value = resolveErrorMessage(error, "抽检结果提交页加载失败");
   } finally {
     pageLoading.value = false;
   }
@@ -322,10 +283,7 @@ async function loadPage() {
 
 async function handleSubmit() {
   if (!task.value?.id) return;
-  if (!samplingForm.sampledTime) {
-    setStatus("请选择采样时间", "error");
-    return;
-  }
+  if (!samplingForm.sampledTime) return setStatus("请选择采样时间", "error");
 
   actionLoading.value = true;
   setStatus("");
@@ -336,13 +294,9 @@ async function handleSubmit() {
       conclusion: samplingForm.conclusion,
       disposalSuggestion: samplingForm.disposalSuggestion
     });
-    await router.push({
-      name: "regulator-enforcer-sampling-detail",
-      params: { taskId: task.value.id },
-      query: { submitted: "1" }
-    });
+    await router.push({ name: "regulator-enforcer-sampling-detail", params: { taskId: task.value.id }, query: { submitted: "1" } });
   } catch (error) {
-    setStatus(error?.message || "提交抽检结果失败", "error");
+    setStatus(resolveErrorMessage(error, "提交抽检结果失败"), "error");
   } finally {
     actionLoading.value = false;
   }
@@ -352,340 +306,66 @@ watch(() => route.params.taskId, loadPage, { immediate: true });
 </script>
 
 <style scoped>
-.sampling-submit-page {
-  display: grid;
-  gap: 18px;
-}
-.page-head {
-  display: flex;
-  justify-content: space-between;
-  align-items: end;
-  gap: 16px;
-}
-.crumbs {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-bottom: 10px;
-  color: #64748b;
-  font-size: 12px;
-}
-.crumb-link,
-.crumb-current,
-.crumb-sep {
-  font: inherit;
-}
-.crumb-link {
-  border: 0;
-  background: transparent;
-  color: #64748b;
-  cursor: pointer;
-  padding: 0;
-}
-.crumb-current,
-.crumb-link:hover,
-.crumb-link:focus-visible {
-  color: #002660;
-}
-.page-head h1 {
-  margin: 0;
-  color: #002660;
-  font-size: 28px;
-  font-weight: 900;
-}
-.page-head p {
-  margin: 8px 0 0;
-  color: #64748b;
-  font-size: 14px;
-}
-.head-actions {
-  display: flex;
-  gap: 12px;
-}
-.ghost-btn,
-.primary-btn,
-.result-choice {
-  border-radius: 10px;
-}
-.ghost-btn,
-.primary-btn {
-  min-height: 42px;
-  padding: 0 18px;
-  border: 1px solid #dbe3ee;
-  font-size: 14px;
-  font-weight: 800;
-  cursor: pointer;
-}
-.ghost-btn {
-  background: #eef2f7;
-  color: #334155;
-}
-.primary-btn {
-  background: #002660;
-  border-color: #002660;
-  color: #fff;
-}
-.ghost-btn:disabled,
-.primary-btn:disabled {
-  opacity: 0.65;
-  cursor: not-allowed;
-}
-.state-card {
-  padding: 16px 18px;
-  border: 1px solid #dbe3ee;
-  background: #fff;
-  color: #334155;
-}
-.state-card--error {
-  border-color: #fecaca;
-  background: #fff4f4;
-  color: #b91c1c;
-}
-.content-grid {
-  display: grid;
-  grid-template-columns: minmax(0, 1.65fr) minmax(320px, 0.95fr);
-  gap: 20px;
-}
-.main-column,
-.side-column {
-  display: grid;
-  gap: 20px;
-}
-.panel {
-  border: 1px solid #dbe3ee;
-  background: #fff;
-  padding: 22px;
-  box-shadow: 0 16px 36px rgba(15, 23, 42, 0.04);
-}
-.panel-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  margin-bottom: 18px;
-}
-.panel-head h2 {
-  margin: 0;
-  color: #002660;
-  font-size: 18px;
-  font-weight: 900;
-}
-.detail-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 18px 24px;
-}
-.detail-grid article,
-.overview-list div {
-  display: grid;
-  gap: 8px;
-}
-.detail-grid .is-wide {
-  grid-column: 1 / -1;
-  padding-top: 18px;
-  border-top: 1px solid #e6ecf3;
-}
-.detail-grid span,
-.overview-list dt,
-.field-label {
-  color: #64748b;
-  font-size: 11px;
-  font-weight: 800;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-}
-.detail-grid strong,
-.overview-list dd {
-  margin: 0;
-  color: #0f172a;
-  font-size: 15px;
-  font-weight: 700;
-  line-height: 1.5;
-}
-.result-form {
-  display: grid;
-  gap: 20px;
-}
-.result-form label {
-  display: grid;
-  gap: 10px;
-}
-.result-form label span {
-  color: #0f172a;
-  font-size: 14px;
-  font-weight: 800;
-}
-.result-form input,
-.result-form textarea {
-  width: 100%;
-  border: 1px solid #d6deea;
-  background: #f5f7fb;
-  padding: 14px 16px;
-  color: #0f172a;
-  font-size: 14px;
-  transition: border-color 0.2s ease, background 0.2s ease;
-}
-.result-form input:focus,
-.result-form textarea:focus {
-  outline: none;
-  border-color: #2e5aac;
-  background: #fff;
-}
-.full {
-  grid-column: 1 / -1;
-}
-.result-choice-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 16px;
-  margin-top: 10px;
-}
-.result-choice {
-  display: grid;
-  gap: 14px;
-  justify-items: center;
-  min-height: 124px;
-  padding: 22px 16px;
-  border: 2px solid #dbe3ee;
-  background: #fff;
-  color: #0f172a;
-  cursor: pointer;
-  transition: border-color 0.2s ease, background 0.2s ease, transform 0.2s ease;
-}
-.result-choice:hover {
-  transform: translateY(-1px);
-}
-.result-choice.is-active.is-pass {
-  border-color: #16a34a;
-  background: #f3fbf6;
-}
-.result-choice.is-active.is-fail {
-  border-color: #dc2626;
-  background: #fff4f4;
-}
-.result-choice__icon {
-  display: grid;
-  place-items: center;
-  width: 46px;
-  height: 46px;
-  border-radius: 999px;
-  background: #e2e8f0;
-  font-size: 26px;
-  font-weight: 900;
-}
-.result-choice.is-pass .result-choice__icon {
-  background: #16a34a;
-  color: #fff;
-}
-.result-choice.is-fail .result-choice__icon {
-  background: #dc2626;
-  color: #fff;
-}
-.result-choice strong {
-  font-size: 16px;
-}
-.overview-list {
-  display: grid;
-  gap: 14px;
-}
-.overview-list div {
-  grid-template-columns: 94px minmax(0, 1fr);
-  align-items: start;
-}
-.overview-list dd {
-  text-align: right;
-  font-size: 14px;
-}
-.timeline-list {
-  display: grid;
-  gap: 20px;
-}
-.timeline-item {
-  position: relative;
-  display: grid;
-  grid-template-columns: 16px minmax(0, 1fr);
-  gap: 14px;
-}
-.timeline-item:not(:last-child)::after {
-  content: "";
-  position: absolute;
-  left: 7px;
-  top: 18px;
-  bottom: -18px;
-  width: 2px;
-  background: #d7dfec;
-}
-.timeline-dot {
-  width: 16px;
-  height: 16px;
-  border-radius: 999px;
-  margin-top: 2px;
-  background: #cbd5e1;
-}
-.timeline-dot.is-on {
-  background: #002660;
-}
-.timeline-dot.is-alert {
-  background: #dc2626;
-}
-.timeline-body {
-  display: grid;
-  gap: 8px;
-}
-.timeline-top {
-  display: flex;
-  justify-content: space-between;
-  gap: 12px;
-  align-items: baseline;
-}
-.timeline-top strong {
-  color: #0f172a;
-  font-size: 15px;
-}
-.timeline-top small {
-  color: #64748b;
-  font-size: 12px;
-}
-.timeline-body p {
-  margin: 0;
-  color: #475569;
-  font-size: 13px;
-  line-height: 1.7;
-}
-.status-banner {
-  padding: 12px 16px;
-  border: 1px solid #dbe3ee;
-  background: #f8fafc;
-  color: #334155;
-  font-size: 13px;
-}
-.status-banner.is-error {
-  border-color: #fecaca;
-  background: #fff4f4;
-  color: #b91c1c;
-}
-@media (max-width: 1180px) {
-  .content-grid {
-    grid-template-columns: 1fr;
-  }
-}
+.sampling-submit-page { display: grid; gap: 18px; }
+.page-head { display: flex; justify-content: space-between; align-items: end; gap: 16px; }
+.crumbs { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; color: #64748b; font-size: 12px; }
+.crumb-link, .crumb-current, .crumb-sep { font: inherit; }
+.crumb-link { border: 0; background: transparent; color: #64748b; cursor: pointer; padding: 0; }
+.crumb-current, .crumb-link:hover, .crumb-link:focus-visible { color: #002660; }
+.page-head h1 { margin: 0; color: #002660; font-size: 28px; font-weight: 900; }
+.page-head p { margin: 8px 0 0; color: #64748b; font-size: 14px; }
+.head-actions { display: flex; gap: 12px; }
+.ghost-btn, .primary-btn, .result-choice { border-radius: 10px; }
+.ghost-btn, .primary-btn { min-height: 42px; padding: 0 18px; border: 1px solid #dbe3ee; font-size: 14px; font-weight: 800; cursor: pointer; }
+.ghost-btn { background: #eef2f7; color: #334155; }
+.primary-btn { background: #002660; border-color: #002660; color: #fff; }
+.ghost-btn:disabled, .primary-btn:disabled { opacity: 0.65; cursor: not-allowed; }
+.state-card { padding: 16px 18px; border: 1px solid #dbe3ee; background: #fff; color: #334155; }
+.state-card--error { border-color: #fecaca; background: #fff4f4; color: #b91c1c; }
+.content-grid { display: grid; grid-template-columns: minmax(0, 1.65fr) minmax(320px, 0.95fr); gap: 20px; }
+.main-column, .side-column { display: grid; gap: 20px; }
+.panel { border: 1px solid #dbe3ee; background: #fff; padding: 22px; box-shadow: 0 16px 36px rgba(15, 23, 42, 0.04); }
+.panel-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 18px; }
+.panel-head h2 { margin: 0; color: #002660; font-size: 18px; font-weight: 900; }
+.detail-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px 24px; }
+.detail-grid article, .overview-list div { display: grid; gap: 8px; }
+.detail-grid .is-wide { grid-column: 1 / -1; padding-top: 18px; border-top: 1px solid #e6ecf3; }
+.detail-grid span, .overview-list dt, .field-label { color: #64748b; font-size: 11px; font-weight: 800; letter-spacing: 0.04em; text-transform: uppercase; }
+.detail-grid strong, .overview-list dd { margin: 0; color: #0f172a; font-size: 15px; font-weight: 700; line-height: 1.5; }
+.result-form { display: grid; gap: 20px; }
+.result-form label { display: grid; gap: 10px; }
+.result-form label span { color: #0f172a; font-size: 14px; font-weight: 800; }
+.result-form input, .result-form textarea { width: 100%; border: 1px solid #d6deea; background: #f5f7fb; padding: 14px 16px; color: #0f172a; font-size: 14px; }
+.full { grid-column: 1 / -1; }
+.result-choice-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; margin-top: 10px; }
+.result-choice { display: grid; gap: 14px; justify-items: center; min-height: 124px; padding: 22px 16px; border: 2px solid #dbe3ee; background: #fff; color: #0f172a; cursor: pointer; }
+.result-choice.is-active.is-pass { border-color: #16a34a; background: #f3fbf6; }
+.result-choice.is-active.is-fail { border-color: #dc2626; background: #fff4f4; }
+.result-choice__icon { display: grid; place-items: center; width: 46px; height: 46px; border-radius: 999px; background: #e2e8f0; font-size: 26px; font-weight: 900; }
+.result-choice.is-pass .result-choice__icon { background: #16a34a; color: #fff; }
+.result-choice.is-fail .result-choice__icon { background: #dc2626; color: #fff; }
+.result-choice strong { font-size: 16px; }
+.overview-list { display: grid; gap: 14px; }
+.overview-list div { grid-template-columns: 94px minmax(0, 1fr); align-items: start; }
+.overview-list dd { text-align: right; font-size: 14px; }
+.timeline-list { display: grid; gap: 20px; }
+.timeline-item { position: relative; display: grid; grid-template-columns: 16px minmax(0, 1fr); gap: 14px; }
+.timeline-item:not(:last-child)::after { content: ""; position: absolute; left: 7px; top: 18px; bottom: -18px; width: 2px; background: #d7dfec; }
+.timeline-dot { width: 16px; height: 16px; border-radius: 999px; margin-top: 2px; background: #cbd5e1; }
+.timeline-dot.is-on { background: #002660; }
+.timeline-dot.is-alert { background: #dc2626; }
+.timeline-body { display: grid; gap: 8px; }
+.timeline-top { display: flex; justify-content: space-between; gap: 12px; align-items: baseline; }
+.timeline-top strong { color: #0f172a; font-size: 15px; }
+.timeline-top small { color: #64748b; font-size: 12px; }
+.timeline-body p { margin: 0; color: #475569; font-size: 13px; line-height: 1.7; }
+.status-banner { padding: 12px 16px; border: 1px solid #dbe3ee; background: #f8fafc; color: #334155; font-size: 13px; }
+.status-banner.is-error { border-color: #fecaca; background: #fff4f4; color: #b91c1c; }
+@media (max-width: 1180px) { .content-grid { grid-template-columns: 1fr; } }
 @media (max-width: 860px) {
-  .page-head,
-  .timeline-top,
-  .head-actions {
-    display: grid;
-    grid-template-columns: 1fr;
-  }
-  .detail-grid,
-  .result-choice-grid {
-    grid-template-columns: 1fr;
-  }
-  .overview-list div {
-    grid-template-columns: 1fr;
-    gap: 6px;
-  }
-  .overview-list dd {
-    text-align: left;
-  }
+  .page-head, .timeline-top, .head-actions { display: grid; grid-template-columns: 1fr; }
+  .detail-grid, .result-choice-grid { grid-template-columns: 1fr; }
+  .overview-list div { grid-template-columns: 1fr; gap: 6px; }
+  .overview-list dd { text-align: left; }
 }
 </style>

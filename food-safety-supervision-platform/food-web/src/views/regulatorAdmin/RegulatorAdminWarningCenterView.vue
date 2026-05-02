@@ -10,7 +10,7 @@
         <div>
           <p class="hero-eyebrow">Risk Intelligence Center</p>
           <h1>风险预警中心</h1>
-          <p class="hero-desc">实时监控食品供应链风险信号，支持快速筛选、处置与溯源。</p>
+          <p class="hero-desc">实时监控食品安全风险信号，支持快速筛选、处置与追踪。</p>
         </div>
         <div class="hero-metrics">
           <article>
@@ -18,7 +18,7 @@
             <strong>{{ activeWarningCount }}</strong>
           </article>
           <article>
-            <span>待处理</span>
+            <span>待处置</span>
             <strong>{{ pendingWarningCount }}</strong>
           </article>
         </div>
@@ -45,14 +45,8 @@
             <label>当前状态</label>
             <div class="chip-group">
               <button type="button" :class="['chip', { active: filters.status === '' }]" @click="setStatusFilter('')">全部</button>
-              <button type="button" :class="['chip', { active: filters.status === 'OPEN' }]" @click="setStatusFilter('OPEN')">待处理</button>
-              <button
-                type="button"
-                :class="['chip', { active: filters.status === 'PROCESSING' }]"
-                @click="setStatusFilter('PROCESSING')"
-              >
-                处理中
-              </button>
+              <button type="button" :class="['chip', { active: filters.status === 'OPEN' }]" @click="setStatusFilter('OPEN')">待处置</button>
+              <button type="button" :class="['chip', { active: filters.status === 'PROCESSING' }]" @click="setStatusFilter('PROCESSING')">处理中</button>
               <button type="button" :class="['chip', { active: filters.status === 'RESOLVED' }]" @click="setStatusFilter('RESOLVED')">已解决</button>
             </div>
           </div>
@@ -63,7 +57,7 @@
         <div v-if="advancedVisible" class="advanced-row">
           <label>
             业务类型
-            <input v-model.trim="filters.bizType" placeholder="例：RECTIFICATION" />
+            <input v-model.trim="filters.bizType" placeholder="例如：RECTIFICATION" />
           </label>
           <label>
             关键词
@@ -83,22 +77,20 @@
           <table>
             <thead>
               <tr>
-                <th>预警触发时间</th>
-                <th class="center">级别</th>
+                <th>触发时间</th>
+                <th class="center">等级</th>
                 <th>关联对象</th>
-                <th>预警原因摘要</th>
-                <th>当前状态</th>
+                <th>预警摘要</th>
+                <th>状态</th>
                 <th>处理人</th>
-                <th class="right">操作项</th>
+                <th class="right">操作</th>
               </tr>
             </thead>
             <tbody v-if="records.length">
               <tr v-for="item in records" :key="item.id">
                 <td class="mono">{{ formatTime(item.lastOccurTime || item.createTime) }}</td>
                 <td class="center">
-                  <span class="level-pill" :class="`is-${String(item.level || '').toLowerCase()}`">
-                    {{ formatWarningLevel(item.level) }}
-                  </span>
+                  <AppStatusTag :label="formatWarningLevel(item.level)" :tone="item.level === 'L1' ? 'danger' : 'warning'" />
                 </td>
                 <td>
                   <p class="obj-main">{{ item.bizName || item.title || "-" }}</p>
@@ -109,7 +101,7 @@
                   <p :title="item.content || '-'">{{ item.content || "-" }}</p>
                 </td>
                 <td>
-                  <span class="status-pill" :class="`is-${warningStatusClass(item.status)}`">{{ formatWarningStatus(item.status) }}</span>
+                  <AppStatusTag :label="formatWarningStatus(item.status)" :tone="warningTone(item.status)" />
                 </td>
                 <td>{{ item.assignedToName || item.ownerName || "尚未指派" }}</td>
                 <td>
@@ -129,7 +121,13 @@
               </tr>
             </tbody>
           </table>
-          <div v-if="!records.length" class="empty">暂无预警记录</div>
+
+          <AppEmptyState
+            v-if="!records.length"
+            :title="emptyTitle"
+            :description="emptyDescription"
+            class="warning-page__empty-state"
+          />
         </div>
 
         <div class="pager">
@@ -199,7 +197,7 @@
         </div>
       </div>
 
-      <div v-if="status.message" class="status" :class="status.type">{{ status.message }}</div>
+      <AppStatusToast :message="status.message" :type="status.type" />
     </section>
   </RegulatorAdminWorkspacePage>
 </template>
@@ -207,6 +205,9 @@
 <script setup>
 import { computed, onMounted, reactive, ref } from "vue";
 import { useRouter } from "vue-router";
+import AppEmptyState from "../../components/common/AppEmptyState.vue";
+import AppStatusTag from "../../components/common/AppStatusTag.vue";
+import AppStatusToast from "../../components/common/AppStatusToast.vue";
 import {
   fetchWarningOverview,
   fetchWarningRecordDetail,
@@ -216,7 +217,8 @@ import {
 } from "../../api/regulation";
 import RegulatorAdminWorkspacePage from "../../components/regulatorAdmin/RegulatorAdminWorkspacePage.vue";
 import { formatByMap, formatTime } from "../../utils/formatters";
-import { warningActionMap, warningLevelMap, warningStatusMap } from "../../utils/statusMaps";
+import { getStatusTone, warningActionMap, warningLevelMap, warningStatusMap } from "../../utils/statusMaps";
+import { resolveErrorMessage } from "../../utils/uiFeedback";
 import { useRegulatorAdminShellSession } from "./regulatorAdminShared";
 
 const router = useRouter();
@@ -244,11 +246,8 @@ const filters = reactive({
   keyword: ""
 });
 
-const activeWarningCount = computed(
-  () => (Number(summary.value?.openCount) || 0) + (Number(summary.value?.processingCount) || 0)
-);
+const activeWarningCount = computed(() => (Number(summary.value?.openCount) || 0) + (Number(summary.value?.processingCount) || 0));
 const pendingWarningCount = computed(() => Number(summary.value?.openCount) || 0);
-
 const warningTypeOptions = computed(() => {
   const values = typeOptions.value
     .map((item) => {
@@ -261,6 +260,9 @@ const warningTypeOptions = computed(() => {
   }
   return [...new Set(values)].sort();
 });
+const hasFilters = computed(() => Boolean(filters.status || filters.level || filters.warningType || filters.bizType.trim() || filters.keyword.trim()));
+const emptyTitle = computed(() => (hasFilters.value ? "暂无符合条件的预警记录" : "暂无预警记录"));
+const emptyDescription = computed(() => (hasFilters.value ? "可以调整筛选条件后再试。" : "新的风险预警会展示在这里。"));
 
 function setStatus(message = "", type = "info") {
   status.message = message;
@@ -319,12 +321,8 @@ function formatWarningAction(value) {
   return formatByMap(value, warningActionMap);
 }
 
-function warningStatusClass(value) {
-  if (value === "OPEN") return "open";
-  if (value === "PROCESSING") return "processing";
-  if (value === "RESOLVED") return "resolved";
-  if (value === "CLOSED") return "closed";
-  return "unknown";
+function warningTone(value) {
+  return getStatusTone(value, "WARNING");
 }
 
 function warningQuickAction(statusValue) {
@@ -381,7 +379,7 @@ async function loadWarnings() {
     size.value = data.size || size.value;
     pages.value = data.pages || 1;
   } catch (error) {
-    setStatus(error.message || "加载预警列表失败", "error");
+    setStatus(resolveErrorMessage(error, "预警列表加载失败，请稍后重试"), "error");
   } finally {
     loading.value = false;
   }
@@ -409,7 +407,7 @@ async function openWarningDetail(item) {
   try {
     warningDetail.value = await fetchWarningRecordDetail(token.value, item.id);
   } catch (error) {
-    setStatus(error.message || "加载预警详情失败", "error");
+    setStatus(resolveErrorMessage(error, "预警详情加载失败，请稍后重试"), "error");
     warningDetailVisible.value = false;
   } finally {
     warningDetailLoading.value = false;
@@ -432,10 +430,10 @@ async function handleWarningAction(target, actionType) {
     if (warningDetailVisible.value && warningDetail.value?.id === warningId) {
       warningDetail.value = detailData;
     }
-    setStatus(`预警已执行 ${formatWarningAction(actionType)}`, "success");
+    setStatus(`预警已执行：${formatWarningAction(actionType)}`, "success");
     await Promise.all([loadWarnings(), loadWarningSummary()]);
   } catch (error) {
-    setStatus(error.message || "预警处理失败", "error");
+    setStatus(resolveErrorMessage(error, "预警处理失败，请稍后重试"), "error");
   } finally {
     actionLoading.value = false;
   }
@@ -523,33 +521,12 @@ tbody tr:hover { background: #f1f5f9; }
 .reason { max-width: 360px; }
 .reason-title { margin: 0; color: #334155; font-weight: 800; }
 .reason p:last-child { margin: 4px 0 0; color: #64748b; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-
-.level-pill {
-  display: inline-flex;
-  min-height: 22px;
-  align-items: center;
-  justify-content: center;
-  padding: 0 8px;
-  border-radius: 2px;
-  font-size: 10px;
-  font-weight: 900;
-  letter-spacing: 0.04em;
-}
-.level-pill.is-l1 { background: #ffdad6; color: #93000a; }
-.level-pill.is-l2 { background: #ffdbce; color: #7c2d06; }
-.status-pill { display: inline-flex; min-height: 22px; align-items: center; padding: 0 8px; border-radius: 2px; font-size: 10px; font-weight: 900; }
-.status-pill.is-open { background: #fff4eb; color: #9b3a0a; border: 1px solid #f8d5bf; }
-.status-pill.is-processing { background: #ecfbfb; color: #245d62; border: 1px solid #c4ebec; }
-.status-pill.is-resolved { background: #ebf9f1; color: #1f6b4d; border: 1px solid #c6e9d6; }
-.status-pill.is-closed { background: #f0f4f8; color: #5a6b7f; border: 1px solid #d8e1ea; }
-.status-pill.is-unknown { background: #f5f8fb; color: #64748b; border: 1px solid #d8e1ea; }
-
 .action-row { display: flex; justify-content: flex-end; gap: 8px; }
 .action-btn { min-height: 30px; font-size: 11px; font-weight: 800; padding: 0 10px; }
+.warning-page__empty-state { margin: 16px; }
 
 .pager { border-top: 1px solid #e2e8f0; padding: 12px 14px; display: flex; justify-content: space-between; gap: 10px; align-items: center; font-size: 12px; color: #64748b; font-weight: 700; }
 .pager-actions { display: flex; gap: 8px; }
-.empty { padding: 24px; text-align: center; font-size: 13px; color: #64748b; }
 
 .primary, .ghost {
   min-height: 34px;
@@ -582,10 +559,6 @@ tbody tr:hover { background: #f1f5f9; }
 .timeline-main p { margin: 4px 0 0; font-size: 12px; color: #64748b; }
 .modal-empty { color: #94a3b8; font-size: 12px; }
 .modal-actions { border-top: 1px solid #e2e8f0; padding: 10px 16px; display: flex; justify-content: flex-end; gap: 8px; flex-wrap: wrap; }
-
-.status { position: fixed; right: 18px; bottom: 18px; border-radius: 3px; padding: 10px 12px; color: #fff; background: #0f172a; font-size: 13px; z-index: 1300; }
-.status.error { background: #b91c1c; }
-.status.success { background: #166534; }
 
 @media (max-width: 980px) {
   .hero { flex-direction: column; align-items: flex-start; }

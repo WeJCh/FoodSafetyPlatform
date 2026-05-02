@@ -49,8 +49,8 @@
                 <button type="button" class="tool-btn" @click="setBlock('p')">正文</button>
                 <button type="button" class="tool-btn" @click="setBlock('h2')">标题</button>
                 <span class="tool-divider"></span>
-                <button type="button" class="tool-btn" @click="execEditorCommand('insertUnorderedList')">• 列表</button>
-                <button type="button" class="tool-btn" @click="execEditorCommand('insertOrderedList')">1. 列表</button>
+                <button type="button" class="tool-btn" @click="execEditorCommand('insertUnorderedList')">列表</button>
+                <button type="button" class="tool-btn" @click="execEditorCommand('insertOrderedList')">编号</button>
                 <button type="button" class="tool-btn" @click="insertIndentation">缩进</button>
                 <span class="tool-divider"></span>
                 <button type="button" class="tool-btn" @click="execEditorCommand('justifyLeft')">左对齐</button>
@@ -74,7 +74,7 @@
           <section class="panel attr-panel">
             <h3>发布属性</h3>
             <label>
-              分类（待确认）
+              分类
               <select v-model="form.category">
                 <option value="">请选择分类</option>
                 <option v-for="item in categoryOptions" :key="item.value" :value="item.value">
@@ -83,32 +83,28 @@
               </select>
             </label>
             <div>
-              <label class="upload-label">附件列表（待确认）</label>
+              <label class="upload-label">附件列表</label>
               <div class="upload-box">
-                <span class="upload-icon">☁</span>
-                <span>点击或拖拽上传附件 (PDF, DOCX)</span>
+                <span class="upload-icon">+</span>
+                <span>附件能力暂未接入，本轮保留正文发布闭环。</span>
               </div>
             </div>
           </section>
 
           <section class="panel log-panel">
             <h3>编辑日志</h3>
-            <div class="timeline-list">
-              <article class="timeline-item">
-                <span class="timeline-dot timeline-dot--active"></span>
+            <div v-if="isCreateMode" class="timeline-empty">保存后生成操作记录</div>
+            <div v-else-if="timelineItems.length" class="timeline-list">
+              <article v-for="(item, index) in timelineItems" :key="item.key" class="timeline-item">
+                <span class="timeline-dot" :class="{ 'timeline-dot--active': index === 0 }"></span>
                 <div>
-                  <strong>{{ isCreateMode ? "创建草稿" : "最近编辑" }}</strong>
-                  <p>{{ detailUpdatedTime ? formatTime(detailUpdatedTime) : "--" }}</p>
-                </div>
-              </article>
-              <article class="timeline-item">
-                <span class="timeline-dot"></span>
-                <div>
-                  <strong>待发布</strong>
-                  <p>{{ formatStatus(detailStatus) }}</p>
+                  <strong>{{ item.title }}</strong>
+                  <p>{{ item.time }}<span v-if="item.operator"> / {{ item.operator }}</span></p>
+                  <p class="timeline-desc">{{ item.desc }}</p>
                 </div>
               </article>
             </div>
+            <div v-else class="timeline-empty">暂无操作记录</div>
           </section>
         </aside>
       </div>
@@ -123,6 +119,7 @@ import { computed, onMounted, reactive, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import {
   createBulletin,
+  fetchBulletinAuditLogs,
   fetchBulletinDetail,
   offlineBulletin,
   publishBulletin,
@@ -130,6 +127,8 @@ import {
 } from "../../api/regulation";
 import RegulatorAdminWorkspacePage from "../../components/regulatorAdmin/RegulatorAdminWorkspacePage.vue";
 import { formatTime } from "../../utils/formatters";
+import { bulletinStatusMap, formatStatusLabel } from "../../utils/statusMaps";
+import { resolveErrorMessage } from "../../utils/uiFeedback";
 import { useRegulatorAdminShellSession } from "./regulatorAdminShared";
 
 const route = useRoute();
@@ -149,6 +148,7 @@ const editorRef = ref(null);
 const bulletinId = ref(0);
 const detailStatus = ref("DRAFT");
 const detailUpdatedTime = ref("");
+const auditLogs = ref([]);
 const status = reactive({ message: "", type: "" });
 const form = reactive({
   title: "",
@@ -157,6 +157,15 @@ const form = reactive({
 });
 
 const isCreateMode = computed(() => !bulletinId.value);
+const timelineItems = computed(() =>
+  (auditLogs.value || []).map((item, index) => ({
+    key: `${item.id || item.actionType || "bulletin"}-${index}`,
+    title: formatBulletinAuditTitle(item),
+    time: formatTime(item.createTime) || "--",
+    operator: item.operatorName || "监管人员",
+    desc: item.summary || item.remark || item.actionName || item.actionType || "公告操作"
+  }))
+);
 
 function setStatus(message = "", type = "info") {
   status.message = message;
@@ -164,12 +173,16 @@ function setStatus(message = "", type = "info") {
 }
 
 function formatStatus(value) {
-  const map = {
-    DRAFT: "草稿",
-    PUBLISHED: "已发布",
-    OFFLINE: "已下线"
-  };
-  return map[value] || value || "-";
+  return formatStatusLabel(value, bulletinStatusMap);
+}
+
+function formatBulletinAuditTitle(item) {
+  const actionType = String(item?.actionType || "").toUpperCase();
+  if (actionType === "BULLETIN_CREATE") return "创建公告草稿";
+  if (actionType === "BULLETIN_UPDATE") return "更新公告";
+  if (actionType === "BULLETIN_PUBLISH") return "发布公告";
+  if (actionType === "BULLETIN_OFFLINE") return "下线公告";
+  return item?.actionName || item?.actionType || "公告操作";
 }
 
 function goList() {
@@ -178,15 +191,15 @@ function goList() {
 
 function validateForm() {
   if (!form.title.trim()) {
-    setStatus("公告标题不能为空", "error");
+    setStatus("公告标题不能为空。", "error");
     return false;
   }
   if (!form.category) {
-    setStatus("请选择公告类别", "error");
+    setStatus("请选择公告分类。", "error");
     return false;
   }
   if (!getPlainTextFromHtml(form.content).trim()) {
-    setStatus("公告正文不能为空", "error");
+    setStatus("公告正文不能为空。", "error");
     return false;
   }
   return true;
@@ -239,7 +252,7 @@ function insertIndentation() {
 }
 
 function insertLink() {
-  const url = window.prompt("请输入链接地址（含 http/https）");
+  const url = window.prompt("请输入链接地址（含 http/https）：");
   if (!url) return;
   execEditorCommand("createLink", url);
 }
@@ -250,24 +263,30 @@ async function loadDetail() {
   if (!bulletinId.value) {
     detailStatus.value = "DRAFT";
     detailUpdatedTime.value = "";
+    auditLogs.value = [];
     form.title = "";
     form.category = "";
     form.content = "";
     syncEditorFromModel();
     return;
   }
+
   loading.value = true;
   setStatus("");
   try {
-    const detail = await fetchBulletinDetail(token.value, bulletinId.value);
+    const [detail, logs] = await Promise.all([
+      fetchBulletinDetail(token.value, bulletinId.value),
+      fetchBulletinAuditLogs(token.value, bulletinId.value, 8).catch(() => [])
+    ]);
     form.title = detail.title || "";
     form.category = detail.category || "";
     form.content = detail.content || "";
     syncEditorFromModel();
     detailStatus.value = detail.status || "DRAFT";
     detailUpdatedTime.value = detail.updateTime || detail.publishedTime || detail.createTime || "";
+    auditLogs.value = Array.isArray(logs) ? logs : [];
   } catch (error) {
-    setStatus(error.message || "加载公告详情失败", "error");
+    setStatus(resolveErrorMessage(error, "加载公告详情失败，请稍后重试。"), "error");
   } finally {
     loading.value = false;
   }
@@ -282,7 +301,7 @@ async function handleSaveDraft() {
     if (isCreateMode.value) {
       const created = await createBulletin(token.value, payload);
       const nextId = Number(created?.id || 0);
-      setStatus("公告草稿已创建", "success");
+      setStatus("公告草稿已创建。", "success");
       if (nextId > 0) {
         await router.replace({ name: "regulator-admin-bulletin-edit", params: { bulletinId: nextId } });
       } else {
@@ -290,11 +309,11 @@ async function handleSaveDraft() {
       }
     } else {
       await updateBulletin(token.value, bulletinId.value, payload);
-      setStatus("公告草稿已更新", "success");
+      setStatus("公告草稿已更新。", "success");
       await loadDetail();
     }
   } catch (error) {
-    setStatus(error.message || "保存草稿失败", "error");
+    setStatus(resolveErrorMessage(error, "保存草稿失败，请稍后重试。"), "error");
   } finally {
     saving.value = false;
   }
@@ -313,20 +332,21 @@ async function handlePublish() {
       await updateBulletin(token.value, bulletinId.value, buildPayload());
     } catch (error) {
       saving.value = false;
-      setStatus(error.message || "更新公告失败", "error");
+      setStatus(resolveErrorMessage(error, "更新公告失败，请稍后重试。"), "error");
       return;
     } finally {
       saving.value = false;
     }
   }
+
   saving.value = true;
   setStatus("");
   try {
     await publishBulletin(token.value, bulletinId.value);
-    setStatus("公告已正式发布", "success");
+    setStatus("公告已正式发布。", "success");
     await loadDetail();
   } catch (error) {
-    setStatus(error.message || "发布公告失败", "error");
+    setStatus(resolveErrorMessage(error, "发布公告失败，请稍后重试。"), "error");
   } finally {
     saving.value = false;
   }
@@ -338,10 +358,10 @@ async function handleOffline() {
   setStatus("");
   try {
     await offlineBulletin(token.value, bulletinId.value);
-    setStatus("公告已下线", "success");
+    setStatus("公告已下线。", "success");
     await loadDetail();
   } catch (error) {
-    setStatus(error.message || "下线公告失败", "error");
+    setStatus(resolveErrorMessage(error, "下线公告失败，请稍后重试。"), "error");
   } finally {
     saving.value = false;
   }
@@ -389,9 +409,7 @@ watch(() => route.params.bulletinId, loadDetail);
   box-shadow: none;
   appearance: none;
 }
-.title-panel input::placeholder {
-  color: #94a3b8;
-}
+.title-panel input::placeholder { color: #94a3b8; }
 .title-panel input:focus {
   outline: none;
   box-shadow: none;
@@ -484,6 +502,8 @@ watch(() => route.params.bulletinId, loadDetail);
 .timeline-dot--active { background: #335bae; }
 .timeline-item strong { display: block; color: #334155; font-size: 12px; }
 .timeline-item p { margin: 2px 0 0; color: #94a3b8; font-size: 10px; }
+.timeline-desc { line-height: 1.5; }
+.timeline-empty { color: #64748b; font-size: 12px; padding: 2px 0; }
 
 .primary, .ghost, .danger-ghost {
   min-height: 34px;

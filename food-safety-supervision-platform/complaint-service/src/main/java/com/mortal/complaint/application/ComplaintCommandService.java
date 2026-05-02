@@ -41,6 +41,7 @@ public class ComplaintCommandService {
     private final ComplaintMapper complaintMapper;
     private final ComplaintDataSupport complaintDataSupport;
     private final ComplaintLockSupport complaintLockSupport;
+    private final AuditLogService auditLogService;
 
     /**
      * 投诉超限阈值
@@ -61,10 +62,12 @@ public class ComplaintCommandService {
      */
     public ComplaintCommandService(ComplaintMapper complaintMapper,
                                    ComplaintDataSupport complaintDataSupport,
-                                   ComplaintLockSupport complaintLockSupport) {
+                                   ComplaintLockSupport complaintLockSupport,
+                                   AuditLogService auditLogService) {
         this.complaintMapper = complaintMapper;
         this.complaintDataSupport = complaintDataSupport;
         this.complaintLockSupport = complaintLockSupport;
+        this.auditLogService = auditLogService;
     }
 
     /**
@@ -90,6 +93,15 @@ public class ComplaintCommandService {
         complaint.setUpdateTime(LocalDateTime.now());
         complaint.setDeleted(0);
         complaintMapper.insert(complaint);
+        auditLogService.recordComplaintAudit(
+            submitterUserId,
+            "PUBLIC",
+            null,
+            "COMPLAINT_SUBMIT",
+            "提交投诉",
+            null,
+            copyComplaint(complaint),
+                "公众用户提交投诉，当前状态为待受理");
         return complaintDataSupport.toTrackVO(complaint);
     }
 
@@ -104,12 +116,22 @@ public class ComplaintCommandService {
             InternalRegulatorIdentityVO regulator = complaintDataSupport.requireRegulatorByUserId(operatorUserId);
             complaintDataSupport.requireRole(regulator, ComplaintDataSupport.ROLE_ADMIN);
             Complaint complaint = complaintDataSupport.requireComplaint(complaintId);
+            Complaint beforeComplaint = copyComplaint(complaint);
             complaintDataSupport.transitionComplaint(complaint, ComplaintStatus.PENDING);
             complaint.setAcceptedBy(regulator.getId());
             complaint.setAcceptedTime(LocalDateTime.now());
             complaint.setUpdateTime(LocalDateTime.now());
             complaintMapper.updateById(complaint);
             tryMarkComplaintOverflowAsKey(complaint, regulator.getId());
+            auditLogService.recordComplaintAudit(
+                regulator.getUserId(),
+                regulator.getRoleType(),
+                regulator.getName(),
+                "COMPLAINT_ACCEPT",
+                "受理投诉",
+                beforeComplaint,
+                copyComplaint(complaint),
+                "投诉已受理，状态由待受理调整为待分派");
             return complaintDataSupport.toVOWithNames(complaint);
         });
     }
@@ -126,6 +148,7 @@ public class ComplaintCommandService {
             InternalRegulatorIdentityVO regulator = complaintDataSupport.requireRegulatorByUserId(operatorUserId);
             complaintDataSupport.requireRole(regulator, ComplaintDataSupport.ROLE_ADMIN);
             Complaint complaint = complaintDataSupport.requireComplaint(complaintId);
+            Complaint beforeComplaint = copyComplaint(complaint);
             if (!ComplaintStatus.PENDING.equals(complaint.getStatus())
                 && !ComplaintStatus.ASSIGNED.equals(complaint.getStatus())
                 && !ComplaintStatus.PROCESSING.equals(complaint.getStatus())) {
@@ -143,6 +166,15 @@ public class ComplaintCommandService {
             complaintDataSupport.transitionComplaint(complaint, ComplaintStatus.ASSIGNED);
             complaint.setUpdateTime(LocalDateTime.now());
             complaintMapper.updateById(complaint);
+            auditLogService.recordComplaintAudit(
+                regulator.getUserId(),
+                regulator.getRoleType(),
+                regulator.getName(),
+                "COMPLAINT_ASSIGN",
+                "分派投诉",
+                beforeComplaint,
+                copyComplaint(complaint),
+                "投诉已分派给" + assignee.getName() + "，状态调整为已分派");
             return complaintDataSupport.toVOWithNames(complaint);
         });
     }
@@ -158,12 +190,22 @@ public class ComplaintCommandService {
             InternalRegulatorIdentityVO regulator = complaintDataSupport.requireRegulatorByUserId(operatorUserId);
             complaintDataSupport.requireRole(regulator, ComplaintDataSupport.ROLE_ENFORCER);
             Complaint complaint = complaintDataSupport.requireComplaint(complaintId);
+            Complaint beforeComplaint = copyComplaint(complaint);
             if (!Objects.equals(complaint.getAssignedTo(), regulator.getId())) {
                 throw new IllegalArgumentException("complaint not assigned to you");
             }
             complaintDataSupport.transitionComplaint(complaint, ComplaintStatus.PROCESSING);
             complaint.setUpdateTime(LocalDateTime.now());
             complaintMapper.updateById(complaint);
+            auditLogService.recordComplaintAudit(
+                regulator.getUserId(),
+                regulator.getRoleType(),
+                regulator.getName(),
+                "COMPLAINT_PROCESS_START",
+                "开始处理投诉",
+                beforeComplaint,
+                copyComplaint(complaint),
+                "投诉开始处理，状态由已分派调整为处理中");
             return complaintDataSupport.toVOWithNames(complaint);
         });
     }
@@ -180,6 +222,7 @@ public class ComplaintCommandService {
             InternalRegulatorIdentityVO regulator = complaintDataSupport.requireRegulatorByUserId(operatorUserId);
             complaintDataSupport.requireRole(regulator, ComplaintDataSupport.ROLE_ENFORCER);
             Complaint complaint = complaintDataSupport.requireComplaint(complaintId);
+            Complaint beforeComplaint = copyComplaint(complaint);
             if (!Objects.equals(complaint.getAssignedTo(), regulator.getId())) {
                 throw new IllegalArgumentException("complaint not assigned to you");
             }
@@ -195,6 +238,15 @@ public class ComplaintCommandService {
             complaint.setFeedbackSummary(feedbackSummary);
             complaint.setUpdateTime(LocalDateTime.now());
             complaintMapper.updateById(complaint);
+            auditLogService.recordComplaintAudit(
+                regulator.getUserId(),
+                regulator.getRoleType(),
+                regulator.getName(),
+                "COMPLAINT_HANDLE",
+                "处理完成投诉",
+                beforeComplaint,
+                copyComplaint(complaint),
+                "投诉处理完成，状态调整为已反馈");
             return complaintDataSupport.toVOWithNames(complaint);
         });
     }
@@ -211,6 +263,7 @@ public class ComplaintCommandService {
             InternalRegulatorIdentityVO regulator = complaintDataSupport.requireRegulatorByUserId(operatorUserId);
             complaintDataSupport.requireRole(regulator, ComplaintDataSupport.ROLE_ADMIN);
             Complaint complaint = complaintDataSupport.requireComplaint(complaintId);
+            Complaint beforeComplaint = copyComplaint(complaint);
             if (!complaintDataSupport.isComplaintInRegion(regulator, complaint.getEnterpriseId())) {
                 throw new IllegalArgumentException("complaint not in regulator region");
             }
@@ -222,8 +275,52 @@ public class ComplaintCommandService {
             complaint.setRejectReason(rejectReason);
             complaint.setUpdateTime(LocalDateTime.now());
             complaintMapper.updateById(complaint);
+            auditLogService.recordComplaintAudit(
+                regulator.getUserId(),
+                regulator.getRoleType(),
+                regulator.getName(),
+                "COMPLAINT_REJECT",
+                "驳回投诉",
+                beforeComplaint,
+                copyComplaint(complaint),
+                "投诉已驳回，状态调整为已驳回");
             return complaintDataSupport.toVOWithNames(complaint);
         });
+    }
+
+    private Complaint copyComplaint(Complaint source) {
+        if (source == null) {
+            return null;
+        }
+        Complaint target = new Complaint();
+        target.setId(source.getId());
+        target.setComplaintNo(source.getComplaintNo());
+        target.setComplainantName(source.getComplainantName());
+        target.setContact(source.getContact());
+        target.setSubmitterUserId(source.getSubmitterUserId());
+        target.setEnterpriseId(source.getEnterpriseId());
+        target.setComplaintType(source.getComplaintType());
+        target.setContent(source.getContent());
+        target.setImageUrls(source.getImageUrls());
+        target.setStatus(source.getStatus());
+        target.setSourceType(source.getSourceType());
+        target.setSourceId(source.getSourceId());
+        target.setAssignedTo(source.getAssignedTo());
+        target.setAssignedBy(source.getAssignedBy());
+        target.setAssignedTime(source.getAssignedTime());
+        target.setDeadlineTime(source.getDeadlineTime());
+        target.setAcceptedBy(source.getAcceptedBy());
+        target.setAcceptedTime(source.getAcceptedTime());
+        target.setProcessedBy(source.getProcessedBy());
+        target.setProcessedTime(source.getProcessedTime());
+        target.setFeedbackSummary(source.getFeedbackSummary());
+        target.setRejectedBy(source.getRejectedBy());
+        target.setRejectedTime(source.getRejectedTime());
+        target.setRejectReason(source.getRejectReason());
+        target.setCreateTime(source.getCreateTime());
+        target.setUpdateTime(source.getUpdateTime());
+        target.setDeleted(source.getDeleted());
+        return target;
     }
 
     private LocalDateTime resolveDeadlineTime(LocalDateTime deadlineTime) {

@@ -23,16 +23,10 @@
             <input
               v-model.trim="filters.keyword"
               type="text"
-              placeholder="搜索编号、企业、关键词"
+              placeholder="搜索投诉编号、企业名称或投诉内容"
               @keyup.enter="applyFilters"
             />
           </label>
-          <button type="button" class="public-complaint-track-page__icon-btn" @click="onFeaturePending('通知中心')">
-            <span class="material-symbols-outlined" aria-hidden="true">notifications</span>
-          </button>
-          <button type="button" class="public-complaint-track-page__icon-btn" @click="onFeaturePending('个人中心')">
-            <span class="material-symbols-outlined" aria-hidden="true">account_circle</span>
-          </button>
           <button type="button" class="ghost public-complaint-track-page__logout" @click="handleLogout">退出登录</button>
         </div>
       </div>
@@ -40,8 +34,8 @@
 
     <main class="public-complaint-track-page__main">
       <section class="public-complaint-track-page__head">
-        <h1>我的投诉追踪</h1>
-        <p>在这里查看您提交的投诉记录及实时处理进展。</p>
+        <h1>我的投诉</h1>
+        <p>查看投诉处理进度、反馈结果与关键节点。</p>
       </section>
 
       <section class="public-complaint-track-page__stats">
@@ -54,23 +48,23 @@
           <strong>{{ processingCount }}</strong>
         </article>
         <article class="public-complaint-track-page__stat-card is-finished">
-          <span>已完结</span>
+          <span>已办结</span>
           <strong>{{ finishedCount }}</strong>
         </article>
         <button type="button" class="public-complaint-track-page__create-btn" @click="goTo('public-complaint-create')">
           <span class="material-symbols-outlined" aria-hidden="true">add_moderator</span>
-          发起新投诉
+          发起投诉
         </button>
       </section>
 
       <section class="public-complaint-track-page__filters">
         <label>
-          <span>状态筛选</span>
+          <span>处理状态</span>
           <select v-model="filters.status">
             <option value="">全部</option>
-            <option value="SUBMITTED">已提交</option>
-            <option value="PENDING">已受理</option>
-            <option value="ASSIGNED">已派发</option>
+            <option value="SUBMITTED">待受理</option>
+            <option value="PENDING">待分派</option>
+            <option value="ASSIGNED">已分派</option>
             <option value="PROCESSING">处理中</option>
             <option value="FEEDBACKED">已反馈</option>
             <option value="REJECTED">已驳回</option>
@@ -83,12 +77,12 @@
       </section>
 
       <section class="public-complaint-track-page__list">
-        <article v-if="!filteredRecords.length" class="public-complaint-track-page__empty">
-          <span class="material-symbols-outlined" aria-hidden="true">search_off</span>
-          <h3>暂无投诉记录</h3>
-          <p>可先发起一条投诉，后续在这里持续追踪办理进度。</p>
-          <button type="button" @click="goTo('public-complaint-create')">发起投诉</button>
-        </article>
+        <AppEmptyState
+          v-if="!filteredRecords.length"
+          :title="emptyTitle"
+          :description="emptyDescription"
+          class="public-complaint-track-page__empty"
+        />
 
         <article
           v-for="item in filteredRecords"
@@ -100,9 +94,9 @@
               <span>ID: {{ item.complaintNo || "-" }}</span>
               <small>提交时间：{{ formatTime(item.createTime) }}</small>
             </div>
-            <h3>{{ item.content || "投诉内容待补充" }}</h3>
+            <h3>{{ item.content || "未填写投诉内容摘要" }}</h3>
             <div class="public-complaint-track-page__item-status">
-              <i :class="`is-${statusClass(item.status)}`">{{ formatStatus(item.status) }}</i>
+              <AppStatusTag :label="formatStatus(item.status)" :tone="statusTone(item.status)" />
               <span>{{ progressPercent(item.status) }}%</span>
             </div>
             <div class="public-complaint-track-page__progress">
@@ -113,7 +107,7 @@
             <div class="public-complaint-track-page__latest">
               <span class="material-symbols-outlined" aria-hidden="true">info</span>
               <div>
-                <strong>最新动态</strong>
+                <strong>最近进展</strong>
                 <p>{{ latestSummary(item) }}</p>
               </div>
             </div>
@@ -130,18 +124,24 @@
         </div>
       </section>
 
-      <div v-if="status.message" class="status" :class="status.type">{{ status.message }}</div>
+      <AppStatusToast :message="status.message" :type="status.type" />
     </main>
   </div>
 </template>
 
 <script setup>
-import { computed, onMounted, reactive, ref } from "vue";
-import { useRouter } from "vue-router";
+import { computed, onMounted, reactive, ref, watch } from "vue";
+import { useRoute, useRouter } from "vue-router";
 import { fetchMyComplaints } from "../../api/complaint";
+import AppEmptyState from "../../components/common/AppEmptyState.vue";
+import AppStatusTag from "../../components/common/AppStatusTag.vue";
+import AppStatusToast from "../../components/common/AppStatusToast.vue";
 import { getActiveSession, performLogout } from "../../session/authRuntime";
 import { formatTime } from "../../utils/formatters";
+import { complaintStatusMap, formatStatusLabel, getStatusTone } from "../../utils/statusMaps";
+import { getEmptyStateText, resolveErrorMessage } from "../../utils/uiFeedback";
 
+const route = useRoute();
 const router = useRouter();
 const publicToken = getActiveSession()?.token || "";
 
@@ -165,44 +165,40 @@ const pages = ref(1);
 const status = reactive({ message: "", type: "" });
 
 const filteredRecords = computed(() => records.value);
+const hasFilters = computed(() => Boolean(filters.status || filters.keyword.trim()));
+const emptyTitle = computed(() => getEmptyStateText("投诉记录", hasFilters.value));
+const emptyDescription = computed(() =>
+  hasFilters.value ? "可以调整筛选条件后重新查询。" : "还没有投诉记录，提交后会在这里展示。"
+);
 const processingCount = computed(() =>
-  statsRecords.value.filter((item) => ["PENDING", "ASSIGNED", "PROCESSING"].includes(item.status)).length
+  statsRecords.value.filter((item) => ["PENDING", "ASSIGNED", "PROCESSING"].includes(String(item.status || "").toUpperCase())).length
 );
 const finishedCount = computed(() =>
-  statsRecords.value.filter((item) => ["FEEDBACKED", "REJECTED"].includes(item.status)).length
+  statsRecords.value.filter((item) => ["FEEDBACKED", "REJECTED"].includes(String(item.status || "").toUpperCase())).length
 );
 
 function setStatus(message, type = "info") {
   status.message = message;
   status.type = type;
 }
+
+function formatStatus(value) {
+  return formatStatusLabel(value, complaintStatusMap);
+}
+
+function statusTone(value) {
+  return getStatusTone(value, "COMPLAINT");
+}
+
 function goTo(name) {
   router.push({ name }).catch(() => {});
 }
-function onFeaturePending(name) {
-  window.alert(`${name} 功能待后续完善`);
-}
+
 async function handleLogout() {
   await performLogout();
   router.replace({ name: "login" }).catch(() => {});
 }
-function formatStatus(value) {
-  const map = {
-    SUBMITTED: "已提交",
-    PENDING: "已受理",
-    ASSIGNED: "已派发",
-    PROCESSING: "处理中",
-    FEEDBACKED: "已反馈",
-    REJECTED: "已驳回"
-  };
-  return map[value] || value || "-";
-}
-function statusClass(value) {
-  if (value === "FEEDBACKED") return "success";
-  if (value === "REJECTED") return "danger";
-  if (value === "PROCESSING" || value === "ASSIGNED" || value === "PENDING") return "processing";
-  return "default";
-}
+
 function progressPercent(value) {
   const map = {
     SUBMITTED: 15,
@@ -212,26 +208,61 @@ function progressPercent(value) {
     FEEDBACKED: 100,
     REJECTED: 100
   };
-  return map[value] || 0;
+  return map[String(value || "").toUpperCase()] || 0;
 }
+
 function latestSummary(item) {
-  if (item?.status === "FEEDBACKED") return resolveFeedbackSummary(item) || "案件已办结并完成结果反馈。";
-  if (item?.status === "REJECTED") return resolveRejectReason(item) || "投诉已驳回，请补充材料后重提。";
-  if (item?.status === "PROCESSING") return "监管人员正在核查处理中。";
-  if (item?.status === "ASSIGNED") return "案件已派发，等待执法人员办理。";
-  if (item?.status === "PENDING") return "投诉已受理，等待分派。";
-  return "投诉已提交，等待平台受理。";
+  const current = String(item?.status || "").toUpperCase();
+  if (current === "FEEDBACKED") {
+    return resolveFeedbackSummary(item) || "投诉已办结，处理结果已反馈。";
+  }
+  if (current === "REJECTED") {
+    return resolveRejectReason(item) || "投诉已驳回，请补充材料后重新提交。";
+  }
+  if (current === "PROCESSING") return "监管人员正在核查处理中。";
+  if (current === "ASSIGNED") return "案件已分派，等待执法人员办理。";
+  if (current === "PENDING") return "投诉已完成受理，等待进一步分派。";
+  return "投诉已提交，当前处于待受理状态。";
 }
+
 function resolveFeedbackSummary(item) {
   return item?.feedbackSummary || item?.handleResult || "";
 }
+
 function resolveRejectReason(item) {
   return item?.rejectReason || item?.handleResult || "";
 }
+
+function buildListQuery() {
+  const query = {};
+  if (filters.keyword.trim()) query.keyword = filters.keyword.trim();
+  if (filters.status) query.status = filters.status;
+  if (page.value > 1) query.page = String(page.value);
+  return query;
+}
+
+function applyRouteQuery() {
+  filters.keyword = typeof route.query.keyword === "string" ? route.query.keyword.trim() : "";
+  filters.status = typeof route.query.status === "string" ? route.query.status : "";
+  const nextPage = Number(route.query.page || 1);
+  page.value = Number.isFinite(nextPage) && nextPage > 0 ? nextPage : 1;
+}
+
+function syncRouteQuery() {
+  router.replace({ query: buildListQuery() }).catch(() => {});
+}
+
 function goDetail(item) {
   if (!item?.id) return;
-  router.push({ name: "public-complaint-detail", params: { complaintId: item.id } }).catch(() => {});
+  router
+    .push({
+      name: "public-complaint-detail",
+      params: { complaintId: item.id },
+      query: buildListQuery()
+    })
+    .catch(() => {});
 }
+
 async function loadComplaints() {
   loading.value = true;
   setStatus("");
@@ -269,7 +300,7 @@ async function loadComplaints() {
   } catch (error) {
     records.value = [];
     statsRecords.value = [];
-    setStatus(error.message || "加载投诉列表失败", "error");
+    setStatus(resolveErrorMessage(error, "投诉记录加载失败，请稍后重试"), "error");
   } finally {
     loading.value = false;
   }
@@ -294,22 +325,51 @@ async function fetchAllComplaintRecords() {
 
   return merged;
 }
+
 function applyFilters() {
   page.value = 1;
+  syncRouteQuery();
   loadComplaints();
 }
+
 function resetFilters() {
   filters.status = "";
   filters.keyword = "";
   page.value = 1;
-  loadComplaints();
-}
-function changePage(next) {
-  page.value = next;
+  syncRouteQuery();
   loadComplaints();
 }
 
-onMounted(loadComplaints);
+function changePage(next) {
+  page.value = next;
+  syncRouteQuery();
+  loadComplaints();
+}
+
+onMounted(() => {
+  applyRouteQuery();
+  loadComplaints();
+});
+
+watch(
+  () => [route.query.keyword, route.query.status, route.query.page],
+  () => {
+    const nextKeyword = typeof route.query.keyword === "string" ? route.query.keyword.trim() : "";
+    const nextStatus = typeof route.query.status === "string" ? route.query.status : "";
+    const nextPage = Number(route.query.page || 1);
+
+    if (
+      nextKeyword === filters.keyword &&
+      nextStatus === filters.status &&
+      (Number.isFinite(nextPage) && nextPage > 0 ? nextPage : 1) === page.value
+    ) {
+      return;
+    }
+
+    applyRouteQuery();
+    loadComplaints();
+  }
+);
 </script>
 
 <style scoped>
@@ -324,7 +384,6 @@ onMounted(loadComplaints);
 .public-complaint-track-page__toolbar { display: flex; align-items: center; gap: 10px; }
 .public-complaint-track-page__search-box { display: inline-flex; align-items: center; gap: 6px; border-radius: 8px; border: 1px solid rgba(195,198,211,.44); background: rgba(255,255,255,.75); padding: 0 14px; min-height: var(--public-toolbar-min-h); }
 .public-complaint-track-page__search-box input { border: none; background: transparent; font-size: var(--public-toolbar-input-size); min-width: 220px; }
-.public-complaint-track-page__icon-btn { width: var(--public-btn-compact-min-h); height: var(--public-btn-compact-min-h); border-radius: 8px; border: 1px solid transparent; background: transparent; color: var(--on-surface-variant); cursor: pointer; }
 .public-complaint-track-page__logout { min-height: var(--public-toolbar-min-h); font-size: var(--public-logout-font-size); margin: 0; }
 .public-complaint-track-page__main { max-width: 1680px; margin: 0 auto; padding: 24px 16px 48px; display: grid; gap: 14px; }
 .public-complaint-track-page__head h1 { margin: 0 0 6px; color: var(--primary); font-family: var(--font-display); font-size: var(--public-hero-title-alt); line-height: 1; }
@@ -350,11 +409,6 @@ onMounted(loadComplaints);
 .public-complaint-track-page__item-meta small { font-size: var(--public-overline); color: var(--on-surface-variant); }
 .public-complaint-track-page__item h3 { margin: 10px 0 14px; font-size: var(--public-body); color: var(--on-surface); line-height: 1.5; }
 .public-complaint-track-page__item-status { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
-.public-complaint-track-page__item-status i { font-style: normal; font-size: var(--public-overline); font-weight: 700; min-height: 24px; padding: 0 8px; border-radius: 999px; border: 1px solid transparent; display: inline-flex; align-items: center; }
-.public-complaint-track-page__item-status i.is-default { background: rgba(80,95,128,.12); color: #3f4c66; border-color: rgba(80,95,128,.22); }
-.public-complaint-track-page__item-status i.is-processing { background: rgba(210,122,0,.12); color: #9b5b00; border-color: rgba(210,122,0,.22); }
-.public-complaint-track-page__item-status i.is-success { background: rgba(33,156,84,.12); color: #1f6e45; border-color: rgba(33,156,84,.22); }
-.public-complaint-track-page__item-status i.is-danger { background: rgba(186,26,26,.12); color: #93000a; border-color: rgba(186,26,26,.22); }
 .public-complaint-track-page__item-status span { font-size: var(--public-overline); color: var(--on-surface-variant); font-weight: 700; }
 .public-complaint-track-page__progress { height: 6px; border-radius: 999px; background: rgba(195,198,211,.45); overflow: hidden; }
 .public-complaint-track-page__progress span { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg,#003a8c 0%,#335bae 100%); }
@@ -368,16 +422,8 @@ onMounted(loadComplaints);
 .public-complaint-track-page__pager-actions { display: inline-flex; gap: 8px; }
 .public-complaint-track-page__pager-actions .ghost { min-height: var(--public-chip-min-h); border-radius: 7px; border: 1px solid rgba(195,198,211,.58); background: #fff; color: var(--on-surface-variant); padding: 0 10px; font-size: var(--public-caption); cursor: pointer; }
 .public-complaint-track-page__pager-actions .ghost:disabled { opacity: .55; cursor: not-allowed; }
-.public-complaint-track-page__empty { border: 1px dashed rgba(195,198,211,.7); border-radius: 10px; background: rgba(248,250,253,.75); padding: 28px 16px; display: grid; place-items: center; text-align: center; gap: 6px; }
-.public-complaint-track-page__empty .material-symbols-outlined { font-size: var(--public-icon-xl); color: #64749a; }
-.public-complaint-track-page__empty h3 { margin: 0; font-size: var(--public-lead); color: var(--primary); }
-.public-complaint-track-page__empty p { margin: 0; font-size: var(--public-caption); color: var(--on-surface-variant); }
-.public-complaint-track-page__empty button { margin-top: 4px; min-height: var(--public-btn-compact-min-h); border-radius: 7px; border: none; background: var(--primary); color: #fff; font-size: var(--public-btn); font-weight: 700; padding: 0 12px; cursor: pointer; }
+.public-complaint-track-page__empty { padding-top: 28px; padding-bottom: 28px; }
 @media (max-width: 1200px) { .public-complaint-track-page__item { grid-template-columns: 1fr; } .public-complaint-track-page__stats { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (max-width: 1100px) { .public-complaint-track-page__nav { display: none; } }
-@media (max-width: 760px) {
-  .public-complaint-track-page__toolbar { display: none; }
-  .public-complaint-track-page__head h1 { font-size: var(--public-page-title-xs); }
-  .public-complaint-track-page__stats { grid-template-columns: 1fr; }
-}
+@media (max-width: 760px) { .public-complaint-track-page__toolbar { display: none; } .public-complaint-track-page__head h1 { font-size: var(--public-page-title-xs); } .public-complaint-track-page__stats { grid-template-columns: 1fr; } }
 </style>

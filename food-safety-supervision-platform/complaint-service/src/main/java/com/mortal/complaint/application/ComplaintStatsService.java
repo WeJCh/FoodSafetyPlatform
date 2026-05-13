@@ -41,8 +41,22 @@ public class ComplaintStatsService {
     public InternalComplaintStatsOverviewVO getOverview(InternalStatsQueryDTO queryDTO) {
         List<Long> enterpriseIds = resolveEnterpriseIds(queryDTO);
         InternalComplaintStatsOverviewVO overview = new InternalComplaintStatsOverviewVO();
-        overview.setTotalCount(countByStatus(queryDTO, enterpriseIds, null));
-        overview.setFeedbackedCount(countByStatus(queryDTO, enterpriseIds, ComplaintStatus.FEEDBACKED));
+        long totalCount = countByStatus(queryDTO, enterpriseIds, null);
+        long submittedCount = countByStatus(queryDTO, enterpriseIds, ComplaintStatus.SUBMITTED);
+        long pendingCount = countByStatus(queryDTO, enterpriseIds, ComplaintStatus.PENDING);
+        long assignedCount = countByStatus(queryDTO, enterpriseIds, ComplaintStatus.ASSIGNED);
+        long processingCount = countByStatus(queryDTO, enterpriseIds, ComplaintStatus.PROCESSING);
+        long feedbackedCount = countByStatus(queryDTO, enterpriseIds, ComplaintStatus.FEEDBACKED);
+        long rejectedCount = countByStatus(queryDTO, enterpriseIds, ComplaintStatus.REJECTED);
+        overview.setTotalCount(totalCount);
+        overview.setSubmittedCount(submittedCount);
+        overview.setPendingCount(pendingCount);
+        overview.setAssignedCount(assignedCount);
+        overview.setProcessingCount(processingCount);
+        overview.setFeedbackedCount(feedbackedCount);
+        overview.setRejectedCount(rejectedCount);
+        overview.setDoneCount(feedbackedCount + rejectedCount);
+        overview.setTodoCount(submittedCount + pendingCount + assignedCount + processingCount);
         overview.setOverdueCount(countOverdue(queryDTO, enterpriseIds));
         return overview;
     }
@@ -110,6 +124,14 @@ public class ComplaintStatsService {
     private List<Long> resolveEnterpriseIds(InternalStatsQueryDTO queryDTO) {
         if (queryDTO == null || queryDTO.getOwnerRegulatorId() != null) {
             return null;
+        }
+        if (queryDTO.getScopeRegulatorId() != null) {
+            ApiResponse<List<Long>> response =
+                regulationInternalClient.getScopeEnterpriseIds(queryDTO.getScopeRegulatorId(), regulationInternalToken);
+            if (response == null || response.getCode() != 0 || response.getData() == null) {
+                return List.of();
+            }
+            return response.getData();
         }
         if (queryDTO.getRegionId() == null && !StringUtils.hasText(queryDTO.getRegionIds())) {
             return null;

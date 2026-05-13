@@ -3,6 +3,7 @@ package com.mortal.regulation.controller;
 import com.mortal.platform.common.ApiResponse;
 import com.mortal.regulation.dto.RegulatorProfileDTO;
 import com.mortal.regulation.dto.RegulatorRegionAdjustDTO;
+import com.mortal.regulation.dto.RegulatorSelfUpdateDTO;
 import com.mortal.regulation.dto.RegulatorStatusDTO;
 import com.mortal.regulation.service.RegulatorProfileService;
 import com.mortal.regulation.util.JwtUserResolver;
@@ -69,6 +70,18 @@ public class RegulatorProfileController {
             return ApiResponse.failure(404, "regulator not found");
         }
         return ApiResponse.success(profile);
+    }
+
+    @PutMapping("/me")
+    public ApiResponse<RegulatorProfileVO> updateMyProfile(@RequestHeader("Authorization") String token,
+                                                           @Valid @RequestBody RegulatorSelfUpdateDTO dto) {
+        UserIdentity identity = resolveIdentity(token);
+        if (!identity.isRegulator()) {
+            return ApiResponse.failure(403, "regulator only");
+        }
+        return ApiResponse.success(
+            regulatorProfileService.updateMyProfile(identity.userId(), identity.username(), dto)
+        );
     }
 
     @GetMapping

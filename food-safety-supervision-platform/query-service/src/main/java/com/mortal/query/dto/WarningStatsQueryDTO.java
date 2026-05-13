@@ -25,7 +25,7 @@ public class WarningStatsQueryDTO {
     @DateTimeFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss")
     private LocalDateTime endTime;
 
-    @Schema(description = "预警类型精确过滤", example = "SLA_OVERDUE_SUBMIT")
+    @Schema(description = "预警类型精确过滤", example = "RECTIFICATION_OVERDUE")
     private String warningType;
 
     @Schema(description = "业务类型精确过滤", example = "RECTIFICATION")
@@ -37,21 +37,21 @@ public class WarningStatsQueryDTO {
     @Schema(description = "状态过滤（OPEN/PROCESSING/RESOLVED/CLOSED）", example = "OPEN")
     private String status;
 
-    @Schema(description = "辖区ID过滤", example = "330100")
+    @Schema(description = "辖区 ID 过滤", example = "330100")
     private Long regionId;
 
-    @Schema(description = "辖区ID集合过滤（逗号分隔）", example = "330100,330101")
+    @Schema(description = "辖区 ID 集合过滤，逗号分隔", example = "330100,330101")
     private String regionIds;
 
-    @Schema(description = "责任执法员ID过滤", example = "18")
+    @Schema(description = "责任执法人员 ID 过滤", example = "18")
     private Long ownerRegulatorId;
 
-    @Schema(description = "类型统计TopN，默认5，最大20", example = "5")
+    @Schema(description = "类型统计 TopN，默认 5，最大 20", example = "5")
     private Integer topN;
 
-    @Schema(description = "趋势统计天数，默认7，最大60（仅未传起止时间时生效）", example = "7")
+    @Schema(description = "趋势统计天数，默认 7，最大 60（仅未传起止时间时生效）", example = "7")
     private Integer trendDays;
 
-    @Schema(description = "超时待处理阈值（小时），默认24", example = "24")
+    @Schema(description = "超时待处理阈值（小时），默认 24", example = "24")
     private Integer overdueHours;
 }

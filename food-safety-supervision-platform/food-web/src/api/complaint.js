@@ -16,6 +16,7 @@ export function submitPublicComplaint(token, payload) {
 export function fetchMyComplaints(token, params = {}) {
   const search = new URLSearchParams();
   if (params.status) search.append("status", params.status);
+  if (params.keyword) search.append("keyword", params.keyword);
   if (params.page) search.append("page", params.page);
   if (params.size) search.append("size", params.size);
   const query = search.toString();
@@ -40,8 +41,26 @@ export function fetchMyComplaintDetail(token, id) {
   });
 }
 
+export function fetchMyComplaintStats(token, params = {}) {
+  const search = new URLSearchParams();
+  if (params.status) search.append("status", params.status);
+  if (params.keyword) search.append("keyword", params.keyword);
+  const query = search.toString();
+  return requestWithBase(
+    COMPLAINT_BASE_URL,
+    `/api/complaints/my/stats${query ? `?${query}` : ""}`,
+    {
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${token}`
+      }
+    }
+  );
+}
+
 export function fetchComplaints(token, params = {}) {
   const search = new URLSearchParams();
+  if (params.complaintType) search.append("complaintType", params.complaintType);
   if (params.status) search.append("status", params.status);
   if (params.enterpriseName) search.append("enterpriseName", params.enterpriseName);
   if (params.assignedToName) search.append("assignedToName", params.assignedToName);
@@ -59,6 +78,15 @@ export function fetchComplaints(token, params = {}) {
       }
     }
   );
+}
+
+export function fetchComplaintStatsOverview(token) {
+  return requestWithBase(COMPLAINT_BASE_URL, "/api/complaints/stats/overview", {
+    method: "GET",
+    headers: {
+      Authorization: `Bearer ${token}`
+    }
+  });
 }
 
 export function fetchComplaintDetail(token, id) {
@@ -113,6 +141,16 @@ export function acceptComplaint(token, id) {
 
 export function assignComplaint(token, id, payload) {
   return requestWithBase(COMPLAINT_BASE_URL, `/api/complaints/${id}/assign`, {
+    method: "PUT",
+    headers: {
+      Authorization: `Bearer ${token}`
+    },
+    body: JSON.stringify(payload)
+  });
+}
+
+export function reassignComplaint(token, id, payload) {
+  return requestWithBase(COMPLAINT_BASE_URL, `/api/complaints/${id}/reassign`, {
     method: "PUT",
     headers: {
       Authorization: `Bearer ${token}`

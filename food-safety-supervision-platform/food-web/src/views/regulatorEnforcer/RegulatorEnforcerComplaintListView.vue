@@ -2,7 +2,7 @@
   <RegulatorEnforcerPageShell
     active-key="complaints"
     title="投诉处理"
-    subtitle="查看待处理投诉、进入详情并完成执法反馈。"
+    subtitle="查看待处理投诉，进入详情并完成执法反馈。"
   >
     <section class="filter-card">
       <div class="filter-grid">
@@ -12,7 +12,7 @@
             <option value="">全部状态</option>
             <option value="SUBMITTED">待受理</option>
             <option value="PENDING">待分派</option>
-            <option value="ASSIGNED">已派发</option>
+            <option value="ASSIGNED">已分派</option>
             <option value="PROCESSING">处理中</option>
             <option value="FEEDBACKED">已反馈</option>
             <option value="REJECTED">已驳回</option>
@@ -92,15 +92,15 @@
     <section class="stats-grid">
       <article class="stat-card">
         <span>待开始</span>
-        <strong>{{ assignedCount }}</strong>
+        <strong>{{ summary.assignedCount }}</strong>
       </article>
       <article class="stat-card">
         <span>处理中</span>
-        <strong>{{ processingCount }}</strong>
+        <strong>{{ summary.processingCount }}</strong>
       </article>
       <article class="stat-card is-accent">
         <span>已反馈</span>
-        <strong>{{ feedbackedCount }}</strong>
+        <strong>{{ summary.feedbackedCount }}</strong>
       </article>
     </section>
 
@@ -109,9 +109,9 @@
 </template>
 
 <script setup>
-import { computed, onMounted, reactive, ref } from "vue";
+import { onMounted, reactive, ref } from "vue";
 import { useRouter } from "vue-router";
-import { fetchComplaints, startComplaintProcess } from "../../api/complaint";
+import { fetchComplaintStatsOverview, fetchComplaints, startComplaintProcess } from "../../api/complaint";
 import RegulatorEnforcerPageShell from "./RegulatorEnforcerPageShell.vue";
 import { formatByMap, formatTime } from "../../utils/formatters";
 import { complaintStatusMap } from "../../utils/statusMaps";
@@ -129,10 +129,11 @@ const total = ref(0);
 const pages = ref(1);
 const status = reactive({ message: "", type: "info" });
 const filters = reactive({ status: "", enterpriseName: "" });
-
-const assignedCount = computed(() => records.value.filter((item) => item.status === "ASSIGNED").length);
-const processingCount = computed(() => records.value.filter((item) => item.status === "PROCESSING").length);
-const feedbackedCount = computed(() => records.value.filter((item) => item.status === "FEEDBACKED").length);
+const summary = reactive({
+  assignedCount: 0,
+  processingCount: 0,
+  feedbackedCount: 0
+});
 
 function setStatus(message = "", type = "info") {
   status.message = message;
@@ -159,15 +160,25 @@ function statusClass(value) {
   return "is-default";
 }
 
+async function loadSummary() {
+  const data = await fetchComplaintStatsOverview(token.value);
+  summary.assignedCount = Number(data?.assignedCount || 0);
+  summary.processingCount = Number(data?.processingCount || 0);
+  summary.feedbackedCount = Number(data?.feedbackedCount || 0);
+}
+
 async function loadComplaints() {
   loading.value = true;
   setStatus("");
   try {
-    const data = await fetchComplaints(token.value, {
-      ...filters,
-      page: page.value,
-      size: size.value
-    });
+    const [data] = await Promise.all([
+      fetchComplaints(token.value, {
+        ...filters,
+        page: page.value,
+        size: size.value
+      }),
+      loadSummary()
+    ]);
     records.value = data.records || [];
     total.value = data.total || 0;
     page.value = data.page || 1;

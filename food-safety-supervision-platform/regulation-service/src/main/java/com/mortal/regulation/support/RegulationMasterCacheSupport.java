@@ -2,13 +2,21 @@ package com.mortal.regulation.support;
 
 import com.mortal.platform.common.redis.PlatformRedisCacheLookup;
 import com.mortal.platform.common.redis.PlatformRedisSupport;
-import com.mortal.platform.common.redis.PlatformRedisNullValue;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.mortal.regulation.config.RegulationCacheProperties;
+import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.Iterator;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 import org.redisson.api.RLock;
 import org.redisson.api.RedissonClient;
 import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.data.redis.connection.RedisConnection;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 
@@ -17,20 +25,24 @@ public class RegulationMasterCacheSupport {
 
     private static final String LOCK_SUFFIX = ":lock";
     private static final String SCENE = "regulation-master-cache";
+    private static final String NULL_SENTINEL = "__fsp:redis:null__";
 
     private final RedisTemplate<String, Object> redisTemplate;
     private final PlatformRedisSupport platformRedisSupport;
     private final RegulationCacheProperties regulationCacheProperties;
     private final ObjectProvider<RedissonClient> redissonClientProvider;
+    private final ObjectMapper objectMapper;
 
     public RegulationMasterCacheSupport(RedisTemplate<String, Object> redisTemplate,
                                         PlatformRedisSupport platformRedisSupport,
                                         RegulationCacheProperties regulationCacheProperties,
-                                        ObjectProvider<RedissonClient> redissonClientProvider) {
+                                        ObjectProvider<RedissonClient> redissonClientProvider,
+                                        ObjectMapper objectMapper) {
         this.redisTemplate = redisTemplate;
         this.platformRedisSupport = platformRedisSupport;
         this.regulationCacheProperties = regulationCacheProperties;
         this.redissonClientProvider = redissonClientProvider;
+        this.objectMapper = objectMapper;
     }
 
     public <T> T getOrLoad(String key, Supplier<T> loader) {
@@ -78,7 +90,7 @@ public class RegulationMasterCacheSupport {
     public void write(String key, Object value) {
         RegulationCacheProperties.MasterData config = regulationCacheProperties.getMasterData();
         try {
-            Object cachedValue = value == null ? PlatformRedisNullValue.INSTANCE : value;
+            Object cachedValue = value == null ? NULL_SENTINEL : value;
             long ttlSeconds = value == null ? 60L : config.getTtlSeconds();
             redisTemplate.opsForValue().set(key, cachedValue, platformRedisSupport.jitterTtl(ttlSeconds));
             platformRedisSupport.recordRecovery(SCENE);
@@ -146,11 +158,17 @@ public class RegulationMasterCacheSupport {
             if (value == null) {
                 return PlatformRedisCacheLookup.miss();
             }
-            if (value instanceof PlatformRedisNullValue) {
+            if (NULL_SENTINEL.equals(value)) {
                 return PlatformRedisCacheLookup.nullValue();
             }
             return PlatformRedisCacheLookup.hit(value);
         } catch (Exception ex) {
+            PlatformRedisCacheLookup<T> legacyCached = tryLegacyLookup(key);
+            if (legacyCached != null) {
+                platformRedisSupport.recordRecovery(SCENE);
+                return legacyCached;
+            }
+            deleteQuietly(key);
             platformRedisSupport.recordFailure(SCENE, ex);
             return PlatformRedisCacheLookup.miss();
         }
@@ -158,7 +176,7 @@ public class RegulationMasterCacheSupport {
 
     private <T> T loadAndCache(String key, Supplier<T> loader, long ttlSeconds) {
         T loaded = loader.get();
-        Object cachedValue = loaded == null ? PlatformRedisNullValue.INSTANCE : loaded;
+        Object cachedValue = loaded == null ? NULL_SENTINEL : loaded;
         long resolvedTtlSeconds = loaded == null ? 60L : ttlSeconds;
         try {
             redisTemplate.opsForValue().set(key, cachedValue, platformRedisSupport.jitterTtl(resolvedTtlSeconds));
@@ -167,5 +185,90 @@ public class RegulationMasterCacheSupport {
             platformRedisSupport.recordFailure(SCENE, ex);
         }
         return loaded;
+    }
+
+    private void deleteQuietly(String key) {
+        try {
+            redisTemplate.delete(key);
+        } catch (Exception ignored) {
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    private <T> PlatformRedisCacheLookup<T> tryLegacyLookup(String key) {
+        try {
+            Object rawValue = readLegacyValue(key);
+            if (rawValue == null) {
+                return null;
+            }
+            write(key, rawValue);
+            return PlatformRedisCacheLookup.hit((T) rawValue);
+        } catch (Exception ignored) {
+            return null;
+        }
+    }
+
+    private Object readLegacyValue(String key) {
+        try {
+            byte[] rawBytes = redisTemplate.execute((RedisConnection connection) -> {
+                byte[] keyBytes = redisTemplate.getStringSerializer().serialize(key);
+                return keyBytes == null ? null : connection.stringCommands().get(keyBytes);
+            });
+            if (rawBytes == null || rawBytes.length == 0) {
+                return null;
+            }
+            String rawJson = new String(rawBytes, StandardCharsets.UTF_8).trim();
+            if (!rawJson.startsWith("[")) {
+                return null;
+            }
+            JsonNode root = objectMapper.readTree(rawJson);
+            return decodeLegacyNode(root);
+        } catch (Exception ex) {
+            return null;
+        }
+    }
+
+    private Object decodeLegacyNode(JsonNode node) {
+        if (node == null || node.isNull()) {
+            return null;
+        }
+        if (node.isArray()) {
+            if (node.size() == 2 && node.get(0).isTextual()) {
+                return decodeLegacyTypedValue(node.get(0).asText(), node.get(1));
+            }
+            List<Object> values = new ArrayList<>(node.size());
+            for (JsonNode child : node) {
+                values.add(decodeLegacyNode(child));
+            }
+            return values;
+        }
+        if (node.isObject()) {
+            Map<String, Object> values = new LinkedHashMap<>();
+            Iterator<Map.Entry<String, JsonNode>> fields = node.fields();
+            while (fields.hasNext()) {
+                Map.Entry<String, JsonNode> entry = fields.next();
+                values.put(entry.getKey(), decodeLegacyNode(entry.getValue()));
+            }
+            return values;
+        }
+        if (node.isNumber()) {
+            return node.numberValue();
+        }
+        if (node.isBoolean()) {
+            return node.booleanValue();
+        }
+        return node.asText();
+    }
+
+    private Object decodeLegacyTypedValue(String typeName, JsonNode valueNode) {
+        return switch (typeName) {
+            case "java.lang.Long", "long" -> valueNode.isNull() ? null : valueNode.longValue();
+            case "java.lang.Integer", "int" -> valueNode.isNull() ? null : valueNode.intValue();
+            case "java.lang.Double", "double" -> valueNode.isNull() ? null : valueNode.doubleValue();
+            case "java.lang.Float", "float" -> valueNode.isNull() ? null : valueNode.floatValue();
+            case "java.lang.Boolean", "boolean" -> valueNode.isNull() ? null : valueNode.booleanValue();
+            case "java.lang.String" -> valueNode.isNull() ? null : valueNode.asText();
+            default -> decodeLegacyNode(valueNode);
+        };
     }
 }

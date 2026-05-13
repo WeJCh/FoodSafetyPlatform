@@ -22,6 +22,7 @@ const SystemAdminRegulatorEditView = () => import("../views/systemAdmin/SystemAd
 const SystemAdminRegulatorRegionAdjustView = () => import("../views/systemAdmin/SystemAdminRegulatorRegionAdjustView.vue");
 const SystemAdminRegulatorStatusConfirmView = () => import("../views/systemAdmin/SystemAdminRegulatorStatusConfirmView.vue");
 const EnterpriseRegisterView = () => import("../views/EnterpriseRegisterView.vue");
+const EnterpriseAccountView = () => import("../views/enterprise/EnterpriseAccountView.vue");
 const EnterpriseDashboardView = () => import("../views/enterprise/EnterpriseDashboardView.vue");
 const EnterpriseInspectionDetailView = () => import("../views/enterprise/EnterpriseInspectionDetailView.vue");
 const EnterpriseInspectionsView = () => import("../views/enterprise/EnterpriseInspectionsView.vue");
@@ -41,6 +42,7 @@ const PublicComplaintTrackView = () => import("../views/public/PublicComplaintTr
 const PublicComplaintView = () => import("../views/public/PublicComplaintView.vue");
 const PublicComplaintDetailView = () => import("../views/public/PublicComplaintDetailView.vue");
 const PublicComplaintSubmitSuccessView = () => import("../views/public/PublicComplaintSubmitSuccessView.vue");
+const PublicAccountView = () => import("../views/public/PublicAccountView.vue");
 const PublicEnterpriseDetailView = () => import("../views/public/PublicEnterpriseDetailView.vue");
 const PublicEnterpriseListView = () => import("../views/public/PublicEnterpriseListView.vue");
 const PublicHomeView = () => import("../views/public/PublicHomeView.vue");
@@ -56,6 +58,8 @@ const RegulatorAdminEnterpriseDetailView = () => import("../views/regulatorAdmin
 const RegulatorAdminDispatchTasksView = () => import("../views/regulatorAdmin/RegulatorAdminDispatchTasksView.vue");
 const RegulatorAdminInspectionTaskDetailView = () =>
   import("../views/regulatorAdmin/RegulatorAdminInspectionTaskDetailView.vue");
+const RegulatorAdminInspectionRecordDetailView = () =>
+  import("../views/regulatorAdmin/RegulatorAdminInspectionRecordDetailView.vue");
 const RegulatorAdminComplaintFlowView = () =>
   import("../views/regulatorAdmin/RegulatorAdminComplaintFlowView.vue");
 const RegulatorAdminRectificationReviewView = () =>
@@ -73,7 +77,9 @@ const RegulatorAdminSamplingTaskDetailView = () =>
   import("../views/regulatorAdmin/RegulatorAdminSamplingTaskDetailView.vue");
 const RegulatorAdminSamplingTasksView = () => import("../views/regulatorAdmin/RegulatorAdminSamplingTasksView.vue");
 const RegulatorAdminWarningCenterView = () => import("../views/regulatorAdmin/RegulatorAdminWarningCenterView.vue");
+const RegulatorAdminWarningDetailView = () => import("../views/regulatorAdmin/RegulatorAdminWarningDetailView.vue");
 const RegulatorAdminStatisticsView = () => import("../views/regulatorAdmin/RegulatorAdminStatisticsView.vue");
+const RegulatorAdminAccountView = () => import("../views/regulatorAdmin/RegulatorAdminAccountView.vue");
 const RegulatorEnforcerEnterpriseListView = () =>
   import("../views/regulatorEnforcer/RegulatorEnforcerEnterpriseListView.vue");
 const RegulatorEnforcerTaskListView = () => import("../views/regulatorEnforcer/RegulatorEnforcerTaskListView.vue");
@@ -105,6 +111,8 @@ const RegulatorEnforcerWarningDetailView = () =>
 const RegulatorEnforcerStatsView = () => import("../views/regulatorEnforcer/RegulatorEnforcerStatsView.vue");
 const RegulatorEnforcerEnterpriseDetailView = () =>
   import("../views/regulatorEnforcer/RegulatorEnforcerEnterpriseDetailView.vue");
+const RegulatorEnforcerAccountView = () =>
+  import("../views/regulatorEnforcer/RegulatorEnforcerAccountView.vue");
 
 function getSessionSnapshot(sessionOverride = null) {
   return sessionOverride || getResolvedSession() || getStoredSession() || {
@@ -254,6 +262,12 @@ const routes = [
     meta: { title: "投诉详情", requiresRole: "PUBLIC" }
   },
   {
+    path: "/public/account",
+    name: "public-account",
+    component: PublicAccountView,
+    meta: { title: "个人信息", requiresRole: "PUBLIC" }
+  },
+  {
     path: "/admin/dashboard",
     name: "admin-dashboard",
     component: SystemAdminDashboardView,
@@ -318,6 +332,12 @@ const routes = [
     name: "enterprise-profile-detail",
     component: EnterpriseProfileDetailView,
     meta: { title: "备案详情", requiresRole: "ENTERPRISE" }
+  },
+  {
+    path: "/enterprise/account",
+    name: "enterprise-account",
+    component: EnterpriseAccountView,
+    meta: { title: "个人信息", requiresRole: "ENTERPRISE" }
   },
   {
     path: "/enterprise/products",
@@ -386,6 +406,12 @@ const routes = [
     meta: { title: "工作台", requiresRole: "REGULATOR_ADMIN" }
   },
   {
+    path: "/regulator/admin/account",
+    name: "regulator-admin-account",
+    component: RegulatorAdminAccountView,
+    meta: { title: "个人信息", requiresRole: "REGULATOR_ADMIN" }
+  },
+  {
     path: "/regulator/admin/enterprises",
     name: "regulator-admin-enterprises",
     component: RegulatorAdminEnterpriseListView,
@@ -446,6 +472,12 @@ const routes = [
     meta: { title: "检查记录", requiresRole: "REGULATOR_ADMIN" }
   },
   {
+    path: "/regulator/admin/dispatch/records/:inspectionId",
+    name: "regulator-admin-inspection-detail",
+    component: RegulatorAdminInspectionRecordDetailView,
+    meta: { title: "检查记录详情", requiresRole: "REGULATOR_ADMIN" }
+  },
+  {
     path: "/regulator/admin/complaints",
     name: "regulator-admin-complaints",
     component: RegulatorAdminComplaintFlowView,
@@ -474,6 +506,12 @@ const routes = [
     name: "regulator-admin-warnings",
     component: RegulatorAdminWarningCenterView,
     meta: { title: "风险预警", requiresRole: "REGULATOR_ADMIN" }
+  },
+  {
+    path: "/regulator/admin/warnings/:warningId",
+    name: "regulator-admin-warning-detail",
+    component: RegulatorAdminWarningDetailView,
+    meta: { title: "预警详情", requiresRole: "REGULATOR_ADMIN" }
   },
   {
     path: "/regulator/admin/bulletins",
@@ -510,6 +548,12 @@ const routes = [
     name: "regulator-enforcer-enterprises",
     component: RegulatorEnforcerEnterpriseListView,
     meta: { title: "企业监管", requiresRole: "REGULATOR_ENFORCER" }
+  },
+  {
+    path: "/regulator/enforcer/account",
+    name: "regulator-enforcer-account",
+    component: RegulatorEnforcerAccountView,
+    meta: { title: "个人信息", requiresRole: "REGULATOR_ENFORCER" }
   },
   {
     path: "/regulator/enforcer/tasks",

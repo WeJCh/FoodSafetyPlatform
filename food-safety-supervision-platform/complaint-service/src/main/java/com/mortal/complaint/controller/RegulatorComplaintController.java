@@ -1,7 +1,11 @@
 package com.mortal.complaint.controller;
 
 import com.mortal.complaint.application.ComplaintCommandService;
+import com.mortal.complaint.application.ComplaintDataSupport;
 import com.mortal.complaint.application.ComplaintQueryService;
+import com.mortal.complaint.application.ComplaintStatsService;
+import com.mortal.complaint.client.regulation.vo.InternalRegulatorIdentityVO;
+import com.mortal.complaint.dto.InternalStatsQueryDTO;
 import com.mortal.complaint.dto.ComplaintAssignDTO;
 import com.mortal.complaint.dto.ComplaintHandleDTO;
 import com.mortal.complaint.dto.ComplaintRejectDTO;
@@ -10,10 +14,11 @@ import com.mortal.complaint.support.RequestIdentityResolver.RequestIdentity;
 import com.mortal.complaint.vo.AuditLogVO;
 import com.mortal.complaint.vo.ComplaintDetailVO;
 import com.mortal.complaint.vo.ComplaintVO;
+import com.mortal.complaint.vo.InternalComplaintStatsOverviewVO;
 import com.mortal.platform.common.ApiResponse;
 import com.mortal.platform.common.PageResult;
-import jakarta.validation.Valid;
 import java.util.List;
+import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -33,13 +38,16 @@ public class RegulatorComplaintController {
 
     private final ComplaintCommandService complaintCommandService;
     private final ComplaintQueryService complaintQueryService;
+    private final ComplaintStatsService complaintStatsService;
     private final RequestIdentityResolver requestIdentityResolver;
 
     public RegulatorComplaintController(ComplaintCommandService complaintCommandService,
                                         ComplaintQueryService complaintQueryService,
+                                        ComplaintStatsService complaintStatsService,
                                         RequestIdentityResolver requestIdentityResolver) {
         this.complaintCommandService = complaintCommandService;
         this.complaintQueryService = complaintQueryService;
+        this.complaintStatsService = complaintStatsService;
         this.requestIdentityResolver = requestIdentityResolver;
     }
 
@@ -50,6 +58,7 @@ public class RegulatorComplaintController {
                                                      String userType,
                                                      @RequestHeader(value = "X-User-Roles", required = false)
                                                      String userRoles,
+                                                     @RequestParam(required = false) String complaintType,
                                                      @RequestParam(required = false) String status,
                                                      @RequestParam(required = false) String enterpriseName,
                                                      @RequestParam(required = false) String assignedToName,
@@ -61,7 +70,30 @@ public class RegulatorComplaintController {
             return ApiResponse.failure(403, "regulator only");
         }
         return ApiResponse.success(complaintQueryService.list(
-            identity.userId(), status, enterpriseName, assignedToName, assignedByName, page, size));
+            identity.userId(), complaintType, status, enterpriseName, assignedToName, assignedByName, page, size));
+    }
+
+    @GetMapping("/stats/overview")
+    public ApiResponse<InternalComplaintStatsOverviewVO> statsOverview(
+        @RequestHeader(value = "X-User-Id", required = false) String userId,
+        @RequestHeader(value = "X-User-Type", required = false) String userType,
+        @RequestHeader(value = "X-User-Roles", required = false) String userRoles) {
+        RequestIdentity identity = requestIdentityResolver.resolve(userId, userType, userRoles);
+        if (!identity.isRegulator()) {
+            return ApiResponse.failure(403, "regulator only");
+        }
+        return ApiResponse.success(complaintStatsService.getOverview(buildStatsQuery(identity.userId())));
+    }
+
+    private InternalStatsQueryDTO buildStatsQuery(Long operatorUserId) {
+        InternalRegulatorIdentityVO regulator = complaintQueryService.requireRegulator(operatorUserId);
+        InternalStatsQueryDTO queryDTO = new InternalStatsQueryDTO();
+        if (ComplaintDataSupport.ROLE_ENFORCER.equalsIgnoreCase(regulator.getRoleType())) {
+            queryDTO.setOwnerRegulatorId(regulator.getId());
+        } else {
+            queryDTO.setScopeRegulatorId(regulator.getId());
+        }
+        return queryDTO;
     }
 
     @GetMapping("/{id}")
@@ -139,6 +171,22 @@ public class RegulatorComplaintController {
             return ApiResponse.failure(403, "regulator only");
         }
         return ApiResponse.success(complaintCommandService.assign(identity.userId(), id, dto));
+    }
+
+    @PutMapping("/{id}/reassign")
+    public ApiResponse<ComplaintVO> reassign(@RequestHeader(value = "X-User-Id", required = false)
+                                             String userId,
+                                             @RequestHeader(value = "X-User-Type", required = false)
+                                             String userType,
+                                             @RequestHeader(value = "X-User-Roles", required = false)
+                                             String userRoles,
+                                             @PathVariable Long id,
+                                             @Valid @RequestBody ComplaintAssignDTO dto) {
+        RequestIdentity identity = requestIdentityResolver.resolve(userId, userType, userRoles);
+        if (!identity.isRegulator()) {
+            return ApiResponse.failure(403, "regulator only");
+        }
+        return ApiResponse.success(complaintCommandService.reassign(identity.userId(), id, dto));
     }
 
     @PutMapping("/{id}/process")

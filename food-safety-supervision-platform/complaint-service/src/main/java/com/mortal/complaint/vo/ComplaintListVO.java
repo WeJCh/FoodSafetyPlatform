@@ -14,6 +14,9 @@ public class ComplaintListVO {
     private String complaintNo;
     private Long enterpriseId;
     private String enterpriseName;
+    private String complaintType;
+    private String content;
+    private String handleResult;
     private ComplaintStatus status;
     private LocalDateTime createTime;
     private LocalDateTime updateTime;

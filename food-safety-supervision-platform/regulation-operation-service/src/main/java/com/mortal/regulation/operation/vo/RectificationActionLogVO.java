@@ -9,6 +9,10 @@ public class RectificationActionLogVO {
 
     private Long id;
     private Long rectificationId;
+    private String rectificationNo;
+    private Long enterpriseId;
+    private String enterpriseName;
+    private String status;
     private String actionType;
     private String actionName;
     private Long operatorId;

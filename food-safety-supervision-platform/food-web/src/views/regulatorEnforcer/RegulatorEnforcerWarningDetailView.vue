@@ -1,23 +1,23 @@
 <template>
   <RegulatorEnforcerPageShell
     active-key="warnings"
-    title="预警详情"
-    subtitle="查看风险预警触发背景、处置状态与历史记录，并执行后续处置动作。"
+    title="风险预警"
+    subtitle="查看本人可处理的风险预警详情，跟进处理进度并完成处置闭环。"
   >
     <section class="warning-detail-page">
-      <div v-if="loading" class="state-card">预警详情加载中...</div>
-      <div v-else-if="!detail" class="state-card state-card--error">预警详情不存在或当前账号无权查看。</div>
+      <div v-if="loading" class="state-card">正在加载预警详情...</div>
+      <div v-else-if="!detail" class="state-card state-card--error">未找到该预警详情，请返回列表后重试。</div>
 
       <template v-else>
         <header class="hero">
           <div class="hero-main">
-            <nav class="crumbs">
-              <button class="crumb-link" type="button" @click="goBack">我的风险预警</button>
+            <nav class="crumbs" aria-label="面包屑">
+              <button class="crumb-link" type="button" @click="goBack">返回我的预警</button>
               <span>/</span>
               <span>{{ detail.warningNo || `WRN-${detail.id}` }}</span>
             </nav>
             <div class="hero-title-row">
-              <h3>{{ detail.title || "风险预警详情" }}</h3>
+              <h1>{{ detail.title || "风险预警详情" }}</h1>
               <span class="status-pill" :class="`is-${warningStatusClass(detail.status)}`">
                 {{ formatWarningStatus(detail.status) }}
               </span>
@@ -44,7 +44,7 @@
           <div class="main-col">
             <section class="panel">
               <div class="section-head">
-                <h4>预警概要</h4>
+                <h2>预警概览</h2>
                 <span class="level-pill" :class="`is-${String(detail.level || '').toLowerCase()}`">
                   {{ formatWarningLevel(detail.level) }}
                 </span>
@@ -59,7 +59,7 @@
                   <strong>{{ detail.warningType || "-" }}</strong>
                 </article>
                 <article>
-                  <span>业务对象</span>
+                  <span>关联对象</span>
                   <strong>{{ detail.bizName || "-" }}</strong>
                 </article>
                 <article>
@@ -68,14 +68,14 @@
                 </article>
               </div>
               <div class="detail-block">
-                <label>预警内容说明</label>
+                <label>预警内容</label>
                 <p>{{ detail.content || "-" }}</p>
               </div>
             </section>
 
             <section class="panel">
               <div class="section-head">
-                <h4>处置流转</h4>
+                <h2>处理记录</h2>
                 <span class="section-hint">共 {{ detail.processLogs?.length || 0 }} 条记录</span>
               </div>
               <div class="timeline">
@@ -86,8 +86,8 @@
                       <strong>{{ formatWarningAction(log.actionType) }}</strong>
                       <time>{{ formatTime(log.createTime) }}</time>
                     </div>
-                    <p>操作人：{{ log.operatorName || "-" }}</p>
-                    <p>{{ log.actionComment || "无补充说明" }}</p>
+                    <p>操作人：{{ formatLogOperator(log) }}</p>
+                    <p>{{ log.actionComment || "未填写处理说明。" }}</p>
                   </div>
                 </article>
                 <div v-if="!detail.processLogs?.length" class="empty-box empty-box--plain">暂无处理记录。</div>
@@ -97,7 +97,7 @@
 
           <aside class="side-col">
             <section class="panel panel-accent">
-              <h4>处置动作</h4>
+              <h2>快捷操作</h2>
               <div class="action-stack">
                 <button
                   v-if="warningQuickAction(detail.status)"
@@ -108,8 +108,13 @@
                 >
                   {{ actionLoading ? "处理中..." : warningQuickAction(detail.status).label }}
                 </button>
-                <button v-if="canJumpWarningComplaint(detail)" class="ghost ghost--light" type="button" @click="jumpToWarningComplaint">
-                  跳转投诉详情
+                <button
+                  v-if="canJumpWarningComplaint(detail)"
+                  class="ghost ghost--light"
+                  type="button"
+                  @click="jumpToWarningComplaint"
+                >
+                  查看关联投诉
                 </button>
                 <button
                   v-if="canJumpWarningRectification(detail)"
@@ -117,21 +122,21 @@
                   type="button"
                   @click="jumpToWarningRectification"
                 >
-                  跳转整改详情
+                  查看关联整改
                 </button>
-                <button class="ghost ghost--light" type="button" @click="goBack">返回预警列表</button>
+                <button class="ghost ghost--light" type="button" @click="goBack">返回上一页</button>
               </div>
             </section>
 
             <section class="panel">
-              <h4>关联对象</h4>
+              <h2>关联信息</h2>
               <div class="mini-list">
                 <article>
-                  <span>业务对象名称</span>
+                  <span>对象名称</span>
                   <strong>{{ detail.bizName || "-" }}</strong>
                 </article>
                 <article>
-                  <span>业务对象类型</span>
+                  <span>对象类型</span>
                   <strong>{{ detail.bizType || "-" }}</strong>
                 </article>
                 <article>
@@ -177,6 +182,14 @@ function setStatus(message = "", type = "info") {
   status.type = type;
 }
 
+function normalizeWarningErrorMessage(error, fallback) {
+  const resolved = resolveErrorMessage(error, fallback);
+  if (String(resolved || "").trim().toLowerCase() === "warning not found") {
+    return "未找到该预警详情，请返回列表后重试。";
+  }
+  return resolved;
+}
+
 function formatWarningStatus(value) {
   return formatByMap(value, warningStatusMap);
 }
@@ -187,6 +200,10 @@ function formatWarningLevel(value) {
 
 function formatWarningAction(value) {
   return formatByMap(value, warningActionMap);
+}
+
+function formatLogOperator(log) {
+  return String(log?.operatorName || "").trim() || "系统";
 }
 
 function warningStatusClass(value) {
@@ -241,7 +258,7 @@ async function loadDetail() {
     detail.value = await fetchMyWarningDetail(token.value, warningId);
   } catch (error) {
     detail.value = null;
-    setStatus(resolveErrorMessage(error, "加载预警详情失败"), "error");
+    setStatus(normalizeWarningErrorMessage(error, "加载预警详情失败"), "error");
   } finally {
     loading.value = false;
   }
@@ -255,7 +272,7 @@ async function handleWarningAction(actionType) {
     detail.value = await processMyWarning(token.value, detail.value.id, { actionType });
     setStatus(`预警已执行${formatWarningAction(actionType)}`, "success");
   } catch (error) {
-    setStatus(resolveErrorMessage(error, "预警处理失败"), "error");
+    setStatus(normalizeWarningErrorMessage(error, "预警处理失败"), "error");
   } finally {
     actionLoading.value = false;
   }
@@ -271,28 +288,28 @@ watch(() => route.params.warningId, loadDetail);
 
 <style scoped>
 .warning-detail-page { display: grid; gap: 16px; }
-.state-card { padding: 18px 20px; border: 1px solid #dbe3ee; background: #fff; color: #64748b; }
+.state-card { padding: 18px 20px; border: 1px solid #dbe3ee; background: #fff; color: #64748b; border-radius: 12px; }
 .state-card--error { color: #b91c1c; border-color: #fecaca; background: #fef2f2; }
-.hero { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 16px; padding: 18px; background: linear-gradient(135deg, #f8fbff, #eef4ff); border: 1px solid #dbe3ee; }
+.hero { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 16px; padding: 18px; background: linear-gradient(135deg, #f8fbff, #eef4ff); border: 1px solid #dbe3ee; border-radius: 12px; }
 .crumbs { display: flex; gap: 6px; color: #64748b; font-size: 11px; font-weight: 700; }
 .crumb-link { padding: 0; border: 0; background: transparent; color: #002660; cursor: pointer; font-size: inherit; font-weight: inherit; }
 .hero-title-row { margin-top: 10px; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
-.hero-title-row h3 { margin: 0; color: #002660; font-size: 30px; font-weight: 900; letter-spacing: -0.02em; }
+.hero-title-row h1 { margin: 0; color: #002660; font-size: 30px; font-weight: 900; }
 .hero-desc { margin: 10px 0 0; color: #475569; font-size: 13px; line-height: 1.7; max-width: 760px; }
 .hero-side { display: grid; gap: 10px; }
-.hero-side article { padding: 12px 14px; background: #fff; border: 1px solid #dbe3ee; }
+.hero-side article { padding: 12px 14px; background: #fff; border: 1px solid #dbe3ee; border-radius: 10px; }
 .hero-side span, .summary-grid span, .detail-block label, .mini-list span { display: block; color: #64748b; font-size: 11px; font-weight: 700; }
 .hero-side strong, .summary-grid strong, .mini-list strong { display: block; margin-top: 5px; color: #0f172a; font-size: 15px; font-weight: 800; line-height: 1.5; }
 .content-grid { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 16px; align-items: start; }
 .main-col, .side-col { display: grid; gap: 16px; }
-.panel { border: 1px solid #dbe3ee; background: #fff; padding: 16px; }
+.panel { border: 1px solid #dbe3ee; background: #fff; padding: 16px; border-radius: 12px; }
 .panel-accent { background: linear-gradient(135deg, #002660, #003a8c); border-color: transparent; color: #fff; }
-.panel h4 { margin: 0; color: #002660; font-size: 12px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.08em; }
-.panel-accent h4 { color: rgba(255,255,255,0.78); }
+.panel h2 { margin: 0; color: #002660; font-size: 12px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.08em; }
+.panel-accent h2 { color: rgba(255, 255, 255, 0.78); }
 .section-head { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-bottom: 14px; }
 .section-hint { color: #94a3b8; font-size: 11px; font-weight: 700; }
 .summary-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
-.summary-grid article, .mini-list article { padding: 12px; background: #f8fafc; border: 1px solid #eef2f7; }
+.summary-grid article, .mini-list article { padding: 12px; background: #f8fafc; border: 1px solid #eef2f7; border-radius: 10px; }
 .detail-block { margin-top: 14px; padding: 12px; background: #f8fafc; border-left: 3px solid #cbd5e1; }
 .detail-block p { margin: 6px 0 0; color: #334155; font-size: 13px; line-height: 1.7; white-space: pre-line; }
 .timeline { position: relative; display: grid; gap: 14px; }
@@ -305,10 +322,10 @@ watch(() => route.params.warningId, loadDetail);
 .timeline-main p { margin: 6px 0 0; color: #64748b; font-size: 12px; line-height: 1.6; }
 .action-stack { display: grid; gap: 10px; margin-top: 14px; }
 .mini-list { display: grid; gap: 10px; margin-top: 14px; }
-.primary, .ghost { min-height: 36px; padding: 0 14px; border: 1px solid #cbd5e1; font-size: 12px; font-weight: 700; cursor: pointer; }
+.primary, .ghost { min-height: 36px; padding: 0 14px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 12px; font-weight: 700; cursor: pointer; }
 .primary { background: #002660; border-color: #002660; color: #fff; }
 .ghost { background: #fff; color: #334155; }
-.ghost--light { background: rgba(255,255,255,0.08); border-color: rgba(255,255,255,0.24); color: #fff; }
+.ghost--light { background: rgba(255, 255, 255, 0.08); border-color: rgba(255, 255, 255, 0.24); color: #fff; }
 .level-pill, .status-pill { display: inline-flex; min-height: 24px; align-items: center; justify-content: center; padding: 0 10px; border-radius: 999px; border: 1px solid transparent; font-size: 11px; font-weight: 800; }
 .level-pill.is-l1 { background: #fee2e2; color: #991b1b; }
 .level-pill.is-l2 { background: #ffedd5; color: #9a3412; }
@@ -317,9 +334,9 @@ watch(() => route.params.warningId, loadDetail);
 .status-pill.is-resolved { background: #dcfce7; color: #166534; border-color: #86efac; }
 .status-pill.is-closed { background: #f1f5f9; color: #475569; border-color: #dbe3ee; }
 .status-pill.is-unknown { background: #f8fafc; color: #64748b; border-color: #dbe3ee; }
-.empty-box { padding: 14px; border: 1px dashed #cbd5e1; background: #f8fafc; color: #64748b; font-size: 12px; }
+.empty-box { padding: 14px; border: 1px dashed #cbd5e1; background: #f8fafc; color: #64748b; font-size: 12px; border-radius: 10px; }
 .empty-box--plain { margin-left: 22px; }
-.status-banner { padding: 10px 12px; border: 1px solid #dbe3ee; background: #f8fafc; color: #334155; }
+.status-banner { padding: 10px 12px; border: 1px solid #dbe3ee; background: #f8fafc; color: #334155; border-radius: 10px; }
 .status-banner.is-error { border-color: #fecaca; background: #fef2f2; color: #b91c1c; }
 .status-banner.is-success { border-color: #bbf7d0; background: #ecfdf5; color: #166534; }
 @media (max-width: 1080px) {
@@ -327,7 +344,7 @@ watch(() => route.params.warningId, loadDetail);
 }
 @media (max-width: 760px) {
   .summary-grid { grid-template-columns: 1fr; }
-  .hero-title-row h3 { font-size: 22px; }
+  .hero-title-row h1 { font-size: 22px; }
   .timeline-head { flex-direction: column; align-items: flex-start; }
 }
 </style>

@@ -18,6 +18,7 @@ public class InternalEnterpriseDetailVO {
     private String addressDetail;
     private String principal;
     private String principalPhone;
+    private Long regulatorId;
     private String regulatorName;
     private String status;
     private String approvalStatus;

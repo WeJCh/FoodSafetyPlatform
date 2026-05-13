@@ -55,20 +55,28 @@
             <strong>{{ formatApprovalStatus(detail.approvalStatus) }}</strong>
           </div>
           <div>
-            <span>审核意见</span>
-            <strong>{{ detail.approvalComment || "-" }}</strong>
+            <span>更新时间</span>
+            <strong>{{ formatTime(detail.updateTime) }}</strong>
           </div>
+        </div>
+
+        <div class="section-title section-title--sub">审核信息</div>
+        <div class="detail-grid detail-grid--audit">
           <div>
             <span>审核人</span>
-            <strong>{{ detail.regulatorName || "-" }}</strong>
+            <strong>{{ detail.approvedByName || "-" }}</strong>
           </div>
           <div>
             <span>审核时间</span>
             <strong>{{ formatTime(detail.approvedTime) }}</strong>
           </div>
           <div>
-            <span>更新时间</span>
-            <strong>{{ formatTime(detail.updateTime) }}</strong>
+            <span>包保责任人</span>
+            <strong>{{ detail.regulatorName || "-" }}</strong>
+          </div>
+          <div style="grid-column: span 2;">
+            <span>审核意见</span>
+            <strong>{{ detail.approvalComment || "-" }}</strong>
           </div>
         </div>
 
@@ -229,8 +237,9 @@ function formatProductStatus(value) {
 function formatReasonType(value) {
   const map = {
     COMPLAINT_OVERFLOW: "投诉过多",
-    CONSECUTIVE_FAIL: "连续不合格",
+    CONSECUTIVE_INSPECTION_FAIL: "连续检查不合格",
     SAMPLING_FAIL: "抽检不合格",
+    RECTIFICATION_OVERDUE: "整改逾期",
     WARNING_TRIGGERED: "预警触发",
     MANUAL_SET: "人工设定"
   };

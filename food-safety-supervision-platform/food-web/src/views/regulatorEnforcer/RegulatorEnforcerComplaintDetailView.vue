@@ -1,7 +1,7 @@
 <template>
   <RegulatorEnforcerWorkspacePage
     active-key="complaints"
-    :username="enforcerUser.username || enforcerUser.realName || ''"
+    :username="enforcerUser.username"
     @navigate="handleSidebarNavigate"
     @logout="handleLogout"
   >
@@ -11,14 +11,15 @@
       <template v-else>
         <header class="page-head">
           <div>
-            <div class="chips">
-              <span class="chip chip-id">{{ complaint.complaintNo || `#${complaint.id}` }}</span>
-              <span class="chip chip-status" :class="statusClass(complaint.status)">
-                {{ formatComplaintStatus(complaint.status) }}
-              </span>
+            <nav class="crumbs">
+              <span>投诉处理</span>
+              <span class="sep">/</span>
+              <span>投诉详情</span>
+            </nav>
+            <div class="title-row">
+              <h1>{{ complaint.complaintNo || "-" }}</h1>
+              <span class="status-chip" :class="statusClass(complaint.status)">{{ formatComplaintStatus(complaint.status) }}</span>
             </div>
-            <h1>投诉执法处理</h1>
-            <p>{{ complaint.enterpriseName || enterprise?.enterpriseName || "-" }}</p>
           </div>
           <div class="head-actions">
             <button class="ghost" type="button" @click="handleBack">返回列表</button>
@@ -31,46 +32,14 @@
             >
               开始处理
             </button>
-            <button
-              v-if="canHandle"
-              class="primary"
-              type="button"
-              :disabled="loadingAction"
-              @click="handleSubmit"
-            >
-              提交处理
-            </button>
           </div>
         </header>
 
         <div class="content-grid">
           <div class="left-col">
             <section class="panel">
-              <h2>投诉内容</h2>
-              <p class="content-text">{{ complaint.content || "-" }}</p>
-            </section>
-
-            <section class="panel">
-              <h2>反馈处理</h2>
-              <div v-if="canStart" class="note">该投诉已派发，开始处理后即可提交反馈。</div>
-              <div v-if="complaint.deadlineTime" class="note">办理时限：{{ formatTime(complaint.deadlineTime) }}</div>
-              <label v-if="canHandle" class="form-label">
-                反馈摘要
-                <textarea
-                  v-model.trim="handleForm.feedbackSummary"
-                  rows="5"
-                  placeholder="请输入面向公众展示的处理反馈"
-                ></textarea>
-              </label>
-              <article v-if="latestHandle || complaint.feedbackSummary" class="result-card">
-                <strong>最近处理结果</strong>
-                <p>{{ complaint.feedbackSummary || latestHandle?.handleResult || "-" }}</p>
-                <span>{{ latestHandle?.handlerName || "-" }} · {{ formatTime(latestHandle?.handleTime || complaint.updateTime) }}</span>
-              </article>
-            </section>
-
-            <section class="panel">
-              <h2>现场图片</h2>
+              <h4>投诉内容</h4>
+              <div class="content-box">{{ complaint.content || "-" }}</div>
               <div v-if="complaintImageList.length" class="image-grid">
                 <button
                   v-for="(url, index) in complaintImageList"
@@ -79,70 +48,89 @@
                   type="button"
                   @click="openImagePreview(complaintImageList, index)"
                 >
-                  <img :src="url" alt="现场图片" />
+                  <img :src="url" alt="投诉现场图片" />
                 </button>
               </div>
-              <div v-else class="note">暂无现场图片</div>
-            </section>
-          </div>
-
-          <aside class="right-col">
-            <section class="panel panel-blue">
-              <h2>办理概览</h2>
-              <dl class="summary-list">
-                <div><dt>投诉状态</dt><dd>{{ formatComplaintStatus(complaint.status) }}</dd></div>
-                <div><dt>投诉时间</dt><dd>{{ formatTime(complaint.createTime) }}</dd></div>
-                <div><dt>更新时间</dt><dd>{{ formatTime(complaint.updateTime) }}</dd></div>
-                <div><dt>办理时限</dt><dd>{{ formatTime(complaint.deadlineTime) }}</dd></div>
-              </dl>
-            </section>
-
-            <section class="panel">
-              <h2>企业信息</h2>
-              <div class="info-list">
-                <p><span>企业名称</span><strong>{{ enterprise?.enterpriseName || complaint.enterpriseName || "-" }}</strong></p>
-                <p><span>负责人</span><strong>{{ enterprise?.principal || "-" }}</strong></p>
-                <p><span>统一社会信用代码</span><strong>{{ enterprise?.creditCode || "-" }}</strong></p>
-                <p><span>联系电话</span><strong>{{ enterprise?.principalPhone || "-" }}</strong></p>
-              </div>
-              <div class="address-box">
-                <span>经营地址</span>
-                <p>{{ enterprise?.addressDetail || "-" }}</p>
-              </div>
+              <div v-else class="muted-text">当前未上传现场图片。</div>
             </section>
 
             <section class="panel">
               <div class="panel-head">
-                <h2>处理记录</h2>
+                <h4>投诉操作日志</h4>
                 <button class="mini-link" type="button" :disabled="auditLoading" @click="loadAuditLogs">
-                  {{ auditLoading ? "加载中..." : "刷新" }}
+                  {{ auditLoading ? "加载中..." : "刷新日志" }}
                 </button>
               </div>
-              <div v-if="auditLoading" class="note">操作日志加载中...</div>
-              <div v-else-if="auditError" class="note note--error">{{ auditError }}</div>
-              <div v-else-if="!auditLogs.length" class="note">当前暂无投诉操作日志</div>
+              <div v-if="auditLoading" class="muted-text">正在加载投诉操作日志...</div>
+              <div v-else-if="auditError" class="muted-text muted-text--error">{{ auditError }}</div>
+              <div v-else-if="!auditLogs.length" class="muted-text">当前暂无投诉操作日志。</div>
               <div v-else class="logs">
                 <article v-for="item in auditLogs" :key="item.id" class="log-item">
-                  <strong>{{ item.title }}</strong>
-                  <span>{{ formatTime(item.createTime) }}</span>
-                  <p>{{ item.desc }}</p>
-                  <p class="log-meta">
-                    <span>{{ item.operatorName || "-" }}</span>
-                    <span v-if="item.remark">· {{ item.remark }}</span>
-                  </p>
+                  <span class="log-dot"></span>
+                  <div class="log-main">
+                    <strong>{{ item.title }}</strong>
+                    <p>{{ item.desc }}</p>
+                    <p class="log-meta">
+                      <span>{{ item.operatorName }}</span>
+                      <span v-if="item.remark">· {{ item.remark }}</span>
+                    </p>
+                  </div>
+                  <time>{{ formatTime(item.createTime) }}</time>
                 </article>
               </div>
             </section>
-          </aside>
+          </div>
+
+          <div class="right-col">
+            <section class="panel panel-blue">
+              <h4>基础信息</h4>
+              <dl class="summary-list">
+                <div><dt>投诉状态</dt><dd>{{ formatComplaintStatus(complaint.status) }}</dd></div>
+                <div><dt>投诉方式</dt><dd>{{ complaint.anonymous ? "匿名投诉" : "实名投诉" }}</dd></div>
+                <div><dt>投诉人</dt><dd>{{ complaint.complainantName || "-" }}</dd></div>
+                <div><dt>联系方式</dt><dd>{{ complainantContactDisplay }}</dd></div>
+                <div><dt>投诉时间</dt><dd>{{ formatTime(complaint.createTime) }}</dd></div>
+                <div><dt>处理时限</dt><dd>{{ formatTime(complaint.deadlineTime) }}</dd></div>
+                <div><dt>投诉企业</dt><dd>{{ enterprise?.enterpriseName || complaint.enterpriseName || "-" }}</dd></div>
+              </dl>
+            </section>
+
+            <section class="panel">
+              <h4>处理反馈</h4>
+              <div v-if="canStart" class="action-tip">该投诉已派发给你，开始处理后即可提交反馈。</div>
+              <label v-if="canHandle" class="form-label">
+                反馈摘要
+                <textarea
+                  v-model.trim="handleForm.feedbackSummary"
+                  rows="4"
+                  placeholder="请输入本次处理结果摘要"
+                ></textarea>
+              </label>
+              <button
+                v-if="canHandle"
+                class="primary"
+                type="button"
+                :disabled="loadingAction"
+                @click="handleSubmit"
+              >
+                提交反馈
+              </button>
+              <div v-else-if="latestHandle" class="result-box">
+                <strong>最近处理结果</strong>
+                <p>{{ latestHandle.handleResult || latestHandle.feedbackSummary || complaint.feedbackSummary || "-" }}</p>
+              </div>
+              <div v-else class="muted-text">当前暂无处理反馈。</div>
+            </section>
+          </div>
         </div>
 
-        <div v-if="status.message" class="status-banner" :class="`is-${status.type}`">{{ status.message }}</div>
+        <div v-if="status.message" class="status" :class="status.type">{{ status.message }}</div>
       </template>
     </section>
 
     <div v-if="currentImagePreviewUrl" class="image-preview-mask" @click.self="closeImagePreview">
       <div class="image-preview-card">
-        <img :src="currentImagePreviewUrl" alt="现场图片大图" />
+        <img :src="currentImagePreviewUrl" alt="投诉现场大图预览" />
         <div class="image-preview-actions">
           <button class="ghost" type="button" :disabled="imagePreviewIndex <= 0" @click="showPrevImage">上一张</button>
           <span>{{ imagePreviewIndex + 1 }}/{{ imagePreviewUrls.length }}</span>
@@ -163,10 +151,15 @@ import {
   handleComplaint,
   startComplaintProcess
 } from "../../api/complaint";
+import RegulatorEnforcerWorkspacePage from "../../components/regulatorEnforcer/RegulatorEnforcerWorkspacePage.vue";
+import {
+  formatComplaintAuditAction,
+  formatComplaintAuditOperatorName,
+  formatComplaintAuditSummary
+} from "../../utils/complaintAudit";
 import { formatByMap, formatTime } from "../../utils/formatters";
 import { complaintStatusMap } from "../../utils/statusMaps";
 import { resolveErrorMessage } from "../../utils/uiFeedback";
-import RegulatorEnforcerWorkspacePage from "../../components/regulatorEnforcer/RegulatorEnforcerWorkspacePage.vue";
 import { useRegulatorEnforcerShellSession } from "./regulatorEnforcerShared";
 
 const route = useRoute();
@@ -190,6 +183,11 @@ const handles = computed(() => (Array.isArray(detail.value?.handles) ? detail.va
 const latestHandle = computed(() => handles.value[0] || null);
 const complaintImageList = computed(() => complaint.value?.imageUrls || []);
 const currentImagePreviewUrl = computed(() => imagePreviewUrls.value[imagePreviewIndex.value] || "");
+const complainantContactDisplay = computed(() =>
+  complaint.value?.anonymous
+    ? complaint.value?.contactMasked || complaint.value?.contact || "-"
+    : complaint.value?.contact || "-"
+);
 const canStart = computed(() => complaint.value?.status === "ASSIGNED");
 const canHandle = computed(() => complaint.value?.status === "PROCESSING");
 
@@ -221,9 +219,9 @@ async function loadAuditLogs() {
     const data = await fetchComplaintLogs(token.value, complaint.value.id, 12);
     auditLogs.value = (Array.isArray(data) ? data : []).map((item, index) => ({
       id: item.id || `complaint-log-${index}`,
-      title: item.actionName || item.actionType || "投诉操作日志",
-      desc: item.summary || "暂无日志摘要",
-      operatorName: item.operatorName || "监管人员",
+      title: formatComplaintAuditAction(item.actionName || item.actionType),
+      desc: formatComplaintAuditSummary(item),
+      operatorName: formatComplaintAuditOperatorName(item.operatorName),
       remark: item.remark || "",
       createTime: item.createTime
     }));
@@ -277,37 +275,23 @@ async function handleStart() {
 async function handleSubmit() {
   if (!complaint.value?.id) return;
   if (!handleForm.feedbackSummary.trim()) {
-    setStatus("请填写反馈摘要。", "error");
+    setStatus("请填写处理反馈。", "error");
     return;
   }
   loadingAction.value = true;
   setStatus("");
   try {
     await handleComplaint(token.value, complaint.value.id, {
-      feedbackSummary: handleForm.feedbackSummary
+      feedbackSummary: handleForm.feedbackSummary,
+      handleResult: handleForm.feedbackSummary
     });
     setStatus("投诉处理结果已反馈。", "success");
     await loadDetail();
   } catch (error) {
-    setStatus(resolveErrorMessage(error, "提交处理失败"), "error");
+    setStatus(resolveErrorMessage(error, "提交反馈失败"), "error");
   } finally {
     loadingAction.value = false;
   }
-}
-
-function handleBack() {
-  const fromSection = typeof route.query.from === "string" ? route.query.from : "complaints";
-  const routeNameMap = {
-    enterprises: "regulator-enforcer-enterprises",
-    tasks: "regulator-enforcer-tasks",
-    sampling: "regulator-enforcer-sampling",
-    inspections: "regulator-enforcer-inspections",
-    complaints: "regulator-enforcer-complaints",
-    rectifications: "regulator-enforcer-rectifications",
-    warnings: "regulator-enforcer-warnings",
-    stats: "regulator-enforcer-stats"
-  };
-  router.push({ name: routeNameMap[fromSection] || "regulator-enforcer-complaints" }).catch(() => {});
 }
 
 function openImagePreview(urls, index) {
@@ -331,333 +315,78 @@ function showNextImage() {
   imagePreviewIndex.value += 1;
 }
 
+function handleBack() {
+  const fromSection = typeof route.query.from === "string" ? route.query.from : "complaints";
+  const routeNameMap = {
+    enterprises: "regulator-enforcer-enterprises",
+    complaints: "regulator-enforcer-complaints",
+    warnings: "regulator-enforcer-warnings",
+    stats: "regulator-enforcer-stats"
+  };
+  router.push({ name: routeNameMap[fromSection] || "regulator-enforcer-complaints" }).catch(() => {});
+}
+
 onMounted(loadDetail);
 watch(() => route.params.complaintId, loadDetail);
 </script>
 
 <style scoped>
-.complaint-detail-page {
-  display: grid;
-  gap: 14px;
-}
-.state-card {
-  padding: 20px;
-  border: 1px solid #dbe3ee;
-  background: #fff;
-  color: #64748b;
-}
-.state-card--error {
-  color: #b91c1c;
-  background: #fef2f2;
-  border-color: #fecaca;
-}
-.page-head {
-  display: flex;
-  justify-content: space-between;
-  gap: 14px;
-  align-items: end;
-  padding: 16px;
-  border: 1px solid #dbe3ee;
-  background: #fff;
-}
-.chips,
-.head-actions {
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
-}
-.chip {
-  display: inline-flex;
-  align-items: center;
-  min-height: 24px;
-  padding: 0 10px;
-  border-radius: 999px;
-  font-size: 11px;
-  font-weight: 800;
-}
-.chip-id {
-  background: #dbeafe;
-  color: #1e3a8a;
-}
-.chip-status.is-processing { background: #ecfeff; color: #155e75; }
-.chip-status.is-feedbacked { background: #dcfce7; color: #166534; }
-.chip-status.is-assigned { background: #ffedd5; color: #9a3412; }
-.chip-status.is-default { background: #f1f5f9; color: #475569; }
-h1 {
-  margin: 10px 0 0;
-  color: #002660;
-  font-size: 28px;
-}
-.page-head p {
-  margin: 6px 0 0;
-  color: #64748b;
-  font-size: 13px;
-}
-.primary,
-.ghost {
-  min-height: 36px;
-  padding: 0 14px;
-  border: 1px solid #cbd5e1;
-  cursor: pointer;
-  font-size: 12px;
-  font-weight: 700;
-}
-.primary {
-  background: #002660;
-  border-color: #002660;
-  color: #fff;
-}
-.ghost {
-  background: #fff;
-  color: #334155;
-}
-.content-grid {
-  display: grid;
-  grid-template-columns: minmax(0, 1.5fr) minmax(300px, 1fr);
-  gap: 14px;
-}
-.left-col,
-.right-col {
-  display: grid;
-  gap: 14px;
-}
-.panel {
-  padding: 16px;
-  border: 1px solid #dbe3ee;
-  background: #fff;
-}
-.panel h2 {
-  margin: 0 0 12px;
-  color: #002660;
-  font-size: 14px;
-  font-weight: 800;
-}
-.panel-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  margin-bottom: 12px;
-}
-.panel-head h2 {
-  margin: 0;
-}
-.mini-link {
-  border: 0;
-  background: transparent;
-  color: #1d4ed8;
-  font-size: 12px;
-  font-weight: 700;
-  cursor: pointer;
-  padding: 0;
-}
-.mini-link:disabled {
-  color: #94a3b8;
-  cursor: default;
-}
-.panel-blue {
-  background: linear-gradient(135deg, #002660, #003a8c);
-  border-color: #003a8c;
-  color: #fff;
-}
-.panel-blue h2 {
-  color: #fff;
-}
-.content-text {
-  margin: 0;
-  white-space: pre-line;
-  line-height: 1.7;
-  color: #1e293b;
-}
-.note {
-  margin-bottom: 10px;
-  padding: 10px 12px;
-  background: #f8fafc;
-  border: 1px solid #dbe3ee;
-  color: #475569;
-  font-size: 12px;
-}
-.note--error {
-  background: #fef2f2;
-  border-color: #fecaca;
-  color: #b91c1c;
-}
-.form-label {
-  display: grid;
-  gap: 8px;
-  font-size: 12px;
-  color: #334155;
-  font-weight: 700;
-}
-textarea {
-  width: 100%;
-  box-sizing: border-box;
-  border: 1px solid #dbe3ee;
-  background: #fff;
-  padding: 10px;
-  resize: vertical;
-}
-.result-card {
-  margin-top: 12px;
-  padding: 12px;
-  border: 1px solid #dbe3ee;
-  background: #f8fafc;
-}
-.result-card strong {
-  display: block;
-  margin-bottom: 8px;
-}
-.result-card p {
-  margin: 0;
-  color: #1e293b;
-}
-.result-card span {
-  display: block;
-  margin-top: 8px;
-  color: #64748b;
-  font-size: 12px;
-}
-.image-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
-  gap: 10px;
-}
-.image-thumb {
-  padding: 0;
-  border: 1px solid #dbe3ee;
-  background: #fff;
-  cursor: pointer;
-  overflow: hidden;
-}
-.image-thumb img {
-  width: 100%;
-  height: 96px;
-  object-fit: cover;
-  display: block;
-}
-.summary-list,
-.logs {
-  display: grid;
-  gap: 10px;
-}
-.summary-list div {
-  display: flex;
-  justify-content: space-between;
-  gap: 10px;
-  font-size: 12px;
-}
-.summary-list dt {
-  color: rgba(255, 255, 255, 0.72);
-}
-.summary-list dd {
-  margin: 0;
-  font-weight: 700;
-}
-.info-list p {
-  margin: 0 0 10px;
-  display: flex;
-  justify-content: space-between;
-  gap: 8px;
-  font-size: 12px;
-}
-.info-list span {
-  color: #64748b;
-}
-.info-list strong {
-  text-align: right;
-  color: #0f172a;
-}
-.address-box {
-  margin-top: 10px;
-  padding: 10px;
-  background: #f8fafc;
-}
-.address-box span {
-  display: block;
-  margin-bottom: 4px;
-  color: #64748b;
-  font-size: 12px;
-}
-.address-box p {
-  margin: 0;
-  color: #1e293b;
-  line-height: 1.6;
-}
-.log-item {
-  padding-left: 12px;
-  border-left: 2px solid #dbeafe;
-}
-.log-item strong,
-.log-item span {
-  display: block;
-}
-.log-item span {
-  margin-top: 4px;
-  color: #64748b;
-  font-size: 12px;
-}
-.log-item p {
-  margin: 6px 0 0;
-  color: #1e293b;
-  font-size: 12px;
-  line-height: 1.6;
-}
-.log-meta {
-  color: #94a3b8 !important;
-  font-size: 11px !important;
-}
-.status-banner {
-  padding: 10px 12px;
-  border: 1px solid #dbe3ee;
-  background: #f8fafc;
-  color: #334155;
-}
-.status-banner.is-error {
-  border-color: #fecaca;
-  background: #fef2f2;
-  color: #b91c1c;
-}
-.status-banner.is-success {
-  border-color: #bbf7d0;
-  background: #ecfdf5;
-  color: #166534;
-}
-.image-preview-mask {
-  position: fixed;
-  inset: 0;
-  background: rgba(15, 23, 42, 0.55);
-  display: grid;
-  place-items: center;
-  z-index: 9999;
-}
-.image-preview-card {
-  background: #fff;
-  padding: 16px;
-  max-width: min(900px, 92vw);
-  max-height: 88vh;
-  display: grid;
-  gap: 12px;
-}
-.image-preview-card img {
-  width: 100%;
-  max-height: 70vh;
-  object-fit: contain;
-  background: #f6f9ff;
-}
-.image-preview-actions {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 10px;
-  flex-wrap: wrap;
-}
-@media (max-width: 1100px) {
-  .content-grid {
-    grid-template-columns: 1fr;
-  }
-  .page-head {
-    flex-direction: column;
-    align-items: stretch;
-  }
-}
+.complaint-detail-page { display: grid; gap: 16px; }
+.state-card { padding: 20px; border-radius: 10px; border: 1px solid #e2e8f0; background: #fff; color: #64748b; }
+.state-card--error { color: #991b1b; background: #fef2f2; border-color: #fecaca; }
+.page-head { display: flex; justify-content: space-between; align-items: flex-end; gap: 14px; flex-wrap: wrap; }
+.crumbs { display: flex; gap: 6px; color: #64748b; font-size: 11px; font-weight: 700; }
+.sep { opacity: 0.55; }
+.title-row { margin-top: 8px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.title-row h1 { margin: 0; font-size: 30px; font-weight: 900; color: #002660; }
+.status-chip { display: inline-flex; min-height: 22px; align-items: center; padding: 0 10px; border-radius: 999px; font-size: 10px; font-weight: 900; }
+.status-chip.is-default { background: #e2e8f0; color: #334155; }
+.status-chip.is-assigned { background: #dbeafe; color: #1e3a8a; }
+.status-chip.is-processing { background: #fef3c7; color: #92400e; }
+.status-chip.is-feedbacked { background: #dcfce7; color: #166534; }
+.head-actions { display: flex; gap: 8px; }
+.primary, .ghost { border-radius: 8px; min-height: 38px; font-size: 12px; font-weight: 800; padding: 0 14px; cursor: pointer; }
+.primary { border: 0; background: #002660; color: #fff; }
+.ghost { border: 1px solid #d1d5db; background: #fff; color: #334155; }
+.content-grid { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 14px; align-items: start; }
+.left-col, .right-col { display: grid; gap: 14px; }
+.panel { background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 14px; }
+.panel h4 { margin: 0 0 12px; color: #002660; font-size: 12px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.08em; }
+.panel-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
+.mini-link { border: 0; background: transparent; color: #1d4ed8; font-size: 12px; font-weight: 700; cursor: pointer; padding: 0; }
+.content-box { background: #f8fafc; border-radius: 8px; padding: 12px; color: #1e293b; font-size: 13px; line-height: 1.7; white-space: pre-line; }
+.image-grid { margin-top: 12px; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+.image-thumb { padding: 0; border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden; background: #fff; cursor: pointer; }
+.image-thumb img { display: block; width: 100%; height: 96px; object-fit: cover; }
+.muted-text { color: #94a3b8; font-size: 12px; }
+.muted-text--error { color: #b91c1c; }
+.logs { position: relative; display: grid; gap: 12px; }
+.logs::before { content: ""; position: absolute; left: 5px; top: 8px; bottom: 8px; width: 2px; background: #e2e8f0; }
+.log-item { position: relative; display: grid; grid-template-columns: 1fr auto; gap: 8px 12px; padding-left: 20px; }
+.log-dot { position: absolute; left: 0; top: 4px; width: 12px; height: 12px; border-radius: 50%; background: #002660; border: 2px solid #fff; box-shadow: 0 0 0 1px #cbd5e1; }
+.log-main strong { color: #0f172a; font-size: 12px; }
+.log-main p { margin: 4px 0 0; color: #64748b; font-size: 12px; line-height: 1.5; }
+.log-main .log-meta { color: #94a3b8; font-size: 11px; }
+.log-item time { color: #94a3b8; font-size: 10px; white-space: nowrap; }
+.panel-blue { background: linear-gradient(135deg, #002660, #003a8c); color: #fff; border: 0; box-shadow: 0 12px 24px rgba(0, 38, 96, 0.22); }
+.panel-blue h4 { color: rgba(255, 255, 255, 0.76); }
+.summary-list { margin: 0; display: grid; gap: 10px; }
+.summary-list div { display: grid; gap: 4px; }
+.summary-list dt { color: rgba(255, 255, 255, 0.68); font-size: 11px; }
+.summary-list dd { margin: 0; color: #fff; font-size: 13px; font-weight: 700; }
+.action-tip { color: #475569; font-size: 12px; line-height: 1.6; }
+.form-label { display: grid; gap: 6px; color: #334155; font-size: 12px; font-weight: 700; }
+.form-label textarea { width: 100%; box-sizing: border-box; min-height: 110px; border: 1px solid #dbe2ea; border-radius: 8px; padding: 10px; resize: vertical; font-size: 13px; }
+.result-box { display: grid; gap: 6px; background: #f8fafc; border-radius: 8px; padding: 12px; }
+.result-box strong { color: #0f172a; font-size: 12px; }
+.result-box p { margin: 0; color: #475569; font-size: 12px; line-height: 1.6; white-space: pre-line; }
+.status { position: fixed; right: 18px; bottom: 18px; border-radius: 8px; padding: 10px 12px; color: #fff; background: #0f172a; font-size: 13px; z-index: 1200; }
+.status.error { background: #b91c1c; }
+.status.success { background: #166534; }
+.image-preview-mask { position: fixed; inset: 0; background: rgba(15, 23, 42, 0.55); display: grid; place-items: center; z-index: 9999; }
+.image-preview-card { background: #fff; border-radius: 16px; padding: 16px; max-width: min(900px, 92vw); max-height: 88vh; display: grid; gap: 12px; }
+.image-preview-card img { width: 100%; max-height: 70vh; object-fit: contain; border-radius: 12px; background: #f6f9ff; }
+.image-preview-actions { display: flex; align-items: center; justify-content: center; gap: 10px; flex-wrap: wrap; }
+@media (max-width: 1080px) { .content-grid { grid-template-columns: 1fr; } }
+@media (max-width: 720px) { .image-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 </style>

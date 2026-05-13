@@ -15,6 +15,7 @@ CREATE TABLE IF NOT EXISTS complaint (
   complainant_name VARCHAR(50) COMMENT '投诉人姓名',
   contact VARCHAR(50) COMMENT '联系方式',
   submitter_user_id BIGINT COMMENT '提交用户ID',
+  anonymous_flag TINYINT DEFAULT 0 COMMENT '是否匿名 1-匿名 0-非匿名',
   enterprise_id BIGINT NOT NULL COMMENT '企业ID',
   complaint_type VARCHAR(50) COMMENT '投诉类型',
   content TEXT NOT NULL COMMENT '投诉内容',

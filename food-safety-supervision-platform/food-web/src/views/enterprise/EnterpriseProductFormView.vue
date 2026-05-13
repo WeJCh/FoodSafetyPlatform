@@ -189,13 +189,7 @@ const pageSubtitle = computed(() =>
 );
 const primarySubmitLabel = computed(() => (isEdit.value ? "保存并返回详情" : "提交并返回列表"));
 
-const categoryOptions = computed(() => {
-  const c = (form.category || "").trim();
-  if (c && !ENTERPRISE_PRODUCT_CATEGORY_PRESETS.includes(c)) {
-    return [c, ...ENTERPRISE_PRODUCT_CATEGORY_PRESETS];
-  }
-  return [...ENTERPRISE_PRODUCT_CATEGORY_PRESETS];
-});
+const categoryOptions = computed(() => [...ENTERPRISE_PRODUCT_CATEGORY_PRESETS]);
 
 const canSubmit = computed(
   () => profileLoaded.value && approvalStatus.value === "APPROVED" && Boolean(form.productName.trim()) && Boolean(form.category)

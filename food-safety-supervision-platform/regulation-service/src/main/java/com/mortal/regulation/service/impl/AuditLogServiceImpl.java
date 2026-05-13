@@ -7,6 +7,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.mortal.regulation.entity.AddrRegion;
 import com.mortal.regulation.entity.AuditLog;
 import com.mortal.regulation.entity.FoodEnterprise;
+import com.mortal.regulation.entity.FoodProduct;
 import com.mortal.regulation.entity.FoodRegulator;
 import com.mortal.regulation.entity.PublicBulletin;
 import com.mortal.regulation.mapper.AddrRegionMapper;
@@ -63,7 +64,7 @@ public class AuditLogServiceImpl implements AuditLogService {
         log.setServiceName(SERVICE_NAME);
         log.setOperatorUserId(operatorUserId);
         log.setOperatorUserType("ADMIN");
-        log.setOperatorName(StringUtils.hasText(operatorName) ? operatorName : buildOperatorFallback(operatorUserId));
+        log.setOperatorName(StringUtils.hasText(operatorName) ? operatorName : buildOperatorFallback());
         log.setTargetType("REGULATOR");
         log.setTargetId(regulator.getId());
         log.setTargetUserId(regulator.getUserId());
@@ -98,7 +99,7 @@ public class AuditLogServiceImpl implements AuditLogService {
         log.setServiceName(SERVICE_NAME);
         log.setOperatorUserId(operatorUserId);
         log.setOperatorUserType(normalizeText(operatorUserType));
-        log.setOperatorName(StringUtils.hasText(operatorName) ? operatorName : buildOperatorFallback(operatorUserId));
+        log.setOperatorName(StringUtils.hasText(operatorName) ? operatorName : buildOperatorFallback());
         log.setTargetType("ENTERPRISE");
         log.setTargetId(enterprise.getId());
         log.setTargetUserId(enterprise.getUserId());
@@ -133,7 +134,7 @@ public class AuditLogServiceImpl implements AuditLogService {
         log.setServiceName(SERVICE_NAME);
         log.setOperatorUserId(operatorUserId);
         log.setOperatorUserType(normalizeText(operatorUserType));
-        log.setOperatorName(StringUtils.hasText(operatorName) ? operatorName : buildOperatorFallback(operatorUserId));
+        log.setOperatorName(StringUtils.hasText(operatorName) ? operatorName : buildOperatorFallback());
         log.setTargetType("BULLETIN");
         log.setTargetId(bulletin.getId());
         log.setTargetName(bulletin.getTitle());
@@ -142,6 +143,40 @@ public class AuditLogServiceImpl implements AuditLogService {
         log.setActionName(actionName);
         log.setBeforeData(writeBulletinSnapshot(beforeBulletin));
         log.setAfterData(writeBulletinSnapshot(afterBulletin));
+        log.setSuccessFlag(1);
+        log.setRemark(normalizeRemark(remark));
+        log.setClientIp(resolveClientIp());
+        log.setTraceId(MDC.get("traceId"));
+        log.setCreateTime(LocalDateTime.now());
+        auditLogMapper.insert(log);
+    }
+
+    @Override
+    public void recordProductAudit(Long operatorUserId,
+                                   String operatorUserType,
+                                   String operatorName,
+                                   String actionType,
+                                   String actionName,
+                                   FoodProduct beforeProduct,
+                                   FoodProduct afterProduct,
+                                   String remark) {
+        FoodProduct product = afterProduct != null ? afterProduct : beforeProduct;
+        if (product == null) {
+            return;
+        }
+        AuditLog log = new AuditLog();
+        log.setServiceName(SERVICE_NAME);
+        log.setOperatorUserId(operatorUserId);
+        log.setOperatorUserType(normalizeText(operatorUserType));
+        log.setOperatorName(StringUtils.hasText(operatorName) ? operatorName : buildOperatorFallback());
+        log.setTargetType("PRODUCT");
+        log.setTargetId(product.getId());
+        log.setTargetName(product.getProductName());
+        log.setBizType("PRODUCT");
+        log.setActionType(actionType);
+        log.setActionName(actionName);
+        log.setBeforeData(writeProductSnapshot(beforeProduct));
+        log.setAfterData(writeProductSnapshot(afterProduct));
         log.setSuccessFlag(1);
         log.setRemark(normalizeRemark(remark));
         log.setClientIp(resolveClientIp());
@@ -193,6 +228,17 @@ public class AuditLogServiceImpl implements AuditLogService {
     }
 
     @Override
+    public List<AuditLogVO> listProductLogs(Long productId, int limit) {
+        int size = normalizeLimit(limit);
+        List<AuditLog> logs = auditLogMapper.selectList(new LambdaQueryWrapper<AuditLog>()
+            .eq(AuditLog::getTargetType, "PRODUCT")
+            .eq(AuditLog::getTargetId, productId)
+            .orderByDesc(AuditLog::getId)
+            .last("LIMIT " + size));
+        return logs.stream().map(this::toVO).toList();
+    }
+
+    @Override
     public List<AuditLogVO> listRegulatorLogs(Long regulatorId, int limit) {
         int size = normalizeLimit(limit);
         List<AuditLog> logs = auditLogMapper.selectList(new LambdaQueryWrapper<AuditLog>()
@@ -232,7 +278,7 @@ public class AuditLogServiceImpl implements AuditLogService {
         vo.setActionName(log.getActionName());
         vo.setOperatorName(StringUtils.hasText(log.getOperatorName())
             ? log.getOperatorName()
-            : buildOperatorFallback(log.getOperatorUserId()));
+            : buildOperatorFallback());
         vo.setTargetId(log.getTargetId());
         vo.setTargetUserId(log.getTargetUserId());
         vo.setTargetName(log.getTargetName());
@@ -276,6 +322,16 @@ public class AuditLogServiceImpl implements AuditLogService {
             return "\u516c\u544a\u72b6\u6001\u7531" + bulletinStatusText(before.get("status"))
                 + "\u8c03\u6574\u4e3a" + bulletinStatusText(after.get("status"));
         }
+        if ("PRODUCT_CREATE".equals(actionType)) {
+            return "\u4f01\u4e1a\u65b0\u589e\u4ea7\u54c1\u6863\u6848\uff1a" + productNameText(after, before);
+        }
+        if ("PRODUCT_UPDATE".equals(actionType)) {
+            return "\u4f01\u4e1a\u66f4\u65b0\u4ea7\u54c1\u6863\u6848\uff1a" + productNameText(after, before);
+        }
+        if ("PRODUCT_STATUS_CHANGE".equals(actionType)) {
+            return "\u4ea7\u54c1\u72b6\u6001\u7531" + productStatusText(before.get("status"))
+                + "\u8c03\u6574\u4e3a" + productStatusText(after.get("status"));
+        }
 
         String beforeRegion = regionText(before);
         String afterRegion = regionText(after);
@@ -316,10 +372,26 @@ public class AuditLogServiceImpl implements AuditLogService {
         };
     }
 
+    private String productStatusText(Object value) {
+        return switch (String.valueOf(value)) {
+            case "ACTIVE" -> "\u5df2\u4e0a\u67b6";
+            case "INACTIVE" -> "\u5df2\u4e0b\u67b6";
+            default -> "-";
+        };
+    }
+
     private String nameText(Map<String, Object> after, Map<String, Object> before) {
         Object value = after.get("enterpriseName");
         if (value == null || !StringUtils.hasText(String.valueOf(value))) {
             value = before.get("enterpriseName");
+        }
+        return value == null ? "-" : String.valueOf(value);
+    }
+
+    private String productNameText(Map<String, Object> after, Map<String, Object> before) {
+        Object value = after.get("productName");
+        if (value == null || !StringUtils.hasText(String.valueOf(value))) {
+            value = before.get("productName");
         }
         return value == null ? "-" : String.valueOf(value);
     }
@@ -368,6 +440,7 @@ public class AuditLogServiceImpl implements AuditLogService {
         snapshot.put("regionPathText", resolveRegionPath(enterprise.getRegionId()));
         snapshot.put("principal", enterprise.getPrincipal());
         snapshot.put("principalPhone", enterprise.getPrincipalPhone());
+        snapshot.put("regulatorId", enterprise.getRegulatorId());
         snapshot.put("regulatorName", enterprise.getRegulatorName());
         snapshot.put("status", enterprise.getStatus());
         snapshot.put("approvalStatus", enterprise.getApprovalStatus());
@@ -393,6 +466,22 @@ public class AuditLogServiceImpl implements AuditLogService {
         snapshot.put("contentPreview", buildBulletinContentPreview(bulletin.getContent()));
         snapshot.put("contentLength", bulletin.getContent() == null ? 0 : bulletin.getContent().trim().length());
         return writeJson(snapshot, "failed to serialize bulletin audit snapshot");
+    }
+
+    private String writeProductSnapshot(FoodProduct product) {
+        if (product == null) {
+            return "{}";
+        }
+        Map<String, Object> snapshot = new LinkedHashMap<>();
+        snapshot.put("productId", product.getId());
+        snapshot.put("enterpriseId", product.getEnterpriseId());
+        snapshot.put("productName", product.getProductName());
+        snapshot.put("category", product.getCategory());
+        snapshot.put("specification", product.getSpecification());
+        snapshot.put("status", product.getStatus());
+        snapshot.put("remark", product.getRemark());
+        snapshot.put("deleted", product.getDeleted());
+        return writeJson(snapshot, "failed to serialize product audit snapshot");
     }
 
     private String buildBulletinContentPreview(String content) {
@@ -468,9 +557,7 @@ public class AuditLogServiceImpl implements AuditLogService {
         return request.getRemoteAddr();
     }
 
-    private String buildOperatorFallback(Long operatorUserId) {
-        return operatorUserId == null
-            ? "\u7cfb\u7edf\u7ba1\u7406\u5458"
-            : "\u7cfb\u7edf\u7ba1\u7406\u5458#" + operatorUserId;
+    private String buildOperatorFallback() {
+        return "\u7cfb\u7edf";
     }
 }

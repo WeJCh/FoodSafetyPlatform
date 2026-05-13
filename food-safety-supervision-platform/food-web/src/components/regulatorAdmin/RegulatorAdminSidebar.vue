@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <aside class="reg-admin-sidebar">
     <div class="reg-admin-brand">
       <div class="reg-admin-brand__logo">食安</div>
@@ -21,10 +21,10 @@
       </button>
     </nav>
 
-    <div class="reg-admin-sidebar__footer">
-      <p>{{ username || "监管管理员" }}</p>
-      <button type="button" @click="$emit('logout')">退出登录</button>
-    </div>
+    <button type="button" class="reg-admin-logout" @click="$emit('logout')">
+      <span class="material-symbols-outlined">logout</span>
+      <span>退出登录</span>
+    </button>
   </aside>
 </template>
 
@@ -47,7 +47,7 @@ defineEmits(["navigate", "logout"]);
 .reg-admin-nav__item { border: 0; background: transparent; color: inherit; border-radius: 8px; padding: 10px 12px; display: flex; gap: 10px; align-items: center; cursor: pointer; text-align: left; }
 .reg-admin-nav__item:hover { background: rgba(51, 65, 85, 0.55); color: #fff; }
 .reg-admin-nav__item.is-active { background: rgba(37, 99, 235, 0.22); color: #bfdbfe; border-left: 3px solid #60a5fa; }
-.reg-admin-sidebar__footer { border-top: 1px solid rgba(148, 163, 184, 0.2); padding-top: 16px; display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.reg-admin-logout { border: 1px solid #334155; background: #111827; color: #e2e8f0; padding: 10px 12px; border-radius: 8px; display: flex; align-items: center; gap: 10px; cursor: pointer; margin-top: auto; }
 .reg-admin-sidebar__footer p { margin: 0; font-size: 12px; color: #e2e8f0; }
-.reg-admin-sidebar__footer button { border: 1px solid #334155; background: #111827; color: #e2e8f0; padding: 6px 10px; border-radius: 8px; cursor: pointer; }
+.reg-admin-logout:hover { background: #0b1220; color: #fecaca; border-color: rgba(248, 113, 113, 0.35); }
 </style>

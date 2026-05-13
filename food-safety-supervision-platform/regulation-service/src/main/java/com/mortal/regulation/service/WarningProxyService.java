@@ -4,8 +4,10 @@ import com.mortal.platform.common.PageResult;
 import com.mortal.regulation.dto.WarningAssignDTO;
 import com.mortal.regulation.dto.WarningProcessActionDTO;
 import com.mortal.regulation.dto.WarningRecordQueryDTO;
+import com.mortal.regulation.vo.WarningProcessLogVO;
 import com.mortal.regulation.vo.WarningRecordDetailVO;
 import com.mortal.regulation.vo.WarningRecordVO;
+import java.util.List;
 
 /**
  * 预警代理服务（监管业务侧权限过滤）。
@@ -38,6 +40,8 @@ public interface WarningProxyService {
                                              Long warningId,
                                              WarningAssignDTO assignDTO);
 
+    List<WarningProcessLogVO> listRecentAdminWarningLogs(Long userId, Integer limit);
+
     /**
      * 查询当前执法员可见预警列表。
      */
@@ -55,5 +59,7 @@ public interface WarningProxyService {
                                            String username,
                                            Long warningId,
                                            WarningProcessActionDTO actionDTO);
+
+    List<WarningProcessLogVO> listRecentMyWarningLogs(Long userId, Integer limit);
 }
 

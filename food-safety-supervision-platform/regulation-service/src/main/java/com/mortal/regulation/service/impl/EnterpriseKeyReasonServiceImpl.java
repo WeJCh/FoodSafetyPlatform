@@ -150,8 +150,9 @@ public class EnterpriseKeyReasonServiceImpl implements EnterpriseKeyReasonServic
         return switch (reasonType) {
             case WARNING_TRIGGERED -> "预警触发";
             case COMPLAINT_OVERFLOW -> "投诉过多";
-            case CONSECUTIVE_FAIL -> "连续不合格";
+            case CONSECUTIVE_INSPECTION_FAIL -> "连续检查不合格";
             case SAMPLING_FAIL -> "抽检不合格";
+            case RECTIFICATION_OVERDUE -> "整改逾期";
             case MANUAL_SET -> "人工设定";
         };
     }

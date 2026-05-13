@@ -22,11 +22,13 @@ public class EnterpriseProfileVO {
     private String addressDetail;
     private String principal;
     private String principalPhone;
+    private Long regulatorId;
     private String regulatorName;
     private String status;
     private String approvalStatus;
     private String approvalComment;
     private Long approvedBy;
+    private String approvedByName;
     private LocalDateTime approvedTime;
     private List<RegionVO> regionPath;
     private String regionPathText;

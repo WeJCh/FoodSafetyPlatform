@@ -51,27 +51,27 @@
             <span>当前 {{ inspectionRecords.length }} 条</span>
           </div>
           <div class="list-table inspection-table">
-          <div class="list-row list-header inspection-header">
-            <span>企业名称</span>
-            <span>检查日期</span>
-            <span>结果</span>
-            <span>更新时间</span>
-            <span>操作</span>
+            <div class="list-row list-header inspection-header">
+              <span>企业名称</span>
+              <span>检查日期</span>
+              <span>结果</span>
+              <span>更新时间</span>
+              <span>操作</span>
+            </div>
+            <div v-if="!inspectionRecords.length" class="list-empty records-empty">
+              <strong>暂无检查记录</strong>
+              <span>请调整筛选条件后重试</span>
+            </div>
+            <div v-for="record in inspectionRecords" :key="record.id" class="list-row inspection-row">
+              <span class="inspection-row__enterprise">{{ record.enterpriseName || "-" }}</span>
+              <span>{{ record.inspectionDate || "-" }}</span>
+              <span>
+                <em class="result-pill" :class="resultClass(record.result)">{{ formatInspectionResult(record.result) }}</em>
+              </span>
+              <span class="inspection-row__time">{{ formatTime(record.updateTime) }}</span>
+              <button class="ghost" type="button" @click="openInspectionDetail(record)">查看详情</button>
+            </div>
           </div>
-          <div v-if="!inspectionRecords.length" class="list-empty records-empty">
-            <strong>暂无检查记录</strong>
-            <span>请调整筛选条件后重试</span>
-          </div>
-          <div v-for="record in inspectionRecords" :key="record.id" class="list-row inspection-row">
-            <span class="inspection-row__enterprise">{{ record.enterpriseName || "-" }}</span>
-            <span>{{ record.inspectionDate || "-" }}</span>
-            <span>
-              <em class="result-pill" :class="resultClass(record.result)">{{ formatInspectionResult(record.result) }}</em>
-            </span>
-            <span class="inspection-row__time">{{ formatTime(record.updateTime) }}</span>
-            <button class="ghost" type="button" @click="openInspectionDetail(record)">查看详情</button>
-          </div>
-        </div>
         </div>
 
         <div class="pager">
@@ -80,7 +80,7 @@
             <button
               class="ghost"
               type="button"
-              :disabled="inspectionPage <= 1"
+              :disabled="inspectionPage <= 1 || inspectionLoading"
               @click="changeInspectionPage(inspectionPage - 1)"
             >
               上一页
@@ -88,7 +88,7 @@
             <button
               class="ghost"
               type="button"
-              :disabled="inspectionPage >= inspectionPages"
+              :disabled="inspectionPage >= inspectionPages || inspectionLoading"
               @click="changeInspectionPage(inspectionPage + 1)"
             >
               下一页
@@ -96,44 +96,6 @@
           </div>
         </div>
       </section>
-
-      <div v-if="inspectionDetail" class="modal-mask" @click.self="closeInspectionDetail">
-        <div class="modal-card">
-          <div class="modal-title">检查记录详情</div>
-          <div class="modal-body">
-            <div class="modal-field">
-              <span>企业名称</span>
-              <strong>{{ inspectionDetail.record.enterpriseName || "-" }}</strong>
-            </div>
-            <div class="modal-field">
-              <span>检查日期</span>
-              <strong>{{ inspectionDetail.record.inspectionDate || "-" }}</strong>
-            </div>
-            <div class="modal-field">
-              <span>检查结果</span>
-              <strong>{{ formatInspectionResult(inspectionDetail.record.result) }}</strong>
-            </div>
-            <div class="modal-field">
-              <span>问题描述</span>
-              <strong>{{ inspectionDetail.record.problemDesc || "-" }}</strong>
-            </div>
-            <div class="modal-field">
-              <span>检查明细</span>
-              <div class="modal-list">
-                <div v-if="!inspectionDetail.items || !inspectionDetail.items.length" class="modal-empty">暂无检查明细</div>
-                <div v-for="(item, index) in inspectionDetail.items || []" :key="index" class="modal-item">
-                  <div class="modal-item-name">{{ item.itemName || "-" }}</div>
-                  <div class="modal-item-meta">{{ formatInspectionResult(item.itemResult) }}</div>
-                  <div class="modal-item-desc">{{ item.problemDesc || "-" }}</div>
-                </div>
-              </div>
-            </div>
-          </div>
-          <div class="modal-actions">
-            <button class="ghost" type="button" @click="closeInspectionDetail">关闭</button>
-          </div>
-        </div>
-      </div>
 
       <div class="status" :class="status.type" v-if="status.message">
         {{ status.message }}
@@ -145,7 +107,7 @@
 <script setup>
 import { onMounted, reactive, ref } from "vue";
 import { useRouter } from "vue-router";
-import { fetchInspectionRecordDetail, fetchInspectionRecords } from "../../api/regulationOperation";
+import { fetchInspectionRecords } from "../../api/regulationOperation";
 import RegulatorAdminWorkspacePage from "../../components/regulatorAdmin/RegulatorAdminWorkspacePage.vue";
 import { formatTime } from "../../utils/formatters";
 import { formatStatusLabel, inspectionResultMap } from "../../utils/statusMaps";
@@ -168,11 +130,9 @@ const inspectionPage = ref(1);
 const inspectionSize = ref(8);
 const inspectionTotal = ref(0);
 const inspectionPages = ref(1);
-const inspectionDetail = ref(null);
-
 
 function goToDispatchTasks() {
-  router.push({ name: "regulator-admin-dispatch" });
+  router.push({ name: "regulator-admin-dispatch" }).catch(() => {});
 }
 
 function setStatus(message, type = "info") {
@@ -221,25 +181,15 @@ async function changeInspectionPage(nextPage) {
   await loadInspections();
 }
 
-async function openInspectionDetail(record) {
+function openInspectionDetail(record) {
   if (!record?.id) return;
-  inspectionLoading.value = true;
-  try {
-    inspectionDetail.value = await fetchInspectionRecordDetail(token.value, record.id);
-  } catch (error) {
-    setStatus(resolveErrorMessage(error, "加载检查记录失败"), "error");
-  } finally {
-    inspectionLoading.value = false;
-  }
+  router.push({
+    name: "regulator-admin-inspection-detail",
+    params: { inspectionId: record.id }
+  }).catch(() => {});
 }
 
-function closeInspectionDetail() {
-  inspectionDetail.value = null;
-}
-
-onMounted(() => {
-  loadInspections();
-});
+onMounted(loadInspections);
 </script>
 
 <style scoped>
@@ -318,11 +268,6 @@ onMounted(() => {
 .ghost:hover:not(:disabled) { background: #f8fafc; border-color: #cbd5e1; }
 .pager { margin-top: 12px; display: flex; justify-content: space-between; align-items: center; color: #64748b; font-size: 12px; }
 .pager-actions { display: flex; gap: 8px; }
-.modal-list { display: grid; gap: 10px; }
-.modal-item { padding: 10px 12px; border-radius: 4px; border: 1px solid #dbe2ea; background: #f8fbff; display: grid; gap: 4px; }
-.modal-item-name { font-weight: 700; font-size: 14px; color: #0f172a; }
-.modal-item-meta, .modal-empty { font-size: 12px; color: #64748b; }
-.modal-item-desc { font-size: 13px; color: #1f2937; }
 @media (max-width: 1024px) {
   .filter-bar { grid-template-columns: 1fr 1fr; }
 }

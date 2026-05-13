@@ -2,12 +2,12 @@
   <RegulatorEnforcerPageShell
     active-key="warnings"
     title="我的风险预警"
-    subtitle="查看分派给我的预警并执行处置动作。"
+    subtitle="仅查看当前分派给我的预警，并按预警流程执行处理。"
   >
     <section class="hero">
       <article>
-        <span>当前预警</span>
-        <strong>{{ total }}</strong>
+        <span>我的预警总数</span>
+        <strong>{{ totalWarningCount }}</strong>
       </article>
       <article>
         <span>待处理</span>
@@ -46,7 +46,7 @@
         </label>
         <label>
           预警类型
-          <input v-model.trim="filters.warningType" placeholder="例：SLA_OVERDUE_SUBMIT" />
+          <input v-model.trim="filters.warningType" placeholder="例如：COMPLAINT_OVERFLOW" />
         </label>
         <label>
           关键词
@@ -83,7 +83,7 @@
               </td>
               <td><span class="level-pill" :class="`is-${String(item.level || '').toLowerCase()}`">{{ formatWarningLevel(item.level) }}</span></td>
               <td><span class="status-pill" :class="`is-${warningStatusClass(item.status)}`">{{ formatWarningStatus(item.status) }}</span></td>
-              <td>{{ item.bizName || item.bizType || "-" }}</td>
+              <td>{{ item.bizName || "-" }}</td>
               <td>
                 <div class="action-row">
                   <button class="ghost" type="button" @click="openDetail(item)">查看详情</button>
@@ -118,9 +118,9 @@
 <script setup>
 import { computed, onMounted, reactive, ref } from "vue";
 import { useRouter } from "vue-router";
-import { fetchMyWarningRecords, processMyWarning } from "../../api/regulation";
+import { fetchMyWarningRecords, fetchWarningOverview, processMyWarning } from "../../api/regulation";
 import RegulatorEnforcerPageShell from "./RegulatorEnforcerPageShell.vue";
-import { formatByMap, formatTime } from "../../utils/formatters";
+import { formatByMap } from "../../utils/formatters";
 import { warningActionMap, warningLevelMap, warningStatusMap } from "../../utils/statusMaps";
 import { resolveErrorMessage } from "../../utils/uiFeedback";
 import { useRegulatorEnforcerShellSession } from "./regulatorEnforcerShared";
@@ -129,6 +129,7 @@ const router = useRouter();
 const { token } = useRegulatorEnforcerShellSession();
 
 const loading = ref(false);
+const summaryLoading = ref(false);
 const actionLoading = ref(false);
 const records = ref([]);
 const page = ref(1);
@@ -137,6 +138,7 @@ const total = ref(0);
 const pages = ref(1);
 const onlyPending = ref(false);
 const backupStatus = ref("");
+const summary = ref({});
 const status = reactive({ message: "", type: "info" });
 const filters = reactive({
   status: "",
@@ -145,8 +147,9 @@ const filters = reactive({
   keyword: ""
 });
 
-const openCount = computed(() => records.value.filter((item) => item.status === "OPEN").length);
-const processingCount = computed(() => records.value.filter((item) => item.status === "PROCESSING").length);
+const totalWarningCount = computed(() => Number(summary.value?.totalCount) || 0);
+const openCount = computed(() => Number(summary.value?.openCount) || 0);
+const processingCount = computed(() => Number(summary.value?.processingCount) || 0);
 
 function setStatus(message = "", type = "info") {
   status.message = message;
@@ -177,6 +180,17 @@ function warningQuickAction(statusValue) {
   if (statusValue === "OPEN") return { actionType: "PROCESS", label: "开始处理" };
   if (statusValue === "PROCESSING") return { actionType: "RESOLVE", label: "标记解决" };
   return null;
+}
+
+async function loadSummary() {
+  summaryLoading.value = true;
+  try {
+    summary.value = (await fetchWarningOverview(token.value, {})) || {};
+  } catch {
+    summary.value = {};
+  } finally {
+    summaryLoading.value = false;
+  }
 }
 
 async function loadWarnings() {
@@ -222,7 +236,7 @@ async function toggleOnlyPending() {
   await loadWarnings();
 }
 
-async function openDetail(item) {
+function openDetail(item) {
   if (!item?.id) return;
   router.push({
     name: "regulator-enforcer-warning-detail",
@@ -236,8 +250,8 @@ async function handleWarningAction(target, actionType) {
   setStatus("");
   try {
     await processMyWarning(token.value, target.id, { actionType });
-    setStatus(`预警已执行${formatWarningAction(actionType)}`, "success");
-    await loadWarnings();
+    setStatus(`预警已执行：${formatWarningAction(actionType)}`, "success");
+    await Promise.all([loadWarnings(), loadSummary()]);
   } catch (error) {
     setStatus(resolveErrorMessage(error, "预警处理失败"), "error");
   } finally {
@@ -245,7 +259,9 @@ async function handleWarningAction(target, actionType) {
   }
 }
 
-onMounted(loadWarnings);
+onMounted(async () => {
+  await Promise.all([loadWarnings(), loadSummary()]);
+});
 </script>
 
 <style scoped>

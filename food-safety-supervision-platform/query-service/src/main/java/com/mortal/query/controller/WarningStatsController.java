@@ -2,9 +2,9 @@ package com.mortal.query.controller;
 
 import com.mortal.platform.common.ApiResponse;
 import com.mortal.query.dto.WarningStatsQueryDTO;
-import com.mortal.query.support.QueryRateLimitService;
 import com.mortal.query.service.WarningStatsQueryService;
 import com.mortal.query.service.WarningStatsScopeService;
+import com.mortal.query.support.QueryRateLimitService;
 import com.mortal.query.vo.WarningEfficiencyStatsVO;
 import com.mortal.query.vo.WarningStatsOverviewVO;
 import com.mortal.query.vo.WarningTrendPointVO;
@@ -27,7 +27,7 @@ import org.springframework.web.bind.annotation.RestController;
 /**
  * 预警统计查询接口（监管看板）。
  *
- * <p>P0 阶段 query-service 仅承载预警统计聚合能力，不扩展企业、检查、投诉综合统计接口。</p>
+ * <p>当前阶段 query-service 仅承载预警统计聚合能力，不扩展企业、检查、投诉综合统计接口。</p>
  */
 @RestController
 @RequestMapping("/api/query/warnings")
@@ -79,7 +79,7 @@ public class WarningStatsController {
 
     @Operation(
         summary = "预警趋势统计",
-        description = "返回按天趋势，时间锚点为 firstOccurTime。未传 startTime/endTime 时按 trendDays（默认7天）统计。"
+        description = "返回按天趋势，时间锚点为 firstOccurTime。未传 startTime/endTime 时按 trendDays（默认 7 天）统计。"
     )
     @GetMapping("/trend")
     public ApiResponse<List<WarningTrendPointVO>> trend(@ParameterObject WarningStatsQueryDTO queryDTO,
@@ -101,7 +101,7 @@ public class WarningStatsController {
     }
 
     @Operation(
-        summary = "预警类型Top统计",
+        summary = "预警类型 Top 统计",
         description = "按 warningType 原值分组统计，默认返回 Top5，不做中文 label 映射。"
     )
     @GetMapping("/types")

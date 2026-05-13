@@ -1,5 +1,6 @@
 package com.mortal.user.vo;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import lombok.Data;
 
@@ -12,5 +13,7 @@ public class UserVO {
     private String phone;
     private String userType;
     private Integer status;
+    private LocalDateTime createTime;
+    private LocalDateTime updateTime;
     private List<String> roles;
 }

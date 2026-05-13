@@ -89,14 +89,14 @@ class InspectionTaskServiceImplTest {
         assertEquals("COMPLETED", task.getStatus());
         verify(masterDataSupport).markEnterpriseAsKey(
             300L,
-            "CONSECUTIVE_FAIL",
+            "CONSECUTIVE_INSPECTION_FAIL",
             "企业最近2次检查均为不合格，已自动纳入重点监管",
             "ROUTINE",
             501L,
             20L
         );
         verify(warningEventOutboxService).ensurePendingEvent(any(), any(), any());
-        verify(warningEventOutboxService).dispatchByEventKey("INSPECTION:501:INSPECTION_CONSECUTIVE_FAIL");
+        verify(warningEventOutboxService).dispatchByEventKey("INSPECTION:501:CONSECUTIVE_INSPECTION_FAIL");
         verify(rectificationService).createFromInspection(501L, 300L, "请针对本次检查不合格项完成整改并提交整改说明。\n问题概述：冷藏温度不达标\n不合格项：冷藏设备（温度记录异常）");
     }
 

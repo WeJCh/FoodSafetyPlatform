@@ -1,32 +1,13 @@
-<template>
-  <div class="public-enterprise-detail-page">
-    <header class="public-enterprise-detail-page__topbar">
-      <div class="public-enterprise-detail-page__topbar-inner">
-        <div class="public-enterprise-detail-page__brand-nav">
-          <span class="public-enterprise-detail-page__brand">食品安全监管平台</span>
-          <nav class="public-enterprise-detail-page__nav" aria-label="公众导航">
-            <button
-              v-for="item in topNavItems"
-              :key="item.key"
-              type="button"
-              class="public-enterprise-detail-page__nav-item"
-              :class="{ 'is-active': item.key === 'enterprises' }"
-              @click="goTo(item.routeName)"
-            >
-              {{ item.label }}
-            </button>
-          </nav>
-        </div>
-        <div class="public-enterprise-detail-page__toolbar">
-          <label class="public-enterprise-detail-page__search-box">
-            <span class="material-symbols-outlined" aria-hidden="true">search</span>
-            <input v-model.trim="searchKeyword" type="text" placeholder="搜索企业..." @keyup.enter="goToListWithSearch" />
-          </label>
-          <button type="button" class="ghost public-enterprise-detail-page__logout" @click="handleLogout">退出登录</button>
-        </div>
-      </div>
-    </header>
-
+﻿<template>
+    <PublicWorkspacePage
+    page-class="public-enterprise-detail-page"
+    active-key="enterprises"
+    :show-search="true"
+    v-model:search-value="searchKeyword"
+    search-placeholder="搜索企业名称"
+    :search-min-width="220"
+    @search="goToListWithSearch"
+  >
     <main class="public-enterprise-detail-page__main">
       <AppStatusToast v-if="loading" message="详情加载中..." type="info" />
       <AppStatusToast v-else-if="!detail" :message="status.message || '未找到对应的企业公示信息。'" type="error" />
@@ -49,7 +30,7 @@
           <article class="public-enterprise-detail-page__article-card">
             <div class="public-enterprise-detail-page__meta-grid">
               <div>
-                <span>法定代表人</span>
+                <span>娉曞畾浠ｈ〃浜</span>
                 <strong>{{ detail.legalRepresentative || "-" }}</strong>
               </div>
               <div>
@@ -57,7 +38,7 @@
                 <strong>{{ detail.principal || "-" }}</strong>
               </div>
               <div>
-                <span>联系电话</span>
+                <span>鑱旂郴鐢佃瘽</span>
                 <strong>{{ detail.principalPhoneMasked || "-" }}</strong>
               </div>
               <div>
@@ -123,16 +104,17 @@
         </section>
       </template>
     </main>
-  </div>
+    </PublicWorkspacePage>
 </template>
 
 <script setup>
 import { computed, onMounted, reactive, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
+import PublicWorkspacePage from "../../components/public/PublicWorkspacePage.vue";
 import { fetchPublicEnterpriseDetail } from "../../api/regulation";
 import AppEmptyState from "../../components/common/AppEmptyState.vue";
 import AppStatusToast from "../../components/common/AppStatusToast.vue";
-import { getActiveSession, performLogout } from "../../session/authRuntime";
+import { getActiveSession } from "../../session/authRuntime";
 import { resolveErrorMessage } from "../../utils/uiFeedback";
 
 const router = useRouter();
@@ -162,19 +144,6 @@ const fullAddress = computed(() => {
   const result = [regionText, address].filter(Boolean).join(" ");
   return result || "-";
 });
-
-const topNavItems = [
-  { key: "home", label: "首页", routeName: "public-home" },
-  { key: "bulletins", label: "监管公告", routeName: "public-bulletins" },
-  { key: "enterprises", label: "企业公示", routeName: "public-enterprises" },
-  { key: "sampling", label: "抽检结果", routeName: "public-sampling-results" },
-  { key: "complaint-create", label: "我要投诉", routeName: "public-complaint-create" },
-  { key: "complaints", label: "我的投诉", routeName: "public-complaints" }
-];
-
-function goTo(name) {
-  router.push({ name }).catch(() => {});
-}
 
 function buildListQuery() {
   const query = {};
@@ -219,11 +188,6 @@ async function loadDetail() {
 
 function goBack() {
   router.push({ name: "public-enterprises", query: buildListQuery() }).catch(() => {});
-}
-
-async function handleLogout() {
-  await performLogout();
-  router.replace({ name: "login" }).catch(() => {});
 }
 
 onMounted(loadDetail);
@@ -316,6 +280,16 @@ watch(() => route.params.enterpriseId, loadDetail);
   background: transparent;
   font-size: var(--public-toolbar-input-size);
   min-width: var(--public-toolbar-input-min-w);
+}
+
+.public-enterprise-detail-page__account {
+  min-height: var(--public-toolbar-min-h);
+  margin: 0;
+  padding-inline: 12px;
+}
+
+.public-enterprise-detail-page__account .material-symbols-outlined {
+  font-size: 22px;
 }
 
 .public-enterprise-detail-page__logout {
@@ -652,3 +626,7 @@ watch(() => route.params.enterpriseId, loadDetail);
   }
 }
 </style>
+
+
+
+

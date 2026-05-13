@@ -12,7 +12,7 @@ import lombok.EqualsAndHashCode;
 public class WarningRecordDetailVO extends WarningRecordVO {
 
     /**
-     * 处理日志
+     * 处理日志。
      */
     private List<WarningProcessLogVO> processLogs;
 }

@@ -5,7 +5,9 @@ import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.mortal.user.dto.LoginDTO;
 import com.mortal.user.dto.LoginResult;
 import com.mortal.user.dto.PublicRegisterDTO;
+import com.mortal.user.dto.UserPasswordChangeDTO;
 import com.mortal.user.dto.UserRegisterDTO;
+import com.mortal.user.dto.UserSelfUpdateDTO;
 import com.mortal.user.dto.UserUpdateDTO;
 import com.mortal.user.entity.Role;
 import com.mortal.user.entity.User;
@@ -141,6 +143,12 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
+    public UserVO getCurrentUser(String token) {
+        Long userId = requireUserId(token);
+        return getUserById(userId);
+    }
+
+    @Override
     public UserVO updateUser(UserUpdateDTO dto) {
         User user = userMapper.selectById(dto.getId());
         if (user == null || (user.getDeleted() != null && user.getDeleted() == 1)) {
@@ -153,6 +161,33 @@ public class UserServiceImpl implements UserService {
         userMapper.updateById(user);
         authRedisService.invalidateUserAllSessions(user.getId());
         return toUserVO(user);
+    }
+
+    @Override
+    public UserVO updateCurrentUser(String token, UserSelfUpdateDTO dto) {
+        User user = requireActiveUser(requireUserId(token));
+        user.setRealName(dto.getRealName());
+        user.setPhone(dto.getPhone());
+        user.setUpdateTime(LocalDateTime.now());
+        userMapper.updateById(user);
+        UserVO vo = toUserVO(user);
+        vo.setRoles(loadRoleCodes(user.getId()));
+        return vo;
+    }
+
+    @Override
+    public void changeCurrentUserPassword(String token, UserPasswordChangeDTO dto) {
+        User user = requireActiveUser(requireUserId(token));
+        if (!PasswordEncoderUtil.matches(dto.getOldPassword(), user.getPassword())) {
+            throw new IllegalArgumentException("old password incorrect");
+        }
+        if (PasswordEncoderUtil.matches(dto.getNewPassword(), user.getPassword())) {
+            throw new IllegalArgumentException("new password must be different");
+        }
+        user.setPassword(PasswordEncoderUtil.encode(dto.getNewPassword()));
+        user.setUpdateTime(LocalDateTime.now());
+        userMapper.updateById(user);
+        authRedisService.invalidateUserAllSessions(user.getId());
     }
 
     @Override
@@ -198,7 +233,28 @@ public class UserServiceImpl implements UserService {
         vo.setPhone(user.getPhone());
         vo.setUserType(user.getUserType());
         vo.setStatus(user.getStatus());
+        vo.setCreateTime(user.getCreateTime());
+        vo.setUpdateTime(user.getUpdateTime());
         return vo;
+    }
+
+    private Long requireUserId(String token) {
+        Long userId = tokenUtil.getUserId(token);
+        if (userId == null) {
+            throw new IllegalArgumentException("unauthorized");
+        }
+        return userId;
+    }
+
+    private User requireActiveUser(Long userId) {
+        User user = userMapper.selectById(userId);
+        if (user == null || Objects.equals(user.getDeleted(), 1)) {
+            throw new IllegalArgumentException("user not found");
+        }
+        if (Objects.equals(user.getStatus(), UserStatus.DISABLED.code())) {
+            throw new IllegalArgumentException("user disabled");
+        }
+        return user;
     }
 
     private User createBaseUser(String username, String password, String realName, String phone, String userType) {

@@ -7,6 +7,7 @@ import lombok.Data;
 @Data
 public class EnterpriseApprovalDTO {
 
+    private Long regulatorId;
     @Size(max = 50, message = "regulatorName too long")
     private String regulatorName;
     @NotBlank(message = "comment is required")

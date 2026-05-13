@@ -1,32 +1,13 @@
-<template>
-  <div class="public-sampling-result-detail-page">
-    <header class="public-sampling-result-detail-page__topbar">
-      <div class="public-sampling-result-detail-page__topbar-inner">
-        <div class="public-sampling-result-detail-page__brand-nav">
-          <span class="public-sampling-result-detail-page__brand">食品安全监管平台</span>
-          <nav class="public-sampling-result-detail-page__nav" aria-label="公众导航">
-            <button
-              v-for="item in topNavItems"
-              :key="item.key"
-              type="button"
-              class="public-sampling-result-detail-page__nav-item"
-              :class="{ 'is-active': item.key === 'sampling' }"
-              @click="goTo(item.routeName)"
-            >
-              {{ item.label }}
-            </button>
-          </nav>
-        </div>
-        <div class="public-sampling-result-detail-page__toolbar">
-          <label class="public-sampling-result-detail-page__search-box">
-            <span class="material-symbols-outlined" aria-hidden="true">search</span>
-            <input v-model.trim="searchKeyword" type="text" placeholder="搜索抽检企业" @keyup.enter="goToListWithSearch" />
-          </label>
-          <button type="button" class="ghost public-sampling-result-detail-page__logout" @click="handleLogout">退出登录</button>
-        </div>
-      </div>
-    </header>
-
+﻿<template>
+    <PublicWorkspacePage
+    page-class="public-sampling-result-detail-page"
+    active-key="sampling"
+    :show-search="true"
+    v-model:search-value="searchKeyword"
+    search-placeholder="搜索抽检企业"
+    :search-min-width="220"
+    @search="goToListWithSearch"
+  >
     <main class="public-sampling-result-detail-page__main">
       <AppStatusToast v-if="loading" message="详情加载中..." type="info" />
       <AppStatusToast v-else-if="!detail" message="未找到对应的抽检结果。" type="error" />
@@ -56,7 +37,7 @@
                 <strong>{{ formatResult(detail.result) }}</strong>
               </div>
               <div>
-                <span>采样时间</span>
+                <span>閲囨牱鏃堕棿</span>
                 <strong>{{ formatTime(detail.sampledTime) }}</strong>
               </div>
               <div>
@@ -121,16 +102,17 @@
         </section>
       </template>
     </main>
-  </div>
+    </PublicWorkspacePage>
 </template>
 
 <script setup>
 import { onMounted, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
+import PublicWorkspacePage from "../../components/public/PublicWorkspacePage.vue";
 import AppStatusTag from "../../components/common/AppStatusTag.vue";
 import AppStatusToast from "../../components/common/AppStatusToast.vue";
 import { fetchPublicSamplingResultDetail } from "../../api/regulationOperation";
-import { getActiveSession, performLogout } from "../../session/authRuntime";
+import { getActiveSession } from "../../session/authRuntime";
 import { formatStatusLabel, inspectionResultMap, samplingPublicStatusMap } from "../../utils/statusMaps";
 import { formatTime } from "../../utils/formatters";
 
@@ -141,25 +123,12 @@ const loading = ref(false);
 const detail = ref(null);
 const searchKeyword = ref(String(route.query.enterpriseName || ""));
 
-const topNavItems = [
-  { key: "home", label: "首页", routeName: "public-home" },
-  { key: "bulletins", label: "监管公告", routeName: "public-bulletins" },
-  { key: "enterprises", label: "企业公示", routeName: "public-enterprises" },
-  { key: "sampling", label: "抽检结果", routeName: "public-sampling-results" },
-  { key: "complaint-create", label: "我要投诉", routeName: "public-complaint-create" },
-  { key: "complaints", label: "我的投诉", routeName: "public-complaints" }
-];
-
 function formatPublicStatus(value) {
   return formatStatusLabel(value, samplingPublicStatusMap);
 }
 
 function formatResult(value) {
   return formatStatusLabel(value, inspectionResultMap);
-}
-
-function goTo(name) {
-  router.push({ name }).catch(() => {});
 }
 
 function goToListWithSearch() {
@@ -174,11 +143,6 @@ function goToListWithSearch() {
     name: "public-sampling-results",
     query: nextQuery
   }).catch(() => {});
-}
-
-async function handleLogout() {
-  await performLogout();
-  router.replace({ name: "login" }).catch(() => {});
 }
 
 async function loadDetail() {
@@ -227,6 +191,8 @@ watch(() => route.params.samplingResultId, loadDetail);
 .public-sampling-result-detail-page__toolbar { display: flex; align-items: center; gap: 10px; }
 .public-sampling-result-detail-page__search-box { display: inline-flex; align-items: center; gap: 6px; border-radius: 8px; border: 1px solid rgba(195, 198, 211, 0.44); background: rgba(255, 255, 255, 0.75); padding: 0 14px; min-height: var(--public-toolbar-min-h); }
 .public-sampling-result-detail-page__search-box input { border: none; background: transparent; font-size: var(--public-toolbar-input-size); min-width: var(--public-toolbar-input-min-w); }
+.public-sampling-result-detail-page__account { min-height: var(--public-toolbar-min-h); margin: 0; padding-inline: 12px; }
+.public-sampling-result-detail-page__account .material-symbols-outlined { font-size: 22px; }
 .public-sampling-result-detail-page__logout { min-height: var(--public-toolbar-min-h); font-size: var(--public-logout-font-size); margin: 0; }
 .public-sampling-result-detail-page__main { max-width: 1680px; margin: 0 auto; padding: 24px 16px 48px; }
 .public-sampling-result-detail-page__hero { margin-bottom: 24px; border-radius: 12px; padding: 24px 28px; color: #fff; background: linear-gradient(135deg, #002660 0%, #003a8c 100%); }
@@ -267,3 +233,7 @@ watch(() => route.params.samplingResultId, loadDetail);
 @media (max-width: 1100px) { .public-sampling-result-detail-page__nav { display: none; } .public-sampling-result-detail-page__content { grid-template-columns: 1fr; } }
 @media (max-width: 760px) { .public-sampling-result-detail-page__topbar-inner, .public-sampling-result-detail-page__main { padding-left: 12px; padding-right: 12px; } .public-sampling-result-detail-page__toolbar { display: none; } .public-sampling-result-detail-page__hero { padding: 20px 16px; } .public-sampling-result-detail-page__meta-grid { grid-template-columns: 1fr 1fr; } .public-sampling-result-detail-page__field-grid { grid-template-columns: 1fr; } }
 </style>
+
+
+
+

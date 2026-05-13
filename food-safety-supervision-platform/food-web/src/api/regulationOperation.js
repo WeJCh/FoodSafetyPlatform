@@ -373,6 +373,22 @@ export function fetchRectificationActions(token, id) {
   });
 }
 
+export function fetchRecentRectificationActions(token, limit = 10) {
+  const search = new URLSearchParams();
+  if (limit) search.append("limit", limit);
+  const query = search.toString();
+  return requestWithBase(
+    REGULATION_OPERATION_BASE_URL,
+    `/api/regulation-operation/rectifications/actions/recent${query ? `?${query}` : ""}`,
+    {
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${token}`
+      }
+    }
+  );
+}
+
 export function fetchMyInspectionRecords(token, params = {}) {
   const search = new URLSearchParams();
   if (params.enterpriseName) search.append("enterpriseName", params.enterpriseName);

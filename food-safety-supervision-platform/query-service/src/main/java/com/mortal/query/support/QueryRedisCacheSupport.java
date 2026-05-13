@@ -2,7 +2,6 @@ package com.mortal.query.support;
 
 import com.mortal.platform.common.redis.PlatformRedisCacheLookup;
 import com.mortal.platform.common.redis.PlatformRedisSupport;
-import com.mortal.platform.common.redis.PlatformRedisNullValue;
 import com.mortal.query.config.QueryCacheProperties;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
@@ -17,6 +16,7 @@ public class QueryRedisCacheSupport {
 
     private static final String LOCK_SUFFIX = ":lock";
     private static final String SCENE = "query-cache";
+    private static final String NULL_SENTINEL = "__fsp:redis:null__";
 
     private final RedisTemplate<String, Object> redisTemplate;
     private final PlatformRedisSupport platformRedisSupport;
@@ -61,7 +61,7 @@ public class QueryRedisCacheSupport {
             if (value == null) {
                 return PlatformRedisCacheLookup.miss();
             }
-            if (value instanceof PlatformRedisNullValue) {
+            if (NULL_SENTINEL.equals(value)) {
                 return PlatformRedisCacheLookup.nullValue();
             }
             return PlatformRedisCacheLookup.hit(value);
@@ -111,7 +111,7 @@ public class QueryRedisCacheSupport {
 
     private <T> T loadAndCache(String key, Supplier<T> loader, long ttlSeconds) {
         T loaded = loader.get();
-        Object cachedValue = loaded == null ? PlatformRedisNullValue.INSTANCE : loaded;
+        Object cachedValue = loaded == null ? NULL_SENTINEL : loaded;
         long resolvedTtlSeconds = loaded == null ? 60L : ttlSeconds;
         try {
             redisTemplate.opsForValue().set(key, cachedValue, platformRedisSupport.jitterTtl(resolvedTtlSeconds));

@@ -2,8 +2,12 @@ package com.mortal.regulation.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
+import com.mortal.platform.common.ApiResponse;
 import com.mortal.regulation.client.UserServiceClient;
+import com.mortal.regulation.client.dto.UserUpdateDTO;
+import com.mortal.regulation.client.vo.UserVO;
 import com.mortal.regulation.dto.RegulatorProfileDTO;
+import com.mortal.regulation.dto.RegulatorSelfUpdateDTO;
 import com.mortal.regulation.entity.AddrRegion;
 import com.mortal.regulation.entity.FoodRegulator;
 import com.mortal.regulation.entity.FoodRegulatorRegion;
@@ -12,6 +16,7 @@ import com.mortal.regulation.mapper.FoodRegulatorMapper;
 import com.mortal.regulation.mapper.FoodRegulatorRegionMapper;
 import com.mortal.regulation.service.AuditLogService;
 import com.mortal.regulation.service.RegulatorProfileService;
+import com.mortal.regulation.support.AuditOperatorNameResolver;
 import com.mortal.regulation.support.RegulatorMasterCacheService;
 import com.mortal.regulation.vo.AuditLogVO;
 import com.mortal.regulation.vo.RegulatorProfileVO;
@@ -42,24 +47,27 @@ public class RegulatorProfileServiceImpl implements RegulatorProfileService {
     private final UserServiceClient userServiceClient;
     private final RegulatorMasterCacheService regulatorMasterCacheService;
     private final AuditLogService auditLogService;
+    private final AuditOperatorNameResolver auditOperatorNameResolver;
 
     public RegulatorProfileServiceImpl(FoodRegulatorMapper foodRegulatorMapper,
                                        FoodRegulatorRegionMapper foodRegulatorRegionMapper,
                                        AddrRegionMapper addrRegionMapper,
                                        UserServiceClient userServiceClient,
                                        RegulatorMasterCacheService regulatorMasterCacheService,
-                                       AuditLogService auditLogService) {
+                                       AuditLogService auditLogService,
+                                       AuditOperatorNameResolver auditOperatorNameResolver) {
         this.foodRegulatorMapper = foodRegulatorMapper;
         this.foodRegulatorRegionMapper = foodRegulatorRegionMapper;
         this.addrRegionMapper = addrRegionMapper;
         this.userServiceClient = userServiceClient;
         this.regulatorMasterCacheService = regulatorMasterCacheService;
         this.auditLogService = auditLogService;
+        this.auditOperatorNameResolver = auditOperatorNameResolver;
     }
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public RegulatorProfileVO createOrUpdate(Long operatorUserId, String operatorName, RegulatorProfileDTO dto) {
+    public RegulatorProfileVO createOrUpdate(Long operatorUserId, String operatorUsername, RegulatorProfileDTO dto) {
         String roleType = normalize(dto.getRoleType());
         if (!ROLE_TYPES.contains(roleType)) {
             throw new IllegalArgumentException("invalid regulator role");
@@ -93,7 +101,7 @@ public class RegulatorProfileServiceImpl implements RegulatorProfileService {
         evictRegulatorCaches(regulator);
         auditLogService.recordRegulatorAudit(
             operatorUserId,
-            operatorName,
+            resolveOperatorName(operatorUserId, operatorUsername),
             created ? "REGULATOR_CREATE" : "REGULATOR_UPDATE",
             created ? "创建监管人员" : "更新监管人员",
             beforeRegulator,
@@ -114,6 +122,38 @@ public class RegulatorProfileServiceImpl implements RegulatorProfileService {
             return null;
         }
         List<Long> regionIds = findRegionIds(regulator.getId());
+        return toVO(regulator, regionIds);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public RegulatorProfileVO updateMyProfile(Long operatorUserId, String operatorUsername, RegulatorSelfUpdateDTO dto) {
+        FoodRegulator regulator = foodRegulatorMapper.selectOne(new LambdaQueryWrapper<FoodRegulator>()
+            .eq(FoodRegulator::getUserId, operatorUserId)
+            .eq(FoodRegulator::getDeleted, 0)
+            .last("limit 1"));
+        if (regulator == null) {
+            throw new IllegalArgumentException("regulator not found");
+        }
+        List<Long> regionIds = findRegionIds(regulator.getId());
+        FoodRegulator beforeRegulator = copyRegulator(regulator);
+        regulator.setName(dto.getName().trim());
+        regulator.setPhone(dto.getPhone());
+        regulator.setUpdateTime(LocalDateTime.now());
+        foodRegulatorMapper.updateById(regulator);
+        syncUserAccount(regulator);
+        evictRegulatorCaches(regulator);
+        auditLogService.recordRegulatorAudit(
+            operatorUserId,
+            resolveOperatorName(operatorUserId, operatorUsername),
+            "REGULATOR_SELF_UPDATE",
+            "更新个人资料",
+            beforeRegulator,
+            copyRegulator(regulator),
+            regionIds,
+            regionIds,
+            null
+        );
         return toVO(regulator, regionIds);
     }
 
@@ -196,7 +236,7 @@ public class RegulatorProfileServiceImpl implements RegulatorProfileService {
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public RegulatorProfileVO updateStatus(Long operatorUserId, String operatorName, Long id, Integer status) {
+    public RegulatorProfileVO updateStatus(Long operatorUserId, String operatorUsername, Long id, Integer status) {
         if (status == null || (status != 0 && status != 1)) {
             throw new IllegalArgumentException("status must be 0 or 1");
         }
@@ -212,7 +252,7 @@ public class RegulatorProfileServiceImpl implements RegulatorProfileService {
         evictRegulatorCaches(regulator);
         auditLogService.recordRegulatorAudit(
             operatorUserId,
-            operatorName,
+            resolveOperatorName(operatorUserId, operatorUsername),
             "REGULATOR_STATUS_CHANGE",
             "调整账号状态",
             before,
@@ -226,7 +266,7 @@ public class RegulatorProfileServiceImpl implements RegulatorProfileService {
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public void deleteRegulator(Long operatorUserId, String operatorName, Long id) {
+    public void deleteRegulator(Long operatorUserId, String operatorUsername, Long id) {
         FoodRegulator regulator = foodRegulatorMapper.selectById(id);
         if (regulator == null || isDeleted(regulator.getDeleted())) {
             return;
@@ -246,7 +286,7 @@ public class RegulatorProfileServiceImpl implements RegulatorProfileService {
         evictRegulatorCaches(regulator);
         auditLogService.recordRegulatorAudit(
             operatorUserId,
-            operatorName,
+            resolveOperatorName(operatorUserId, operatorUsername),
             "REGULATOR_DELETE",
             "删除监管人员",
             beforeRegulator,
@@ -263,7 +303,7 @@ public class RegulatorProfileServiceImpl implements RegulatorProfileService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public RegulatorProfileVO adjustRegions(Long operatorUserId,
-                                            String operatorName,
+                                            String operatorUsername,
                                             Long id,
                                             List<Long> regionIds,
                                             String remark) {
@@ -280,7 +320,7 @@ public class RegulatorProfileServiceImpl implements RegulatorProfileService {
         evictRegulatorCaches(regulator);
         auditLogService.recordRegulatorAudit(
             operatorUserId,
-            operatorName,
+            resolveOperatorName(operatorUserId, operatorUsername),
             "REGULATOR_REGION_ADJUST",
             "调整监管辖区",
             beforeRegulator,
@@ -412,6 +452,23 @@ public class RegulatorProfileServiceImpl implements RegulatorProfileService {
         regulatorMasterCacheService.bumpScopeEnterpriseVersion();
     }
 
+    private void syncUserAccount(FoodRegulator regulator) {
+        if (regulator == null || regulator.getUserId() == null) {
+            return;
+        }
+        ApiResponse<UserVO> currentUserResponse = userServiceClient.getUserById(regulator.getUserId());
+        UserVO currentUser = currentUserResponse == null ? null : currentUserResponse.getData();
+        if (currentUser == null) {
+            throw new IllegalArgumentException("user not found");
+        }
+        UserUpdateDTO dto = new UserUpdateDTO();
+        dto.setId(regulator.getUserId());
+        dto.setRealName(regulator.getName());
+        dto.setPhone(regulator.getPhone());
+        dto.setStatus(currentUser.getStatus());
+        userServiceClient.updateUser(regulator.getUserId(), dto);
+    }
+
     private List<Long> resolveAssignableRegionIds(Long regionId) {
         if (regionId == null) {
             return List.of();
@@ -506,6 +563,14 @@ public class RegulatorProfileServiceImpl implements RegulatorProfileService {
 
     private String normalize(String value) {
         return StringUtils.hasText(value) ? value.trim().toUpperCase() : null;
+    }
+
+    private String resolveOperatorName(Long operatorUserId, String operatorUsername) {
+        FoodRegulator operator = foodRegulatorMapper.selectOne(new LambdaQueryWrapper<FoodRegulator>()
+            .eq(FoodRegulator::getUserId, operatorUserId)
+            .eq(FoodRegulator::getDeleted, 0)
+            .last("limit 1"));
+        return auditOperatorNameResolver.resolveRegulatorOperatorName(operator, operatorUsername);
     }
 
     private RegulatorProfileVO toVO(FoodRegulator regulator, List<Long> regionIds) {

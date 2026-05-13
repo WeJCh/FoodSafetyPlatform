@@ -4,9 +4,11 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.mortal.complaint.client.regulation.vo.InternalEnterpriseDetailVO;
 import com.mortal.complaint.client.regulation.vo.InternalRegulatorIdentityVO;
+import com.mortal.complaint.domain.enums.ComplaintStatus;
 import com.mortal.complaint.vo.AuditLogVO;
 import com.mortal.complaint.vo.ComplaintDetailVO;
 import com.mortal.complaint.vo.ComplaintListVO;
+import com.mortal.complaint.vo.ComplaintPublicStatsVO;
 import com.mortal.complaint.vo.ComplaintVO;
 import com.mortal.platform.common.PageResult;
 import com.mortal.complaint.domain.entity.Complaint;
@@ -47,24 +49,59 @@ public class ComplaintQueryService {
      * @param size 每页大小
      * @return 投诉列表
      */
-    public PageResult<ComplaintListVO> listMyPublic(Long submitterUserId, String status, int page, int size) {
+    public PageResult<ComplaintListVO> listMyPublic(Long submitterUserId,
+                                                    String status,
+                                                    String keyword,
+                                                    int page,
+                                                    int size) {
         if (submitterUserId == null) {
             throw new IllegalArgumentException("unauthorized");
         }
+        LambdaQueryWrapper<Complaint> wrapper = buildMyPublicWrapper(submitterUserId, status, keyword);
+        wrapper.orderByDesc(Complaint::getUpdateTime);
+        Page<Complaint> pageInfo = complaintMapper.selectPage(new Page<>(page, size), wrapper);
+        List<Complaint> complaints = pageInfo.getRecords();
+        Map<Long, String> enterpriseNames = complaintDataSupport.loadEnterpriseNames(complaints);
+        Map<Long, String> handleResults = complaintDataSupport.loadHandleResults(complaints);
+        List<ComplaintListVO> records = complaints.stream()
+            .map(complaint -> complaintDataSupport.toListVO(complaint, enterpriseNames, handleResults))
+            .toList();
+        return PageResult.of(records, pageInfo.getTotal(), page, size);
+    }
+
+    public ComplaintPublicStatsVO statsMyPublic(Long submitterUserId, String status, String keyword) {
+        if (submitterUserId == null) {
+            throw new IllegalArgumentException("unauthorized");
+        }
+        ComplaintPublicStatsVO vo = new ComplaintPublicStatsVO();
+        vo.setTotalCount(complaintMapper.selectCount(buildMyPublicWrapper(submitterUserId, status, keyword)));
+        vo.setProcessingCount(complaintMapper.selectCount(buildMyPublicWrapper(submitterUserId, status, keyword)
+            .in(Complaint::getStatus, List.of(ComplaintStatus.PENDING, ComplaintStatus.ASSIGNED, ComplaintStatus.PROCESSING))));
+        vo.setFinishedCount(complaintMapper.selectCount(buildMyPublicWrapper(submitterUserId, status, keyword)
+            .in(Complaint::getStatus, List.of(ComplaintStatus.FEEDBACKED, ComplaintStatus.REJECTED))));
+        return vo;
+    }
+
+    private LambdaQueryWrapper<Complaint> buildMyPublicWrapper(Long submitterUserId, String status, String keyword) {
         LambdaQueryWrapper<Complaint> wrapper = new LambdaQueryWrapper<Complaint>()
             .eq(Complaint::getDeleted, 0)
             .eq(Complaint::getSubmitterUserId, submitterUserId);
         if (StringUtils.hasText(status)) {
             wrapper.eq(Complaint::getStatus, complaintDataSupport.normalize(status));
         }
-        wrapper.orderByDesc(Complaint::getUpdateTime);
-        Page<Complaint> pageInfo = complaintMapper.selectPage(new Page<>(page, size), wrapper);
-        List<Complaint> complaints = pageInfo.getRecords();
-        Map<Long, String> enterpriseNames = complaintDataSupport.loadEnterpriseNames(complaints);
-        List<ComplaintListVO> records = complaints.stream()
-            .map(complaint -> complaintDataSupport.toListVO(complaint, enterpriseNames))
-            .toList();
-        return PageResult.of(records, pageInfo.getTotal(), page, size);
+        if (StringUtils.hasText(keyword)) {
+            String normalizedKeyword = keyword.trim();
+            List<Long> enterpriseIds = complaintDataSupport.resolveEnterpriseIdsByName(normalizedKeyword);
+            wrapper.and(item -> {
+                item.like(Complaint::getComplaintNo, normalizedKeyword)
+                    .or()
+                    .like(Complaint::getContent, normalizedKeyword);
+                if (enterpriseIds != null && !enterpriseIds.isEmpty()) {
+                    item.or().in(Complaint::getEnterpriseId, enterpriseIds);
+                }
+            });
+        }
+        return wrapper;
     }
     /**
      * 获取我的公共投诉详情
@@ -94,6 +131,7 @@ public class ComplaintQueryService {
      * @return 投诉列表
      */
     public PageResult<ComplaintVO> list(Long operatorUserId,
+                                        String complaintType,
                                         String status,
                                         String enterpriseName,
                                         String assignedToName,
@@ -103,6 +141,9 @@ public class ComplaintQueryService {
         InternalRegulatorIdentityVO regulator = complaintDataSupport.requireRegulatorByUserId(operatorUserId);
         LambdaQueryWrapper<Complaint> wrapper = new LambdaQueryWrapper<Complaint>()
             .eq(Complaint::getDeleted, 0);
+        if (StringUtils.hasText(complaintType)) {
+            wrapper.eq(Complaint::getComplaintType, complaintDataSupport.normalizeComplaintType(complaintType));
+        }
         if (StringUtils.hasText(status)) {
             wrapper.eq(Complaint::getStatus, complaintDataSupport.normalize(status));
         }
@@ -153,6 +194,10 @@ public class ComplaintQueryService {
             })
             .toList();
         return PageResult.of(records, pageInfo.getTotal(), page, size);
+    }
+
+    public InternalRegulatorIdentityVO requireRegulator(Long operatorUserId) {
+        return complaintDataSupport.requireRegulatorByUserId(operatorUserId);
     }
     /**
      * 获取投诉详情

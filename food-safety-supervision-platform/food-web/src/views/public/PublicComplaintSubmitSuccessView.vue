@@ -1,35 +1,15 @@
-<template>
-  <div class="public-complaint-success-page">
-    <header class="public-complaint-success-page__topbar">
-      <div class="public-complaint-success-page__topbar-inner">
-        <div class="public-complaint-success-page__brand-nav">
-          <span class="public-complaint-success-page__brand">食品安全监管平台</span>
-          <nav class="public-complaint-success-page__nav" aria-label="公众导航">
-            <button
-              v-for="item in topNavItems"
-              :key="item.key"
-              type="button"
-              class="public-complaint-success-page__nav-item"
-              :class="{ 'is-active': item.key === 'complaints' }"
-              @click="goTo(item.routeName)"
-            >
-              {{ item.label }}
-            </button>
-          </nav>
-        </div>
-        <div class="public-complaint-success-page__toolbar">
-          <button type="button" class="ghost public-complaint-success-page__logout" @click="handleLogout">退出登录</button>
-        </div>
-      </div>
-    </header>
-
+﻿<template>
+    <PublicWorkspacePage
+    page-class="public-complaint-success-page"
+    active-key="complaints"
+  >
     <main class="public-complaint-success-page__main">
       <section class="public-complaint-success-page__panel">
         <div class="public-complaint-success-page__badge">
           <span class="material-symbols-outlined" aria-hidden="true">check_circle</span>
         </div>
         <h1>投诉提交成功</h1>
-        <p>您的投诉信息已进入受理流程，可在“我的投诉”中持续查看处理进度。</p>
+        <p>您的投诉已进入受理流程，可在“我的投诉”中持续查看处理进度。</p>
 
         <div class="public-complaint-success-page__code-box">
           <span>投诉编号</span>
@@ -39,7 +19,7 @@
 
         <div class="public-complaint-success-page__meta">
           <span>当前状态：{{ formatStatus(status) }}</span>
-          <span>预计 3 至 5 个工作日内完成受理分派</span>
+          <span>预计 3 至 5 个工作日内完成受理与分派</span>
         </div>
 
         <div class="public-complaint-success-page__actions">
@@ -60,29 +40,20 @@
 
       <AppStatusToast :message="statusMessage.message" :type="statusMessage.type" />
     </main>
-  </div>
+    </PublicWorkspacePage>
 </template>
 
 <script setup>
 import { computed, reactive } from "vue";
 import { useRoute, useRouter } from "vue-router";
+import PublicWorkspacePage from "../../components/public/PublicWorkspacePage.vue";
 import AppStatusToast from "../../components/common/AppStatusToast.vue";
-import { performLogout } from "../../session/authRuntime";
 import { complaintStatusMap, formatStatusLabel } from "../../utils/statusMaps";
 import { resolveErrorMessage } from "../../utils/uiFeedback";
 
 const route = useRoute();
 const router = useRouter();
 const statusMessage = reactive({ message: "", type: "" });
-
-const topNavItems = [
-  { key: "home", label: "首页", routeName: "public-home" },
-  { key: "bulletins", label: "监管公告", routeName: "public-bulletins" },
-  { key: "enterprises", label: "企业公示", routeName: "public-enterprises" },
-  { key: "sampling", label: "抽检结果", routeName: "public-sampling-results" },
-  { key: "complaint-create", label: "我要投诉", routeName: "public-complaint-create" },
-  { key: "complaints", label: "我的投诉", routeName: "public-complaints" }
-];
 
 const complaintNo = computed(() => {
   const value = typeof route.query.complaintNo === "string" ? route.query.complaintNo : "";
@@ -103,21 +74,12 @@ function formatStatus(value) {
   return formatStatusLabel(value, complaintStatusMap);
 }
 
-function goTo(name) {
-  router.push({ name }).catch(() => {});
-}
-
 function goTrack() {
   router.push({ name: "public-complaints" }).catch(() => {});
 }
 
 function goCreate() {
   router.push({ name: "public-complaint-create" }).catch(() => {});
-}
-
-async function handleLogout() {
-  await performLogout();
-  router.replace({ name: "login" }).catch(() => {});
 }
 
 async function copyComplaintNo() {
@@ -141,6 +103,8 @@ async function copyComplaintNo() {
 .public-complaint-success-page__nav-item { border: none; background: transparent; min-height: var(--public-topbar-min-h); color: var(--on-surface-variant); font-size: var(--public-nav-size); font-weight: 700; border-bottom: 2px solid transparent; cursor: pointer; }
 .public-complaint-success-page__nav-item.is-active { color: var(--primary); border-bottom-color: var(--primary); }
 .public-complaint-success-page__toolbar { display: flex; align-items: center; gap: 10px; }
+.public-complaint-success-page__account { min-height: var(--public-toolbar-min-h); margin: 0; padding-inline: 12px; }
+.public-complaint-success-page__account .material-symbols-outlined { font-size: 22px; }
 .public-complaint-success-page__logout { min-height: var(--public-toolbar-min-h); font-size: var(--public-logout-font-size); margin: 0; }
 .public-complaint-success-page__main { max-width: 1080px; margin: 0 auto; padding: 36px 16px 60px; display: grid; gap: 14px; }
 .public-complaint-success-page__panel { border: 1px solid rgba(195,198,211,.32); border-radius: 12px; background: var(--surface-container-lowest); padding: 24px; display: grid; gap: 12px; justify-items: center; text-align: center; }
@@ -161,3 +125,7 @@ async function copyComplaintNo() {
 @media (max-width: 1100px) { .public-complaint-success-page__nav { display: none; } }
 @media (max-width: 760px) { .public-complaint-success-page__toolbar { display: none; } .public-complaint-success-page__panel h1 { font-size: var(--public-form-title-mobile); } }
 </style>
+
+
+
+

@@ -1,0 +1,95 @@
+flowchart TB
+
+    user["用户浏览器"]
+
+    subgraph compose["Docker Compose 容器化部署环境"]
+        direction TB
+
+        subgraph frontend["前端访问层"]
+            direction TB
+            web["food-web<br/>Nginx + Vue dist<br/>:80"]
+        end
+
+        subgraph gateway["统一接入层"]
+            direction TB
+            gw["gateway-service<br/>统一路由 / 鉴权 / API入口<br/>:8080"]
+        end
+
+        subgraph services["业务服务层"]
+            direction LR
+            userSvc["user-service<br/>用户认证与角色管理<br/>:8081"]
+            regSvc["regulation-service<br/>企业备案 / 主数据 / 公告 / 预警协同<br/>:8082"]
+            querySvc["query-service<br/>统计查询与监管概览<br/>:8083"]
+            warnSvc["warning-service<br/>预警记录 / 升级 / 归档<br/>:8084"]
+            complaintSvc["complaint-service<br/>投诉受理与流转<br/>:8085"]
+            opSvc["regulation-operation-service<br/>检查 / 抽检 / 整改执行<br/>:8086"]
+        end
+
+        subgraph infra["基础设施层"]
+            direction LR
+            mysql["mysql<br/>业务数据存储<br/>:3306"]
+            redis["redis<br/>缓存 / 会话 / 限流 / 分布式锁<br/>:6379"]
+            nacos["nacos<br/>服务注册发现<br/>:8848"]
+            minio["minio<br/>文件对象存储<br/>:9000 / 9001"]
+        end
+    end
+
+    user -->|"HTTP/HTTPS"| web
+    web -->|"/api/ 反向代理"| gw
+
+    gw -->|路由转发| userSvc
+    gw -->|路由转发| regSvc
+    gw -->|路由转发| querySvc
+    gw -->|路由转发| warnSvc
+    gw -->|路由转发| complaintSvc
+    gw -->|路由转发| opSvc
+
+    userSvc -.->|注册/发现| nacos
+    regSvc -.->|注册/发现| nacos
+    querySvc -.->|注册/发现| nacos
+    warnSvc -.->|注册/发现| nacos
+    complaintSvc -.->|注册/发现| nacos
+    opSvc -.->|注册/发现| nacos
+    gw -.->|注册/发现| nacos
+
+    userSvc --> mysql
+    regSvc --> mysql
+    querySvc --> mysql
+    warnSvc --> mysql
+    complaintSvc --> mysql
+    opSvc --> mysql
+
+    userSvc --> redis
+    regSvc --> redis
+    querySvc --> redis
+    warnSvc --> redis
+    complaintSvc --> redis
+    opSvc --> redis
+    gw --> redis
+
+    regSvc --> minio
+    complaintSvc --> minio
+    opSvc --> minio
+
+    regSvc -->|Feign| userSvc
+    regSvc -->|Feign| warnSvc
+    opSvc -->|Feign| regSvc
+    opSvc -->|Feign| warnSvc
+    complaintSvc -->|Feign| regSvc
+    complaintSvc -->|Feign| userSvc
+    complaintSvc -->|Feign| warnSvc
+    querySvc -->|Feign| regSvc
+    querySvc -->|Feign| opSvc
+    querySvc -->|Feign| complaintSvc
+    querySvc -->|Feign| warnSvc
+
+    classDef edge fill:#e8f1ff,stroke:#5b8def,stroke-width:1.2px,color:#1f2937;
+    classDef app fill:#eef6ff,stroke:#4f7cff,stroke-width:1.2px,color:#111827;
+    classDef svc fill:#f4f8ff,stroke:#5b8def,stroke-width:1.2px,color:#111827;
+    classDef infraNode fill:#f8fafc,stroke:#64748b,stroke-width:1.1px,color:#111827;
+    classDef actor fill:#fff7ed,stroke:#f59e0b,stroke-width:1.2px,color:#111827;
+
+    class web,gw edge;
+    class userSvc,regSvc,querySvc,warnSvc,complaintSvc,opSvc svc;
+    class mysql,redis,nacos,minio infraNode;
+    class user actor;

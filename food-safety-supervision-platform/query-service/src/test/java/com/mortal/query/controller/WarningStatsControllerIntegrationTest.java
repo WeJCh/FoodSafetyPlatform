@@ -11,13 +11,13 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import com.mortal.query.client.RegulatorProfileClient;
-import com.mortal.query.client.RegulationRegionClient;
-import com.mortal.query.client.WarningStatsClient;
 import com.mortal.platform.common.ApiResponse;
+import com.mortal.query.client.RegulationRegionClient;
+import com.mortal.query.client.RegulatorProfileClient;
+import com.mortal.query.client.WarningStatsClient;
 import com.mortal.query.dto.WarningStatsQueryDTO;
-import com.mortal.query.vo.RegulatorProfileVO;
 import com.mortal.query.vo.RegionVO;
+import com.mortal.query.vo.RegulatorProfileVO;
 import com.mortal.query.vo.WarningStatsOverviewVO;
 import com.mortal.query.vo.WarningTrendPointVO;
 import java.time.LocalDateTime;
@@ -73,7 +73,7 @@ class WarningStatsControllerIntegrationTest {
                     .header("Authorization", "Bearer test-token")
                     .param("startTime", "2026-03-10T00:00:00")
                     .param("endTime", "2026-03-13T23:59:59")
-                    .param("warningType", "SLA_OVERDUE_SUBMIT")
+                    .param("warningType", "RECTIFICATION_OVERDUE")
             )
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.code").value(0))
@@ -83,7 +83,7 @@ class WarningStatsControllerIntegrationTest {
         assertEquals("test-internal-token", tokenCaptor.getValue());
         assertEquals(LocalDateTime.of(2026, 3, 10, 0, 0), forwarded.getStartTime());
         assertEquals(LocalDateTime.of(2026, 3, 13, 23, 59, 59), forwarded.getEndTime());
-        assertEquals("SLA_OVERDUE_SUBMIT", forwarded.getWarningType());
+        assertEquals("RECTIFICATION_OVERDUE", forwarded.getWarningType());
         assertEquals("1001,1002", forwarded.getRegionIds());
     }
 
@@ -185,9 +185,8 @@ class WarningStatsControllerIntegrationTest {
         profile.setRoleType("REGULATOR_ADMIN");
         profile.setRegionIds(regionIds);
         when(regulatorProfileClient.getMyProfile(anyString())).thenReturn(ApiResponse.success(profile));
-        // 默认不返回下级辖区，便于当前用例验证参数透传。
         for (Long regionId : regionIds) {
-            when(regulationRegionClient.listRegions(anyString(), eq(regionId))).thenReturn(ApiResponse.success(List.of()));
+          when(regulationRegionClient.listRegions(anyString(), eq(regionId))).thenReturn(ApiResponse.success(List.of()));
         }
     }
 

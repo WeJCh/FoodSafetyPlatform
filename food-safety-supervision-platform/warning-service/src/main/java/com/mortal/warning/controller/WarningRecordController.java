@@ -7,9 +7,11 @@ import com.mortal.warning.dto.WarningAssignDTO;
 import com.mortal.warning.dto.WarningRecordQueryDTO;
 import com.mortal.warning.dto.WarningScopeDTO;
 import com.mortal.warning.service.WarningEventService;
+import com.mortal.warning.vo.WarningProcessLogVO;
 import com.mortal.warning.vo.WarningRecordDetailVO;
 import com.mortal.warning.vo.WarningRecordVO;
 import jakarta.validation.Valid;
+import java.util.List;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -37,6 +39,21 @@ public class WarningRecordController {
     @GetMapping
     public ApiResponse<PageResult<WarningRecordVO>> page(WarningRecordQueryDTO queryDTO) {
         return ApiResponse.success(warningEventService.pageWarningRecords(queryDTO));
+    }
+
+    /**
+     * 查询最近预警处理日志。
+     */
+    @GetMapping("/logs/recent")
+    public ApiResponse<List<WarningProcessLogVO>> recentLogs(
+        @RequestHeader(value = "X-Scope-Owner-Regulator-Id", required = false) Long ownerRegulatorId,
+        @RequestHeader(value = "X-Scope-Region-Ids", required = false) String regionIds,
+        Integer limit
+    ) {
+        WarningScopeDTO scopeDTO = new WarningScopeDTO();
+        scopeDTO.setOwnerRegulatorId(ownerRegulatorId);
+        scopeDTO.setRegionIds(regionIds);
+        return ApiResponse.success(warningEventService.listRecentWarningLogs(scopeDTO, limit));
     }
 
     /**

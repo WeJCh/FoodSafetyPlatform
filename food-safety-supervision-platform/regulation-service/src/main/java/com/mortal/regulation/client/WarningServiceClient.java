@@ -5,8 +5,10 @@ import com.mortal.platform.common.PageResult;
 import com.mortal.regulation.dto.WarningActionCommentDTO;
 import com.mortal.regulation.dto.WarningAssignDTO;
 import com.mortal.regulation.dto.WarningRecordQueryDTO;
+import com.mortal.regulation.vo.WarningProcessLogVO;
 import com.mortal.regulation.vo.WarningRecordDetailVO;
 import com.mortal.regulation.vo.WarningRecordVO;
+import java.util.List;
 import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.cloud.openfeign.SpringQueryMap;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -14,6 +16,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestParam;
 
 @FeignClient("warning-service")
 public interface WarningServiceClient {
@@ -27,6 +30,13 @@ public interface WarningServiceClient {
                                               String ownerRegulatorId,
                                               @RequestHeader(value = "X-Scope-Region-Ids", required = false)
                                               String regionIds);
+
+    @GetMapping("/api/warning/warnings/logs/recent")
+    ApiResponse<List<WarningProcessLogVO>> recentLogs(
+        @RequestHeader(value = "X-Scope-Owner-Regulator-Id", required = false) String ownerRegulatorId,
+        @RequestHeader(value = "X-Scope-Region-Ids", required = false) String regionIds,
+        @RequestParam(value = "limit", required = false) Integer limit
+    );
 
     @PostMapping("/api/warning/warnings/{id}/process")
     ApiResponse<WarningRecordDetailVO> process(@PathVariable("id") Long id,

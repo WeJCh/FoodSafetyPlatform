@@ -2,6 +2,7 @@ package com.mortal.regulation.operation.service.scheduler;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.mortal.regulation.operation.common.enums.RectificationStatus;
+import com.mortal.regulation.operation.config.OperationSchedulerLockProperties;
 import com.mortal.regulation.operation.dto.WarningEventUpsertDTO;
 import com.mortal.regulation.operation.entity.InspectionRecord;
 import com.mortal.regulation.operation.entity.InspectionTask;
@@ -11,8 +12,8 @@ import com.mortal.regulation.operation.mapper.InspectionRecordMapper;
 import com.mortal.regulation.operation.mapper.InspectionTaskMapper;
 import com.mortal.regulation.operation.mapper.RectificationActionLogMapper;
 import com.mortal.regulation.operation.mapper.RectificationTaskMapper;
-import com.mortal.regulation.operation.config.OperationSchedulerLockProperties;
 import com.mortal.regulation.operation.service.WarningEventOutboxService;
+import com.mortal.regulation.operation.support.OperationMasterDataSupport;
 import com.mortal.regulation.operation.support.OperationSchedulerLockSupport;
 import java.time.Duration;
 import java.time.LocalDateTime;
@@ -37,6 +38,7 @@ public class RectificationSlaScheduler {
 
     private static final String BIZ_TYPE_RECTIFICATION = "RECTIFICATION";
     private static final String SOURCE_SERVICE = "regulation-operation-service";
+    private static final String WARNING_TYPE_RECTIFICATION_OVERDUE = "RECTIFICATION_OVERDUE";
 
     private static final String ACTION_SLA_OVERDUE_SUBMIT = "SLA_OVERDUE_SUBMIT";
     private static final String ACTION_SLA_OVERDUE_REVIEW = "SLA_OVERDUE_REVIEW";
@@ -51,6 +53,7 @@ public class RectificationSlaScheduler {
     private final WarningEventOutboxService warningEventOutboxService;
     private final InspectionRecordMapper inspectionRecordMapper;
     private final InspectionTaskMapper inspectionTaskMapper;
+    private final OperationMasterDataSupport masterDataSupport;
     private final OperationSchedulerLockSupport operationSchedulerLockSupport;
     private final OperationSchedulerLockProperties operationSchedulerLockProperties;
 
@@ -59,6 +62,7 @@ public class RectificationSlaScheduler {
                                      WarningEventOutboxService warningEventOutboxService,
                                      InspectionRecordMapper inspectionRecordMapper,
                                      InspectionTaskMapper inspectionTaskMapper,
+                                     OperationMasterDataSupport masterDataSupport,
                                      OperationSchedulerLockSupport operationSchedulerLockSupport,
                                      OperationSchedulerLockProperties operationSchedulerLockProperties) {
         this.rectificationTaskMapper = rectificationTaskMapper;
@@ -66,6 +70,7 @@ public class RectificationSlaScheduler {
         this.warningEventOutboxService = warningEventOutboxService;
         this.inspectionRecordMapper = inspectionRecordMapper;
         this.inspectionTaskMapper = inspectionTaskMapper;
+        this.masterDataSupport = masterDataSupport;
         this.operationSchedulerLockSupport = operationSchedulerLockSupport;
         this.operationSchedulerLockProperties = operationSchedulerLockProperties;
     }
@@ -77,15 +82,15 @@ public class RectificationSlaScheduler {
                 SCHEDULER_LOCK_NAME,
                 operationSchedulerLockProperties.getRectificationSlaLeaseSeconds(),
                 () -> {
-                LocalDateTime now = LocalDateTime.now();
-                List<RectificationTask> activeTasks = loadActiveTasks();
-                if (activeTasks.isEmpty()) {
-                    return;
-                }
-                Map<Long, Set<String>> loggedActions = loadLoggedSlaActions(activeTasks);
-                for (RectificationTask task : activeTasks) {
-                    processTask(now, task, loggedActions);
-                }
+                    LocalDateTime now = LocalDateTime.now();
+                    List<RectificationTask> activeTasks = loadActiveTasks();
+                    if (activeTasks.isEmpty()) {
+                        return;
+                    }
+                    Map<Long, Set<String>> loggedActions = loadLoggedSlaActions(activeTasks);
+                    for (RectificationTask task : activeTasks) {
+                        processTask(now, task, loggedActions);
+                    }
                 }
             );
             if (!executed) {
@@ -212,11 +217,11 @@ public class RectificationSlaScheduler {
                                                        String comment,
                                                        LocalDateTime now) {
         WarningEventUpsertDTO dto = new WarningEventUpsertDTO();
-        dto.setEventType(actionType);
+        dto.setEventType(WARNING_TYPE_RECTIFICATION_OVERDUE);
         dto.setBizType(BIZ_TYPE_RECTIFICATION);
         dto.setBizId(task.getId());
         dto.setRegionId(resolveRegionId(task.getInspectionId()));
-        dto.setOwnerRegulatorId(resolveOwnerRegulatorId(task.getInspectionId()));
+        dto.setOwnerRegulatorId(masterDataSupport.resolveEnterpriseOwnerRegulatorId(task.getEnterpriseId()));
         dto.setDedupKey(buildDedupKey(task.getId(), actionType));
         dto.setLevel("L1");
         dto.setTitle(resolveTitleByAction(actionType));
@@ -235,7 +240,7 @@ public class RectificationSlaScheduler {
         return switch (actionType) {
             case ACTION_SLA_OVERDUE_SUBMIT -> "整改提交超时";
             case ACTION_SLA_OVERDUE_REVIEW -> "整改复核超时";
-            default -> "整改SLA预警";
+            default -> "整改逾期预警";
         };
     }
 
@@ -268,11 +273,6 @@ public class RectificationSlaScheduler {
             .eq(InspectionTask::getDeleted, 0)
             .last("limit 1"));
         return inspectionTask == null ? null : inspectionTask.getRegionId();
-    }
-
-    private Long resolveOwnerRegulatorId(Long inspectionId) {
-        InspectionRecord inspectionRecord = loadInspectionRecord(inspectionId);
-        return inspectionRecord == null ? null : inspectionRecord.getInspectorId();
     }
 
     private InspectionRecord loadInspectionRecord(Long inspectionId) {

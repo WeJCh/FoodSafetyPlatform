@@ -4,7 +4,7 @@ USE food_user_db;
 -- ============================================
 -- 1. 系统管理员账号
 -- ============================================
--- 密码: admin123
+-- 密码: 123456
 INSERT INTO sys_user (id, username, password, real_name, phone, user_type, status, deleted)
 VALUES
 (1, 'admin', '$2a$10$N.zmdr9k7uOCQb376NoUnuTJ8iAt6Z5EHsM8lE9lBOsl7iKTVKIUi', '系统管理员', '13800000001', 'ADMIN', 1, 0);
@@ -12,7 +12,7 @@ VALUES
 -- ============================================
 -- 2. 区域管理员账号（4个）
 -- ============================================
--- 密码: regulator123
+-- 密码: 123456
 INSERT INTO sys_user (id, username, password, real_name, phone, user_type, status, deleted)
 VALUES
 (2, 'regulator_admin_1', '$2a$10$N.zmdr9k7uOCQb376NoUnuTJ8iAt6Z5EHsM8lE9lBOsl7iKTVKIUi', '张区域', '13800000002', 'REGULATOR', 1, 0),
@@ -23,7 +23,7 @@ VALUES
 -- ============================================
 -- 3. 执法人员账号（4个）
 -- ============================================
--- 密码: enforcer123
+-- 密码: 123456
 INSERT INTO sys_user (id, username, password, real_name, phone, user_type, status, deleted)
 VALUES
 (4, 'enforcer_1', '$2a$10$N.zmdr9k7uOCQb376NoUnuTJ8iAt6Z5EHsM8lE9lBOsl7iKTVKIUi', '王执法', '13800000004', 'REGULATOR', 1, 0),
@@ -34,7 +34,7 @@ VALUES
 -- ============================================
 -- 4. 企业用户账号（6个）
 -- ============================================
--- 密码: enterprise123
+-- 密码: 123456
 INSERT INTO sys_user (id, username, password, real_name, phone, user_type, status, deleted)
 VALUES
 (8, 'enterprise_1', '$2a$10$N.zmdr9k7uOCQb376NoUnuTJ8iAt6Z5EHsM8lE9lBOsl7iKTVKIUi', '张企业', '13800000008', 'ENTERPRISE', 1, 0),
@@ -47,7 +47,7 @@ VALUES
 -- ============================================
 -- 5. 公众用户账号（3个）
 -- ============================================
--- 密码: public123
+-- 密码: 123456
 INSERT INTO sys_user (id, username, password, real_name, phone, user_type, status, deleted)
 VALUES
 (14, 'public_1', '$2a$10$N.zmdr9k7uOCQb376NoUnuTJ8iAt6Z5EHsM8lE9lBOsl7iKTVKIUi', '市民张三', '13800000014', 'PUBLIC', 1, 0),

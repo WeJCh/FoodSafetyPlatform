@@ -22,6 +22,7 @@ public class Complaint {
     private String complainantName;
     private String contact;
     private Long submitterUserId;
+    private Integer anonymousFlag;
     private Long enterpriseId;
     private String complaintType;
     private String content;

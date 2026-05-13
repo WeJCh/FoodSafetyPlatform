@@ -1,37 +1,13 @@
-<template>
-  <div class="public-sampling-results-page">
-    <header class="public-sampling-results-page__topbar">
-      <div class="public-sampling-results-page__topbar-inner">
-        <div class="public-sampling-results-page__brand-nav">
-          <span class="public-sampling-results-page__brand">食品安全监管平台</span>
-          <nav class="public-sampling-results-page__nav" aria-label="公众导航">
-            <button
-              v-for="item in topNavItems"
-              :key="item.key"
-              type="button"
-              class="public-sampling-results-page__nav-item"
-              :class="{ 'is-active': item.key === 'sampling' }"
-              @click="goTo(item.routeName)"
-            >
-              {{ item.label }}
-            </button>
-          </nav>
-        </div>
-        <div class="public-sampling-results-page__toolbar">
-          <label class="public-sampling-results-page__search-box">
-            <span class="material-symbols-outlined" aria-hidden="true">search</span>
-            <input
-              v-model.trim="filters.enterpriseName"
-              type="text"
-              placeholder="搜索抽检企业"
-              @keyup.enter="handleSearch"
-            />
-          </label>
-          <button type="button" class="ghost public-sampling-results-page__logout" @click="handleLogout">退出登录</button>
-        </div>
-      </div>
-    </header>
-
+﻿<template>
+    <PublicWorkspacePage
+    page-class="public-sampling-results-page"
+    active-key="sampling"
+    :show-search="true"
+    v-model:search-value="filters.enterpriseName"
+    search-placeholder="搜索抽检企业"
+    :search-min-width="220"
+    @search="handleSearch"
+  >
     <main class="public-sampling-results-page__main">
       <section class="public-sampling-results-page__head">
         <div>
@@ -116,17 +92,18 @@
 
       <AppStatusToast :message="status.message" :type="status.type" />
     </main>
-  </div>
+    </PublicWorkspacePage>
 </template>
 
 <script setup>
 import { computed, onMounted, reactive, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
+import PublicWorkspacePage from "../../components/public/PublicWorkspacePage.vue";
 import AppEmptyState from "../../components/common/AppEmptyState.vue";
 import AppStatusTag from "../../components/common/AppStatusTag.vue";
 import AppStatusToast from "../../components/common/AppStatusToast.vue";
 import { fetchPublicSamplingResults } from "../../api/regulationOperation";
-import { getActiveSession, performLogout } from "../../session/authRuntime";
+import { getActiveSession } from "../../session/authRuntime";
 import { resolveErrorMessage } from "../../utils/uiFeedback";
 
 const route = useRoute();
@@ -140,15 +117,6 @@ const size = ref(8);
 const total = ref(0);
 const pages = ref(1);
 const status = reactive({ message: "", type: "" });
-
-const topNavItems = [
-  { key: "home", label: "首页", routeName: "public-home" },
-  { key: "bulletins", label: "监管公告", routeName: "public-bulletins" },
-  { key: "enterprises", label: "企业公示", routeName: "public-enterprises" },
-  { key: "sampling", label: "抽检结果", routeName: "public-sampling-results" },
-  { key: "complaint-create", label: "我要投诉", routeName: "public-complaint-create" },
-  { key: "complaints", label: "我的投诉", routeName: "public-complaints" }
-];
 
 const pagerStart = computed(() => {
   if (!total.value || !records.value.length) {
@@ -174,15 +142,6 @@ const pagerSummary = computed(() => {
 const hasFilters = computed(() => Boolean(filters.enterpriseName.trim() || filters.productName.trim() || filters.result));
 const emptyTitle = computed(() => (hasFilters.value ? "暂无符合条件的抽检结果" : "暂无抽检结果"));
 const emptyDescription = computed(() => (hasFilters.value ? "可以调整企业名称、产品名称或结果筛选后再试。" : "已公示的抽检结果会展示在这里。"));
-
-function goTo(name) {
-  router.push({ name }).catch(() => {});
-}
-
-async function handleLogout() {
-  await performLogout();
-  router.replace({ name: "login" }).catch(() => {});
-}
 
 function setStatus(message = "", type = "info") {
   status.message = message;
@@ -389,6 +348,16 @@ watch(
   background: transparent;
   font-size: var(--public-text-md);
   min-width: var(--public-toolbar-input-min-w);
+}
+
+.public-sampling-results-page__account {
+  min-height: var(--public-toolbar-min-h);
+  margin: 0;
+  padding-inline: 12px;
+}
+
+.public-sampling-results-page__account .material-symbols-outlined {
+  font-size: 22px;
 }
 
 .public-sampling-results-page__logout {
@@ -678,3 +647,7 @@ watch(
   }
 }
 </style>
+
+
+
+

@@ -42,6 +42,35 @@ export function fetchUserById(id, token) {
   });
 }
 
+export function fetchCurrentUser(token) {
+  return request("/api/users/me", {
+    method: "GET",
+    headers: {
+      Authorization: `Bearer ${token}`
+    }
+  });
+}
+
+export function updateCurrentUser(token, payload) {
+  return request("/api/users/me", {
+    method: "PUT",
+    headers: {
+      Authorization: `Bearer ${token}`
+    },
+    body: JSON.stringify(payload)
+  });
+}
+
+export function changeCurrentUserPassword(token, payload) {
+  return request("/api/users/me/password", {
+    method: "PUT",
+    headers: {
+      Authorization: `Bearer ${token}`
+    },
+    body: JSON.stringify(payload)
+  });
+}
+
 export function verify(token) {
   return request("/api/auth/verify", {
     method: "POST",

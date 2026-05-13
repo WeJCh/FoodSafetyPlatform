@@ -21,6 +21,7 @@ import com.mortal.regulation.operation.mapper.SamplingTaskMapper;
 import com.mortal.regulation.operation.service.AuditLogService;
 import com.mortal.regulation.operation.service.SamplingTaskService;
 import com.mortal.regulation.operation.service.WarningEventOutboxService;
+import com.mortal.regulation.operation.support.OperationAuditOperatorNameResolver;
 import com.mortal.regulation.operation.support.OperationLockSupport;
 import com.mortal.regulation.operation.support.OperationMasterDataSupport;
 import com.mortal.regulation.operation.support.SamplingPublicCacheService;
@@ -76,6 +77,7 @@ public class SamplingTaskServiceImpl implements SamplingTaskService {
     private final SamplingPublicCacheService samplingPublicCacheService;
     private final WarningEventOutboxService warningEventOutboxService;
     private final AuditLogService auditLogService;
+    private final OperationAuditOperatorNameResolver operationAuditOperatorNameResolver;
     private final ObjectMapper objectMapper;
 
     public SamplingTaskServiceImpl(SamplingTaskMapper samplingTaskMapper,
@@ -85,6 +87,7 @@ public class SamplingTaskServiceImpl implements SamplingTaskService {
                                    SamplingPublicCacheService samplingPublicCacheService,
                                    WarningEventOutboxService warningEventOutboxService,
                                    AuditLogService auditLogService,
+                                   OperationAuditOperatorNameResolver operationAuditOperatorNameResolver,
                                    ObjectMapper objectMapper) {
         this.samplingTaskMapper = samplingTaskMapper;
         this.samplingResultMapper = samplingResultMapper;
@@ -93,6 +96,7 @@ public class SamplingTaskServiceImpl implements SamplingTaskService {
         this.samplingPublicCacheService = samplingPublicCacheService;
         this.warningEventOutboxService = warningEventOutboxService;
         this.auditLogService = auditLogService;
+        this.operationAuditOperatorNameResolver = operationAuditOperatorNameResolver;
         this.objectMapper = objectMapper;
     }
     /**
@@ -161,7 +165,15 @@ public class SamplingTaskServiceImpl implements SamplingTaskService {
         task.setStatus(STATUS_ASSIGNED);
         task.setUpdateTime(LocalDateTime.now());
         samplingTaskMapper.updateById(task);
-        recordSamplingTaskAudit(userId, operator.getName(), ACTION_SAMPLING_ASSIGN, before, task,
+        recordSamplingTaskAudit(
+            userId,
+            operationAuditOperatorNameResolver.resolveRegulatorOperatorName(
+                operator.getName(),
+                operator.getUsername()
+            ),
+            ACTION_SAMPLING_ASSIGN,
+            before,
+            task,
             "assignedTo=" + assignee.getId());
         return toVO(task,
             loadEnterpriseNames(List.of(task)),
@@ -275,7 +287,15 @@ public class SamplingTaskServiceImpl implements SamplingTaskService {
         result.setUpdateTime(LocalDateTime.now());
         result.setDeleted(0);
         samplingResultMapper.insert(result);
-        recordSamplingResultAudit(userId, regulator.getName(), ACTION_SAMPLING_RESULT_SUBMIT, null, result,
+        recordSamplingResultAudit(
+            userId,
+            operationAuditOperatorNameResolver.resolveRegulatorOperatorName(
+                regulator.getName(),
+                regulator.getUsername()
+            ),
+            ACTION_SAMPLING_RESULT_SUBMIT,
+            null,
+            result,
             "taskId=" + task.getId());
         samplingPublicCacheService.evict(result.getId());
 
@@ -306,7 +326,17 @@ public class SamplingTaskServiceImpl implements SamplingTaskService {
             result.setPublishedTime(LocalDateTime.now());
             result.setUpdateTime(LocalDateTime.now());
             samplingResultMapper.updateById(result);
-            recordSamplingResultAudit(userId, regulator.getName(), ACTION_SAMPLING_RESULT_PUBLISH, before, result, null);
+            recordSamplingResultAudit(
+                userId,
+                operationAuditOperatorNameResolver.resolveRegulatorOperatorName(
+                    regulator.getName(),
+                    regulator.getUsername()
+                ),
+                ACTION_SAMPLING_RESULT_PUBLISH,
+                before,
+                result,
+                null
+            );
             samplingPublicCacheService.evict(resultId);
         }
         return toResultVO(result, task,
@@ -328,7 +358,17 @@ public class SamplingTaskServiceImpl implements SamplingTaskService {
         result.setPublicStatus(PUBLIC_STATUS_OFFLINE);
         result.setUpdateTime(LocalDateTime.now());
         samplingResultMapper.updateById(result);
-        recordSamplingResultAudit(userId, regulator.getName(), ACTION_SAMPLING_RESULT_OFFLINE, before, result, null);
+        recordSamplingResultAudit(
+            userId,
+            operationAuditOperatorNameResolver.resolveRegulatorOperatorName(
+                regulator.getName(),
+                regulator.getUsername()
+            ),
+            ACTION_SAMPLING_RESULT_OFFLINE,
+            before,
+            result,
+            null
+        );
         samplingPublicCacheService.evict(resultId);
         return toResultVO(result, task,
             loadEnterpriseNames(List.of(task)),
@@ -729,7 +769,7 @@ public class SamplingTaskServiceImpl implements SamplingTaskService {
         dto.setBizType(WARNING_BIZ_TYPE_SAMPLING);
         dto.setBizId(result.getId());
         dto.setRegionId(task.getRegionId());
-        dto.setOwnerRegulatorId(result.getSampledBy());
+        dto.setOwnerRegulatorId(masterDataSupport.resolveEnterpriseOwnerRegulatorId(task.getEnterpriseId()));
         dto.setDedupKey(eventKey);
         dto.setLevel("L2");
         dto.setTitle("抽检发现不合格产品");
@@ -858,7 +898,7 @@ public class SamplingTaskServiceImpl implements SamplingTaskService {
             target.getTaskNo(),
             WARNING_BIZ_TYPE_SAMPLING,
             actionType,
-            actionType,
+            resolveSamplingActionName(actionType),
             writeSamplingTaskSnapshot(before),
             writeSamplingTaskSnapshot(after),
             remark
@@ -885,11 +925,28 @@ public class SamplingTaskServiceImpl implements SamplingTaskService {
             "RESULT#" + target.getId(),
             WARNING_BIZ_TYPE_SAMPLING,
             actionType,
-            actionType,
+            resolveSamplingActionName(actionType),
             writeSamplingResultSnapshot(before),
             writeSamplingResultSnapshot(after),
             remark
         );
+    }
+
+    private String resolveSamplingActionName(String actionType) {
+        String normalized = normalize(actionType);
+        if (ACTION_SAMPLING_ASSIGN.equals(normalized)) {
+            return "分派抽检任务";
+        }
+        if (ACTION_SAMPLING_RESULT_SUBMIT.equals(normalized)) {
+            return "提交抽检结果";
+        }
+        if (ACTION_SAMPLING_RESULT_PUBLISH.equals(normalized)) {
+            return "公示抽检结果";
+        }
+        if (ACTION_SAMPLING_RESULT_OFFLINE.equals(normalized)) {
+            return "下线抽检结果";
+        }
+        return normalized;
     }
 
     private String writeSamplingTaskSnapshot(SamplingTask task) {

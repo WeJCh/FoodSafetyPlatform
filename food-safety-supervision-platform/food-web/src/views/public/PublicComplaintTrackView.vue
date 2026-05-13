@@ -1,37 +1,13 @@
-<template>
-  <div class="public-complaint-track-page">
-    <header class="public-complaint-track-page__topbar">
-      <div class="public-complaint-track-page__topbar-inner">
-        <div class="public-complaint-track-page__brand-nav">
-          <span class="public-complaint-track-page__brand">食品安全监管平台</span>
-          <nav class="public-complaint-track-page__nav" aria-label="公众导航">
-            <button
-              v-for="item in topNavItems"
-              :key="item.key"
-              type="button"
-              class="public-complaint-track-page__nav-item"
-              :class="{ 'is-active': item.key === 'complaints' }"
-              @click="goTo(item.routeName)"
-            >
-              {{ item.label }}
-            </button>
-          </nav>
-        </div>
-        <div class="public-complaint-track-page__toolbar">
-          <label class="public-complaint-track-page__search-box">
-            <span class="material-symbols-outlined" aria-hidden="true">search</span>
-            <input
-              v-model.trim="filters.keyword"
-              type="text"
-              placeholder="搜索投诉编号、企业名称或投诉内容"
-              @keyup.enter="applyFilters"
-            />
-          </label>
-          <button type="button" class="ghost public-complaint-track-page__logout" @click="handleLogout">退出登录</button>
-        </div>
-      </div>
-    </header>
-
+﻿<template>
+    <PublicWorkspacePage
+    page-class="public-complaint-track-page"
+    active-key="complaints"
+    :show-search="true"
+    v-model:search-value="filters.keyword"
+    search-placeholder="搜索投诉编号、企业名称或投诉内容"
+    :search-min-width="220"
+    @search="applyFilters"
+  >
     <main class="public-complaint-track-page__main">
       <section class="public-complaint-track-page__head">
         <h1>我的投诉</h1>
@@ -41,15 +17,15 @@
       <section class="public-complaint-track-page__stats">
         <article class="public-complaint-track-page__stat-card">
           <span>全部投诉</span>
-          <strong>{{ statsRecords.length }}</strong>
+          <strong>{{ stats.totalCount }}</strong>
         </article>
         <article class="public-complaint-track-page__stat-card is-processing">
           <span>处理中</span>
-          <strong>{{ processingCount }}</strong>
+          <strong>{{ stats.processingCount }}</strong>
         </article>
         <article class="public-complaint-track-page__stat-card is-finished">
           <span>已办结</span>
-          <strong>{{ finishedCount }}</strong>
+          <strong>{{ stats.finishedCount }}</strong>
         </article>
         <button type="button" class="public-complaint-track-page__create-btn" @click="goTo('public-complaint-create')">
           <span class="material-symbols-outlined" aria-hidden="true">add_moderator</span>
@@ -126,17 +102,18 @@
 
       <AppStatusToast :message="status.message" :type="status.type" />
     </main>
-  </div>
+    </PublicWorkspacePage>
 </template>
 
 <script setup>
 import { computed, onMounted, reactive, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
-import { fetchMyComplaints } from "../../api/complaint";
+import PublicWorkspacePage from "../../components/public/PublicWorkspacePage.vue";
+import { fetchMyComplaints, fetchMyComplaintStats } from "../../api/complaint";
 import AppEmptyState from "../../components/common/AppEmptyState.vue";
 import AppStatusTag from "../../components/common/AppStatusTag.vue";
 import AppStatusToast from "../../components/common/AppStatusToast.vue";
-import { getActiveSession, performLogout } from "../../session/authRuntime";
+import { getActiveSession } from "../../session/authRuntime";
 import { formatTime } from "../../utils/formatters";
 import { complaintStatusMap, formatStatusLabel, getStatusTone } from "../../utils/statusMaps";
 import { getEmptyStateText, resolveErrorMessage } from "../../utils/uiFeedback";
@@ -145,19 +122,10 @@ const route = useRoute();
 const router = useRouter();
 const publicToken = getActiveSession()?.token || "";
 
-const topNavItems = [
-  { key: "home", label: "首页", routeName: "public-home" },
-  { key: "bulletins", label: "监管公告", routeName: "public-bulletins" },
-  { key: "enterprises", label: "企业公示", routeName: "public-enterprises" },
-  { key: "sampling", label: "抽检结果", routeName: "public-sampling-results" },
-  { key: "complaint-create", label: "我要投诉", routeName: "public-complaint-create" },
-  { key: "complaints", label: "我的投诉", routeName: "public-complaints" }
-];
-
 const filters = reactive({ status: "", keyword: "" });
 const loading = ref(false);
 const records = ref([]);
-const statsRecords = ref([]);
+const stats = ref({ totalCount: 0, processingCount: 0, finishedCount: 0 });
 const page = ref(1);
 const size = ref(8);
 const total = ref(0);
@@ -169,12 +137,6 @@ const hasFilters = computed(() => Boolean(filters.status || filters.keyword.trim
 const emptyTitle = computed(() => getEmptyStateText("投诉记录", hasFilters.value));
 const emptyDescription = computed(() =>
   hasFilters.value ? "可以调整筛选条件后重新查询。" : "还没有投诉记录，提交后会在这里展示。"
-);
-const processingCount = computed(() =>
-  statsRecords.value.filter((item) => ["PENDING", "ASSIGNED", "PROCESSING"].includes(String(item.status || "").toUpperCase())).length
-);
-const finishedCount = computed(() =>
-  statsRecords.value.filter((item) => ["FEEDBACKED", "REJECTED"].includes(String(item.status || "").toUpperCase())).length
 );
 
 function setStatus(message, type = "info") {
@@ -188,15 +150,6 @@ function formatStatus(value) {
 
 function statusTone(value) {
   return getStatusTone(value, "COMPLAINT");
-}
-
-function goTo(name) {
-  router.push({ name }).catch(() => {});
-}
-
-async function handleLogout() {
-  await performLogout();
-  router.replace({ name: "login" }).catch(() => {});
 }
 
 function progressPercent(value) {
@@ -254,44 +207,32 @@ function syncRouteQuery() {
 
 function goDetail(item) {
   if (!item?.id) return;
-  router
-    .push({
-      name: "public-complaint-detail",
-      params: { complaintId: item.id },
-      query: buildListQuery()
-    })
-    .catch(() => {});
+  router.push({
+    name: "public-complaint-detail",
+    params: { complaintId: item.id },
+    query: buildListQuery()
+  }).catch(() => {});
 }
 
 async function loadComplaints() {
   loading.value = true;
   setStatus("");
   try {
-    const keyword = filters.keyword.trim().toLowerCase();
-    if (keyword) {
-      const allRecords = await fetchAllComplaintRecords();
-      const matchedRecords = allRecords.filter((item) => {
-        const source = [item.complaintNo, item.enterpriseName, item.content, item.handleResult]
-          .filter(Boolean)
-          .join(" ")
-          .toLowerCase();
-        return source.includes(keyword);
-      });
-      statsRecords.value = matchedRecords;
-      total.value = matchedRecords.length;
-      pages.value = Math.max(1, Math.ceil(total.value / size.value));
-      if (page.value > pages.value) page.value = pages.value;
-      const start = (page.value - 1) * size.value;
-      records.value = matchedRecords.slice(start, start + size.value);
-      return;
-    }
-
-    const data = await fetchMyComplaints(publicToken, {
+    const params = {
+      keyword: filters.keyword.trim() || undefined,
       status: filters.status,
       page: page.value,
       size: size.value
-    });
-    statsRecords.value = await fetchAllComplaintRecords();
+    };
+    const [data, statsData] = await Promise.all([
+      fetchMyComplaints(publicToken, params),
+      fetchMyComplaintStats(publicToken, params)
+    ]);
+    stats.value = {
+      totalCount: statsData?.totalCount || 0,
+      processingCount: statsData?.processingCount || 0,
+      finishedCount: statsData?.finishedCount || 0
+    };
     records.value = data.records || [];
     total.value = data.total || 0;
     page.value = data.page || 1;
@@ -299,31 +240,11 @@ async function loadComplaints() {
     pages.value = data.pages || 1;
   } catch (error) {
     records.value = [];
-    statsRecords.value = [];
+    stats.value = { totalCount: 0, processingCount: 0, finishedCount: 0 };
     setStatus(resolveErrorMessage(error, "投诉记录加载失败，请稍后重试"), "error");
   } finally {
     loading.value = false;
   }
-}
-
-async function fetchAllComplaintRecords() {
-  const merged = [];
-  let currentPage = 1;
-  const batchSize = 50;
-  let totalPages = 1;
-
-  do {
-    const data = await fetchMyComplaints(publicToken, {
-      status: filters.status,
-      page: currentPage,
-      size: batchSize
-    });
-    merged.push(...(data.records || []));
-    totalPages = Math.max(1, data.pages || 1);
-    currentPage += 1;
-  } while (currentPage <= totalPages);
-
-  return merged;
 }
 
 function applyFilters() {
@@ -357,12 +278,9 @@ watch(
     const nextKeyword = typeof route.query.keyword === "string" ? route.query.keyword.trim() : "";
     const nextStatus = typeof route.query.status === "string" ? route.query.status : "";
     const nextPage = Number(route.query.page || 1);
+    const normalizedPage = Number.isFinite(nextPage) && nextPage > 0 ? nextPage : 1;
 
-    if (
-      nextKeyword === filters.keyword &&
-      nextStatus === filters.status &&
-      (Number.isFinite(nextPage) && nextPage > 0 ? nextPage : 1) === page.value
-    ) {
+    if (nextKeyword === filters.keyword && nextStatus === filters.status && normalizedPage === page.value) {
       return;
     }
 
@@ -384,6 +302,8 @@ watch(
 .public-complaint-track-page__toolbar { display: flex; align-items: center; gap: 10px; }
 .public-complaint-track-page__search-box { display: inline-flex; align-items: center; gap: 6px; border-radius: 8px; border: 1px solid rgba(195,198,211,.44); background: rgba(255,255,255,.75); padding: 0 14px; min-height: var(--public-toolbar-min-h); }
 .public-complaint-track-page__search-box input { border: none; background: transparent; font-size: var(--public-toolbar-input-size); min-width: 220px; }
+.public-complaint-track-page__account { min-height: var(--public-toolbar-min-h); margin: 0; padding-inline: 12px; }
+.public-complaint-track-page__account .material-symbols-outlined { font-size: 22px; }
 .public-complaint-track-page__logout { min-height: var(--public-toolbar-min-h); font-size: var(--public-logout-font-size); margin: 0; }
 .public-complaint-track-page__main { max-width: 1680px; margin: 0 auto; padding: 24px 16px 48px; display: grid; gap: 14px; }
 .public-complaint-track-page__head h1 { margin: 0 0 6px; color: var(--primary); font-family: var(--font-display); font-size: var(--public-hero-title-alt); line-height: 1; }
@@ -427,3 +347,7 @@ watch(
 @media (max-width: 1100px) { .public-complaint-track-page__nav { display: none; } }
 @media (max-width: 760px) { .public-complaint-track-page__toolbar { display: none; } .public-complaint-track-page__head h1 { font-size: var(--public-page-title-xs); } .public-complaint-track-page__stats { grid-template-columns: 1fr; } }
 </style>
+
+
+
+

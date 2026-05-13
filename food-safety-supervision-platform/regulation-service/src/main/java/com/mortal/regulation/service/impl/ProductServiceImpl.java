@@ -1,16 +1,27 @@
 package com.mortal.regulation.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.mortal.regulation.common.constants.ProductCategoryCatalog;
 import com.mortal.regulation.dto.ProductSaveDTO;
+import com.mortal.regulation.entity.AddrRegion;
 import com.mortal.regulation.entity.FoodEnterprise;
 import com.mortal.regulation.entity.FoodProduct;
+import com.mortal.regulation.entity.FoodRegulator;
+import com.mortal.regulation.entity.FoodRegulatorRegion;
+import com.mortal.regulation.mapper.AddrRegionMapper;
 import com.mortal.regulation.mapper.FoodEnterpriseMapper;
 import com.mortal.regulation.mapper.FoodProductMapper;
+import com.mortal.regulation.mapper.FoodRegulatorMapper;
+import com.mortal.regulation.mapper.FoodRegulatorRegionMapper;
+import com.mortal.regulation.service.AuditLogService;
 import com.mortal.regulation.service.ProductService;
+import com.mortal.regulation.support.AuditOperatorNameResolver;
 import com.mortal.regulation.support.ProductMasterCacheService;
+import com.mortal.regulation.vo.AuditLogVO;
 import com.mortal.regulation.vo.ProductVO;
 import com.mortal.regulation.vo.internal.InternalProductDetailVO;
 import com.mortal.regulation.vo.internal.InternalProductSummaryVO;
+import java.util.ArrayDeque;
 import java.time.LocalDateTime;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -31,13 +42,28 @@ public class ProductServiceImpl implements ProductService {
 
     private final FoodProductMapper foodProductMapper;
     private final FoodEnterpriseMapper foodEnterpriseMapper;
+    private final FoodRegulatorMapper foodRegulatorMapper;
+    private final FoodRegulatorRegionMapper foodRegulatorRegionMapper;
+    private final AddrRegionMapper addrRegionMapper;
+    private final AuditLogService auditLogService;
+    private final AuditOperatorNameResolver auditOperatorNameResolver;
     private final ProductMasterCacheService productMasterCacheService;
 
     public ProductServiceImpl(FoodProductMapper foodProductMapper,
                               FoodEnterpriseMapper foodEnterpriseMapper,
+                              FoodRegulatorMapper foodRegulatorMapper,
+                              FoodRegulatorRegionMapper foodRegulatorRegionMapper,
+                              AddrRegionMapper addrRegionMapper,
+                              AuditLogService auditLogService,
+                              AuditOperatorNameResolver auditOperatorNameResolver,
                               ProductMasterCacheService productMasterCacheService) {
         this.foodProductMapper = foodProductMapper;
         this.foodEnterpriseMapper = foodEnterpriseMapper;
+        this.foodRegulatorMapper = foodRegulatorMapper;
+        this.foodRegulatorRegionMapper = foodRegulatorRegionMapper;
+        this.addrRegionMapper = addrRegionMapper;
+        this.auditLogService = auditLogService;
+        this.auditOperatorNameResolver = auditOperatorNameResolver;
         this.productMasterCacheService = productMasterCacheService;
     }
 
@@ -48,13 +74,13 @@ public class ProductServiceImpl implements ProductService {
     }
 
     @Override
-    public ProductVO createMyProduct(Long userId, ProductSaveDTO dto) {
+    public ProductVO createMyProduct(Long userId, String username, ProductSaveDTO dto) {
         FoodEnterprise enterprise = requireApprovedEnterpriseByUserId(userId);
         ensureUniqueProductName(enterprise.getId(), normalizeText(dto.getProductName()), null);
         FoodProduct product = new FoodProduct();
         product.setEnterpriseId(enterprise.getId());
         product.setProductName(normalizeText(dto.getProductName()));
-        product.setCategory(normalizeText(dto.getCategory()));
+        product.setCategory(normalizeCategory(dto.getCategory()));
         product.setSpecification(normalizeText(dto.getSpecification()));
         product.setStatus(resolveStatus(dto.getStatus(), STATUS_ACTIVE));
         product.setRemark(normalizeText(dto.getRemark()));
@@ -63,24 +89,52 @@ public class ProductServiceImpl implements ProductService {
         product.setDeleted(0);
         foodProductMapper.insert(product);
         productMasterCacheService.evict(product.getId());
+        auditLogService.recordProductAudit(
+            userId,
+            "ENTERPRISE",
+            auditOperatorNameResolver.resolveEnterpriseOperatorName(enterprise, username),
+            "PRODUCT_CREATE",
+            "企业新增产品档案",
+            null,
+            copyProduct(product),
+            null
+        );
         return toVO(product);
     }
 
     @Override
-    public ProductVO updateMyProduct(Long userId, Long productId, ProductSaveDTO dto) {
+    public ProductVO updateMyProduct(Long userId, String username, Long productId, ProductSaveDTO dto) {
         FoodEnterprise enterprise = requireApprovedEnterpriseByUserId(userId);
         FoodProduct product = requireOwnedProduct(enterprise.getId(), productId);
+        FoodProduct before = copyProduct(product);
         String normalizedName = normalizeText(dto.getProductName());
         ensureUniqueProductName(enterprise.getId(), normalizedName, product.getId());
         product.setProductName(normalizedName);
-        product.setCategory(normalizeText(dto.getCategory()));
+        product.setCategory(normalizeCategory(dto.getCategory()));
         product.setSpecification(normalizeText(dto.getSpecification()));
         product.setStatus(resolveStatus(dto.getStatus(), product.getStatus()));
         product.setRemark(normalizeText(dto.getRemark()));
         product.setUpdateTime(LocalDateTime.now());
         foodProductMapper.updateById(product);
         productMasterCacheService.evict(product.getId());
+        auditLogService.recordProductAudit(
+            userId,
+            "ENTERPRISE",
+            auditOperatorNameResolver.resolveEnterpriseOperatorName(enterprise, username),
+            "PRODUCT_UPDATE",
+            "企业更新产品档案",
+            before,
+            copyProduct(product),
+            null
+        );
         return toVO(product);
+    }
+
+    @Override
+    public List<AuditLogVO> listMyProductLogs(Long userId, Long productId, Integer limit) {
+        FoodEnterprise enterprise = requireEnterpriseByUserId(userId);
+        FoodProduct product = requireOwnedProduct(enterprise.getId(), productId);
+        return auditLogService.listProductLogs(product.getId(), limit == null ? 10 : limit);
     }
 
     @Override
@@ -98,10 +152,21 @@ public class ProductServiceImpl implements ProductService {
 
     @Override
     public List<ProductVO> listByEnterpriseIdForRegulator(Long operatorUserId, Long enterpriseId) {
-        if (operatorUserId == null) {
-            throw new IllegalArgumentException("unauthorized");
-        }
+        requireEnterpriseInRegulatorScope(operatorUserId, enterpriseId);
         return listByEnterpriseId(enterpriseId);
+    }
+
+    @Override
+    public List<AuditLogVO> listProductLogsForRegulator(Long operatorUserId,
+                                                        Long enterpriseId,
+                                                        Long productId,
+                                                        Integer limit) {
+        requireEnterpriseInRegulatorScope(operatorUserId, enterpriseId);
+        FoodProduct product = requireProduct(productId);
+        if (!Objects.equals(product.getEnterpriseId(), enterpriseId)) {
+            throw new IllegalArgumentException("product not found");
+        }
+        return auditLogService.listProductLogs(product.getId(), limit == null ? 10 : limit);
     }
 
     @Override
@@ -197,6 +262,63 @@ public class ProductServiceImpl implements ProductService {
         return enterprise;
     }
 
+    private void requireEnterpriseInRegulatorScope(Long operatorUserId, Long enterpriseId) {
+        if (operatorUserId == null) {
+            throw new IllegalArgumentException("unauthorized");
+        }
+        FoodEnterprise enterprise = requireEnterpriseById(enterpriseId);
+        List<Long> scopeRegionIds = resolveRegulatorRegionIds(operatorUserId);
+        if (scopeRegionIds.isEmpty() || !scopeRegionIds.contains(enterprise.getRegionId())) {
+            throw new IllegalArgumentException("unauthorized");
+        }
+    }
+
+    private List<Long> resolveRegulatorRegionIds(Long userId) {
+        if (userId == null) {
+            return List.of();
+        }
+        FoodRegulator regulator = foodRegulatorMapper.selectOne(new LambdaQueryWrapper<FoodRegulator>()
+            .eq(FoodRegulator::getUserId, userId)
+            .eq(FoodRegulator::getDeleted, 0)
+            .last("limit 1"));
+        if (regulator == null) {
+            return List.of();
+        }
+        List<Long> directRegionIds = foodRegulatorRegionMapper.selectList(new LambdaQueryWrapper<FoodRegulatorRegion>()
+                .eq(FoodRegulatorRegion::getRegulatorId, regulator.getId())
+                .eq(FoodRegulatorRegion::getDeleted, 0))
+            .stream()
+            .map(FoodRegulatorRegion::getRegionId)
+            .filter(Objects::nonNull)
+            .distinct()
+            .toList();
+        if (directRegionIds.isEmpty()) {
+            return List.of();
+        }
+        return collectRegionIds(directRegionIds);
+    }
+
+    private List<Long> collectRegionIds(List<Long> rootIds) {
+        Set<Long> result = new LinkedHashSet<>();
+        ArrayDeque<Long> queue = new ArrayDeque<>(rootIds);
+        while (!queue.isEmpty()) {
+            Long current = queue.poll();
+            if (current == null || result.contains(current)) {
+                continue;
+            }
+            result.add(current);
+            List<AddrRegion> children = addrRegionMapper.selectList(new LambdaQueryWrapper<AddrRegion>()
+                .eq(AddrRegion::getParentId, current)
+                .eq(AddrRegion::getDeleted, 0));
+            for (AddrRegion child : children) {
+                if (child != null && child.getId() != null) {
+                    queue.add(child.getId());
+                }
+            }
+        }
+        return result.stream().toList();
+    }
+
     private FoodProduct requireProduct(Long productId) {
         if (productId == null) {
             throw new IllegalArgumentException("product not found");
@@ -286,6 +408,26 @@ public class ProductServiceImpl implements ProductService {
         return StringUtils.hasText(value) ? value.trim() : null;
     }
 
+    private String normalizeCategory(String value) {
+        String normalized = ProductCategoryCatalog.normalize(value);
+        if (normalized == null) {
+            throw new IllegalArgumentException("invalid product category");
+        }
+        return normalized;
+    }
+
+    private String buildEnterpriseOperatorName(FoodEnterprise enterprise, String username) {
+        String enterpriseName = enterprise == null ? null : normalizeText(enterprise.getEnterpriseName());
+        String normalizedUsername = normalizeText(username);
+        if (StringUtils.hasText(enterpriseName) && StringUtils.hasText(normalizedUsername)) {
+            return enterpriseName + "（" + normalizedUsername + "）";
+        }
+        if (StringUtils.hasText(enterpriseName)) {
+            return enterpriseName;
+        }
+        return normalizedUsername;
+    }
+
     private List<Long> sanitizeIds(List<Long> ids) {
         if (ids == null || ids.isEmpty()) {
             return List.of();
@@ -301,5 +443,23 @@ public class ProductServiceImpl implements ProductService {
 
     private boolean isDeleted(Integer deleted) {
         return deleted != null && deleted == 1;
+    }
+
+    private FoodProduct copyProduct(FoodProduct source) {
+        if (source == null) {
+            return null;
+        }
+        FoodProduct copy = new FoodProduct();
+        copy.setId(source.getId());
+        copy.setEnterpriseId(source.getEnterpriseId());
+        copy.setProductName(source.getProductName());
+        copy.setCategory(source.getCategory());
+        copy.setSpecification(source.getSpecification());
+        copy.setStatus(source.getStatus());
+        copy.setRemark(source.getRemark());
+        copy.setCreateTime(source.getCreateTime());
+        copy.setUpdateTime(source.getUpdateTime());
+        copy.setDeleted(source.getDeleted());
+        return copy;
     }
 }

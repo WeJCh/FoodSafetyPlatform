@@ -34,16 +34,19 @@ public class OperationMasterDataSupport {
     private final RegulationEnterpriseInternalClient enterpriseClient;
     private final RegulationProductInternalClient productClient;
     private final RegulationRegulatorInternalClient regulatorClient;
+    private final OperationAuditOperatorNameResolver operationAuditOperatorNameResolver;
     private final String regulationInternalToken;
 
     public OperationMasterDataSupport(RegulationEnterpriseInternalClient enterpriseClient,
                                       RegulationProductInternalClient productClient,
                                       RegulationRegulatorInternalClient regulatorClient,
+                                      OperationAuditOperatorNameResolver operationAuditOperatorNameResolver,
                                       @Value("${regulation.internal.token:regulation-internal-token}")
                                       String regulationInternalToken) {
         this.enterpriseClient = enterpriseClient;
         this.productClient = productClient;
         this.regulatorClient = regulatorClient;
+        this.operationAuditOperatorNameResolver = operationAuditOperatorNameResolver;
         this.regulationInternalToken = regulationInternalToken;
     }
 
@@ -62,6 +65,11 @@ public class OperationMasterDataSupport {
             throw new IllegalArgumentException("enterprise not approved");
         }
         return enterprise;
+    }
+
+    public Long resolveEnterpriseOwnerRegulatorId(Long enterpriseId) {
+        InternalEnterpriseDetailVO enterprise = requireEnterprise(enterpriseId);
+        return enterprise == null ? null : enterprise.getRegulatorId();
     }
 
     public InternalEnterpriseDetailVO requireEnterpriseByUserId(Long userId) {
@@ -228,13 +236,22 @@ public class OperationMasterDataSupport {
             ApiResponse<InternalRegulatorIdentityVO> regulatorResponse =
                 regulatorClient.getRegulatorByUserId(userId, regulationInternalToken);
             if (regulatorResponse != null && regulatorResponse.isSuccess() && regulatorResponse.getData() != null) {
-                names.put(userId, regulatorResponse.getData().getName());
+                InternalRegulatorIdentityVO regulator = regulatorResponse.getData();
+                names.put(userId, operationAuditOperatorNameResolver.resolveRegulatorOperatorName(
+                    regulator.getName(),
+                    regulator.getUsername()
+                ));
                 continue;
             }
             ApiResponse<InternalEnterpriseDetailVO> enterpriseResponse =
                 enterpriseClient.getEnterpriseByUserId(userId, regulationInternalToken);
             if (enterpriseResponse != null && enterpriseResponse.isSuccess() && enterpriseResponse.getData() != null) {
-                names.put(userId, enterpriseResponse.getData().getEnterpriseName());
+                names.put(
+                    userId,
+                    operationAuditOperatorNameResolver.resolveEnterpriseOperatorName(
+                        enterpriseResponse.getData().getEnterpriseName()
+                    )
+                );
             }
         }
         return names;

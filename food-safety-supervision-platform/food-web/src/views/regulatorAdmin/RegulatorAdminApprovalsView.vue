@@ -90,9 +90,14 @@
           <h3>{{ auditModal.title }}</h3>
           <p>{{ auditModal.subtitle }}</p>
           <div class="audit-modal__form">
-            <label>
-              审核人姓名
-              <input v-model.trim="approvalForm.regulatorName" placeholder="可选填写" />
+            <label v-if="auditModal.actionType === 'approve'">
+              包保责任人
+              <select v-model="approvalForm.regulatorId" :disabled="eligibleRegulatorsLoading">
+                <option value="">{{ eligibleRegulatorsLoading ? "加载中..." : "请选择包保责任人" }}</option>
+                <option v-for="item in eligibleRegulators" :key="item.id" :value="String(item.id)">
+                  {{ item.name }}{{ formatRegulatorRegions(item.regionIds) ? `（${formatRegulatorRegions(item.regionIds)}）` : "" }}
+                </option>
+              </select>
             </label>
             <label>
               审核意见
@@ -120,6 +125,7 @@ import RegulatorAdminWorkspacePage from "../../components/regulatorAdmin/Regulat
 import {
   approveEnterprise,
   approveEnterpriseBatch,
+  fetchEligibleRegulators,
   fetchPendingEnterprises,
   fetchRecentEnterpriseAuditLogs,
   fetchRegionPath,
@@ -135,8 +141,10 @@ const { regulatorUser, token, handleSidebarNavigate, handleLogout } = useRegulat
 
 const pendingRecords = ref([]);
 const approvalLoading = ref(false);
+const eligibleRegulatorsLoading = ref(false);
+const eligibleRegulators = ref([]);
 const status = reactive({ message: "", type: "" });
-const approvalForm = reactive({ regulatorName: "", comment: "" });
+const approvalForm = reactive({ regulatorId: "", comment: "" });
 const selectedIds = ref([]);
 const regionNameMap = reactive({});
 const refreshedAt = ref("-");
@@ -147,7 +155,8 @@ const auditModal = reactive({
   mode: "single",
   enterpriseId: null,
   title: "",
-  subtitle: ""
+  subtitle: "",
+  regionId: null
 });
 
 const allSelected = computed(() => {
@@ -165,13 +174,50 @@ function formatRegionName(regionId) {
   return regionNameMap[regionId] || `区域 ${regionId}`;
 }
 
+function formatRegulatorRegions(regionIds = []) {
+  if (!Array.isArray(regionIds) || !regionIds.length) return "";
+  return regionIds.map((id) => formatRegionName(id)).filter(Boolean).join("、");
+}
+
+function findPendingById(id) {
+  return pendingRecords.value.find((item) => String(item.id) === String(id)) || null;
+}
+
+function getBatchRegionId() {
+  const regionIds = selectedIds.value
+    .map((id) => findPendingById(id)?.regionId)
+    .filter((id) => id !== null && id !== undefined);
+  return new Set(regionIds).size === 1 ? regionIds[0] : null;
+}
+
 async function ensureRegionName(regionId) {
   if (!regionId || regionNameMap[regionId]) return;
   try {
     const path = await fetchRegionPath(token.value, regionId);
-    regionNameMap[regionId] = Array.isArray(path) && path.length ? path.map((item) => item.name).join(" / ") : `区域 ${regionId}`;
+    regionNameMap[regionId] = Array.isArray(path) && path.length
+      ? path.map((item) => item.name).join(" / ")
+      : `区域 ${regionId}`;
   } catch {
     regionNameMap[regionId] = `区域 ${regionId}`;
+  }
+}
+
+async function loadEligibleRegulators(regionId) {
+  eligibleRegulatorsLoading.value = true;
+  try {
+    const data = await fetchEligibleRegulators(token.value, regionId || undefined);
+    const list = Array.isArray(data) ? data : [];
+    eligibleRegulators.value = list.filter((item) => String(item.roleType) === "REGULATOR_ENFORCER");
+    await Promise.all(
+      eligibleRegulators.value.flatMap((item) =>
+        Array.isArray(item.regionIds) ? item.regionIds.map((region) => ensureRegionName(region)) : []
+      )
+    );
+  } catch (error) {
+    eligibleRegulators.value = [];
+    setStatus(resolveErrorMessage(error, "执法人员列表加载失败，请稍后重试"), "error");
+  } finally {
+    eligibleRegulatorsLoading.value = false;
   }
 }
 
@@ -188,7 +234,7 @@ async function loadPending() {
       id: item.id || `audit-${index}`,
       title: item.actionName || item.actionType || "企业审核日志",
       desc: item.summary || `${item.targetName || "企业"}发生了一条新的审核操作`,
-      meta: `${item.operatorName || "监管人员"} | ${formatTime(item.createTime)}`
+      meta: `${item.operatorName || "系统"} | ${formatTime(item.createTime)}`
     }));
     selectedIds.value = [];
     refreshedAt.value = formatTime(new Date().toISOString());
@@ -200,37 +246,60 @@ async function loadPending() {
   }
 }
 
-function openSingleAuditModal(item, actionType) {
+async function openSingleAuditModal(item, actionType) {
   auditModal.visible = true;
   auditModal.mode = "single";
   auditModal.actionType = actionType;
   auditModal.enterpriseId = item.id;
+  auditModal.regionId = item.regionId || null;
   auditModal.title = actionType === "approve" ? "确认通过企业备案" : "确认驳回企业备案";
   auditModal.subtitle = item.enterpriseName || "当前企业";
   approvalForm.comment = "";
+  approvalForm.regulatorId = item.regulatorId ? String(item.regulatorId) : "";
+  eligibleRegulators.value = [];
+  if (actionType === "approve") {
+    await loadEligibleRegulators(item.regionId || null);
+  }
 }
 
-function openBatchAuditModal(actionType) {
+async function openBatchAuditModal(actionType) {
   if (!selectedIds.value.length) {
     setStatus("请先选择需要审核的企业。", "error");
+    return;
+  }
+  const regionId = getBatchRegionId();
+  if (actionType === "approve" && !regionId) {
+    setStatus("批量通过时请选择同一街道辖区的企业，以便统一指定包保责任人。", "error");
     return;
   }
   auditModal.visible = true;
   auditModal.mode = "batch";
   auditModal.actionType = actionType;
   auditModal.enterpriseId = null;
+  auditModal.regionId = regionId;
   auditModal.title = actionType === "approve" ? "批量通过企业备案" : "批量驳回企业备案";
   auditModal.subtitle = `已选择 ${selectedIds.value.length} 家企业`;
   approvalForm.comment = "";
+  approvalForm.regulatorId = "";
+  eligibleRegulators.value = [];
+  if (actionType === "approve") {
+    await loadEligibleRegulators(regionId);
+  }
 }
 
 function closeAuditModal() {
   auditModal.visible = false;
+  auditModal.regionId = null;
+  eligibleRegulators.value = [];
 }
 
 async function submitAuditAction() {
   if (!approvalForm.comment.trim()) {
     setStatus("请填写审核意见。", "error");
+    return;
+  }
+  if (auditModal.actionType === "approve" && !approvalForm.regulatorId) {
+    setStatus("请选择包保责任人。", "error");
     return;
   }
 
@@ -239,24 +308,28 @@ async function submitAuditAction() {
   try {
     if (auditModal.mode === "single") {
       if (auditModal.actionType === "approve") {
-        await approveEnterprise(token.value, auditModal.enterpriseId, approvalForm);
+        await approveEnterprise(token.value, auditModal.enterpriseId, {
+          comment: approvalForm.comment,
+          regulatorId: Number(approvalForm.regulatorId)
+        });
         setStatus("审核通过成功。", "success");
       } else {
-        await rejectEnterprise(token.value, auditModal.enterpriseId, approvalForm);
+        await rejectEnterprise(token.value, auditModal.enterpriseId, {
+          comment: approvalForm.comment
+        });
         setStatus("驳回成功。", "success");
       }
     } else if (auditModal.actionType === "approve") {
       await approveEnterpriseBatch(token.value, {
         ids: selectedIds.value,
         comment: approvalForm.comment,
-        regulatorName: approvalForm.regulatorName
+        regulatorId: Number(approvalForm.regulatorId)
       });
       setStatus("批量通过成功。", "success");
     } else {
       await rejectEnterpriseBatch(token.value, {
         ids: selectedIds.value,
-        comment: approvalForm.comment,
-        regulatorName: approvalForm.regulatorName
+        comment: approvalForm.comment
       });
       setStatus("批量驳回成功。", "success");
     }
@@ -352,7 +425,16 @@ td p { margin: 2px 0 0; color: #64748b; font-size: 12px; }
 .audit-modal p { margin: 6px 0 0; color: #64748b; font-size: 13px; }
 .audit-modal__form { margin-top: 12px; display: grid; gap: 10px; }
 .audit-modal__form label { display: grid; gap: 6px; color: #64748b; font-size: 12px; font-weight: 700; }
-.audit-modal__form input, .audit-modal__form textarea { border: 0; background: #f1f5f9; border-radius: 8px; padding: 10px; font-size: 13px; color: #0f172a; }
+.audit-modal__form input,
+.audit-modal__form textarea,
+.audit-modal__form select {
+  border: 0;
+  background: #f1f5f9;
+  border-radius: 8px;
+  padding: 10px;
+  font-size: 13px;
+  color: #0f172a;
+}
 .audit-modal__form textarea { resize: vertical; min-height: 96px; }
 .audit-modal__actions { margin-top: 14px; display: flex; justify-content: flex-end; gap: 8px; }
 .audit-modal__actions .ghost, .audit-modal__actions .primary { border: 0; border-radius: 8px; padding: 8px 14px; font-size: 13px; cursor: pointer; }

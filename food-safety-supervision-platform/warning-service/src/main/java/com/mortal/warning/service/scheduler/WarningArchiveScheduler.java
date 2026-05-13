@@ -115,7 +115,7 @@ public class WarningArchiveScheduler {
         processLog.setWarningId(record.getId());
         processLog.setActionType(WarningActionType.AUTO_ARCHIVE.name());
         processLog.setOperatorId(null);
-        processLog.setOperatorName("system");
+        processLog.setOperatorName("系统");
         processLog.setActionComment(String.format(
             "预警已解决超过 %d 天（阈值时间 %s），系统自动归档",
             resolvedDays,

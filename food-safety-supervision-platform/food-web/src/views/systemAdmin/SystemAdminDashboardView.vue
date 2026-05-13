@@ -168,7 +168,7 @@ function buildAuditRows(logs) {
   auditRows.value = logs.slice(0, 6).map((item, index) => ({
     id: item.id || `audit-${index}`,
     time: formatDateTime(item.createTime),
-    operator: item.operatorName || "系统管理员",
+    operator: item.operatorName || "系统",
     action: item.actionName || item.actionType || "监管操作",
     target: item.targetName || "-",
     status: "已记录",

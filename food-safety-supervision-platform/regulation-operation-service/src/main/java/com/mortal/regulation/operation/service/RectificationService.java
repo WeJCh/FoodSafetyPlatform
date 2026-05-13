@@ -32,4 +32,6 @@ public interface RectificationService {
     RectificationTaskVO getDetail(Long operatorUserId, String userType, Long rectificationId);
 
     List<RectificationActionLogVO> listActions(Long operatorUserId, String userType, Long rectificationId);
+
+    List<RectificationActionLogVO> listRecentActions(Long operatorUserId, String userType, Integer limit);
 }

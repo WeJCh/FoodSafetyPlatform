@@ -10,6 +10,7 @@ import com.mortal.regulation.mapper.FoodRegulatorMapper;
 import com.mortal.regulation.mapper.PublicBulletinMapper;
 import com.mortal.regulation.service.AuditLogService;
 import com.mortal.regulation.service.BulletinService;
+import com.mortal.regulation.support.AuditOperatorNameResolver;
 import com.mortal.regulation.support.BulletinPublicCacheService;
 import com.mortal.regulation.vo.BulletinDetailVO;
 import com.mortal.regulation.vo.BulletinVO;
@@ -39,15 +40,18 @@ public class BulletinServiceImpl implements BulletinService {
     private final FoodRegulatorMapper foodRegulatorMapper;
     private final BulletinPublicCacheService bulletinPublicCacheService;
     private final AuditLogService auditLogService;
+    private final AuditOperatorNameResolver auditOperatorNameResolver;
 
     public BulletinServiceImpl(PublicBulletinMapper publicBulletinMapper,
                                FoodRegulatorMapper foodRegulatorMapper,
                                BulletinPublicCacheService bulletinPublicCacheService,
-                               AuditLogService auditLogService) {
+                               AuditLogService auditLogService,
+                               AuditOperatorNameResolver auditOperatorNameResolver) {
         this.publicBulletinMapper = publicBulletinMapper;
         this.foodRegulatorMapper = foodRegulatorMapper;
         this.bulletinPublicCacheService = bulletinPublicCacheService;
         this.auditLogService = auditLogService;
+        this.auditOperatorNameResolver = auditOperatorNameResolver;
     }
 
     @Override
@@ -86,7 +90,7 @@ public class BulletinServiceImpl implements BulletinService {
     }
 
     @Override
-    public BulletinDetailVO create(Long userId, BulletinSaveDTO dto) {
+    public BulletinDetailVO create(Long userId, String username, BulletinSaveDTO dto) {
         FoodRegulator operator = requireAdmin(userId);
         PublicBulletin bulletin = new PublicBulletin();
         bulletin.setTitle(dto.getTitle().trim());
@@ -102,7 +106,7 @@ public class BulletinServiceImpl implements BulletinService {
         auditLogService.recordBulletinAudit(
             userId,
             ROLE_ADMIN,
-            operator.getName(),
+            auditOperatorNameResolver.resolveRegulatorOperatorName(operator, username),
             "BULLETIN_CREATE",
             "创建公告草稿",
             null,
@@ -113,7 +117,7 @@ public class BulletinServiceImpl implements BulletinService {
     }
 
     @Override
-    public BulletinDetailVO update(Long userId, Long bulletinId, BulletinSaveDTO dto) {
+    public BulletinDetailVO update(Long userId, String username, Long bulletinId, BulletinSaveDTO dto) {
         FoodRegulator operator = requireAdmin(userId);
         PublicBulletin bulletin = requireBulletin(bulletinId);
         PublicBulletin before = copyBulletin(bulletin);
@@ -128,7 +132,7 @@ public class BulletinServiceImpl implements BulletinService {
             auditLogService.recordBulletinAudit(
                 userId,
                 ROLE_ADMIN,
-                operator.getName(),
+                auditOperatorNameResolver.resolveRegulatorOperatorName(operator, username),
                 "BULLETIN_UPDATE",
                 "更新公告",
                 before,
@@ -140,7 +144,7 @@ public class BulletinServiceImpl implements BulletinService {
     }
 
     @Override
-    public BulletinDetailVO publish(Long userId, Long bulletinId) {
+    public BulletinDetailVO publish(Long userId, String username, Long bulletinId) {
         FoodRegulator operator = requireAdmin(userId);
         PublicBulletin bulletin = requireBulletin(bulletinId);
         if (STATUS_PUBLISHED.equalsIgnoreCase(bulletin.getStatus())) {
@@ -157,7 +161,7 @@ public class BulletinServiceImpl implements BulletinService {
         auditLogService.recordBulletinAudit(
             userId,
             ROLE_ADMIN,
-            operator.getName(),
+            auditOperatorNameResolver.resolveRegulatorOperatorName(operator, username),
             "BULLETIN_PUBLISH",
             "发布公告",
             before,
@@ -168,7 +172,7 @@ public class BulletinServiceImpl implements BulletinService {
     }
 
     @Override
-    public BulletinDetailVO offline(Long userId, Long bulletinId) {
+    public BulletinDetailVO offline(Long userId, String username, Long bulletinId) {
         FoodRegulator operator = requireAdmin(userId);
         PublicBulletin bulletin = requireBulletin(bulletinId);
         if (STATUS_OFFLINE.equalsIgnoreCase(bulletin.getStatus())) {
@@ -183,7 +187,7 @@ public class BulletinServiceImpl implements BulletinService {
         auditLogService.recordBulletinAudit(
             userId,
             ROLE_ADMIN,
-            operator.getName(),
+            auditOperatorNameResolver.resolveRegulatorOperatorName(operator, username),
             "BULLETIN_OFFLINE",
             "下线公告",
             before,

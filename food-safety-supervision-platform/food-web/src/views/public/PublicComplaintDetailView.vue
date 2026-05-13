@@ -1,28 +1,8 @@
-<template>
-  <div class="public-complaint-detail-page">
-    <header class="public-complaint-detail-page__topbar">
-      <div class="public-complaint-detail-page__topbar-inner">
-        <div class="public-complaint-detail-page__brand-nav">
-          <span class="public-complaint-detail-page__brand">食品安全监管平台</span>
-          <nav class="public-complaint-detail-page__nav" aria-label="公众导航">
-            <button
-              v-for="item in topNavItems"
-              :key="item.key"
-              type="button"
-              class="public-complaint-detail-page__nav-item"
-              :class="{ 'is-active': item.key === 'complaints' }"
-              @click="goTo(item.routeName)"
-            >
-              {{ item.label }}
-            </button>
-          </nav>
-        </div>
-        <div class="public-complaint-detail-page__toolbar">
-          <button type="button" class="ghost public-complaint-detail-page__logout" @click="handleLogout">退出登录</button>
-        </div>
-      </div>
-    </header>
-
+﻿<template>
+    <PublicWorkspacePage
+    page-class="public-complaint-detail-page"
+    active-key="complaints"
+  >
     <main class="public-complaint-detail-page__main">
       <AppStatusToast v-if="loading" message="详情加载中..." type="info" />
       <AppStatusToast v-else-if="!detail" :message="status.message || '未找到对应的投诉记录。'" type="error" />
@@ -58,11 +38,13 @@
               <h3>投诉详情信息</h3>
               <div class="public-complaint-detail-page__grid">
                 <div><span>企业名称</span><strong>{{ detail.enterpriseName || "-" }}</strong></div>
-                <div><span>投诉类别</span><strong>{{ detail.complaintType || "-" }}</strong></div>
+                <div><span>投诉类别</span><strong>{{ formatComplaintType(detail.complaintType, "-") }}</strong></div>
+                <div><span>投诉方式</span><strong>{{ detail.anonymous ? "匿名投诉" : "实名投诉" }}</strong></div>
+                <div><span>投诉人</span><strong>{{ detail.complainantName || "-" }}</strong></div>
                 <div><span>提交时间</span><strong>{{ formatTime(detail.createTime) }}</strong></div>
                 <div><span>更新时间</span><strong>{{ formatTime(detail.updateTime) }}</strong></div>
                 <div><span>办理时限</span><strong>{{ formatTime(detail.deadlineTime) }}</strong></div>
-                <div><span>联系方式</span><strong>{{ detail.contactMasked || detail.contact || "-" }}</strong></div>
+                <div><span>联系方式</span><strong>{{ complainantContactDisplay }}</strong></div>
               </div>
               <div class="public-complaint-detail-page__desc">
                 <span>投诉描述</span>
@@ -107,8 +89,7 @@
               </article>
             </div>
             <p class="public-complaint-detail-page__support">
-              如对处理结果有异议，可拨打 <strong>12315</strong> 或联系属地监管部门。
-            </p>
+              如对处理结果有异议，可拨打 <strong>12315</strong> 或联系属地监管部门。</p>
           </aside>
         </div>
 
@@ -124,17 +105,19 @@
         </section>
       </template>
     </main>
-  </div>
+    </PublicWorkspacePage>
 </template>
 
 <script setup>
 import { computed, onMounted, reactive, ref } from "vue";
 import { useRoute, useRouter } from "vue-router";
+import PublicWorkspacePage from "../../components/public/PublicWorkspacePage.vue";
 import { fetchMyComplaintDetail } from "../../api/complaint";
 import AppEmptyState from "../../components/common/AppEmptyState.vue";
 import AppStatusTag from "../../components/common/AppStatusTag.vue";
 import AppStatusToast from "../../components/common/AppStatusToast.vue";
-import { getActiveSession, performLogout } from "../../session/authRuntime";
+import { getActiveSession } from "../../session/authRuntime";
+import { formatComplaintType } from "../../utils/complaintTypes";
 import { formatTime } from "../../utils/formatters";
 import { complaintStatusMap, formatStatusLabel, getStatusTone } from "../../utils/statusMaps";
 import { resolveErrorMessage } from "../../utils/uiFeedback";
@@ -146,25 +129,15 @@ const loading = ref(false);
 const detail = ref(null);
 const status = reactive({ message: "", type: "" });
 
-const topNavItems = [
-  { key: "home", label: "首页", routeName: "public-home" },
-  { key: "bulletins", label: "监管公告", routeName: "public-bulletins" },
-  { key: "enterprises", label: "企业公示", routeName: "public-enterprises" },
-  { key: "sampling", label: "抽检结果", routeName: "public-sampling-results" },
-  { key: "complaint-create", label: "我要投诉", routeName: "public-complaint-create" },
-  { key: "complaints", label: "我的投诉", routeName: "public-complaints" }
-];
-
 const attachments = computed(() => {
   const raw = detail.value?.imageUrls;
   if (!Array.isArray(raw)) return [];
   return raw.filter(Boolean).map((item) => String(item));
 });
 
-const isCompleted = computed(() => {
-  const current = String(detail.value?.status || "").toUpperCase();
-  return current === "FEEDBACKED";
-});
+const complainantContactDisplay = computed(() => detail.value?.contact || detail.value?.contactMasked || "-");
+
+const isCompleted = computed(() => String(detail.value?.status || "").toUpperCase() === "FEEDBACKED");
 
 const timelineItems = computed(() => {
   const current = String(detail.value?.status || "").toUpperCase();
@@ -197,17 +170,8 @@ function resolveFeedbackSummary(item) {
   return item?.feedbackSummary || item?.handleResult || "";
 }
 
-function goTo(name) {
-  router.push({ name }).catch(() => {});
-}
-
 function goBack() {
   router.push({ name: "public-complaints", query: { ...route.query } }).catch(() => {});
-}
-
-async function handleLogout() {
-  await performLogout();
-  router.replace({ name: "login" }).catch(() => {});
 }
 
 async function loadDetail() {
@@ -244,6 +208,8 @@ onMounted(loadDetail);
 .public-complaint-detail-page__nav-item { border: none; background: transparent; min-height: var(--public-topbar-min-h); color: var(--on-surface-variant); font-size: var(--public-nav-size); font-weight: 700; border-bottom: 2px solid transparent; cursor: pointer; }
 .public-complaint-detail-page__nav-item.is-active { color: var(--primary); border-bottom-color: var(--primary); }
 .public-complaint-detail-page__toolbar { display: flex; align-items: center; gap: 10px; }
+.public-complaint-detail-page__account { min-height: var(--public-toolbar-min-h); margin: 0; padding-inline: 12px; }
+.public-complaint-detail-page__account .material-symbols-outlined { font-size: 22px; }
 .public-complaint-detail-page__logout { min-height: var(--public-toolbar-min-h); font-size: var(--public-logout-font-size); margin: 0; }
 .public-complaint-detail-page__main { max-width: 1680px; margin: 0 auto; padding: 24px 16px 24px; }
 .public-complaint-detail-page__breadcrumb { margin-bottom: 10px; }
@@ -292,3 +258,7 @@ onMounted(loadDetail);
 @media (max-width: 1100px) { .public-complaint-detail-page__nav { display: none; } .public-complaint-detail-page__layout { grid-template-columns: 1fr; } }
 @media (max-width: 760px) { .public-complaint-detail-page__toolbar { display: none; } .public-complaint-detail-page__id-block h1 { font-size: var(--public-detail-title-sm); } .public-complaint-detail-page__grid { grid-template-columns: 1fr; } .public-complaint-detail-page__bottom { grid-template-columns: 1fr; } }
 </style>
+
+
+
+

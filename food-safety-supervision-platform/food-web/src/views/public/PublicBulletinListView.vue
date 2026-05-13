@@ -1,41 +1,17 @@
-<template>
-  <div class="public-bulletins-page">
-    <header class="public-bulletins-page__topbar">
-      <div class="public-bulletins-page__topbar-inner">
-        <div class="public-bulletins-page__brand-nav">
-          <span class="public-bulletins-page__brand">食品安全监管平台</span>
-          <nav class="public-bulletins-page__nav" aria-label="公众导航">
-            <button
-              v-for="item in topNavItems"
-              :key="item.key"
-              type="button"
-              class="public-bulletins-page__nav-item"
-              :class="{ 'is-active': item.key === 'bulletins' }"
-              @click="goTo(item.routeName)"
-            >
-              {{ item.label }}
-            </button>
-          </nav>
-        </div>
-        <div class="public-bulletins-page__toolbar">
-          <label class="public-bulletins-page__search-box">
-            <span class="material-symbols-outlined" aria-hidden="true">search</span>
-            <input
-              v-model.trim="filters.keyword"
-              type="text"
-              placeholder="搜索公告标题或关键词"
-              @keyup.enter="handleSearch"
-            />
-          </label>
-          <button class="ghost public-bulletins-page__logout" type="button" @click="handleLogout">退出登录</button>
-        </div>
-      </div>
-    </header>
-
+﻿<template>
+    <PublicWorkspacePage
+    page-class="public-bulletins-page"
+    active-key="bulletins"
+    :show-search="true"
+    v-model:search-value="filters.keyword"
+    search-placeholder="搜索公告标题或关键词"
+    :search-min-width="220"
+    @search="handleSearch"
+  >
     <main class="public-bulletins-page__main">
       <section class="public-bulletins-page__hero">
         <h1>监管公告</h1>
-        <p>Regulatory Announcements & Directives</p>
+        <p>政策通知与公开公告</p>
       </section>
 
       <section class="public-bulletins-page__content">
@@ -105,17 +81,18 @@
 
       <AppStatusToast :message="status.message" :type="status.type" />
     </main>
-  </div>
+    </PublicWorkspacePage>
 </template>
 
 <script setup>
 import { computed, onMounted, reactive, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
+import PublicWorkspacePage from "../../components/public/PublicWorkspacePage.vue";
 import AppEmptyState from "../../components/common/AppEmptyState.vue";
 import AppStatusTag from "../../components/common/AppStatusTag.vue";
 import AppStatusToast from "../../components/common/AppStatusToast.vue";
 import { fetchPublicBulletins } from "../../api/regulation";
-import { getActiveSession, performLogout } from "../../session/authRuntime";
+import { getActiveSession } from "../../session/authRuntime";
 import { formatTime } from "../../utils/formatters";
 import { resolveErrorMessage } from "../../utils/uiFeedback";
 
@@ -131,15 +108,6 @@ const total = ref(0);
 const pages = ref(1);
 const status = reactive({ message: "", type: "" });
 
-const topNavItems = [
-  { key: "home", label: "首页", routeName: "public-home" },
-  { key: "bulletins", label: "监管公告", routeName: "public-bulletins" },
-  { key: "enterprises", label: "企业公示", routeName: "public-enterprises" },
-  { key: "sampling", label: "抽检结果", routeName: "public-sampling-results" },
-  { key: "complaint-create", label: "我要投诉", routeName: "public-complaint-create" },
-  { key: "complaints", label: "我的投诉", routeName: "public-complaints" }
-];
-
 const categoryOptions = [
   { key: "", label: "全部公告" },
   { key: "POLICY", label: "政策法规" },
@@ -153,12 +121,7 @@ const pagerStart = computed(() => (total.value === 0 ? 0 : (page.value - 1) * si
 const pagerEnd = computed(() => Math.min(page.value * size.value, total.value));
 const hasFilters = computed(() => Boolean(filters.keyword.trim() || filters.category));
 const emptyTitle = computed(() => (hasFilters.value ? "暂无符合条件的公告" : "暂无公告"));
-const emptyDescription = computed(() => (hasFilters.value ? "可以调整关键词或公告类别后再试。" : "已发布的监管公告会展示在这里。"));
-
-async function handleLogout() {
-  await performLogout();
-  router.replace({ name: "login" }).catch(() => {});
-}
+const emptyDescription = computed(() => (hasFilters.value ? "可以调整关键字或公告类别后再试。" : "已发布的监管公告会展示在这里。"));
 
 function setStatus(message = "", type = "info") {
   status.message = message;
@@ -220,10 +183,6 @@ function viewBulletin(item) {
     params: { bulletinId: item.id },
     query: nextQuery
   }).catch(() => {});
-}
-
-function goTo(name) {
-  router.push({ name }).catch(() => {});
 }
 
 function syncRouteQuery() {
@@ -355,6 +314,16 @@ watch(
   min-height: var(--public-toolbar-min-h);
   font-size: var(--public-logout-font-size);
   margin: 0;
+}
+
+.public-bulletins-page__account {
+  min-height: var(--public-toolbar-min-h);
+  margin: 0;
+  padding-inline: 12px;
+}
+
+.public-bulletins-page__account .material-symbols-outlined {
+  font-size: 22px;
 }
 
 .public-bulletins-page__main {
@@ -623,3 +592,7 @@ watch(
   }
 }
 </style>
+
+
+
+

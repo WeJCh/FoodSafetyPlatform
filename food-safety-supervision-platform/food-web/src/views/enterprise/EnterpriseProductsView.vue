@@ -194,13 +194,7 @@ const listStatus = ref("");
 const statusLabel = computed(() => getApprovalStatusLabel(profileLoaded.value, approvalStatus.value));
 const statusTone = computed(() => getApprovalStatusTone(profileLoaded.value, approvalStatus.value));
 
-const categoryOptions = computed(() => {
-  const fromRecords = new Set(productRecords.value.map((p) => p.category).filter(Boolean));
-  const extras = Array.from(fromRecords)
-    .filter((c) => !ENTERPRISE_PRODUCT_CATEGORY_PRESETS.includes(c))
-    .sort((a, b) => a.localeCompare(b, "zh-CN"));
-  return [...ENTERPRISE_PRODUCT_CATEGORY_PRESETS, ...extras];
-});
+const categoryOptions = computed(() => [...ENTERPRISE_PRODUCT_CATEGORY_PRESETS]);
 
 const filteredProducts = computed(() => {
   let list = productRecords.value;

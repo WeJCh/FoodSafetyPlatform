@@ -2,7 +2,7 @@
   <RegulatorEnforcerPageShell
     active-key="stats"
     title="数据统计"
-    subtitle="围绕执法任务、风险预警与日常监管闭环提供统计视图，页面结构参考执法端原型的指标头图与分区展示。"
+    subtitle="围绕执法任务、风险预警与日常监管闭环提供统计视图。"
   >
     <section class="stats-hero">
       <div>

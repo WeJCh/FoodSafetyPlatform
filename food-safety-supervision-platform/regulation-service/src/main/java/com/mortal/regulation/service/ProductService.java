@@ -1,6 +1,7 @@
 package com.mortal.regulation.service;
 
 import com.mortal.regulation.dto.ProductSaveDTO;
+import com.mortal.regulation.vo.AuditLogVO;
 import com.mortal.regulation.vo.ProductVO;
 import com.mortal.regulation.vo.internal.InternalProductDetailVO;
 import com.mortal.regulation.vo.internal.InternalProductSummaryVO;
@@ -10,13 +11,17 @@ public interface ProductService {
 
     List<ProductVO> listMyProducts(Long userId);
 
-    ProductVO createMyProduct(Long userId, ProductSaveDTO dto);
+    ProductVO createMyProduct(Long userId, String username, ProductSaveDTO dto);
 
-    ProductVO updateMyProduct(Long userId, Long productId, ProductSaveDTO dto);
+    ProductVO updateMyProduct(Long userId, String username, Long productId, ProductSaveDTO dto);
+
+    List<AuditLogVO> listMyProductLogs(Long userId, Long productId, Integer limit);
 
     List<ProductVO> listByEnterpriseId(Long enterpriseId);
 
     List<ProductVO> listByEnterpriseIdForRegulator(Long operatorUserId, Long enterpriseId);
+
+    List<AuditLogVO> listProductLogsForRegulator(Long operatorUserId, Long enterpriseId, Long productId, Integer limit);
 
     InternalProductDetailVO getInternalById(Long productId);
 

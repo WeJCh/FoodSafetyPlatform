@@ -9,6 +9,7 @@
     <RegulatorEnforcerTopbar
       :username="username"
       :search-placeholder="searchPlaceholder"
+      @account="handleAccountNavigate"
     />
     <main class="enforcer-workspace__main">
       <slot />
@@ -17,6 +18,7 @@
 </template>
 
 <script setup>
+import { useRouter } from "vue-router";
 import RegulatorEnforcerSidebar from "./RegulatorEnforcerSidebar.vue";
 import RegulatorEnforcerTopbar from "./RegulatorEnforcerTopbar.vue";
 import { regulatorEnforcerNavItems } from "../../views/regulatorEnforcer/regulatorEnforcerShared";
@@ -24,10 +26,16 @@ import { regulatorEnforcerNavItems } from "../../views/regulatorEnforcer/regulat
 defineProps({
   activeKey: { type: String, default: "overview" },
   username: { type: String, default: "" },
-  searchPlaceholder: { type: String, default: "搜索任务、企业或记录..." }
+  searchPlaceholder: { type: String, default: "搜索企业、任务或待办事项" }
 });
 
+const router = useRouter();
+
 defineEmits(["navigate", "logout"]);
+
+function handleAccountNavigate() {
+  router.push({ name: "regulator-enforcer-account" }).catch(() => {});
+}
 </script>
 
 <style scoped>
@@ -35,8 +43,9 @@ defineEmits(["navigate", "logout"]);
   min-height: 100vh;
   background: #f7f9fc;
 }
+
 .enforcer-workspace__main {
   margin-left: 256px;
-  padding: 88px 16px 20px;
+  padding: 88px 24px 24px;
 }
 </style>

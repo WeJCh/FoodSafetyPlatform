@@ -13,6 +13,10 @@ public class ComplaintVO {
 
     private Long id;
     private String complaintNo;
+    private Boolean anonymous;
+    private String complainantName;
+    private String contact;
+    private String contactMasked;
     private Long enterpriseId;
     private String enterpriseName;
     private String complaintType;

@@ -9,6 +9,7 @@ import com.mortal.complaint.support.ComplaintRateLimitService;
 import com.mortal.complaint.support.RequestIdentityResolver;
 import com.mortal.complaint.support.RequestIdentityResolver.RequestIdentity;
 import com.mortal.complaint.vo.ComplaintListVO;
+import com.mortal.complaint.vo.ComplaintPublicStatsVO;
 import com.mortal.complaint.vo.ComplaintTrackVO;
 import com.mortal.complaint.vo.ComplaintVO;
 import jakarta.validation.Valid;
@@ -93,13 +94,30 @@ public class PublicComplaintController {
                                                        @RequestHeader(value = "X-User-Roles", required = false)
                                                        String userRoles,
                                                        @RequestParam(required = false) String status,
+                                                       @RequestParam(required = false) String keyword,
                                                        @RequestParam(defaultValue = "1") int page,
                                                        @RequestParam(defaultValue = "10") int size) {
         RequestIdentity identity = requestIdentityResolver.resolve(userId, userType, userRoles);
         if (!identity.isPublicUser()) {
             return ApiResponse.failure(403, "public user only");
         }
-        return ApiResponse.success(complaintQueryService.listMyPublic(identity.userId(), status, page, size));
+        return ApiResponse.success(complaintQueryService.listMyPublic(identity.userId(), status, keyword, page, size));
+    }
+
+    @GetMapping("/my/stats")
+    public ApiResponse<ComplaintPublicStatsVO> myStats(@RequestHeader(value = "X-User-Id", required = false)
+                                                       String userId,
+                                                       @RequestHeader(value = "X-User-Type", required = false)
+                                                       String userType,
+                                                       @RequestHeader(value = "X-User-Roles", required = false)
+                                                       String userRoles,
+                                                       @RequestParam(required = false) String status,
+                                                       @RequestParam(required = false) String keyword) {
+        RequestIdentity identity = requestIdentityResolver.resolve(userId, userType, userRoles);
+        if (!identity.isPublicUser()) {
+            return ApiResponse.failure(403, "public user only");
+        }
+        return ApiResponse.success(complaintQueryService.statsMyPublic(identity.userId(), status, keyword));
     }
 
     /**

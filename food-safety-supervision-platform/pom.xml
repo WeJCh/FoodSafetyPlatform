@@ -45,6 +45,7 @@
         <jjwt.version>0.11.5</jjwt.version>
         <knife4j.version>4.4.0</knife4j.version>
         <redisson.version>3.32.0</redisson.version>
+        <mortal.build.directory>target</mortal.build.directory>
     </properties>
     <dependencyManagement>
         <dependencies>
@@ -71,6 +72,7 @@
     </dependencyManagement>
 
     <build>
+        <directory>${project.basedir}/${mortal.build.directory}</directory>
         <pluginManagement>
             <plugins>
                 <plugin>

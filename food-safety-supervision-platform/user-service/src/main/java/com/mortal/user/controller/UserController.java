@@ -2,8 +2,9 @@ package com.mortal.user.controller;
 
 import com.mortal.platform.common.ApiResponse;
 import com.mortal.user.dto.PublicRegisterDTO;
+import com.mortal.user.dto.UserPasswordChangeDTO;
 import com.mortal.user.dto.UserRegisterDTO;
-import com.mortal.user.dto.UserUpdateDTO;
+import com.mortal.user.dto.UserSelfUpdateDTO;
 import com.mortal.user.enums.UserType;
 import com.mortal.user.service.UserService;
 import com.mortal.user.vo.UserVO;
@@ -11,10 +12,11 @@ import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.PutMapping;
-import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 
 @RestController
 @RequestMapping("/api/users")
@@ -47,9 +49,26 @@ public class UserController {
         return ApiResponse.success(userService.register(dto));
     }
 
-    @PutMapping
-    public ApiResponse<UserVO> update(@Valid @RequestBody UserUpdateDTO dto) {
-        return ApiResponse.success(userService.updateUser(dto));
+    @GetMapping("/me")
+    public ApiResponse<UserVO> getCurrentUser(@RequestHeader("Authorization") String token) {
+        UserVO user = userService.getCurrentUser(token);
+        if (user == null) {
+            return ApiResponse.failure(404, "user not found");
+        }
+        return ApiResponse.success(user);
+    }
+
+    @PutMapping("/me")
+    public ApiResponse<UserVO> updateCurrentUser(@RequestHeader("Authorization") String token,
+                                                 @Valid @RequestBody UserSelfUpdateDTO dto) {
+        return ApiResponse.success(userService.updateCurrentUser(token, dto));
+    }
+
+    @PutMapping("/me/password")
+    public ApiResponse<Void> changeCurrentUserPassword(@RequestHeader("Authorization") String token,
+                                                       @Valid @RequestBody UserPasswordChangeDTO dto) {
+        userService.changeCurrentUserPassword(token, dto);
+        return ApiResponse.success(null);
     }
 
     @GetMapping("/{id}")

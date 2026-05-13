@@ -126,7 +126,7 @@ public class BulletinManageController {
             return ApiResponse.failure(403, "regulator only");
         }
         try {
-            return ApiResponse.success(bulletinService.create(identity.userId(), dto));
+            return ApiResponse.success(bulletinService.create(identity.userId(), identity.username(), dto));
         } catch (IllegalArgumentException ex) {
             if ("admin only".equalsIgnoreCase(ex.getMessage())) {
                 return ApiResponse.failure(403, "admin only");
@@ -144,7 +144,7 @@ public class BulletinManageController {
             return ApiResponse.failure(403, "regulator only");
         }
         try {
-            return ApiResponse.success(bulletinService.update(identity.userId(), id, dto));
+            return ApiResponse.success(bulletinService.update(identity.userId(), identity.username(), id, dto));
         } catch (IllegalArgumentException ex) {
             if ("admin only".equalsIgnoreCase(ex.getMessage())) {
                 return ApiResponse.failure(403, "admin only");
@@ -164,7 +164,7 @@ public class BulletinManageController {
             return ApiResponse.failure(403, "regulator only");
         }
         try {
-            return ApiResponse.success(bulletinService.publish(identity.userId(), id));
+            return ApiResponse.success(bulletinService.publish(identity.userId(), identity.username(), id));
         } catch (IllegalArgumentException ex) {
             if ("admin only".equalsIgnoreCase(ex.getMessage())) {
                 return ApiResponse.failure(403, "admin only");
@@ -184,7 +184,7 @@ public class BulletinManageController {
             return ApiResponse.failure(403, "regulator only");
         }
         try {
-            return ApiResponse.success(bulletinService.offline(identity.userId(), id));
+            return ApiResponse.success(bulletinService.offline(identity.userId(), identity.username(), id));
         } catch (IllegalArgumentException ex) {
             if ("admin only".equalsIgnoreCase(ex.getMessage())) {
                 return ApiResponse.failure(403, "admin only");
@@ -199,13 +199,14 @@ public class BulletinManageController {
     private UserIdentity resolveIdentity(String token) {
         Long userId = jwtUserResolver.resolveUserId(token);
         String userType = jwtUserResolver.resolveUserType(token);
+        String username = jwtUserResolver.resolveUsername(token);
         if (userId == null) {
             throw new IllegalArgumentException("unauthorized");
         }
-        return new UserIdentity(userId, userType);
+        return new UserIdentity(userId, userType, username);
     }
 
-    private record UserIdentity(Long userId, String userType) {
+    private record UserIdentity(Long userId, String userType, String username) {
 
         boolean isRegulator() {
             return "REGULATOR".equalsIgnoreCase(userType);

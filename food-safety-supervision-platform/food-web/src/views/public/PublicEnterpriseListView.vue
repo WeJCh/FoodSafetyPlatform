@@ -1,30 +1,19 @@
-<template>
-  <div class="public-enterprises-page">
-    <header class="public-enterprises-page__topbar">
-      <div class="public-enterprises-page__topbar-inner">
-        <div class="public-enterprises-page__brand-nav">
-          <span class="public-enterprises-page__brand">食品安全监管平台</span>
-          <nav class="public-enterprises-page__nav" aria-label="公众导航">
-            <button v-for="item in topNavItems" :key="item.key" type="button" class="public-enterprises-page__nav-item" :class="{ 'is-active': item.key === 'enterprises' }" @click="goTo(item.routeName)">
-              {{ item.label }}
-            </button>
-          </nav>
-        </div>
-        <div class="public-enterprises-page__toolbar">
-          <label class="public-enterprises-page__search-box">
-            <span class="material-symbols-outlined" aria-hidden="true">search</span>
-            <input v-model.trim="filters.enterpriseName" type="text" placeholder="搜索企业..." @keyup.enter="handleSearch" />
-          </label>
-          <button type="button" class="ghost public-enterprises-page__logout" @click="handleLogout">退出登录</button>
-        </div>
-      </div>
-    </header>
+﻿<template>
+    <PublicWorkspacePage
+    page-class="public-enterprises-page"
+    active-key="enterprises"
+    :show-search="true"
+    v-model:search-value="filters.enterpriseName"
+    search-placeholder="搜索企业名称"
+    :search-min-width="220"
+    @search="handleSearch"
+  >
     <main class="public-enterprises-page__main">
       <section class="public-enterprises-page__head">
         <div>
           <div class="public-enterprises-page__crumb">政务公开 / 企业公示</div>
           <h1>企业公示</h1>
-          <p>实时展示本行政区域内食品生产经营企业的基本信息与信用等级情况。</p>
+          <p>实时展示本行政区域内食品生产经营企业的基础信息与信用等级情况。</p>
         </div>
         <div class="public-enterprises-page__filters">
           <label>
@@ -72,17 +61,18 @@
       </section>
       <AppStatusToast :message="status.message" :type="status.type" />
     </main>
-  </div>
+    </PublicWorkspacePage>
 </template>
 
 <script setup>
 import { computed, onMounted, reactive, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
+import PublicWorkspacePage from "../../components/public/PublicWorkspacePage.vue";
 import { fetchPublicEnterprises } from "../../api/regulation";
 import AppEmptyState from "../../components/common/AppEmptyState.vue";
 import AppStatusTag from "../../components/common/AppStatusTag.vue";
 import AppStatusToast from "../../components/common/AppStatusToast.vue";
-import { getActiveSession, performLogout } from "../../session/authRuntime";
+import { getActiveSession } from "../../session/authRuntime";
 import { enterpriseStatusMap, formatStatusLabel, getStatusTone } from "../../utils/statusMaps";
 import { getEmptyStateText, resolveErrorMessage } from "../../utils/uiFeedback";
 
@@ -94,15 +84,6 @@ const filters = reactive({ enterpriseName: "", status: "" });
 const page = ref(1);
 const size = ref(8);
 const status = reactive({ message: "", type: "" });
-
-const topNavItems = [
-  { key: "home", label: "首页", routeName: "public-home" },
-  { key: "bulletins", label: "监管公告", routeName: "public-bulletins" },
-  { key: "enterprises", label: "企业公示", routeName: "public-enterprises" },
-  { key: "sampling", label: "抽检结果", routeName: "public-sampling-results" },
-  { key: "complaint-create", label: "我要投诉", routeName: "public-complaint-create" },
-  { key: "complaints", label: "我的投诉", routeName: "public-complaints" }
-];
 
 function normalizeStatus(value) {
   const key = String(value || "").toUpperCase();
@@ -138,15 +119,6 @@ function statusTone(value) {
 function setStatus(message, type = "info") {
   status.message = message;
   status.type = type;
-}
-
-function goTo(name) {
-  router.push({ name }).catch(() => {});
-}
-
-async function handleLogout() {
-  await performLogout();
-  router.replace({ name: "login" }).catch(() => {});
 }
 
 function resetFilters() {
@@ -213,7 +185,7 @@ watch(
 </script>
 
 <style scoped>
-/* 字体与控件尺寸与公众端「抽检结果」页对齐 */
+/* 字体与控件尺寸与公众端“抽检结果”页对齐 */
 .public-enterprises-page {
   min-height: 100vh;
   background: var(--surface);
@@ -284,6 +256,14 @@ watch(
   background: transparent;
   font-size: var(--public-text-md);
   min-width: var(--public-toolbar-input-min-w);
+}
+.public-enterprises-page__account {
+  min-height: var(--public-toolbar-min-h);
+  margin: 0;
+  padding-inline: 12px;
+}
+.public-enterprises-page__account .material-symbols-outlined {
+  font-size: 22px;
 }
 .public-enterprises-page__logout {
   min-height: var(--public-toolbar-min-h);
@@ -482,3 +462,7 @@ watch(
   }
 }
 </style>
+
+
+
+

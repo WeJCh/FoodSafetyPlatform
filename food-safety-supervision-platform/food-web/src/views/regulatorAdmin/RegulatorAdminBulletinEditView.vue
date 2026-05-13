@@ -162,7 +162,7 @@ const timelineItems = computed(() =>
     key: `${item.id || item.actionType || "bulletin"}-${index}`,
     title: formatBulletinAuditTitle(item),
     time: formatTime(item.createTime) || "--",
-    operator: item.operatorName || "监管人员",
+    operator: item.operatorName || "系统",
     desc: item.summary || item.remark || item.actionName || item.actionType || "公告操作"
   }))
 );

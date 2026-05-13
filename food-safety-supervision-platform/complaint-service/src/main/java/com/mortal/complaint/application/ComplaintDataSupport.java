@@ -2,6 +2,10 @@ package com.mortal.complaint.application;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.mortal.complaint.client.regulation.dto.EnterpriseKeyReasonUpsertDTO;
+import com.mortal.complaint.client.user.UserServiceClient;
+import com.mortal.complaint.client.user.vo.UserVO;
+import com.mortal.complaint.client.warning.WarningServiceClient;
+import com.mortal.complaint.client.warning.dto.WarningEventUpsertDTO;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.mortal.complaint.client.regulation.RegulationInternalClient;
@@ -13,6 +17,7 @@ import com.mortal.platform.common.ApiResponse;
 import com.mortal.complaint.domain.entity.Complaint;
 import com.mortal.complaint.domain.entity.ComplaintHandle;
 import com.mortal.complaint.domain.enums.ComplaintStatus;
+import com.mortal.complaint.domain.enums.ComplaintType;
 import com.mortal.complaint.domain.service.ComplaintStatusFlow;
 import com.mortal.complaint.infrastructure.mapper.ComplaintHandleMapper;
 import com.mortal.complaint.infrastructure.mapper.ComplaintMapper;
@@ -24,6 +29,7 @@ import com.mortal.complaint.vo.EnterpriseProfileVO;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -47,20 +53,30 @@ public class ComplaintDataSupport {
     private final ComplaintMapper complaintMapper;
     private final ComplaintHandleMapper complaintHandleMapper;
     private final RegulationInternalClient regulationInternalClient;
+    private final UserServiceClient userServiceClient;
+    private final WarningServiceClient warningServiceClient;
     private final ObjectMapper objectMapper;
     private final String regulationInternalToken;
+    private final String warningInternalToken;
 
     public ComplaintDataSupport(ComplaintMapper complaintMapper,
                                 ComplaintHandleMapper complaintHandleMapper,
                                 RegulationInternalClient regulationInternalClient,
+                                UserServiceClient userServiceClient,
+                                WarningServiceClient warningServiceClient,
                                 ObjectMapper objectMapper,
                                 @Value("${regulation.internal.token:regulation-internal-token}")
-                                String regulationInternalToken) {
+                                String regulationInternalToken,
+                                @Value("${warning.internal.token:warning-internal-token}")
+                                String warningInternalToken) {
         this.complaintMapper = complaintMapper;
         this.complaintHandleMapper = complaintHandleMapper;
         this.regulationInternalClient = regulationInternalClient;
+        this.userServiceClient = userServiceClient;
+        this.warningServiceClient = warningServiceClient;
         this.objectMapper = objectMapper;
         this.regulationInternalToken = regulationInternalToken;
+        this.warningInternalToken = warningInternalToken;
     }
 
     /**
@@ -136,6 +152,85 @@ public class ComplaintDataSupport {
         }
     }
 
+    public Long resolveEnterpriseOwnerRegulatorId(InternalEnterpriseDetailVO enterprise) {
+        if (enterprise != null && enterprise.getRegulatorId() != null) {
+            return enterprise.getRegulatorId();
+        }
+        if (enterprise == null || !StringUtils.hasText(enterprise.getRegulatorName())) {
+            return null;
+        }
+        List<Long> candidateIds = resolveRegulatorIdsByName(enterprise.getRegulatorName());
+        if (candidateIds == null || candidateIds.isEmpty()) {
+            return null;
+        }
+        ApiResponse<List<InternalRegulatorSummaryVO>> response =
+            regulationInternalClient.getRegulatorSummaries(candidateIds, regulationInternalToken);
+        if (response == null || !response.isSuccess() || response.getData() == null) {
+            return null;
+        }
+        List<InternalRegulatorSummaryVO> candidates = response.getData().stream()
+            .filter(Objects::nonNull)
+            .filter(item -> enterprise.getRegulatorName().trim().equals(item.getName()))
+            .filter(item -> ROLE_ENFORCER.equalsIgnoreCase(item.getRoleType()))
+            .filter(item -> item.getStatus() == null || item.getStatus() == 1)
+            .toList();
+        if (candidates.size() == 1) {
+            return candidates.get(0).getId();
+        }
+        if (enterprise.getId() == null) {
+            return null;
+        }
+        List<InternalRegulatorSummaryVO> scopedCandidates = candidates.stream()
+            .filter(item -> regulatorCoversEnterprise(item.getId(), enterprise.getId()))
+            .toList();
+        if (scopedCandidates.size() == 1) {
+            return scopedCandidates.get(0).getId();
+        }
+        return null;
+    }
+
+    public void upsertComplaintOverflowWarning(Complaint complaint,
+                                               InternalEnterpriseDetailVO enterprise,
+                                               long acceptedCount,
+                                               int threshold,
+                                               int windowDays) {
+        if (complaint == null || complaint.getEnterpriseId() == null || enterprise == null) {
+            return;
+        }
+        WarningEventUpsertDTO dto = new WarningEventUpsertDTO();
+        dto.setEventType("COMPLAINT_OVERFLOW");
+        dto.setBizType("ENTERPRISE");
+        dto.setBizId(complaint.getEnterpriseId());
+        dto.setRegionId(enterprise.getRegionId());
+        dto.setOwnerRegulatorId(resolveEnterpriseOwnerRegulatorId(enterprise));
+        dto.setDedupKey("COMPLAINT_OVERFLOW_ENTERPRISE_" + complaint.getEnterpriseId());
+        dto.setLevel("L1");
+        String enterpriseName = StringUtils.hasText(enterprise.getEnterpriseName())
+            ? enterprise.getEnterpriseName().trim()
+            : "企业";
+        dto.setTitle(enterpriseName + "投诉数量超阈值");
+        dto.setContent("该企业近 " + windowDays + " 天有效投诉累计 " + acceptedCount
+            + " 件，达到阈值 " + threshold + " 件，已触发投诉超量预警。");
+        dto.setSourceService("complaint-service");
+        dto.setOccurTime(complaint.getAcceptedTime() == null ? LocalDateTime.now() : complaint.getAcceptedTime());
+        Map<String, Object> payload = new HashMap<>();
+        payload.put("warningType", "COMPLAINT_OVERFLOW");
+        payload.put("enterpriseId", complaint.getEnterpriseId());
+        payload.put("enterpriseName", enterprise.getEnterpriseName());
+        payload.put("complaintId", complaint.getId());
+        payload.put("complaintNo", complaint.getComplaintNo());
+        payload.put("acceptedCount", acceptedCount);
+        payload.put("threshold", threshold);
+        payload.put("windowDays", windowDays);
+        payload.put("acceptedTime", dto.getOccurTime());
+        dto.setPayload(payload);
+        ApiResponse<Map<String, Object>> response =
+            warningServiceClient.upsertInternalEvent(dto, warningInternalToken);
+        if (response == null || !response.isSuccess()) {
+            throw new IllegalArgumentException("upsert complaint overflow warning failed");
+        }
+    }
+
     /**
      * 获取监管员身份。
      * @param userId 用户ID
@@ -155,6 +250,25 @@ public class ComplaintDataSupport {
             throw new IllegalArgumentException("regulator disabled");
         }
         return regulator;
+    }
+
+    public UserVO requirePublicUserById(Long userId) {
+        if (userId == null) {
+            throw new IllegalArgumentException("unauthorized");
+        }
+        ApiResponse<UserVO> response = userServiceClient.getUserById(userId);
+        if (response == null || !response.isSuccess() || response.getData() == null) {
+            throw new IllegalArgumentException("public user not found");
+        }
+        UserVO user = response.getData();
+        String userType = normalize(user.getUserType());
+        if (!"PUBLIC".equals(userType)) {
+            throw new IllegalArgumentException("public user not found");
+        }
+        if (user.getStatus() != null && user.getStatus() != 1) {
+            throw new IllegalArgumentException("public user disabled");
+        }
+        return user;
     }
     /**
      * 获取监管员详情。
@@ -256,11 +370,20 @@ public class ComplaintDataSupport {
     }
 
     public ComplaintListVO toListVO(Complaint complaint, Map<Long, String> enterpriseNames) {
+        return toListVO(complaint, enterpriseNames, Collections.emptyMap());
+    }
+
+    public ComplaintListVO toListVO(Complaint complaint,
+                                    Map<Long, String> enterpriseNames,
+                                    Map<Long, String> handleResults) {
         ComplaintListVO vo = new ComplaintListVO();
         vo.setId(complaint.getId());
         vo.setComplaintNo(complaint.getComplaintNo());
         vo.setEnterpriseId(complaint.getEnterpriseId());
         vo.setEnterpriseName(enterpriseNames.get(complaint.getEnterpriseId()));
+        vo.setComplaintType(complaint.getComplaintType());
+        vo.setContent(complaint.getContent());
+        vo.setHandleResult(handleResults.get(complaint.getId()));
         vo.setStatus(complaint.getStatus());
         vo.setCreateTime(complaint.getCreateTime());
         vo.setUpdateTime(complaint.getUpdateTime());
@@ -273,6 +396,10 @@ public class ComplaintDataSupport {
         ComplaintVO vo = new ComplaintVO();
         vo.setId(complaint.getId());
         vo.setComplaintNo(complaint.getComplaintNo());
+        vo.setAnonymous(isAnonymous(complaint));
+        vo.setComplainantName(trim(complaint.getComplainantName()));
+        vo.setContact(trim(complaint.getContact()));
+        vo.setContactMasked(maskPhone(complaint.getContact()));
         vo.setEnterpriseId(complaint.getEnterpriseId());
         vo.setEnterpriseName(enterpriseNames.get(complaint.getEnterpriseId()));
         vo.setComplaintType(complaint.getComplaintType());
@@ -299,6 +426,10 @@ public class ComplaintDataSupport {
         vo.setCreateTime(complaint.getCreateTime());
         vo.setUpdateTime(complaint.getUpdateTime());
         return vo;
+    }
+
+    public boolean isAnonymous(Complaint complaint) {
+        return complaint != null && Integer.valueOf(1).equals(complaint.getAnonymousFlag());
     }
 
     public ComplaintTrackVO toTrackVO(Complaint complaint) {
@@ -465,6 +596,7 @@ public class ComplaintDataSupport {
         vo.setAddressDetail(enterprise.getAddressDetail());
         vo.setPrincipal(enterprise.getPrincipal());
         vo.setPrincipalPhone(enterprise.getPrincipalPhone());
+        vo.setRegulatorId(enterprise.getRegulatorId());
         vo.setRegulatorName(enterprise.getRegulatorName());
         vo.setStatus(enterprise.getStatus());
         vo.setApprovalStatus(enterprise.getApprovalStatus());
@@ -563,12 +695,40 @@ public class ComplaintDataSupport {
         return StringUtils.hasText(value) ? value.trim().toUpperCase() : null;
     }
 
+    public String normalizeComplaintType(String value) {
+        ComplaintType type = ComplaintType.fromCode(value);
+        if (type == null) {
+            throw new IllegalArgumentException("invalid complaintType");
+        }
+        return type.code();
+    }
+
     public String trim(String value) {
         return StringUtils.hasText(value) ? value.trim() : null;
     }
 
+    public String maskPhone(String phone) {
+        String normalized = trim(phone);
+        if (!StringUtils.hasText(normalized) || normalized.length() < 7) {
+            return normalized;
+        }
+        return normalized.substring(0, 3) + "****" + normalized.substring(normalized.length() - 4);
+    }
+
     public boolean isDeleted(Integer deleted) {
         return deleted != null && deleted == 1;
+    }
+
+    private boolean regulatorCoversEnterprise(Long regulatorId, Long enterpriseId) {
+        if (regulatorId == null || enterpriseId == null) {
+            return false;
+        }
+        ApiResponse<List<Long>> response =
+            regulationInternalClient.getScopeEnterpriseIds(regulatorId, regulationInternalToken);
+        if (response == null || !response.isSuccess() || response.getData() == null) {
+            return false;
+        }
+        return response.getData().contains(enterpriseId);
     }
 }
 

@@ -39,7 +39,7 @@
               :disabled="loadingAction"
               @click="scrollToActions"
             >
-              确认流转
+              分派执法人员
             </button>
           </div>
         </header>
@@ -66,17 +66,20 @@
           <div class="left-col">
             <div class="block-grid">
               <section class="panel">
-                <h4>基本信息</h4>
+                <h4>投诉基础信息</h4>
                 <dl class="kv-list">
                   <div><dt>投诉来源</dt><dd>公众投诉平台</dd></div>
-                  <div><dt>投诉类别</dt><dd>{{ complaint.complaintType || "-" }}</dd></div>
+                  <div><dt>投诉类别</dt><dd>{{ formatComplaintType(complaint.complaintType, "-") }}</dd></div>
+                  <div><dt>投诉方式</dt><dd>{{ complaint.anonymous ? "匿名投诉" : "实名投诉" }}</dd></div>
+                  <div><dt>投诉人</dt><dd>{{ complaint.complainantName || "-" }}</dd></div>
+                  <div><dt>联系方式</dt><dd>{{ complainantContactDisplay }}</dd></div>
                   <div><dt>投诉时间</dt><dd>{{ formatTime(complaint.createTime) }}</dd></div>
-                  <div><dt>更新时间</dt><dd>{{ formatTime(complaint.updateTime) }}</dd></div>
+                  <div><dt>最近更新时间</dt><dd>{{ formatTime(complaint.updateTime) }}</dd></div>
                 </dl>
               </section>
 
               <section class="panel">
-                <h4>涉事企业</h4>
+                <h4>关联企业</h4>
                 <div class="enterprise-head">
                   <div class="enterprise-avatar">企</div>
                   <div>
@@ -105,17 +108,17 @@
                   <img :src="url" alt="投诉现场图片" />
                 </button>
               </div>
-              <div v-else class="muted-text">暂无现场图片</div>
+              <div v-else class="muted-text">当前未上传现场图片</div>
             </section>
 
             <section class="panel panel-large">
               <div class="panel-head">
-                <h4>流转日志</h4>
+                <h4>投诉操作日志</h4>
                 <button class="mini-link" type="button" :disabled="auditLoading" @click="loadAuditLogs">
-                  {{ auditLoading ? "加载中..." : "刷新" }}
+                  {{ auditLoading ? "加载中..." : "刷新日志" }}
                 </button>
               </div>
-              <div v-if="auditLoading" class="muted-text">操作日志加载中...</div>
+              <div v-if="auditLoading" class="muted-text">正在加载投诉操作日志...</div>
               <div v-else-if="auditError" class="muted-text muted-text--error">{{ auditError }}</div>
               <div v-else-if="!auditLogs.length" class="muted-text">当前暂无投诉操作日志</div>
               <div v-else class="logs">
@@ -125,7 +128,7 @@
                     <strong>{{ item.title }}</strong>
                     <p>{{ item.desc }}</p>
                     <p class="log-meta">
-                      <span>{{ item.operatorName || "-" }}</span>
+                      <span>{{ item.operatorName }}</span>
                       <span v-if="item.remark">· {{ item.remark }}</span>
                     </p>
                   </div>
@@ -137,46 +140,46 @@
 
           <div class="right-col">
             <section class="panel panel-blue">
-              <h4>当前执行人</h4>
+              <h4>当前处理责任</h4>
               <div class="enforcer-row">
                 <div class="enforcer-avatar">{{ enforcerInitial }}</div>
                 <div>
-                  <p class="name">{{ complaint.assignedToName || "暂未指派" }}</p>
-                  <p class="sub">指派时间：{{ formatTime(complaint.assignedTime) }}</p>
+                  <p class="name">{{ complaint.assignedToName || "尚未分派" }}</p>
+                  <p class="sub">分派时间：{{ formatTime(complaint.assignedTime) }}</p>
                 </div>
               </div>
               <dl class="enforcer-meta">
-                <div><dt>联系电话</dt><dd>-</dd></div>
-                <div><dt>办理时限</dt><dd>{{ formatTime(complaint.deadlineTime) }}</dd></div>
+                <div><dt>处理时限</dt><dd>{{ formatTime(complaint.deadlineTime) }}</dd></div>
+                <div><dt>当前状态</dt><dd>{{ formatComplaintStatus(complaint.status) }}</dd></div>
               </dl>
             </section>
 
             <section ref="actionPanelRef" class="panel">
-              <h4>操作指令</h4>
+              <h4>处理动作</h4>
               <div class="action-stack">
                 <div v-if="canAccept" class="action-tip">
-                  该投诉尚未受理，请先完成受理。
+                  该投诉当前仍处于待受理状态，完成受理后才能分派执法人员。
                   <button class="primary" type="button" :disabled="loadingAction" @click="handleAccept">
                     受理投诉
                   </button>
                 </div>
 
-                <template v-if="canAssign">
+                <template v-if="canAssign || canReassign">
                   <label>
-                    指派执法人员
+                    分派执法人员
                     <select v-model="assignForm.regulatorId">
-                      <option value="">请选择</option>
+                      <option value="">请选择执法人员</option>
                       <option v-for="item in enforcers" :key="item.id" :value="item.id">
                         {{ item.name }}
                       </option>
                     </select>
                   </label>
                   <label>
-                    办理时限
+                    处理截止时间
                     <input v-model="assignForm.deadlineTime" type="datetime-local" />
                   </label>
                   <button class="primary" type="button" :disabled="loadingAction" @click="handleAssign">
-                    确认执行流转
+                    {{ assignActionLabel }}
                   </button>
                 </template>
 
@@ -204,7 +207,7 @@
 
     <div v-if="currentImagePreviewUrl" class="image-preview-mask" @click.self="closeImagePreview">
       <div class="image-preview-card">
-        <img :src="currentImagePreviewUrl" alt="现场图片大图" />
+        <img :src="currentImagePreviewUrl" alt="投诉现场大图预览" />
         <div class="image-preview-actions">
           <button class="ghost" type="button" :disabled="imagePreviewIndex <= 0" @click="showPrevImage">
             上一张
@@ -225,6 +228,7 @@
   </RegulatorAdminWorkspacePage>
 </template>
 
+
 <script setup>
 import { computed, onMounted, reactive, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
@@ -233,10 +237,17 @@ import {
   assignComplaint,
   fetchComplaintDetail,
   fetchComplaintLogs,
+  reassignComplaint,
   rejectComplaint
 } from "../../api/complaint";
 import { fetchEligibleRegulators } from "../../api/regulation";
 import RegulatorAdminWorkspacePage from "../../components/regulatorAdmin/RegulatorAdminWorkspacePage.vue";
+import {
+  formatComplaintAuditAction,
+  formatComplaintAuditOperatorName,
+  formatComplaintAuditSummary
+} from "../../utils/complaintAudit";
+import { formatComplaintType } from "../../utils/complaintTypes";
 import { formatByMap, formatTime } from "../../utils/formatters";
 import { complaintStatusMap } from "../../utils/statusMaps";
 import { resolveErrorMessage } from "../../utils/uiFeedback";
@@ -264,9 +275,16 @@ const complaint = computed(() => detail.value?.complaint || null);
 const enterprise = computed(() => detail.value?.enterprise || null);
 const currentImagePreviewUrl = computed(() => imagePreviewUrls.value[imagePreviewIndex.value] || "");
 const complaintImageList = computed(() => complaint.value?.imageUrls || []);
+const complainantContactDisplay = computed(() =>
+  complaint.value?.anonymous
+    ? complaint.value?.contactMasked || complaint.value?.contact || "-"
+    : complaint.value?.contact || "-"
+);
 const canAccept = computed(() => complaint.value?.status === "SUBMITTED");
-const canAssign = computed(() => ["PENDING", "ASSIGNED", "PROCESSING"].includes(complaint.value?.status || ""));
+const canAssign = computed(() => complaint.value?.status === "PENDING");
+const canReassign = computed(() => ["ASSIGNED", "PROCESSING"].includes(complaint.value?.status || ""));
 const canReject = computed(() => ["SUBMITTED", "PENDING"].includes(complaint.value?.status || ""));
+const assignActionLabel = computed(() => (canReassign.value ? "提交改派" : "提交分派"));
 
 const enforcerInitial = computed(() => {
   const name = complaint.value?.assignedToName || "";
@@ -277,12 +295,12 @@ const timelineItems = computed(() => {
   const c = complaint.value;
   if (!c) return [];
   return [
-    { key: "SUBMITTED", label: "已提交", time: formatTime(c.createTime), state: "done" },
-    { key: "PENDING", label: "已受理", time: formatTime(c.acceptedTime), state: c.acceptedTime ? "done" : "waiting" },
-    { key: "ASSIGNED", label: "已分派", time: formatTime(c.assignedTime), state: c.assignedTime ? "active" : "waiting" },
+    { key: "SUBMITTED", label: "提交投诉", time: formatTime(c.createTime), state: "done" },
+    { key: "PENDING", label: "完成受理", time: formatTime(c.acceptedTime), state: c.acceptedTime ? "done" : "waiting" },
+    { key: "ASSIGNED", label: "分派执法", time: formatTime(c.assignedTime), state: c.assignedTime ? "active" : "waiting" },
     {
       key: "PROCESSING",
-      label: "处理中",
+      label: "开始处理",
       time: c.status === "PROCESSING" ? formatTime(c.updateTime) : "--",
       state: c.status === "PROCESSING" ? "active" : ["FEEDBACKED", "REJECTED"].includes(c.status) ? "done" : "waiting"
     },
@@ -339,9 +357,9 @@ async function loadAuditLogs() {
     const data = await fetchComplaintLogs(token.value, complaint.value.id, 12);
     auditLogs.value = (Array.isArray(data) ? data : []).map((item, index) => ({
       id: item.id || `complaint-log-${index}`,
-      title: item.actionName || item.actionType || "投诉操作日志",
-      desc: item.summary || "暂无日志摘要",
-      operatorName: item.operatorName || "监管人员",
+      title: formatComplaintAuditAction(item.actionName || item.actionType),
+      desc: formatComplaintAuditSummary(item),
+      operatorName: formatComplaintAuditOperatorName(item.operatorName),
       remark: item.remark || "",
       createTime: item.createTime
     }));
@@ -368,10 +386,7 @@ async function loadDetail() {
     assignForm.regulatorId = "";
     assignForm.deadlineTime = "";
     rejectForm.reason = "";
-    await Promise.all([
-      loadEnforcers(detail.value?.enterprise?.regionId),
-      loadAuditLogs()
-    ]);
+    await Promise.all([loadEnforcers(detail.value?.enterprise?.regionId), loadAuditLogs()]);
   } catch (error) {
     detail.value = null;
     auditLogs.value = [];
@@ -388,7 +403,7 @@ async function handleAccept() {
   setStatus("");
   try {
     await acceptComplaint(token.value, complaint.value.id);
-    setStatus("投诉已受理", "success");
+    setStatus("投诉已受理。", "success");
     await loadDetail();
   } catch (error) {
     setStatus(resolveErrorMessage(error, "投诉受理失败"), "error");
@@ -400,20 +415,26 @@ async function handleAccept() {
 async function handleAssign() {
   if (!complaint.value?.id) return;
   if (!assignForm.regulatorId) {
-    setStatus("请选择执法人员", "error");
+    setStatus("请选择执法人员。", "error");
     return;
   }
   loadingAction.value = true;
   setStatus("");
   try {
-    await assignComplaint(token.value, complaint.value.id, {
+    const payload = {
       regulatorId: assignForm.regulatorId,
       deadlineTime: normalizeDateTime(assignForm.deadlineTime)
-    });
-    setStatus("派发成功", "success");
+    };
+    if (canReassign.value) {
+      await reassignComplaint(token.value, complaint.value.id, payload);
+      setStatus("投诉已完成改派。", "success");
+    } else {
+      await assignComplaint(token.value, complaint.value.id, payload);
+      setStatus("投诉已完成分派。", "success");
+    }
     await loadDetail();
   } catch (error) {
-    setStatus(resolveErrorMessage(error, "派发失败"), "error");
+    setStatus(resolveErrorMessage(error, canReassign.value ? "投诉改派失败" : "投诉分派失败"), "error");
   } finally {
     loadingAction.value = false;
   }
@@ -422,17 +443,17 @@ async function handleAssign() {
 async function handleReject() {
   if (!complaint.value?.id) return;
   if (!rejectForm.reason.trim()) {
-    setStatus("请填写驳回原因", "error");
+    setStatus("请输入驳回原因。", "error");
     return;
   }
   loadingAction.value = true;
   setStatus("");
   try {
     await rejectComplaint(token.value, complaint.value.id, { reason: rejectForm.reason });
-    setStatus("投诉已驳回", "success");
+    setStatus("投诉已驳回。", "success");
     await loadDetail();
   } catch (error) {
-    setStatus(resolveErrorMessage(error, "驳回失败"), "error");
+    setStatus(resolveErrorMessage(error, "投诉驳回失败"), "error");
   } finally {
     loadingAction.value = false;
   }
@@ -576,3 +597,6 @@ watch(() => route.params.complaintId, loadDetail);
 @media (max-width: 860px) { .block-grid { grid-template-columns: 1fr; } .timeline { grid-template-columns: 1fr 1fr; row-gap: 12px; } .timeline-line { display: none; } }
 @media (max-width: 640px) { .title-row h1 { font-size: 24px; } .head-actions { width: 100%; display: grid; grid-template-columns: 1fr 1fr 1fr; } }
 </style>
+
+
+

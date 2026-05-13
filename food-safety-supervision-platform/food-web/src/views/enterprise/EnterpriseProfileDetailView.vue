@@ -52,8 +52,68 @@
         </div>
       </div>
 
+      <section class="enterprise-panel enterprise-key-supervision-panel">
+        <div class="enterprise-panel__head">
+          <div class="enterprise-panel__head-bar" />
+          <h3>重点监管状态</h3>
+        </div>
+        <div class="enterprise-key-supervision-panel__summary">
+          <div>
+            <strong>{{ keySupervisionTitle }}</strong>
+            <p>{{ keySupervisionDescription }}</p>
+          </div>
+          <span
+            class="enterprise-key-supervision-panel__badge"
+            :class="{ 'is-key': isKeyEnterprise, 'is-normal': !isKeyEnterprise }"
+          >
+            {{ isKeyEnterprise ? "KEY" : "NORMAL" }}
+          </span>
+        </div>
+        <div v-if="keyReasonItems.length" class="enterprise-key-supervision-panel__list">
+          <article
+            v-for="(item, index) in keyReasonItems"
+            :key="`${item.reasonType || 'reason'}-${index}`"
+            class="enterprise-key-supervision-panel__item"
+          >
+            <div class="enterprise-key-supervision-panel__item-head">
+              <strong>{{ item.reasonLabel || formatKeyReasonType(item.reasonType) }}</strong>
+              <span>{{ formatTime(item.createTime) }}</span>
+            </div>
+            <p>{{ item.reasonDetail || "已触发重点监管规则。" }}</p>
+          </article>
+        </div>
+        <div v-else class="enterprise-key-supervision-panel__empty">
+          当前暂无已记录的重点监管原因；若后续触发风险规则或被监管确认，将在这里展示。
+        </div>
+      </section>
+
       <div class="enterprise-detail-layout">
         <div>
+          <section class="enterprise-panel">
+            <div class="enterprise-panel__head">
+              <div class="enterprise-panel__head-bar" />
+              <h3>审核信息</h3>
+            </div>
+            <div class="enterprise-detail-grid" style="margin-bottom: 16px">
+              <div class="enterprise-readonly-field">
+                <span>审核人</span>
+                <div>{{ profile.approvedByName || "-" }}</div>
+              </div>
+              <div class="enterprise-readonly-field">
+                <span>审核时间</span>
+                <div>{{ formatTime(profile.approvedTime) }}</div>
+              </div>
+              <div class="enterprise-readonly-field">
+                <span>包保责任人</span>
+                <div>{{ profile.regulatorName || "-" }}</div>
+              </div>
+              <div class="enterprise-readonly-field enterprise-detail-item--full">
+                <span>审核意见</span>
+                <div>{{ profile.approvalComment || "-" }}</div>
+              </div>
+            </div>
+          </section>
+
           <section class="enterprise-panel enterprise-panel--accent-top">
             <div class="enterprise-panel__head">
               <div class="enterprise-panel__head-bar" />
@@ -150,12 +210,24 @@ import { buildApprovalTimeline, createEmptyStageBData } from "./enterpriseProfil
 const { enterpriseUser, token, handleSidebarNavigate, handleLogout } = useEnterpriseShellSession();
 const profileLoaded = ref(false);
 const existingRegionText = ref("");
-const profile = reactive({ approvalStatus: "", approvalComment: "", approvedTime: "" });
+const profile = reactive({
+  approvalStatus: "",
+  approvalComment: "",
+  approvedTime: "",
+  approvedByName: "",
+  regulatorName: "",
+  status: "",
+  keyReasons: []
+});
 const form = reactive({ enterpriseName: "", licenseNo: "", creditCode: "", addressDetail: "", principal: "", principalPhone: "" });
 const stageB = reactive(createEmptyStageBData());
 
 const statusLabel = computed(() => getApprovalStatusLabel(profileLoaded.value, profile.approvalStatus));
 const statusTone = computed(() => getApprovalStatusTone(profileLoaded.value, profile.approvalStatus));
+const isKeyEnterprise = computed(() => profileLoaded.value && profile.status === "KEY");
+const keyReasonItems = computed(() => (
+  Array.isArray(profile.keyReasons) ? profile.keyReasons.slice(0, 5) : []
+));
 const approvalTimeline = computed(() =>
   buildApprovalTimeline({
     profileLoaded: profileLoaded.value,
@@ -164,6 +236,34 @@ const approvalTimeline = computed(() =>
     approvedTime: profile.approvedTime
   })
 );
+
+const keySupervisionTitle = computed(() => (
+  isKeyEnterprise.value ? "当前已纳入重点监管" : "当前未纳入重点监管"
+));
+
+const keySupervisionDescription = computed(() => {
+  if (keyReasonItems.value.length) {
+    const latest = keyReasonItems.value[0];
+    const label = latest.reasonLabel || formatKeyReasonType(latest.reasonType);
+    const timeText = latest.createTime ? formatTime(latest.createTime) : "-";
+    return `最近一次触发原因：${label}，记录时间 ${timeText}。`;
+  }
+  return isKeyEnterprise.value
+    ? "当前企业已被纳入重点监管，请持续关注整改、检查和投诉等监管要求。"
+    : "当前暂无已记录的重点监管原因，请持续维护备案信息并配合日常监管。";
+});
+
+function formatKeyReasonType(value) {
+  const map = {
+    COMPLAINT_OVERFLOW: "投诉过量",
+    CONSECUTIVE_INSPECTION_FAIL: "连续检查不合格",
+    SAMPLING_FAIL: "抽检不合格",
+    RECTIFICATION_OVERDUE: "整改逾期",
+    WARNING_TRIGGERED: "预警触发",
+    MANUAL_SET: "人工设定"
+  };
+  return map[value] || value || "-";
+}
 
 function applyStageB(payload = {}) {
   stageB.legalRepresentative = payload.legalRepresentative || "";
@@ -176,6 +276,10 @@ async function loadProfile() {
     profile.approvalStatus = data.approvalStatus || "";
     profile.approvalComment = data.approvalComment || "";
     profile.approvedTime = data.approvedTime || "";
+    profile.approvedByName = data.approvedByName || "";
+    profile.regulatorName = data.regulatorName || "";
+    profile.status = data.status || "";
+    profile.keyReasons = Array.isArray(data.keyReasons) ? data.keyReasons : [];
     existingRegionText.value = data.regionPathText || "";
     form.enterpriseName = data.enterpriseName || "";
     form.licenseNo = data.licenseNo || "";
@@ -191,6 +295,10 @@ async function loadProfile() {
     profile.approvalStatus = "";
     profile.approvalComment = "";
     profile.approvedTime = "";
+    profile.approvedByName = "";
+    profile.regulatorName = "";
+    profile.status = "";
+    profile.keyReasons = [];
     form.enterpriseName = "";
     form.licenseNo = "";
     form.creditCode = "";
@@ -205,3 +313,103 @@ onMounted(() => {
   loadProfile();
 });
 </script>
+
+<style scoped>
+.enterprise-key-supervision-panel {
+  margin-bottom: 20px;
+}
+
+.enterprise-key-supervision-panel__summary {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+}
+
+.enterprise-key-supervision-panel__summary strong {
+  display: block;
+  font-size: 18px;
+  line-height: 1.4;
+  color: var(--on-surface);
+}
+
+.enterprise-key-supervision-panel__summary p {
+  margin: 8px 0 0;
+  font-size: 14px;
+  line-height: 1.7;
+  color: var(--on-surface-variant);
+}
+
+.enterprise-key-supervision-panel__badge {
+  flex-shrink: 0;
+  padding: 6px 12px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0;
+}
+
+.enterprise-key-supervision-panel__badge.is-key {
+  color: #9f1239;
+  background: rgba(244, 63, 94, 0.12);
+}
+
+.enterprise-key-supervision-panel__badge.is-normal {
+  color: #166534;
+  background: rgba(34, 197, 94, 0.12);
+}
+
+.enterprise-key-supervision-panel__list {
+  display: grid;
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.enterprise-key-supervision-panel__item {
+  padding: 14px 16px;
+  border-radius: 8px;
+  background: rgba(15, 23, 42, 0.03);
+  border: 1px solid rgba(148, 163, 184, 0.18);
+}
+
+.enterprise-key-supervision-panel__item-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+
+.enterprise-key-supervision-panel__item-head strong {
+  font-size: 14px;
+  color: var(--on-surface);
+}
+
+.enterprise-key-supervision-panel__item-head span {
+  font-size: 12px;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.enterprise-key-supervision-panel__item p,
+.enterprise-key-supervision-panel__empty {
+  margin: 8px 0 0;
+  font-size: 13px;
+  line-height: 1.7;
+  color: var(--on-surface-variant);
+}
+
+.enterprise-key-supervision-panel__empty {
+  padding: 14px 16px;
+  border-radius: 8px;
+  background: rgba(15, 23, 42, 0.03);
+  border: 1px dashed rgba(148, 163, 184, 0.3);
+}
+
+@media (max-width: 720px) {
+  .enterprise-key-supervision-panel__summary,
+  .enterprise-key-supervision-panel__item-head {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}
+</style>

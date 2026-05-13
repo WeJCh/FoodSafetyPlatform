@@ -12,11 +12,7 @@ import lombok.Data;
 @Data
 public class ComplaintSubmitDTO {
 
-    @Size(max = 50)
-    private String complainantName;
-
-    @Size(max = 50)
-    private String contact;
+    private Boolean anonymous;
 
     @NotNull
     private Long enterpriseId;

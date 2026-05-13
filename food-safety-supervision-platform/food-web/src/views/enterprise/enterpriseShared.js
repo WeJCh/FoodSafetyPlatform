@@ -19,12 +19,14 @@ export const enterpriseNavItems = [
 ];
 
 export const ENTERPRISE_PRODUCT_CATEGORY_PRESETS = [
-  "酒类及饮料",
-  "肉制品与调味品",
-  "乳制品",
+  "餐饮自制食品",
   "预包装食品",
-  "生鲜蔬果",
-  "冷冻食品"
+  "散装食品",
+  "生鲜农产品",
+  "乳制品",
+  "肉及水产制品",
+  "粮油调味品",
+  "其他食品"
 ];
 
 export function getEnterpriseRouteName(key) {

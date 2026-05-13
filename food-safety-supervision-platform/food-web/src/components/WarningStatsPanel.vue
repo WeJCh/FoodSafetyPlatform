@@ -4,23 +4,15 @@
       <div>
         <div class="warning-stats-title">预警统计</div>
         <div class="warning-stats-subtitle">
-          {{ mode === "enforcer" ? "默认按本人权限范围统计风险预警数据" : "默认按辖区权限范围统计风险预警数据" }}
+          {{ mode === "enforcer" ? "默认按当前执法人员本人权限统计风险预警数据。" : "默认按当前辖区权限统计风险预警数据。" }}
         </div>
       </div>
       <form class="warning-stats-filters" @submit.prevent="handleSearch">
         <div class="range-group">
-          <button class="range-chip" :class="{ active: filters.rangePreset === 'today' }" type="button" @click="useQuickRange('today')">
-            今日
-          </button>
-          <button class="range-chip" :class="{ active: filters.rangePreset === '7d' }" type="button" @click="useQuickRange('7d')">
-            近7天
-          </button>
-          <button class="range-chip" :class="{ active: filters.rangePreset === '30d' }" type="button" @click="useQuickRange('30d')">
-            近30天
-          </button>
-          <button class="range-chip" :class="{ active: filters.rangePreset === 'custom' }" type="button" @click="useQuickRange('custom')">
-            自定义
-          </button>
+          <button class="range-chip" :class="{ active: filters.rangePreset === 'today' }" type="button" @click="useQuickRange('today')">今日</button>
+          <button class="range-chip" :class="{ active: filters.rangePreset === '7d' }" type="button" @click="useQuickRange('7d')">近 7 天</button>
+          <button class="range-chip" :class="{ active: filters.rangePreset === '30d' }" type="button" @click="useQuickRange('30d')">近 30 天</button>
+          <button class="range-chip" :class="{ active: filters.rangePreset === 'custom' }" type="button" @click="useQuickRange('custom')">自定义</button>
         </div>
         <label>
           开始时间
@@ -31,11 +23,11 @@
           <input v-model="filters.endTime" type="datetime-local" @input="activateCustomRange" />
         </label>
         <label>
-          类型TopN
+          类型 TopN
           <input v-model.number="filters.topN" type="number" min="3" max="20" />
         </label>
         <label>
-          超时阈值(小时)
+          超时阈值（小时）
           <input v-model.number="filters.overdueHours" type="number" min="1" max="240" />
         </label>
         <button class="primary" type="submit" :disabled="loading">
@@ -53,8 +45,8 @@
 
     <div class="distribution-grid">
       <section class="panel-block distribution-block">
-        <div class="panel-title">风险预警状态分布</div>
-        <div class="panel-subtitle">按待处理、处理中、已解决、已归档展示风险预警数量占比</div>
+        <div class="panel-title">预警状态分布</div>
+        <div class="panel-subtitle">按待处理、处理中、已解决、已归档展示风险预警数量占比。</div>
         <div class="distribution-list">
           <div v-for="item in statusDistribution" :key="item.key" class="distribution-item">
             <div class="distribution-head">
@@ -73,8 +65,8 @@
       </section>
 
       <section class="panel-block distribution-block">
-        <div class="panel-title">风险预警等级分布</div>
-        <div class="panel-subtitle">按风险预警等级（L1/L2）展示当前预警分层情况</div>
+        <div class="panel-title">预警等级分布</div>
+        <div class="panel-subtitle">按风险等级 L1 / L2 展示当前预警分层情况。</div>
         <div class="level-grid">
           <article v-for="item in levelDistribution" :key="item.key" class="level-card" :class="`level-card--${item.key.toLowerCase()}`">
             <span>{{ item.label }}</span>
@@ -87,8 +79,8 @@
 
     <div class="warning-stats-body">
       <section class="panel-block trend-block">
-        <div class="panel-title">风险预警趋势变化</div>
-        <div class="panel-subtitle">统计周期内每日新增风险预警数量变化</div>
+        <div class="panel-title">预警趋势变化</div>
+        <div class="panel-subtitle">统计周期内每日新增风险预警数量变化。</div>
         <div v-if="!trend.length" class="panel-empty">暂无趋势数据</div>
         <div v-else class="trend-line-panel">
           <div class="trend-scroll">
@@ -126,8 +118,8 @@
       </section>
 
       <section class="panel-block type-block">
-        <div class="panel-title">风险预警类型 Top{{ filters.topN }}</div>
-        <div class="panel-subtitle">按风险预警规则类型统计出现频次最高的前 {{ filters.topN }} 项</div>
+        <div class="panel-title">预警类型 Top{{ filters.topN }}</div>
+        <div class="panel-subtitle">按真实 warningType 统计出现频次最高的前 {{ filters.topN }} 项。</div>
         <div v-if="!types.length" class="panel-empty">暂无类型统计</div>
         <div v-else class="type-list">
           <div v-for="(item, index) in types" :key="`${item.warningType}-${index}`" class="type-item">
@@ -139,11 +131,11 @@
       </section>
 
       <section class="panel-block efficiency-block">
-        <div class="panel-title">风险预警处置效率</div>
-        <div class="panel-subtitle">基于风险预警工单的处理时长与超时情况评估处置效率</div>
+        <div class="panel-title">预警处置效率</div>
+        <div class="panel-subtitle">基于预警工单的平均处理时长与超时情况评估处置效率。</div>
         <div class="efficiency-grid">
           <article class="efficiency-card">
-            <span>平均处置时长</span>
+            <span>平均处理时长</span>
             <strong>{{ formatMinutes(efficiency.averageResolveMinutes) }}</strong>
             <em>已解决 {{ Number(efficiency.resolvedCount) || 0 }} 条</em>
           </article>
@@ -186,14 +178,14 @@ const overview = ref({});
 const trend = ref([]);
 const types = ref([]);
 const efficiency = ref({});
+
 const warningTypeLabelMap = {
-  SLA_OVERDUE_SUBMIT: "企业提交整改超时",
-  SLA_OVERDUE_REVIEW: "监管复核整改超时",
-  SLA_DUE_SOON_SUBMIT: "企业提交整改即将超时",
-  SLA_DUE_SOON_REVIEW: "监管复核整改即将超时",
-  INSPECTION_CONSECUTIVE_FAIL: "企业连续检查不合格",
-  SAMPLING_FAIL: "抽检发现不合格产品"
+  COMPLAINT_OVERFLOW: "投诉过量预警",
+  SAMPLING_FAIL: "抽检不合格预警",
+  RECTIFICATION_OVERDUE: "整改逾期预警",
+  CONSECUTIVE_INSPECTION_FAIL: "连续检查不合格预警"
 };
+
 const filters = reactive({
   rangePreset: "7d",
   trendDays: 7,
@@ -205,9 +197,9 @@ const filters = reactive({
 
 const cards = computed(() => ([
   { key: "total", label: "风险预警总数", value: Number(overview.value.totalCount) || 0 },
-  { key: "open", label: "风险预警待处理", value: Number(overview.value.openCount) || 0 },
-  { key: "processing", label: "风险预警处理中", value: Number(overview.value.processingCount) || 0 },
-  { key: "completed", label: "风险预警已处理完成", value: Number(overview.value.completedCount) || 0 }
+  { key: "open", label: "待处理", value: Number(overview.value.openCount) || 0 },
+  { key: "processing", label: "处理中", value: Number(overview.value.processingCount) || 0 },
+  { key: "completed", label: "已闭环", value: Number(overview.value.completedCount) || 0 }
 ]));
 
 const statusDistribution = computed(() => {
@@ -221,21 +213,21 @@ const statusDistribution = computed(() => {
   if (!data.length) return fallback;
   return data.map((item) => ({
     key: String(item?.key || "").toUpperCase() || "UNKNOWN",
-    label: item?.label || item?.key || "-",
+    label: formatStatusLabel(item?.key),
     count: Number(item?.count) || 0
   }));
 });
 
 const levelDistribution = computed(() => {
   const fallback = [
-    { key: "L1", label: "一级", count: 0 },
-    { key: "L2", label: "二级", count: 0 }
+    { key: "L1", label: "一级预警", count: 0 },
+    { key: "L2", label: "二级预警", count: 0 }
   ];
   const data = Array.isArray(overview.value.levelDistribution) ? overview.value.levelDistribution : [];
   if (!data.length) return fallback;
   const mapped = data.map((item) => ({
     key: String(item?.key || "").toUpperCase() || "UNKNOWN",
-    label: item?.label || item?.key || "-",
+    label: formatLevelLabel(item?.key),
     count: Number(item?.count) || 0
   }));
   return [
@@ -253,16 +245,7 @@ const trendChart = computed(() => {
   const paddingTop = 24;
   const paddingBottom = 28;
   if (!raw.length) {
-    return {
-      width,
-      height,
-      paddingLeft,
-      paddingRight,
-      points: [],
-      linePoints: "",
-      areaPoints: "",
-      gridY: []
-    };
+    return { width, height, paddingLeft, paddingRight, points: [], linePoints: "", areaPoints: "", gridY: [] };
   }
   const values = raw.map((item) => Number(item?.count) || 0);
   const maxValue = Math.max(...values, 1);
@@ -285,25 +268,12 @@ const trendChart = computed(() => {
     };
   });
   const linePoints = points.map((point) => `${point.x},${point.y}`).join(" ");
-  const areaPoints = [
-    `${points[0].x},${baseY}`,
-    ...points.map((point) => `${point.x},${point.y}`),
-    `${points[points.length - 1].x},${baseY}`
-  ].join(" ");
+  const areaPoints = [`${points[0].x},${baseY}`, ...points.map((point) => `${point.x},${point.y}`), `${points[points.length - 1].x},${baseY}`].join(" ");
   const gridY = Array.from({ length: gridCount }, (_, index) => {
     const ratio = index / (gridCount - 1);
     return Number((paddingTop + ratio * (baseY - paddingTop)).toFixed(2));
   });
-  return {
-    width,
-    height,
-    paddingLeft,
-    paddingRight,
-    points,
-    linePoints,
-    areaPoints,
-    gridY
-  };
+  return { width, height, paddingLeft, paddingRight, points, linePoints, areaPoints, gridY };
 });
 
 const trendCanvasWidth = computed(() => {
@@ -312,7 +282,6 @@ const trendCanvasWidth = computed(() => {
 });
 
 const statusMax = computed(() => Math.max(1, ...statusDistribution.value.map((item) => Number(item.count) || 0)));
-
 const levelTotal = computed(() => levelDistribution.value.reduce((sum, item) => sum + (Number(item.count) || 0), 0));
 
 function normalizeDateTime(value) {
@@ -422,6 +391,22 @@ function formatWarningType(value) {
   return warningTypeLabelMap[key] || key;
 }
 
+function formatStatusLabel(value) {
+  const key = String(value || "").trim().toUpperCase();
+  if (key === "OPEN") return "待处理";
+  if (key === "PROCESSING") return "处理中";
+  if (key === "RESOLVED") return "已解决";
+  if (key === "CLOSED") return "已归档";
+  return key || "-";
+}
+
+function formatLevelLabel(value) {
+  const key = String(value || "").trim().toUpperCase();
+  if (key === "L1") return "一级预警";
+  if (key === "L2") return "二级预警";
+  return key || "-";
+}
+
 function calcDistributionWidth(count, maxValue) {
   const value = Number(count) || 0;
   if (!value || !maxValue) return "8%";
@@ -450,28 +435,10 @@ onMounted(() => {
 </script>
 
 <style scoped>
-.warning-stats {
-  display: grid;
-  gap: 14px;
-}
-
-.warning-stats-head {
-  display: grid;
-  gap: 12px;
-}
-
-.warning-stats-title {
-  font-size: 20px;
-  font-weight: 700;
-  color: var(--ink);
-}
-
-.warning-stats-subtitle {
-  margin-top: 4px;
-  font-size: 12px;
-  color: var(--muted);
-}
-
+.warning-stats { display: grid; gap: 14px; }
+.warning-stats-head { display: grid; gap: 12px; }
+.warning-stats-title { font-size: 20px; font-weight: 700; color: var(--ink); }
+.warning-stats-subtitle { margin-top: 4px; font-size: 12px; color: var(--muted); }
 .warning-stats-filters {
   display: grid;
   gap: 10px;
@@ -482,14 +449,7 @@ onMounted(() => {
   background: #f6fbff;
   padding: 12px;
 }
-
-.range-group {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  min-height: 32px;
-}
-
+.range-group { display: flex; align-items: center; gap: 8px; min-height: 32px; }
 .range-chip {
   height: 32px;
   border-radius: 999px;
@@ -499,373 +459,69 @@ onMounted(() => {
   padding: 0 12px;
   cursor: pointer;
 }
-
-.range-chip.active {
-  border-color: #b7d7fc;
-  background: #eaf4ff;
-  color: #205896;
-  font-weight: 600;
-}
-
-.warning-stats-filters label {
-  min-width: 0;
-  display: grid;
-  gap: 6px;
-  font-size: 12px;
-  color: var(--muted);
-}
-
-.warning-stats-filters .primary {
-  min-width: 108px;
-}
-
-.overview-grid {
-  display: grid;
-  gap: 10px;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-}
-
-.overview-card {
-  border: 1px solid var(--stroke);
-  border-radius: 12px;
-  background: var(--card-strong);
-  padding: 12px;
-  display: grid;
-  gap: 8px;
-}
-
-.overview-card span {
-  font-size: 12px;
-  color: var(--muted);
-}
-
-.overview-card strong {
-  font-size: 24px;
-  line-height: 1.1;
-  color: var(--ink);
-}
-
-.overview-card--total {
-  background: linear-gradient(135deg, #f7fbff 0%, #eef5ff 100%);
-}
-
-.overview-card--open {
-  background: linear-gradient(135deg, #fff9f1 0%, #fff5e8 100%);
-}
-
-.overview-card--processing {
-  background: linear-gradient(135deg, #f4fbff 0%, #e9f7ff 100%);
-}
-
-.overview-card--completed {
-  background: linear-gradient(135deg, #f3fbf7 0%, #e7f6ef 100%);
-}
-
-.distribution-grid {
-  display: grid;
-  gap: 12px;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-}
-
-.distribution-list {
-  display: grid;
-  gap: 10px;
-}
-
-.distribution-item {
-  display: grid;
-  gap: 6px;
-}
-
-.distribution-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  font-size: 12px;
-  color: var(--muted);
-}
-
-.distribution-head strong {
-  color: var(--ink);
-  font-size: 13px;
-}
-
-.distribution-track {
-  height: 10px;
-  border-radius: 999px;
-  background: #edf3fa;
-  overflow: hidden;
-  border: 1px solid #d7e3ef;
-}
-
-.distribution-bar {
-  height: 100%;
-  border-radius: inherit;
-}
-
-.distribution-bar--open {
-  background: linear-gradient(90deg, #ebb07d 0%, #d87f3a 100%);
-}
-
-.distribution-bar--processing {
-  background: linear-gradient(90deg, #61a5e8 0%, #2d75bf 100%);
-}
-
-.distribution-bar--resolved {
-  background: linear-gradient(90deg, #6fb992 0%, #34885b 100%);
-}
-
-.distribution-bar--closed {
-  background: linear-gradient(90deg, #a8b7c8 0%, #728398 100%);
-}
-
-.distribution-bar--unknown {
-  background: linear-gradient(90deg, #d4dbe3 0%, #9aa9ba 100%);
-}
-
-.level-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
-}
-
-.level-card {
-  border: 1px solid var(--stroke);
-  border-radius: 10px;
-  padding: 10px;
-  display: grid;
-  gap: 6px;
-}
-
-.level-card span {
-  font-size: 12px;
-  color: var(--muted);
-}
-
-.level-card strong {
-  font-size: 24px;
-  line-height: 1.1;
-  color: var(--ink);
-}
-
-.level-card em {
-  font-style: normal;
-  font-size: 12px;
-  color: var(--muted);
-}
-
-.level-card--l1 {
-  background: linear-gradient(135deg, #fff9f1 0%, #fff3e4 100%);
-}
-
-.level-card--l2 {
-  background: linear-gradient(135deg, #fff2f2 0%, #ffe8e8 100%);
-}
-
-.warning-stats-body {
-  display: grid;
-  gap: 12px;
-  grid-template-columns: 1.7fr 1fr 1fr;
-  align-items: stretch;
-}
-
-.panel-block {
-  border: 1px solid var(--stroke);
-  border-radius: 12px;
-  background: var(--card-strong);
-  padding: 12px;
-  display: grid;
-  gap: 10px;
-}
-
-.panel-title {
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--ink);
-}
-
-.panel-subtitle {
-  margin-top: -4px;
-  font-size: 12px;
-  color: var(--muted);
-  line-height: 1.5;
-}
-
-.panel-empty {
-  min-height: 120px;
-  border: 1px dashed var(--stroke);
-  border-radius: 10px;
-  display: grid;
-  place-items: center;
-  font-size: 12px;
-  color: var(--muted);
-}
-
-.trend-line-panel {
-  display: grid;
-  gap: 8px;
-}
-
-.trend-scroll {
-  overflow-x: auto;
-  overflow-y: hidden;
-  padding-bottom: 2px;
-}
-
-.trend-svg {
-  height: 190px;
-  border: 1px solid #dce8f5;
-  border-radius: 10px;
-  background: linear-gradient(180deg, #f9fcff 0%, #f2f8ff 100%);
-  display: block;
-}
-
-.trend-grid line {
-  stroke: #d9e6f4;
-  stroke-width: 1;
-  stroke-dasharray: 4 4;
-}
-
-.trend-area {
-  fill: rgba(53, 126, 199, 0.16);
-  stroke: none;
-}
-
-.trend-line {
-  fill: none;
-  stroke: #2d75bf;
-  stroke-width: 2.5;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-}
-
-.trend-dot {
-  fill: #2d75bf;
-  stroke: #ffffff;
-  stroke-width: 2;
-}
-
-.trend-value {
-  fill: #245a94;
-  font-size: 11px;
-  text-anchor: middle;
-}
-
-.trend-x-axis {
-  display: grid;
-  gap: 8px;
-  grid-template-columns: repeat(auto-fit, minmax(24px, 1fr));
-  margin-top: 6px;
-}
-
-.trend-x-item {
-  text-align: center;
-  font-size: 11px;
-  color: var(--muted);
-}
-
-.type-list {
-  display: grid;
-  gap: 8px;
-}
-
-.type-item {
-  display: grid;
-  grid-template-columns: auto 1fr auto;
-  gap: 10px;
-  align-items: center;
-  border: 1px solid var(--stroke);
-  border-radius: 10px;
-  padding: 8px 10px;
-  background: #f8fbff;
-}
-
-.type-rank {
-  min-width: 34px;
-  text-align: center;
-  font-size: 12px;
-  color: #2f6ca9;
-  border-radius: 999px;
-  border: 1px solid #c8def5;
-  background: #eaf4ff;
-  padding: 2px 8px;
-}
-
-.type-name {
-  font-size: 12px;
-  color: var(--ink);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.type-count {
-  font-size: 13px;
-  color: var(--ink);
-}
-
-.efficiency-grid {
-  display: grid;
-  gap: 10px;
-}
-
-.efficiency-card {
-  border: 1px solid var(--stroke);
-  border-radius: 10px;
-  background: #f7fbff;
-  padding: 12px;
-  display: grid;
-  gap: 6px;
-}
-
-.efficiency-card span {
-  font-size: 12px;
-  color: var(--muted);
-}
-
-.efficiency-card strong {
-  font-size: 22px;
-  color: var(--ink);
-  line-height: 1.2;
-}
-
-.efficiency-card em {
-  font-style: normal;
-  font-size: 12px;
-  color: var(--muted);
-}
-
-.stats-error {
-  border: 1px solid #f0c8c8;
-  border-radius: 10px;
-  background: #fff5f5;
-  color: #a53d3d;
-  padding: 10px 12px;
-  font-size: 12px;
-}
-
+.range-chip.active { border-color: #b7d7fc; background: #eaf4ff; color: #205896; font-weight: 600; }
+.warning-stats-filters label { min-width: 0; display: grid; gap: 6px; font-size: 12px; color: var(--muted); }
+.warning-stats-filters .primary { min-width: 108px; }
+.overview-grid { display: grid; gap: 10px; grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.overview-card { border: 1px solid var(--stroke); border-radius: 12px; background: var(--card-strong); padding: 12px; display: grid; gap: 8px; }
+.overview-card span { font-size: 12px; color: var(--muted); }
+.overview-card strong { font-size: 24px; line-height: 1.1; color: var(--ink); }
+.overview-card--total { background: linear-gradient(135deg, #f7fbff 0%, #eef5ff 100%); }
+.overview-card--open { background: linear-gradient(135deg, #fff9f1 0%, #fff5e8 100%); }
+.overview-card--processing { background: linear-gradient(135deg, #f4fbff 0%, #e9f7ff 100%); }
+.overview-card--completed { background: linear-gradient(135deg, #f3fbf7 0%, #e7f6ef 100%); }
+.distribution-grid { display: grid; gap: 12px; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.distribution-list { display: grid; gap: 10px; }
+.distribution-item { display: grid; gap: 6px; }
+.distribution-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; font-size: 12px; color: var(--muted); }
+.distribution-head strong { color: var(--ink); font-size: 13px; }
+.distribution-track { height: 10px; border-radius: 999px; background: #edf3fa; overflow: hidden; border: 1px solid #d7e3ef; }
+.distribution-bar { height: 100%; border-radius: inherit; }
+.distribution-bar--open { background: linear-gradient(90deg, #ebb07d 0%, #d87f3a 100%); }
+.distribution-bar--processing { background: linear-gradient(90deg, #61a5e8 0%, #2d75bf 100%); }
+.distribution-bar--resolved { background: linear-gradient(90deg, #6fb992 0%, #34885b 100%); }
+.distribution-bar--closed { background: linear-gradient(90deg, #a8b7c8 0%, #728398 100%); }
+.distribution-bar--unknown { background: linear-gradient(90deg, #d4dbe3 0%, #9aa9ba 100%); }
+.level-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.level-card { border: 1px solid var(--stroke); border-radius: 10px; padding: 10px; display: grid; gap: 6px; }
+.level-card span { font-size: 12px; color: var(--muted); }
+.level-card strong { font-size: 24px; line-height: 1.1; color: var(--ink); }
+.level-card em { font-style: normal; font-size: 12px; color: var(--muted); }
+.level-card--l1 { background: linear-gradient(135deg, #fff9f1 0%, #fff3e4 100%); }
+.level-card--l2 { background: linear-gradient(135deg, #fff2f2 0%, #ffe8e8 100%); }
+.warning-stats-body { display: grid; gap: 12px; grid-template-columns: 1.7fr 1fr 1fr; align-items: stretch; }
+.panel-block { border: 1px solid var(--stroke); border-radius: 12px; background: var(--card-strong); padding: 12px; display: grid; gap: 10px; }
+.panel-title { font-size: 14px; font-weight: 600; color: var(--ink); }
+.panel-subtitle { margin-top: -4px; font-size: 12px; color: var(--muted); line-height: 1.5; }
+.panel-empty { min-height: 120px; border: 1px dashed var(--stroke); border-radius: 10px; display: grid; place-items: center; font-size: 12px; color: var(--muted); }
+.trend-line-panel { display: grid; gap: 8px; }
+.trend-scroll { overflow-x: auto; overflow-y: hidden; padding-bottom: 2px; }
+.trend-svg { height: 190px; border: 1px solid #dce8f5; border-radius: 10px; background: linear-gradient(180deg, #f9fcff 0%, #f2f8ff 100%); display: block; }
+.trend-grid line { stroke: #d9e6f4; stroke-width: 1; stroke-dasharray: 4 4; }
+.trend-area { fill: rgba(53, 126, 199, 0.16); stroke: none; }
+.trend-line { fill: none; stroke: #2d75bf; stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round; }
+.trend-dot { fill: #2d75bf; stroke: #ffffff; stroke-width: 2; }
+.trend-value { fill: #245a94; font-size: 11px; text-anchor: middle; }
+.trend-x-axis { display: grid; gap: 8px; grid-template-columns: repeat(auto-fit, minmax(24px, 1fr)); margin-top: 6px; }
+.trend-x-item { text-align: center; font-size: 11px; color: var(--muted); }
+.type-list { display: grid; gap: 8px; }
+.type-item { display: grid; grid-template-columns: auto 1fr auto; gap: 10px; align-items: center; border: 1px solid var(--stroke); border-radius: 10px; padding: 8px 10px; background: #f8fbff; }
+.type-rank { min-width: 34px; text-align: center; font-size: 12px; color: #2f6ca9; border-radius: 999px; border: 1px solid #c8def5; background: #eaf4ff; padding: 2px 8px; }
+.type-name { font-size: 12px; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.type-count { font-size: 13px; color: var(--ink); }
+.efficiency-grid { display: grid; gap: 10px; }
+.efficiency-card { border: 1px solid var(--stroke); border-radius: 10px; background: #f7fbff; padding: 12px; display: grid; gap: 6px; }
+.efficiency-card span { font-size: 12px; color: var(--muted); }
+.efficiency-card strong { font-size: 22px; color: var(--ink); line-height: 1.2; }
+.efficiency-card em { font-style: normal; font-size: 12px; color: var(--muted); }
+.stats-error { border: 1px solid #f0c8c8; border-radius: 10px; background: #fff5f5; color: #a53d3d; padding: 10px 12px; font-size: 12px; }
 @media (max-width: 1280px) {
-  .warning-stats-filters {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
-
-  .distribution-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .warning-stats-body {
-    grid-template-columns: 1fr;
-  }
+  .warning-stats-filters { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .distribution-grid { grid-template-columns: 1fr; }
+  .warning-stats-body { grid-template-columns: 1fr; }
 }
-
 @media (max-width: 720px) {
-  .warning-stats-filters {
-    grid-template-columns: 1fr;
-  }
-
-  .overview-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
+  .warning-stats-filters { grid-template-columns: 1fr; }
+  .overview-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 </style>

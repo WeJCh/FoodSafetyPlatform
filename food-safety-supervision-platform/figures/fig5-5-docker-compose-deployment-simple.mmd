@@ -1,0 +1,83 @@
+flowchart TB
+
+    user["用户浏览器"]
+
+    subgraph compose["Docker Compose 容器化部署环境"]
+        direction TB
+
+        web["food-web<br/>Nginx + Vue dist<br/>:80"]
+        gw["gateway-service<br/>统一路由 / 鉴权 / API入口<br/>:8080"]
+
+        subgraph services["业务服务层"]
+            direction LR
+            userSvc["user-service<br/>用户认证与角色管理"]
+            regSvc["regulation-service<br/>企业备案 / 主数据管理"]
+            opSvc["regulation-operation-service<br/>检查 / 抽检 / 整改"]
+            complaintSvc["complaint-service<br/>投诉受理与流转"]
+            warnSvc["warning-service<br/>预警处理"]
+            querySvc["query-service<br/>统计查询"]
+        end
+
+        subgraph infra["基础设施层"]
+            direction LR
+            mysql["mysql<br/>数据存储"]
+            redis["redis<br/>缓存 / 会话 / 限流"]
+            nacos["nacos<br/>服务注册发现"]
+            minio["minio<br/>文件对象存储"]
+        end
+    end
+
+    user -->|"访问页面"| web
+    web -->|"/api/ 反向代理"| gw
+
+    gw --> userSvc
+    gw --> regSvc
+    gw --> opSvc
+    gw --> complaintSvc
+    gw --> warnSvc
+    gw --> querySvc
+
+    userSvc -.-> nacos
+    regSvc -.-> nacos
+    opSvc -.-> nacos
+    complaintSvc -.-> nacos
+    warnSvc -.-> nacos
+    querySvc -.-> nacos
+    gw -.-> nacos
+
+    userSvc --> mysql
+    regSvc --> mysql
+    opSvc --> mysql
+    complaintSvc --> mysql
+    warnSvc --> mysql
+    querySvc --> mysql
+
+    gw --> redis
+    userSvc --> redis
+    regSvc --> redis
+    opSvc --> redis
+    complaintSvc --> redis
+    warnSvc --> redis
+    querySvc --> redis
+
+    regSvc --> minio
+    opSvc --> minio
+    complaintSvc --> minio
+
+    regSvc -->|核心业务协同| userSvc
+    opSvc -->|业务调用| regSvc
+    complaintSvc -->|业务调用| regSvc
+    querySvc -->|聚合统计| regSvc
+    querySvc -->|聚合统计| opSvc
+    querySvc -->|聚合统计| complaintSvc
+    querySvc -->|聚合统计| warnSvc
+
+    classDef actor fill:#fff7ed,stroke:#f59e0b,stroke-width:1.2px,color:#111827;
+    classDef entry fill:#eef6ff,stroke:#4f7cff,stroke-width:1.2px,color:#111827;
+    classDef svc fill:#f4f8ff,stroke:#5b8def,stroke-width:1.2px,color:#111827;
+    classDef infraNode fill:#f8fafc,stroke:#64748b,stroke-width:1.1px,color:#111827;
+
+    class user actor;
+    class web,gw entry;
+    class userSvc,regSvc,opSvc,complaintSvc,warnSvc,querySvc svc;
+    class mysql,redis,nacos,minio infraNode;

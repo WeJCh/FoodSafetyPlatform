@@ -23,6 +23,7 @@ import com.mortal.regulation.operation.service.AuditLogService;
 import com.mortal.regulation.operation.service.InspectionTaskService;
 import com.mortal.regulation.operation.service.RectificationService;
 import com.mortal.regulation.operation.service.WarningEventOutboxService;
+import com.mortal.regulation.operation.support.OperationAuditOperatorNameResolver;
 import com.mortal.regulation.operation.support.OperationLockSupport;
 import com.mortal.regulation.operation.support.OperationMasterDataSupport;
 import com.mortal.regulation.operation.vo.InspectionTaskVO;
@@ -54,10 +55,10 @@ public class InspectionTaskServiceImpl implements InspectionTaskService {
     private static final String PRIORITY_MEDIUM = "MEDIUM";
     private static final String PRIORITY_HIGH = "HIGH";
     private static final String RESULT_FAIL = "FAIL";
-    private static final String KEY_REASON_CONSECUTIVE_FAIL = "CONSECUTIVE_FAIL";
+    private static final String KEY_REASON_CONSECUTIVE_INSPECTION_FAIL = "CONSECUTIVE_INSPECTION_FAIL";
     private static final String KEY_SOURCE_ROUTINE = "ROUTINE";
     private static final String WARNING_BIZ_TYPE_INSPECTION = "INSPECTION";
-    private static final String WARNING_EVENT_CONSECUTIVE_FAIL = "INSPECTION_CONSECUTIVE_FAIL";
+    private static final String WARNING_EVENT_CONSECUTIVE_INSPECTION_FAIL = "CONSECUTIVE_INSPECTION_FAIL";
     private static final String WARNING_SOURCE_SERVICE = "regulation-operation-service";
     private static final String TARGET_TYPE_INSPECTION_TASK = "INSPECTION_TASK";
     private static final String ACTION_INSPECTION_ASSIGN = "INSPECTION_ASSIGN";
@@ -73,6 +74,7 @@ public class InspectionTaskServiceImpl implements InspectionTaskService {
     private final RectificationService rectificationService;
     private final WarningEventOutboxService warningEventOutboxService;
     private final AuditLogService auditLogService;
+    private final OperationAuditOperatorNameResolver operationAuditOperatorNameResolver;
     private final ObjectMapper objectMapper;
 
     @Value("${regulation.inspection.key-threshold:2}")
@@ -86,6 +88,7 @@ public class InspectionTaskServiceImpl implements InspectionTaskService {
                                      RectificationService rectificationService,
                                      WarningEventOutboxService warningEventOutboxService,
                                      AuditLogService auditLogService,
+                                     OperationAuditOperatorNameResolver operationAuditOperatorNameResolver,
                                      ObjectMapper objectMapper) {
         this.inspectionTaskMapper = inspectionTaskMapper;
         this.inspectionRecordMapper = inspectionRecordMapper;
@@ -95,6 +98,7 @@ public class InspectionTaskServiceImpl implements InspectionTaskService {
         this.rectificationService = rectificationService;
         this.warningEventOutboxService = warningEventOutboxService;
         this.auditLogService = auditLogService;
+        this.operationAuditOperatorNameResolver = operationAuditOperatorNameResolver;
         this.objectMapper = objectMapper;
     }
 
@@ -143,7 +147,15 @@ public class InspectionTaskServiceImpl implements InspectionTaskService {
         task.setStatus(STATUS_ASSIGNED);
         task.setUpdateTime(LocalDateTime.now());
         inspectionTaskMapper.updateById(task);
-        recordInspectionTaskAudit(userId, operator.getName(), ACTION_INSPECTION_ASSIGN, before, task,
+        recordInspectionTaskAudit(
+            userId,
+            operationAuditOperatorNameResolver.resolveRegulatorOperatorName(
+                operator.getName(),
+                operator.getUsername()
+            ),
+            ACTION_INSPECTION_ASSIGN,
+            before,
+            task,
             "assignedTo=" + assignee.getId());
         return toVO(task, loadEnterpriseNames(List.of(task)), loadRegulatorNames(List.of(task)));
     }
@@ -212,7 +224,17 @@ public class InspectionTaskServiceImpl implements InspectionTaskService {
         task.setStartedTime(LocalDateTime.now());
         task.setUpdateTime(LocalDateTime.now());
         inspectionTaskMapper.updateById(task);
-        recordInspectionTaskAudit(userId, regulator.getName(), ACTION_INSPECTION_START, before, task, null);
+        recordInspectionTaskAudit(
+            userId,
+            operationAuditOperatorNameResolver.resolveRegulatorOperatorName(
+                regulator.getName(),
+                regulator.getUsername()
+            ),
+            ACTION_INSPECTION_START,
+            before,
+            task,
+            null
+        );
         return toVO(task, loadEnterpriseNames(List.of(task)), loadRegulatorNames(List.of(task)));
     }
 
@@ -281,10 +303,26 @@ public class InspectionTaskServiceImpl implements InspectionTaskService {
         task.setCompletedTime(LocalDateTime.now());
         task.setUpdateTime(LocalDateTime.now());
         inspectionTaskMapper.updateById(task);
-        recordInspectionTaskAudit(userId, regulator.getName(), ACTION_INSPECTION_SUBMIT, before, task,
+        recordInspectionTaskAudit(
+            userId,
+            operationAuditOperatorNameResolver.resolveRegulatorOperatorName(
+                regulator.getName(),
+                regulator.getUsername()
+            ),
+            ACTION_INSPECTION_SUBMIT,
+            before,
+            task,
             "result=" + record.getResult());
         if (rectificationCreated) {
-            recordInspectionTaskAudit(userId, regulator.getName(), ACTION_INSPECTION_RECTIFICATION_CREATE, before, task,
+            recordInspectionTaskAudit(
+                userId,
+                operationAuditOperatorNameResolver.resolveRegulatorOperatorName(
+                    regulator.getName(),
+                    regulator.getUsername()
+                ),
+                ACTION_INSPECTION_RECTIFICATION_CREATE,
+                before,
+                task,
                 "inspectionRecordId=" + record.getId());
         }
         return toVO(task, loadEnterpriseNames(List.of(task)), loadRegulatorNames(List.of(task)));
@@ -492,7 +530,7 @@ public class InspectionTaskServiceImpl implements InspectionTaskService {
         String reasonDetail = "企业最近" + threshold + "次检查均为不合格，已自动纳入重点监管";
         masterDataSupport.markEnterpriseAsKey(
             task.getEnterpriseId(),
-            KEY_REASON_CONSECUTIVE_FAIL,
+            KEY_REASON_CONSECUTIVE_INSPECTION_FAIL,
             reasonDetail,
             KEY_SOURCE_ROUTINE,
             record.getId(),
@@ -515,11 +553,11 @@ public class InspectionTaskServiceImpl implements InspectionTaskService {
         LocalDateTime now = LocalDateTime.now();
         String eventKey = buildInspectionWarningKey(record.getId());
         WarningEventUpsertDTO dto = new WarningEventUpsertDTO();
-        dto.setEventType(WARNING_EVENT_CONSECUTIVE_FAIL);
+        dto.setEventType(WARNING_EVENT_CONSECUTIVE_INSPECTION_FAIL);
         dto.setBizType(WARNING_BIZ_TYPE_INSPECTION);
         dto.setBizId(record.getId());
         dto.setRegionId(task.getRegionId());
-        dto.setOwnerRegulatorId(record.getInspectorId());
+        dto.setOwnerRegulatorId(masterDataSupport.resolveEnterpriseOwnerRegulatorId(task.getEnterpriseId()));
         dto.setDedupKey(eventKey);
         dto.setLevel("L2");
         dto.setTitle("企业连续检查不合格");
@@ -538,7 +576,7 @@ public class InspectionTaskServiceImpl implements InspectionTaskService {
     }
 
     private String buildInspectionWarningKey(Long inspectionId) {
-        return WARNING_BIZ_TYPE_INSPECTION + ":" + inspectionId + ":" + WARNING_EVENT_CONSECUTIVE_FAIL;
+        return WARNING_BIZ_TYPE_INSPECTION + ":" + inspectionId + ":" + WARNING_EVENT_CONSECUTIVE_INSPECTION_FAIL;
     }
 
     private boolean isDeleted(Integer deleted) {
@@ -588,11 +626,28 @@ public class InspectionTaskServiceImpl implements InspectionTaskService {
             target.getTaskNo(),
             WARNING_BIZ_TYPE_INSPECTION,
             actionType,
-            actionType,
+            resolveInspectionActionName(actionType),
             writeInspectionTaskSnapshot(before),
             writeInspectionTaskSnapshot(after),
             remark
         );
+    }
+
+    private String resolveInspectionActionName(String actionType) {
+        String normalized = normalize(actionType);
+        if (ACTION_INSPECTION_ASSIGN.equals(normalized)) {
+            return "分派检查任务";
+        }
+        if (ACTION_INSPECTION_START.equals(normalized)) {
+            return "开始执行检查";
+        }
+        if (ACTION_INSPECTION_SUBMIT.equals(normalized)) {
+            return "提交检查结果";
+        }
+        if (ACTION_INSPECTION_RECTIFICATION_CREATE.equals(normalized)) {
+            return "创建整改任务";
+        }
+        return normalized;
     }
 
     private String writeInspectionTaskSnapshot(InspectionTask task) {

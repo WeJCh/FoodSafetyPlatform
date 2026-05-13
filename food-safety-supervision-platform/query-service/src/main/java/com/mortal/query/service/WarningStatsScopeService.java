@@ -1,8 +1,8 @@
 package com.mortal.query.service;
 
+import com.mortal.platform.common.ApiResponse;
 import com.mortal.query.client.RegulationRegionClient;
 import com.mortal.query.client.RegulatorProfileClient;
-import com.mortal.platform.common.ApiResponse;
 import com.mortal.query.common.ForbiddenException;
 import com.mortal.query.dto.WarningStatsQueryDTO;
 import com.mortal.query.support.QueryRedisCacheSupport;
@@ -181,7 +181,7 @@ public class WarningStatsScopeService {
     }
 
     /**
-     * 管理员统计范围按“辖区+下级辖区”展开，保证与监管预警列表口径一致。
+     * 管理员统计范围按“辖区 + 下级辖区”展开，保证与监管预警列表口径一致。
      */
     private Set<Long> expandRegionIds(Long regulatorId, Set<Long> rootRegionIds, String authorization) {
         if (rootRegionIds == null || rootRegionIds.isEmpty()) {

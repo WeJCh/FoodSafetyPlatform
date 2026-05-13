@@ -5,8 +5,10 @@ import com.mortal.warning.dto.WarningAssignDTO;
 import com.mortal.warning.dto.WarningRecordQueryDTO;
 import com.mortal.warning.dto.WarningScopeDTO;
 import com.mortal.warning.dto.WarningEventUpsertDTO;
+import com.mortal.warning.vo.WarningProcessLogVO;
 import com.mortal.warning.vo.WarningRecordDetailVO;
 import com.mortal.warning.vo.WarningRecordVO;
+import java.util.List;
 
 public interface WarningEventService {
 
@@ -43,4 +45,9 @@ public interface WarningEventService {
                                         Long operatorId,
                                         String operatorName,
                                         WarningScopeDTO scopeDTO);
+
+    /**
+     * 查询最近预警处理日志。
+     */
+    List<WarningProcessLogVO> listRecentWarningLogs(WarningScopeDTO scopeDTO, Integer limit);
 }

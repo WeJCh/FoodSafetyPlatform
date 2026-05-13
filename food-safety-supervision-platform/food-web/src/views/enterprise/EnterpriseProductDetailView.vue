@@ -77,13 +77,22 @@
             <section class="enterprise-panel">
               <h3 class="enterprise-product-detail-section-title">备案历史 / FILING HISTORY</h3>
               <div class="enterprise-audit-trail-v">
-                <div v-for="item in filingHistoryPreview" :key="item.key" class="enterprise-audit-node">
+                <div v-for="item in filingHistoryItems" :key="item.key" class="enterprise-audit-node">
                   <span class="enterprise-audit-node__dot" :class="{ 'is-muted': item.muted }" />
                   <div class="enterprise-product-detail-audit-item-head">
                     <strong>{{ item.title }}</strong>
                     <span>{{ item.time }}</span>
                   </div>
+                  <p v-if="item.operatorName" class="enterprise-product-detail-audit-operator">操作人：{{ item.operatorName }}</p>
                   <p>{{ item.desc }}</p>
+                </div>
+                <div v-if="!filingHistoryItems.length" class="enterprise-audit-node">
+                  <span class="enterprise-audit-node__dot is-muted" />
+                  <div class="enterprise-product-detail-audit-item-head">
+                    <strong>暂无备案日志</strong>
+                    <span>-</span>
+                  </div>
+                  <p>当前产品档案还没有可展示的历史记录。</p>
                 </div>
               </div>
             </section>
@@ -111,7 +120,7 @@
 <script setup>
 import { computed, reactive, ref, watch } from "vue";
 import { RouterLink, useRoute } from "vue-router";
-import { fetchMyProducts } from "../../api/regulation";
+import { fetchMyProducts, fetchProductLogs } from "../../api/regulation";
 import { resolveErrorMessage } from "../../utils/uiFeedback";
 import EnterpriseStatusChip from "../../components/enterprise/EnterpriseStatusChip.vue";
 import EnterpriseWorkspacePage from "../../components/enterprise/EnterpriseWorkspacePage.vue";
@@ -120,37 +129,53 @@ import { useEnterpriseShellSession } from "./enterpriseShared";
 
 const route = useRoute();
 const { enterpriseUser, token, handleSidebarNavigate, handleLogout } = useEnterpriseShellSession();
+
 const productId = computed(() => String(route.params.productId || ""));
 const loading = ref(false);
 const product = ref(null);
+const productLogs = ref([]);
 const status = reactive({ message: "", type: "" });
-const enterpriseDisplayName = computed(() => enterpriseUser.value?.enterpriseName || enterpriseUser.value?.username || "当前企业");
-const filingHistoryPreview = computed(() => [
-  {
-    key: "latest",
-    title: "产品信息更新",
-    time: formatTime(product.value?.updateTime),
-    desc: "已同步该产品的最新档案信息至企业工作台。",
-    muted: false
-  },
-  {
-    key: "created",
-    title: "企业首次备案",
-    time: formatTime(product.value?.createTime),
-    desc: "该产品已在监管系统完成首次备案登记。",
-    muted: true
-  }
-]);
+
+const enterpriseDisplayName = computed(
+  () => enterpriseUser.value?.enterpriseName || enterpriseUser.value?.username || "当前企业"
+);
+
+const filingHistoryItems = computed(() =>
+  (Array.isArray(productLogs.value) ? productLogs.value : []).map((item, index) => ({
+    key: item?.id || `${item?.actionType || "product-log"}-${index}`,
+    title: formatProductLogTitle(item),
+    time: formatTime(item?.createTime),
+    operatorName: String(item?.operatorName || "").trim(),
+    desc: item?.summary || item?.remark || item?.actionName || item?.actionType || "产品档案日志",
+    muted: index > 0
+  }))
+);
+
+function formatProductLogTitle(item) {
+  const actionType = String(item?.actionType || "").toUpperCase();
+  if (actionType === "PRODUCT_CREATE") return "企业新增产品档案";
+  if (actionType === "PRODUCT_UPDATE") return "企业更新产品档案";
+  if (actionType === "PRODUCT_STATUS_CHANGE") return "企业调整产品状态";
+  return item?.actionName || item?.actionType || "产品档案日志";
+}
 
 async function loadProduct() {
   loading.value = true;
+  status.message = "";
+  status.type = "";
   try {
     const records = await fetchMyProducts(token.value);
     if (!productId.value) {
       product.value = null;
+      productLogs.value = [];
       return;
     }
     product.value = (records || []).find((item) => String(item.id) === productId.value) || null;
+    if (!product.value?.id) {
+      productLogs.value = [];
+      return;
+    }
+    productLogs.value = await fetchProductLogs(token.value, product.value.id, 10).catch(() => []);
   } catch (error) {
     status.message = resolveErrorMessage(error, "加载产品详情失败");
     status.type = "error";
@@ -167,3 +192,11 @@ watch(
   { immediate: true }
 );
 </script>
+
+<style scoped>
+.enterprise-product-detail-audit-operator {
+  margin: 4px 0 0;
+  color: #64748b;
+  font-size: 13px;
+}
+</style>

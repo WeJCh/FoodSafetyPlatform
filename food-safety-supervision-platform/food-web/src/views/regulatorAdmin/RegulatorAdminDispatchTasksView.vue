@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <RegulatorAdminWorkspacePage
     active-key="dispatch"
     :username="regulatorUser.username"
@@ -19,7 +19,32 @@
         <button class="primary head-create-btn" type="button" @click="goToDispatchCreate">新建检查任务</button>
       </header>
 
-      <section class="filter-panel">
+      
+
+      <section class="stats-grid">
+        <article class="stat-card stat-card--primary">
+          <span>检查任务总数</span>
+          <strong>{{ dispatchTotal }}</strong>
+          <p>当前筛选结果下的任务总量</p>
+        </article>
+        <article class="stat-card">
+          <span>执行中任务</span>
+          <strong>{{ inProgressCount }}</strong>
+          <p>基于当前筛选结果统计</p>
+        </article>
+        <article class="stat-card">
+          <span>逾期任务</span>
+          <strong>{{ overdueCount }}</strong>
+          <p>截止日期已到且尚未办结</p>
+        </article>
+        <article class="stat-card">
+          <span>办结率</span>
+          <strong>{{ completionRate }}%</strong>
+          <p>已完成与已归档任务占比</p>
+        </article>
+      </section>
+
+<section class="filter-panel">
         <label>
           任务状态
           <select v-model="dispatchFilters.status">
@@ -51,28 +76,7 @@
         </button>
       </section>
 
-      <section class="stats-grid">
-        <article class="stat-card stat-card--primary">
-          <span>检查任务总数</span>
-          <strong>{{ dispatchTotal }}</strong>
-          <p>当前筛选结果下的任务总量</p>
-        </article>
-        <article class="stat-card">
-          <span>执行中任务</span>
-          <strong>{{ inProgressCount }}</strong>
-          <p>基于当前筛选结果统计</p>
-        </article>
-        <article class="stat-card">
-          <span>逾期任务</span>
-          <strong>{{ overdueCount }}</strong>
-          <p>截止日期已到且尚未办结</p>
-        </article>
-        <article class="stat-card">
-          <span>办结率</span>
-          <strong>{{ completionRate }}%</strong>
-          <p>已完成与已归档任务占比</p>
-        </article>
-      </section>
+
 
       <div class="dispatch-layout">
         <section class="panel list-panel">
@@ -83,12 +87,12 @@
                 <tr>
                   <th>任务号</th>
                   <th>任务名称</th>
-                  <th>企业</th>
+                  <th>浼佷笟</th>
                   <th>指派人员</th>
                   <th>截止日期</th>
                   <th>状态</th>
-                  <th>进度</th>
-                  <th>操作</th>
+                  <th>杩涘害</th>
+                  <th>鎿嶄綔</th>
                 </tr>
               </thead>
               <tbody v-if="dispatchTasks.length">
@@ -122,7 +126,7 @@
                           </option>
                         </select>
                         <button class="op-btn op-btn--assign" type="button" :disabled="dispatchTaskLoading" @click="handleAssignTask(task)">
-                          派发
+                          娲惧彂
                         </button>
                       </template>
                       <span v-else-if="isTaskAssignable(task) && isTaskDeadlineExceeded(task.deadline)" class="op-expired-tip">

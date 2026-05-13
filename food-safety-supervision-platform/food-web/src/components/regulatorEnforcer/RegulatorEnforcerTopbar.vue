@@ -8,8 +8,11 @@
       </label>
     </div>
     <div class="enforcer-topbar__right">
+      <button type="button" class="enforcer-topbar__account" title="个人信息" @click="goAccount">
+        <span class="material-symbols-outlined">account_circle</span>
+      </button>
       <div class="enforcer-user">
-        <strong>{{ username || "Enforcer User" }}</strong>
+        <strong>{{ username || "执法账号" }}</strong>
         <small>执法人员</small>
       </div>
     </div>
@@ -21,6 +24,12 @@ defineProps({
   username: { type: String, default: "" },
   searchPlaceholder: { type: String, default: "搜索功能、任务或企业..." }
 });
+
+const emit = defineEmits(["account"]);
+
+function goAccount() {
+  emit("account");
+}
 </script>
 
 <style scoped>
@@ -73,6 +82,23 @@ defineProps({
   display: flex;
   align-items: center;
   gap: 8px;
+}
+.enforcer-topbar__account {
+  width: 40px;
+  height: 40px;
+  border: 1px solid #cbd5e1;
+  background: #fff;
+  color: #475569;
+  border-radius: 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+.enforcer-topbar__account:hover {
+  color: #2563eb;
+  border-color: #bfdbfe;
+  background: #eff6ff;
 }
 .enforcer-user {
   border-left: 1px solid #e2e8f0;

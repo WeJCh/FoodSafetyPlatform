@@ -79,6 +79,52 @@
           </RouterLink>
         </aside>
 
+        <section class="enterprise-dashboard-risk-panel">
+          <div class="enterprise-dashboard-risk-panel__head">
+            <div>
+              <p class="enterprise-dashboard-risk-panel__eyebrow">重点监管状态</p>
+              <h3>{{ keySupervisionTitle }}</h3>
+              <p class="enterprise-dashboard-risk-panel__desc">{{ keySupervisionDescription }}</p>
+            </div>
+            <span
+              class="enterprise-dashboard-risk-panel__badge"
+              :class="{ 'is-key': isKeyEnterprise, 'is-normal': !isKeyEnterprise }"
+            >
+              {{ isKeyEnterprise ? "KEY" : "NORMAL" }}
+            </span>
+          </div>
+
+          <div v-if="keyReasonItems.length" class="enterprise-dashboard-risk-panel__list">
+            <article
+              v-for="(item, index) in keyReasonItems"
+              :key="`${item.reasonType || 'reason'}-${index}`"
+              class="enterprise-dashboard-risk-panel__item"
+            >
+              <div class="enterprise-dashboard-risk-panel__item-head">
+                <strong>{{ item.reasonLabel || formatKeyReasonType(item.reasonType) }}</strong>
+                <span>{{ formatTime(item.createTime) }}</span>
+              </div>
+              <p>{{ item.reasonDetail || "已触发重点监管规则。" }}</p>
+            </article>
+          </div>
+          <div v-else class="enterprise-dashboard-risk-panel__empty">
+            当前暂无已记录的重点监管原因，若后续触发风险规则或被监管确认，将在这里展示。
+          </div>
+
+          <div class="enterprise-dashboard-risk-panel__actions">
+            <RouterLink class="ghost enterprise-link-button" :to="{ name: 'enterprise-profile-detail' }">
+              查看备案详情
+            </RouterLink>
+            <RouterLink
+              v-if="isKeyEnterprise"
+              class="primary enterprise-link-button"
+              :to="{ name: 'enterprise-rectifications' }"
+            >
+              查看整改任务
+            </RouterLink>
+          </div>
+        </section>
+
         <section class="enterprise-dashboard-list-panel">
           <div class="enterprise-dashboard-list-panel__head">
             <h3>近期检查记录</h3>
@@ -176,7 +222,7 @@
             <span>LAST SYNC: {{ dashboardSyncTime }}</span>
           </div>
         </div>
-        <p>© 2023 企业端. All Rights Reserved.</p>
+        <p>© 2023 企业端 All Rights Reserved.</p>
       </footer>
 
       <div v-if="status.message" class="status" :class="status.type">{{ status.message }}</div>
@@ -202,7 +248,13 @@ import {
 const { enterpriseUser, token, handleSidebarNavigate, handleLogout } = useEnterpriseShellSession();
 const status = reactive({ message: "", type: "" });
 const profileLoaded = ref(false);
-const profile = reactive({ approvalStatus: "", approvalComment: "", approvedTime: "" });
+const profile = reactive({
+  approvalStatus: "",
+  approvalComment: "",
+  approvedTime: "",
+  status: "",
+  keyReasons: []
+});
 const productCount = ref(0);
 const inspectionRecords = ref([]);
 const pendingRectificationCount = ref(0);
@@ -212,11 +264,15 @@ const dashboardSyncTime = ref("-");
 const approvalLabel = computed(() => getApprovalStatusLabel(profileLoaded.value, profile.approvalStatus));
 const approvalTone = computed(() => getApprovalStatusTone(profileLoaded.value, profile.approvalStatus));
 const recentInspections = computed(() => inspectionRecords.value.slice(0, 3));
+const isKeyEnterprise = computed(() => profileLoaded.value && profile.status === "KEY");
+const keyReasonItems = computed(() => (
+  Array.isArray(profile.keyReasons) ? profile.keyReasons.slice(0, 3) : []
+));
 
 const heroStatusTitle = computed(() => {
-  if (!profileLoaded.value) return "未提交";
-  if (profile.approvalStatus === "APPROVED") return "已核准";
-  if (profile.approvalStatus === "REJECTED") return "已驳回";
+  if (!profileLoaded.value) return "未提交备案";
+  if (profile.approvalStatus === "APPROVED") return "已审核通过";
+  if (profile.approvalStatus === "REJECTED") return "审核未通过";
   return "审核中";
 });
 
@@ -243,7 +299,23 @@ const heroDescription = computed(() => {
 
 const validUntilText = computed(() => {
   if (profile.approvedTime) return formatTime(profile.approvedTime).slice(0, 10);
-  return "待核准";
+  return "待核验";
+});
+
+const keySupervisionTitle = computed(() => (
+  isKeyEnterprise.value ? "当前已纳入重点监管" : "当前未纳入重点监管"
+));
+
+const keySupervisionDescription = computed(() => {
+  if (keyReasonItems.value.length) {
+    const latest = keyReasonItems.value[0];
+    const label = latest.reasonLabel || formatKeyReasonType(latest.reasonType);
+    const timeText = latest.createTime ? formatTime(latest.createTime) : "-";
+    return `最近一次触发原因：${label}，记录时间 ${timeText}。`;
+  }
+  return isKeyEnterprise.value
+    ? "当前企业已被纳入重点监管，请持续关注整改、检查和投诉等监管要求。"
+    : "当前未发现已记录的重点监管原因，但仍需按时维护备案信息并配合监管检查。";
 });
 
 const primaryAction = computed(() => ({ label: "更新备案信息", to: { name: "enterprise-profile" } }));
@@ -259,10 +331,29 @@ function getInspectionGlyph(item) {
   return "查";
 }
 
+function formatKeyReasonType(value) {
+  const map = {
+    COMPLAINT_OVERFLOW: "投诉过量",
+    CONSECUTIVE_INSPECTION_FAIL: "连续检查不合格",
+    SAMPLING_FAIL: "抽检不合格",
+    RECTIFICATION_OVERDUE: "整改逾期",
+    WARNING_TRIGGERED: "预警触发",
+    MANUAL_SET: "人工设定"
+  };
+  return map[value] || value || "-";
+}
+
 async function loadDashboard() {
   setStatus("");
   try {
-    const [profileData, products, inspectionPreviewData, inspectionAlertData, ongoingRectificationData, reworkRectificationData] = await Promise.all([
+    const [
+      profileData,
+      products,
+      inspectionPreviewData,
+      inspectionAlertData,
+      ongoingRectificationData,
+      reworkRectificationData
+    ] = await Promise.all([
       fetchEnterpriseProfile(token.value).catch((error) => {
         if (String(error?.message).includes("not found")) return null;
         throw error;
@@ -278,18 +369,23 @@ async function loadDashboard() {
       profile.approvalStatus = profileData.approvalStatus || "";
       profile.approvalComment = profileData.approvalComment || "";
       profile.approvedTime = profileData.approvedTime || "";
+      profile.status = profileData.status || "";
+      profile.keyReasons = Array.isArray(profileData.keyReasons) ? profileData.keyReasons : [];
       profileLoaded.value = true;
     } else {
       profile.approvalStatus = "";
       profile.approvalComment = "";
       profile.approvedTime = "";
+      profile.status = "";
+      profile.keyReasons = [];
       profileLoaded.value = false;
     }
 
     productCount.value = Array.isArray(products) ? products.length : 0;
     inspectionRecords.value = inspectionPreviewData.records || [];
     recentInspectionAlertCount.value = Number(inspectionAlertData.total || 0);
-    pendingRectificationCount.value = Number(ongoingRectificationData.total || 0) + Number(reworkRectificationData.total || 0);
+    pendingRectificationCount.value = Number(ongoingRectificationData.total || 0)
+      + Number(reworkRectificationData.total || 0);
     dashboardSyncTime.value = formatTime(new Date().toISOString());
   } catch (error) {
     setStatus(resolveErrorMessage(error, "加载企业工作台失败，请稍后重试。"), "error");
@@ -300,3 +396,214 @@ onMounted(() => {
   loadDashboard();
 });
 </script>
+
+<style scoped>
+.enterprise-dashboard-risk-panel {
+  grid-column: 9 / span 4;
+  grid-row: 2;
+  align-self: start;
+  border: 1px solid #dbe3ee;
+  background: #fff;
+  padding: 18px;
+  display: grid;
+  gap: 14px;
+  border-radius: 12px;
+  box-shadow: 0 1px 2px rgba(25, 28, 30, 0.02);
+}
+
+.enterprise-dashboard-list-panel {
+  grid-column: 1 / span 8;
+  grid-row: 2;
+}
+
+.enterprise-dashboard-actions-panel {
+  grid-column: 1 / span 12;
+  grid-row: 3;
+}
+
+.enterprise-dashboard-risk-panel__head {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: flex-start;
+}
+
+.enterprise-dashboard-risk-panel__eyebrow {
+  margin: 0;
+  font-size: 11px;
+  color: #64748b;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.enterprise-dashboard-risk-panel h3 {
+  margin: 6px 0 0;
+  font-size: 28px;
+  line-height: 1.15;
+  color: #0f172a;
+}
+
+.enterprise-dashboard-risk-panel__desc {
+  margin: 8px 0 0;
+  color: #475569;
+  font-size: 13px;
+  line-height: 1.7;
+  max-width: 760px;
+}
+
+.enterprise-dashboard-risk-panel__badge {
+  min-width: 88px;
+  min-height: 32px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 12px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+}
+
+.enterprise-dashboard-risk-panel__badge.is-key {
+  background: #fff1f2;
+  color: #be123c;
+  border: 1px solid #fecdd3;
+}
+
+.enterprise-dashboard-risk-panel__badge.is-normal {
+  background: #eff6ff;
+  color: #1d4ed8;
+  border: 1px solid #bfdbfe;
+}
+
+.enterprise-dashboard-risk-panel__list {
+  display: grid;
+  gap: 10px;
+}
+
+.enterprise-dashboard-risk-panel__item {
+  border: 1px solid #e2e8f0;
+  background: #f8fafc;
+  padding: 12px 14px;
+}
+
+.enterprise-dashboard-risk-panel__item-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+}
+
+.enterprise-dashboard-risk-panel__item-head strong {
+  color: #0f172a;
+  font-size: 14px;
+}
+
+.enterprise-dashboard-risk-panel__item-head span {
+  color: #64748b;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.enterprise-dashboard-risk-panel__item p,
+.enterprise-dashboard-risk-panel__empty {
+  margin: 8px 0 0;
+  color: #475569;
+  font-size: 13px;
+  line-height: 1.7;
+}
+
+.enterprise-dashboard-risk-panel__empty {
+  border: 1px dashed #cbd5e1;
+  background: #f8fafc;
+  padding: 14px;
+  margin: 0;
+}
+
+.enterprise-dashboard-risk-panel__actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.enterprise-dashboard-actions-panel__block {
+  display: grid;
+  gap: 16px;
+}
+
+.enterprise-dashboard-actions-panel__notice {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  column-gap: 12px;
+  row-gap: 4px;
+  align-items: start;
+}
+
+.enterprise-dashboard-actions-panel__notice-dot {
+  grid-column: 1;
+  grid-row: 1 / span 2;
+  margin-top: 5px;
+}
+
+.enterprise-dashboard-actions-panel__notice strong,
+.enterprise-dashboard-actions-panel__notice p {
+  grid-column: 2;
+}
+
+.enterprise-dashboard-actions-panel__notice p {
+  margin-top: 0;
+}
+
+.enterprise-dashboard-actions-list {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+  margin-top: 0;
+}
+
+.enterprise-dashboard-action {
+  align-items: center;
+  padding: 10px 14px;
+}
+
+.enterprise-dashboard-action > div {
+  min-width: 0;
+}
+
+.enterprise-dashboard-action strong {
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+.enterprise-dashboard-action p {
+  margin-top: 2px;
+  font-size: 12px;
+  line-height: 1.7;
+}
+
+@media (max-width: 1180px) {
+  .enterprise-dashboard-risk-panel {
+    grid-column: span 12;
+    grid-row: auto;
+  }
+
+  .enterprise-dashboard-list-panel,
+  .enterprise-dashboard-actions-panel {
+    grid-column: span 12;
+    grid-row: auto;
+  }
+
+  .enterprise-dashboard-actions-list {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 720px) {
+  .enterprise-dashboard-risk-panel__head,
+  .enterprise-dashboard-risk-panel__item-head {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}
+</style>

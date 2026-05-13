@@ -11,6 +11,7 @@ public class EnterpriseApprovalBatchDTO {
 
     @NotEmpty(message = "ids required")
     private List<Long> ids;
+    private Long regulatorId;
     @Size(max = 50, message = "regulatorName too long")
     private String regulatorName;
     @NotBlank(message = "comment is required")

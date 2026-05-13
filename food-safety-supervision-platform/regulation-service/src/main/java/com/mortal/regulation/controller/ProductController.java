@@ -4,6 +4,7 @@ import com.mortal.platform.common.ApiResponse;
 import com.mortal.regulation.dto.ProductSaveDTO;
 import com.mortal.regulation.service.ProductService;
 import com.mortal.regulation.util.JwtUserResolver;
+import com.mortal.regulation.vo.AuditLogVO;
 import com.mortal.regulation.vo.ProductVO;
 import jakarta.validation.Valid;
 import java.util.List;
@@ -13,7 +14,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
-import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
@@ -27,84 +28,97 @@ public class ProductController {
         this.productService = productService;
         this.jwtUserResolver = jwtUserResolver;
     }
-    /**
-     * 获取当前用户的产品列表
-     * 
-     * @param token 令牌
-     * @return 产品列表
-     */
+
     @GetMapping("/api/regulation/products/my")
     public ApiResponse<List<ProductVO>> listMyProducts(@RequestHeader("Authorization") String token) {
         UserIdentity identity = resolveIdentity(token);
         if (!identity.isEnterprise()) {
-            return ApiResponse.failure(403, "enterprise user only");
+            return ApiResponse.failure(403, "仅企业账号可访问");
         }
         return ApiResponse.success(productService.listMyProducts(identity.userId()));
     }
 
-    /**
-     * 创建产品
-     * 
-     * @param token 令牌
-     * @param dto 产品保存DTO
-     * @return 产品VO
-     */
     @PostMapping("/api/regulation/products")
     public ApiResponse<ProductVO> createMyProduct(@RequestHeader("Authorization") String token,
                                                   @Valid @RequestBody ProductSaveDTO dto) {
         UserIdentity identity = resolveIdentity(token);
         if (!identity.isEnterprise()) {
-            return ApiResponse.failure(403, "enterprise user only");
+            return ApiResponse.failure(403, "仅企业账号可访问");
         }
-        return ApiResponse.success(productService.createMyProduct(identity.userId(), dto));
+        return ApiResponse.success(productService.createMyProduct(identity.userId(), identity.username(), dto));
     }
 
-    /**
-     * 更新产品
-     * 
-     * @param token 令牌
-     * @param id 产品ID
-     * @param dto 产品保存DTO
-     * @return 产品VO
-     */
     @PutMapping("/api/regulation/products/{id}")
     public ApiResponse<ProductVO> updateMyProduct(@RequestHeader("Authorization") String token,
                                                   @PathVariable Long id,
                                                   @Valid @RequestBody ProductSaveDTO dto) {
         UserIdentity identity = resolveIdentity(token);
         if (!identity.isEnterprise()) {
-            return ApiResponse.failure(403, "enterprise user only");
+            return ApiResponse.failure(403, "仅企业账号可访问");
         }
-        return ApiResponse.success(productService.updateMyProduct(identity.userId(), id, dto));
+        return ApiResponse.success(productService.updateMyProduct(identity.userId(), identity.username(), id, dto));
     }
 
-    /**
-     * 获取企业的产品列表
-     * 
-     * @param token 令牌
-     * @param enterpriseId 企业ID
-     * @return 产品列表
-     */
+    @GetMapping("/api/regulation/products/{id}/logs")
+    public ApiResponse<List<AuditLogVO>> listMyProductLogs(@RequestHeader("Authorization") String token,
+                                                           @PathVariable Long id,
+                                                           @RequestParam(required = false) Integer limit) {
+        UserIdentity identity = resolveIdentity(token);
+        if (!identity.isEnterprise()) {
+            return ApiResponse.failure(403, "仅企业账号可访问");
+        }
+        return ApiResponse.success(productService.listMyProductLogs(identity.userId(), id, limit));
+    }
+
     @GetMapping("/api/regulation/enterprises/{enterpriseId}/products")
     public ApiResponse<List<ProductVO>> listEnterpriseProducts(@RequestHeader("Authorization") String token,
                                                                @PathVariable Long enterpriseId) {
         UserIdentity identity = resolveIdentity(token);
         if (!identity.isRegulator()) {
-            return ApiResponse.failure(403, "regulator only");
+            return ApiResponse.failure(403, "仅监管账号可访问");
         }
-        return ApiResponse.success(productService.listByEnterpriseIdForRegulator(identity.userId(), enterpriseId));
+        try {
+            return ApiResponse.success(productService.listByEnterpriseIdForRegulator(identity.userId(), enterpriseId));
+        } catch (IllegalArgumentException ex) {
+            if ("unauthorized".equals(ex.getMessage())) {
+                return ApiResponse.failure(403, "无权查看该企业产品档案");
+            }
+            throw ex;
+        }
+    }
+
+    @GetMapping("/api/regulation/enterprises/{enterpriseId}/products/{id}/logs")
+    public ApiResponse<List<AuditLogVO>> listEnterpriseProductLogs(@RequestHeader("Authorization") String token,
+                                                                   @PathVariable Long enterpriseId,
+                                                                   @PathVariable Long id,
+                                                                   @RequestParam(required = false) Integer limit) {
+        UserIdentity identity = resolveIdentity(token);
+        if (!identity.isRegulator()) {
+            return ApiResponse.failure(403, "仅监管账号可访问");
+        }
+        try {
+            return ApiResponse.success(
+                productService.listProductLogsForRegulator(identity.userId(), enterpriseId, id, limit)
+            );
+        } catch (IllegalArgumentException ex) {
+            if ("unauthorized".equals(ex.getMessage())) {
+                return ApiResponse.failure(403, "无权查看该企业产品日志");
+            }
+            throw ex;
+        }
     }
 
     private UserIdentity resolveIdentity(String token) {
         Long userId = jwtUserResolver.resolveUserId(token);
         String userType = jwtUserResolver.resolveUserType(token);
+        String username = jwtUserResolver.resolveUsername(token);
         if (userId == null) {
             throw new IllegalArgumentException("unauthorized");
         }
-        return new UserIdentity(userId, userType);
+        return new UserIdentity(userId, userType, username);
     }
 
-    private record UserIdentity(Long userId, String userType) {
+    private record UserIdentity(Long userId, String userType, String username) {
 
         boolean isEnterprise() {
             return "ENTERPRISE".equals(userType);

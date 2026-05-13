@@ -20,15 +20,13 @@ import org.springframework.web.context.request.RequestAttributes;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
 
-/**
- * 投诉审计日志服务
- */
 @Service
 public class AuditLogService {
 
     private static final String SERVICE_NAME = "complaint-service";
     private static final String TARGET_TYPE_COMPLAINT = "COMPLAINT";
     private static final String BIZ_TYPE_COMPLAINT = "COMPLAINT";
+    private static final String SYSTEM_OPERATOR_NAME = "系统";
     private static final TypeReference<Map<String, Object>> MAP_TYPE = new TypeReference<>() {
     };
 
@@ -56,7 +54,7 @@ public class AuditLogService {
         log.setServiceName(SERVICE_NAME);
         log.setOperatorUserId(operatorUserId);
         log.setOperatorUserType(trimToNull(operatorUserType));
-        log.setOperatorName(StringUtils.hasText(operatorName) ? operatorName.trim() : buildOperatorFallback(operatorUserId));
+        log.setOperatorName(StringUtils.hasText(operatorName) ? operatorName.trim() : buildOperatorFallback());
         log.setTargetType(TARGET_TYPE_COMPLAINT);
         log.setTargetId(complaint.getId());
         log.setTargetUserId(complaint.getSubmitterUserId());
@@ -111,7 +109,7 @@ public class AuditLogService {
         vo.setId(log.getId());
         vo.setActionType(log.getActionType());
         vo.setActionName(log.getActionName());
-        vo.setOperatorName(StringUtils.hasText(log.getOperatorName()) ? log.getOperatorName() : buildOperatorFallback(log.getOperatorUserId()));
+        vo.setOperatorName(StringUtils.hasText(log.getOperatorName()) ? log.getOperatorName() : buildOperatorFallback());
         vo.setTargetId(log.getTargetId());
         vo.setTargetUserId(log.getTargetUserId());
         vo.setTargetName(log.getTargetName());
@@ -135,6 +133,7 @@ public class AuditLogService {
                 return "提交投诉，当前状态为" + statusText(after.get("status"));
             case "COMPLAINT_ACCEPT":
             case "COMPLAINT_ASSIGN":
+            case "COMPLAINT_REASSIGN":
             case "COMPLAINT_PROCESS_START":
             case "COMPLAINT_HANDLE":
             case "COMPLAINT_REJECT":
@@ -236,7 +235,7 @@ public class AuditLogService {
         return request.getRemoteAddr();
     }
 
-    private String buildOperatorFallback(Long operatorUserId) {
-        return operatorUserId == null ? "系统" : "用户#" + operatorUserId;
+    private String buildOperatorFallback() {
+        return SYSTEM_OPERATOR_NAME;
     }
 }

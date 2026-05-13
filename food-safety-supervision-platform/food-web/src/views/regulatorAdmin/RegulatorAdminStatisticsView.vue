@@ -10,7 +10,7 @@
         <div>
           <p class="stats-hero__eyebrow">Statistics Dashboard</p>
           <h1>监管数据统计</h1>
-          <p>汇总辖区企业、检查、投诉与预警数据，支撑每日监管决策。</p>
+          <p>汇总辖区企业、检查、投诉与预警数据，支持每日监管决策。</p>
         </div>
         <div class="stats-hero__meta">
           <div><span>统计口径</span><strong>区域管理员</strong></div>
@@ -90,7 +90,7 @@ const activePanel = ref("overview");
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
-.stats-hero h1 { margin: 6px 0 0; font-size: 30px; line-height: 1.1; font-weight: 900; letter-spacing: -0.01em; color: #0f172a; }
+.stats-hero h1 { margin: 6px 0 0; font-size: 30px; line-height: 1.1; font-weight: 900; color: #0f172a; }
 .stats-hero p { margin: 8px 0 0; color: #5b7088; font-size: 13px; max-width: 620px; }
 .stats-hero__meta { display: grid; gap: 8px; min-width: 210px; }
 .stats-hero__meta div {

@@ -5,6 +5,9 @@ import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.mortal.platform.common.PageResult;
+import com.mortal.platform.common.ApiResponse;
+import com.mortal.warning.client.regulation.RegulationRegulatorInternalClient;
+import com.mortal.warning.client.regulation.vo.InternalRegulatorSummaryVO;
 import com.mortal.warning.common.enums.WarningActionType;
 import com.mortal.warning.common.enums.WarningLevel;
 import com.mortal.warning.common.enums.WarningStatus;
@@ -24,12 +27,15 @@ import com.mortal.warning.vo.WarningRecordDetailVO;
 import com.mortal.warning.vo.WarningRecordVO;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Random;
 import java.util.Set;
 import java.util.stream.Collectors;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -42,18 +48,25 @@ public class WarningEventServiceImpl implements WarningEventService {
     private final ObjectMapper objectMapper;
     private final WarningLockSupport warningLockSupport;
     private final WarningStatsCacheSupport warningStatsCacheSupport;
+    private final RegulationRegulatorInternalClient regulationRegulatorInternalClient;
+    private final String regulationInternalToken;
     private final Random random = new Random();
 
     public WarningEventServiceImpl(WarningRecordMapper warningRecordMapper,
                                    WarningProcessLogMapper warningProcessLogMapper,
                                    ObjectMapper objectMapper,
                                    WarningLockSupport warningLockSupport,
-                                   WarningStatsCacheSupport warningStatsCacheSupport) {
+                                   WarningStatsCacheSupport warningStatsCacheSupport,
+                                   RegulationRegulatorInternalClient regulationRegulatorInternalClient,
+                                   @Value("${regulation.internal.token:regulation-internal-token}")
+                                   String regulationInternalToken) {
         this.warningRecordMapper = warningRecordMapper;
         this.warningProcessLogMapper = warningProcessLogMapper;
         this.objectMapper = objectMapper;
         this.warningLockSupport = warningLockSupport;
         this.warningStatsCacheSupport = warningStatsCacheSupport;
+        this.regulationRegulatorInternalClient = regulationRegulatorInternalClient;
+        this.regulationInternalToken = regulationInternalToken;
     }
 
     /**
@@ -90,7 +103,7 @@ public class WarningEventServiceImpl implements WarningEventService {
             created.setBizType(bizType);
             created.setBizId(bizId);
             created.setRegionId(dto.getRegionId());
-            created.setOwnerRegulatorId(dto.getOwnerRegulatorId());
+            syncOwnerAssignment(created, dto.getOwnerRegulatorId());
             created.setDedupKey(dedupKey);
             created.setLevel(level.name());
             created.setStatus(WarningStatus.OPEN.name());
@@ -118,7 +131,7 @@ public class WarningEventServiceImpl implements WarningEventService {
             existing.setRegionId(dto.getRegionId());
         }
         if (dto.getOwnerRegulatorId() != null) {
-            existing.setOwnerRegulatorId(dto.getOwnerRegulatorId());
+            syncOwnerAssignment(existing, dto.getOwnerRegulatorId());
         }
         WarningLevel oldLevel = existing.getLevel() == null
             ? level
@@ -225,6 +238,38 @@ public class WarningEventServiceImpl implements WarningEventService {
         );
     }
 
+    @Override
+    public List<WarningProcessLogVO> listRecentWarningLogs(WarningScopeDTO scopeDTO, Integer limit) {
+        ensureScope(scopeDTO == null ? null : scopeDTO.getOwnerRegulatorId(), parseRegionIds(scopeDTO == null ? null : scopeDTO.getRegionIds()));
+        int safeLimit = normalizeRecentLimit(limit);
+        int candidateLimit = Math.max(safeLimit * 5, 30);
+        List<WarningProcessLog> logs = warningProcessLogMapper.selectList(
+            new LambdaQueryWrapper<WarningProcessLog>()
+                .eq(WarningProcessLog::getDeleted, 0)
+                .orderByDesc(WarningProcessLog::getCreateTime)
+                .orderByDesc(WarningProcessLog::getId)
+                .last("limit " + candidateLimit)
+        );
+        if (logs.isEmpty()) {
+            return List.of();
+        }
+        Map<Long, WarningRecord> warningMap = warningRecordMapper.selectBatchIds(
+                logs.stream()
+                    .map(WarningProcessLog::getWarningId)
+                    .filter(Objects::nonNull)
+                    .distinct()
+                    .toList()
+            ).stream()
+            .filter(Objects::nonNull)
+            .filter(item -> item.getDeleted() == null || item.getDeleted() == 0)
+            .collect(Collectors.toMap(WarningRecord::getId, item -> item, (a, b) -> a, HashMap::new));
+        return logs.stream()
+            .map(log -> toScopedProcessLogVO(log, warningMap.get(log.getWarningId()), scopeDTO))
+            .filter(Objects::nonNull)
+            .limit(safeLimit)
+            .toList();
+    }
+
     private WarningRecordDetailVO doProcessWarning(Long warningId,
                                                    WarningActionType actionType,
                                                    String actionComment,
@@ -245,7 +290,7 @@ public class WarningEventServiceImpl implements WarningEventService {
         processLog.setWarningId(record.getId());
         processLog.setActionType(actionType.name());
         processLog.setOperatorId(operatorId);
-        processLog.setOperatorName(StringUtils.hasText(operatorName) ? operatorName.trim() : "unknown");
+        processLog.setOperatorName(resolveOperatorName(operatorId, operatorName));
         processLog.setActionComment(normalizeOptional(actionComment));
         processLog.setCreateTime(now);
         processLog.setUpdateTime(now);
@@ -256,7 +301,13 @@ public class WarningEventServiceImpl implements WarningEventService {
     }
 
     /**
-     * 中文注释：将关键动作同步回填到主表，便于列表统计和追溯。
+     * 应用动作变更
+     * @param record 预警记录
+     * @param actionType 动作类型
+     * @param actionComment 动作备注
+     * @param operatorId 操作员ID
+     * @param assignedTo 指派处理人ID
+     * @param now 当前时间
      */
     private void applyActionMutation(WarningRecord record,
                                      WarningActionType actionType,
@@ -268,6 +319,7 @@ public class WarningEventServiceImpl implements WarningEventService {
             if (assignedTo == null || assignedTo <= 0) {
                 throw new IllegalArgumentException("assignedTo required");
             }
+            record.setOwnerRegulatorId(assignedTo);
             record.setAssignedTo(assignedTo);
             record.setAssignedTime(now);
             return;
@@ -278,6 +330,24 @@ public class WarningEventServiceImpl implements WarningEventService {
             }
             record.setResolvedTime(now);
         }
+    }
+
+    /**
+     * 同步业主分配
+     * @param record 预警记录
+     * @param regulatorId 监管者ID
+     */
+    private void syncOwnerAssignment(WarningRecord record, Long regulatorId) {
+        if (record == null) {
+            return;
+        }
+        if (regulatorId == null || regulatorId <= 0) {
+            record.setOwnerRegulatorId(null);
+            record.setAssignedTo(null);
+            return;
+        }
+        record.setOwnerRegulatorId(regulatorId);
+        record.setAssignedTo(regulatorId);
     }
 
     private WarningRecordVO toVO(WarningRecord record) {
@@ -318,7 +388,7 @@ public class WarningEventServiceImpl implements WarningEventService {
         processLog.setWarningId(warningId);
         processLog.setActionType(WarningActionType.EVENT_UPSERT.name());
         processLog.setOperatorId(null);
-        processLog.setOperatorName("system");
+        processLog.setOperatorName("系统");
         processLog.setActionComment(actionComment);
         processLog.setCreateTime(now);
         processLog.setUpdateTime(now);
@@ -362,17 +432,56 @@ public class WarningEventServiceImpl implements WarningEventService {
                 .eq(WarningProcessLog::getDeleted, 0)
                 .orderByDesc(WarningProcessLog::getCreateTime)
                 .orderByDesc(WarningProcessLog::getId)
-        ).stream().map(logItem -> {
-            WarningProcessLogVO vo = new WarningProcessLogVO();
-            vo.setId(logItem.getId());
-            vo.setWarningId(logItem.getWarningId());
-            vo.setActionType(logItem.getActionType());
-            vo.setOperatorId(logItem.getOperatorId());
-            vo.setOperatorName(logItem.getOperatorName());
-            vo.setActionComment(logItem.getActionComment());
-            vo.setCreateTime(logItem.getCreateTime());
-            return vo;
-        }).toList();
+        ).stream().map(logItem -> toProcessLogVO(logItem, null, null)).toList();
+    }
+
+    private WarningProcessLogVO toProcessLogVO(WarningProcessLog logItem,
+                                               WarningRecord record,
+                                               WarningScopeDTO scopeDTO) {
+        if (logItem == null) {
+            return null;
+        }
+        if (record == null && scopeDTO != null) {
+            return null;
+        }
+        if (record != null) {
+            ensureInScope(record, scopeDTO);
+        }
+        WarningProcessLogVO vo = new WarningProcessLogVO();
+        vo.setId(logItem.getId());
+        vo.setWarningId(logItem.getWarningId());
+        vo.setActionType(logItem.getActionType());
+        vo.setOperatorId(logItem.getOperatorId());
+        vo.setOperatorName(logItem.getOperatorName());
+        vo.setActionComment(logItem.getActionComment());
+        vo.setCreateTime(logItem.getCreateTime());
+        if (record != null) {
+            vo.setWarningNo(record.getWarningNo());
+            vo.setWarningTitle(record.getTitle());
+            vo.setWarningStatus(record.getStatus());
+            vo.setWarningType(record.getWarningType());
+            vo.setBizType(record.getBizType());
+            vo.setBizId(record.getBizId());
+            vo.setRegionId(record.getRegionId());
+            vo.setOwnerRegulatorId(record.getOwnerRegulatorId());
+            vo.setAssignedTo(record.getAssignedTo());
+            vo.setResolvedBy(record.getResolvedBy());
+        }
+        return vo;
+    }
+
+    private WarningProcessLogVO toScopedProcessLogVO(WarningProcessLog logItem,
+                                                     WarningRecord record,
+                                                     WarningScopeDTO scopeDTO) {
+        try {
+            return toProcessLogVO(logItem, record, scopeDTO);
+        } catch (IllegalArgumentException ex) {
+            String message = ex.getMessage();
+            if ("warning not found".equalsIgnoreCase(message)) {
+                return null;
+            }
+            throw ex;
+        }
     }
 
     private WarningRecord loadWarningRecord(Long warningId) {
@@ -389,6 +498,31 @@ public class WarningEventServiceImpl implements WarningEventService {
             throw new IllegalArgumentException("warning record not found");
         }
         return record;
+    }
+
+    private String resolveOperatorName(Long operatorId, String fallbackName) {
+        if (operatorId != null && operatorId > 0) {
+            try {
+                ApiResponse<InternalRegulatorSummaryVO> response =
+                    regulationRegulatorInternalClient.getRegulatorById(operatorId, regulationInternalToken);
+                if (response != null && response.getCode() == 0 && response.getData() != null) {
+                    String realName = normalizeOptional(response.getData().getName());
+                    String username = normalizeOptional(response.getData().getUsername());
+                    if (StringUtils.hasText(realName) && StringUtils.hasText(username)) {
+                        return realName + "（" + username + "）";
+                    }
+                    if (StringUtils.hasText(realName)) {
+                        return realName;
+                    }
+                    if (StringUtils.hasText(username)) {
+                        return username;
+                    }
+                }
+            } catch (Exception ignored) {
+                // fallback below
+            }
+        }
+        return StringUtils.hasText(fallbackName) ? fallbackName.trim() : "系统";
     }
 
     private WarningActionType normalizeActionType(String actionType) {
@@ -527,6 +661,13 @@ public class WarningEventServiceImpl implements WarningEventService {
             return 10;
         }
         return Math.min(size, 50);
+    }
+
+    private int normalizeRecentLimit(Integer limit) {
+        if (limit == null || limit < 1) {
+            return 10;
+        }
+        return Math.min(limit, 20);
     }
 
     private LocalDateTime maxTime(LocalDateTime a, LocalDateTime b) {

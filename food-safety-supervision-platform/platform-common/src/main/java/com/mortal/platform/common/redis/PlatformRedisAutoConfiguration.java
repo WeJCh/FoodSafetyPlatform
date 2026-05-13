@@ -37,7 +37,7 @@ public class PlatformRedisAutoConfiguration {
         redisObjectMapper.activateDefaultTyping(
             LaissezFaireSubTypeValidator.instance,
             ObjectMapper.DefaultTyping.NON_FINAL,
-            JsonTypeInfo.As.PROPERTY
+            JsonTypeInfo.As.WRAPPER_ARRAY
         );
         return new GenericJackson2JsonRedisSerializer(redisObjectMapper);
     }

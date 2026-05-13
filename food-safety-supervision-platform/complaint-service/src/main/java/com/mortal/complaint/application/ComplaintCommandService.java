@@ -1,9 +1,9 @@
 package com.mortal.complaint.application;
 
-import org.springframework.beans.factory.annotation.Value;
 import com.mortal.complaint.client.regulation.vo.InternalEnterpriseDetailVO;
 import com.mortal.complaint.client.regulation.vo.InternalRegulatorIdentityVO;
 import com.mortal.complaint.client.regulation.vo.InternalRegulatorSummaryVO;
+import com.mortal.complaint.client.user.vo.UserVO;
 import com.mortal.complaint.domain.entity.Complaint;
 import com.mortal.complaint.domain.enums.ComplaintStatus;
 import com.mortal.complaint.domain.enums.TaskSourceType;
@@ -17,210 +17,211 @@ import com.mortal.complaint.vo.ComplaintTrackVO;
 import com.mortal.complaint.vo.ComplaintVO;
 import java.time.LocalDateTime;
 import java.util.Objects;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
-/**
- * 投诉命令服务
- */
 @Service
 public class ComplaintCommandService {
-    /**
-     * 默认截止时间（天）
-     */
+
     private static final int DEFAULT_DEADLINE_DAYS = 3;
-    /**
-     * 关键原因类型：投诉超限
-     */
     private static final String KEY_REASON_COMPLAINT_OVERFLOW = "COMPLAINT_OVERFLOW";
-    /**
-     * 关键原因来源：投诉
-     */
     private static final String KEY_SOURCE_COMPLAINT = "COMPLAINT";
 
     private final ComplaintMapper complaintMapper;
     private final ComplaintDataSupport complaintDataSupport;
     private final ComplaintLockSupport complaintLockSupport;
     private final AuditLogService auditLogService;
+    private final ComplaintAuditOperatorNameResolver complaintAuditOperatorNameResolver;
 
-    /**
-     * 投诉超限阈值
-     */
     @Value("${complaint.key-supervision.threshold:3}")
     private int complaintOverflowThreshold = 3;
 
-    /**
-     * 投诉超限窗口时间（天）
-     */
     @Value("${complaint.key-supervision.window-days:30}")
     private int complaintOverflowWindowDays = 30;
 
-    /**
-     * 构造函数
-     * @param complaintMapper 投诉Mapper
-     * @param complaintDataSupport 投诉数据支持
-     */
     public ComplaintCommandService(ComplaintMapper complaintMapper,
                                    ComplaintDataSupport complaintDataSupport,
                                    ComplaintLockSupport complaintLockSupport,
-                                   AuditLogService auditLogService) {
+                                   AuditLogService auditLogService,
+                                   ComplaintAuditOperatorNameResolver complaintAuditOperatorNameResolver) {
         this.complaintMapper = complaintMapper;
         this.complaintDataSupport = complaintDataSupport;
         this.complaintLockSupport = complaintLockSupport;
         this.auditLogService = auditLogService;
+        this.complaintAuditOperatorNameResolver = complaintAuditOperatorNameResolver;
     }
 
-    /**
-     * 提交公共投诉
-     * @param submitterUserId 提交用户ID
-     * @param dto 投诉提交DTO
-     * @return 投诉跟踪VO
-     */
     public ComplaintTrackVO submitPublic(Long submitterUserId, ComplaintSubmitDTO dto) {
         InternalEnterpriseDetailVO enterprise = complaintDataSupport.requireEnterprise(dto.getEnterpriseId());
+        UserVO submitter = complaintDataSupport.requirePublicUserById(submitterUserId);
         Complaint complaint = new Complaint();
+        LocalDateTime now = LocalDateTime.now();
         complaint.setComplaintNo(complaintDataSupport.generateComplaintNo());
-        complaint.setComplainantName(complaintDataSupport.trim(dto.getComplainantName()));
-        complaint.setContact(complaintDataSupport.trim(dto.getContact()));
+        complaint.setComplainantName(complaintDataSupport.trim(submitter.getRealName()));
+        complaint.setContact(complaintDataSupport.trim(submitter.getPhone()));
         complaint.setSubmitterUserId(submitterUserId);
+        complaint.setAnonymousFlag(Boolean.TRUE.equals(dto.getAnonymous()) ? 1 : 0);
         complaint.setEnterpriseId(enterprise.getId());
-        complaint.setComplaintType(complaintDataSupport.trim(dto.getComplaintType()));
+        complaint.setComplaintType(resolveComplaintType(dto.getComplaintType()));
         complaint.setContent(dto.getContent().trim());
         complaint.setImageUrls(complaintDataSupport.serializeImageUrls(dto.getImageUrls()));
         complaint.setStatus(ComplaintStatus.SUBMITTED);
         complaint.setSourceType(TaskSourceType.MANUAL);
-        complaint.setCreateTime(LocalDateTime.now());
-        complaint.setUpdateTime(LocalDateTime.now());
+        complaint.setCreateTime(now);
+        complaint.setUpdateTime(now);
         complaint.setDeleted(0);
         complaintMapper.insert(complaint);
+
         auditLogService.recordComplaintAudit(
             submitterUserId,
             "PUBLIC",
-            null,
+            complaintAuditOperatorNameResolver.resolvePublicOperatorName(),
             "COMPLAINT_SUBMIT",
             "提交投诉",
             null,
             copyComplaint(complaint),
-                "公众用户提交投诉，当前状态为待受理");
+            "公众用户提交投诉，当前状态为待受理"
+        );
         return complaintDataSupport.toTrackVO(complaint);
     }
 
-    /**
-     * 接受投诉
-     * @param operatorUserId 操作员用户ID
-     * @param complaintId 投诉ID
-     * @return 投诉VO
-     */
     public ComplaintVO accept(Long operatorUserId, Long complaintId) {
         return complaintLockSupport.executeWithLock("complaint-action", complaintId, () -> {
             InternalRegulatorIdentityVO regulator = complaintDataSupport.requireRegulatorByUserId(operatorUserId);
             complaintDataSupport.requireRole(regulator, ComplaintDataSupport.ROLE_ADMIN);
+
             Complaint complaint = complaintDataSupport.requireComplaint(complaintId);
             Complaint beforeComplaint = copyComplaint(complaint);
+            LocalDateTime now = LocalDateTime.now();
             complaintDataSupport.transitionComplaint(complaint, ComplaintStatus.PENDING);
             complaint.setAcceptedBy(regulator.getId());
-            complaint.setAcceptedTime(LocalDateTime.now());
-            complaint.setUpdateTime(LocalDateTime.now());
+            complaint.setAcceptedTime(now);
+            complaint.setUpdateTime(now);
             complaintMapper.updateById(complaint);
+
             tryMarkComplaintOverflowAsKey(complaint, regulator.getId());
+
             auditLogService.recordComplaintAudit(
                 regulator.getUserId(),
                 regulator.getRoleType(),
-                regulator.getName(),
+                complaintAuditOperatorNameResolver.resolveRegulatorOperatorName(
+                    regulator.getName(),
+                    regulator.getUsername()
+                ),
                 "COMPLAINT_ACCEPT",
                 "受理投诉",
                 beforeComplaint,
                 copyComplaint(complaint),
-                "投诉已受理，状态由待受理调整为待分派");
+                "投诉已受理，状态由待受理调整为待分派"
+            );
             return complaintDataSupport.toVOWithNames(complaint);
         });
     }
 
-    /**
-     * 分配投诉
-     * @param operatorUserId 操作员用户ID
-     * @param complaintId 投诉ID
-     * @param dto 投诉分配DTO
-     * @return 投诉VO
-     */
     public ComplaintVO assign(Long operatorUserId, Long complaintId, ComplaintAssignDTO dto) {
         return complaintLockSupport.executeWithLock("complaint-action", complaintId, () -> {
             InternalRegulatorIdentityVO regulator = complaintDataSupport.requireRegulatorByUserId(operatorUserId);
             complaintDataSupport.requireRole(regulator, ComplaintDataSupport.ROLE_ADMIN);
+
             Complaint complaint = complaintDataSupport.requireComplaint(complaintId);
             Complaint beforeComplaint = copyComplaint(complaint);
-            if (!ComplaintStatus.PENDING.equals(complaint.getStatus())
-                && !ComplaintStatus.ASSIGNED.equals(complaint.getStatus())
-                && !ComplaintStatus.PROCESSING.equals(complaint.getStatus())) {
+            if (!ComplaintStatus.PENDING.equals(complaint.getStatus())) {
                 throw new IllegalArgumentException("complaint not ready for assignment");
             }
-            InternalRegulatorSummaryVO assignee =
-                complaintDataSupport.requireRegulatorById(dto.getRegulatorId(), "assignee not found");
-            if (!ComplaintDataSupport.ROLE_ENFORCER.equalsIgnoreCase(assignee.getRoleType())) {
-                throw new IllegalArgumentException("assignee must be enforcer");
-            }
-            complaint.setAssignedTo(assignee.getId());
-            complaint.setAssignedBy(regulator.getId());
-            complaint.setAssignedTime(LocalDateTime.now());
-            complaint.setDeadlineTime(resolveDeadlineTime(dto.getDeadlineTime()));
-            complaintDataSupport.transitionComplaint(complaint, ComplaintStatus.ASSIGNED);
-            complaint.setUpdateTime(LocalDateTime.now());
-            complaintMapper.updateById(complaint);
-            auditLogService.recordComplaintAudit(
-                regulator.getUserId(),
-                regulator.getRoleType(),
-                regulator.getName(),
-                "COMPLAINT_ASSIGN",
-                "分派投诉",
-                beforeComplaint,
-                copyComplaint(complaint),
-                "投诉已分派给" + assignee.getName() + "，状态调整为已分派");
-            return complaintDataSupport.toVOWithNames(complaint);
+            return assignInternal(regulator, complaint, beforeComplaint, dto, false);
         });
     }
 
-    /**
-     * 开始处理投诉
-     * @param operatorUserId 操作员用户ID
-     * @param complaintId 投诉ID
-     * @return 投诉VO
-     */
+    public ComplaintVO reassign(Long operatorUserId, Long complaintId, ComplaintAssignDTO dto) {
+        return complaintLockSupport.executeWithLock("complaint-action", complaintId, () -> {
+            InternalRegulatorIdentityVO regulator = complaintDataSupport.requireRegulatorByUserId(operatorUserId);
+            complaintDataSupport.requireRole(regulator, ComplaintDataSupport.ROLE_ADMIN);
+
+            Complaint complaint = complaintDataSupport.requireComplaint(complaintId);
+            Complaint beforeComplaint = copyComplaint(complaint);
+            if (!ComplaintStatus.ASSIGNED.equals(complaint.getStatus())
+                && !ComplaintStatus.PROCESSING.equals(complaint.getStatus())) {
+                throw new IllegalArgumentException("complaint not ready for reassignment");
+            }
+            return assignInternal(regulator, complaint, beforeComplaint, dto, true);
+        });
+    }
+
+    private ComplaintVO assignInternal(InternalRegulatorIdentityVO regulator,
+                                       Complaint complaint,
+                                       Complaint beforeComplaint,
+                                       ComplaintAssignDTO dto,
+                                       boolean reassignment) {
+        InternalRegulatorSummaryVO assignee =
+            complaintDataSupport.requireRegulatorById(dto.getRegulatorId(), "assignee not found");
+        if (!ComplaintDataSupport.ROLE_ENFORCER.equalsIgnoreCase(assignee.getRoleType())) {
+            throw new IllegalArgumentException("assignee must be enforcer");
+        }
+
+        complaint.setAssignedTo(assignee.getId());
+        complaint.setAssignedBy(regulator.getId());
+        complaint.setAssignedTime(LocalDateTime.now());
+        complaint.setDeadlineTime(resolveDeadlineTime(dto.getDeadlineTime()));
+        if (!ComplaintStatus.ASSIGNED.equals(complaint.getStatus())) {
+            complaintDataSupport.transitionComplaint(complaint, ComplaintStatus.ASSIGNED);
+        }
+        complaint.setUpdateTime(LocalDateTime.now());
+        complaintMapper.updateById(complaint);
+
+        auditLogService.recordComplaintAudit(
+            regulator.getUserId(),
+            regulator.getRoleType(),
+            complaintAuditOperatorNameResolver.resolveRegulatorOperatorName(
+                regulator.getName(),
+                regulator.getUsername()
+            ),
+            reassignment ? "COMPLAINT_REASSIGN" : "COMPLAINT_ASSIGN",
+            reassignment ? "改派投诉" : "分派投诉",
+            beforeComplaint,
+            copyComplaint(complaint),
+            (reassignment ? "投诉已改派给" : "投诉已分派给") + assignee.getName() + "，状态调整为已分派"
+        );
+        return complaintDataSupport.toVOWithNames(complaint);
+    }
+
     public ComplaintVO startProcess(Long operatorUserId, Long complaintId) {
         return complaintLockSupport.executeWithLock("complaint-action", complaintId, () -> {
             InternalRegulatorIdentityVO regulator = complaintDataSupport.requireRegulatorByUserId(operatorUserId);
             complaintDataSupport.requireRole(regulator, ComplaintDataSupport.ROLE_ENFORCER);
+
             Complaint complaint = complaintDataSupport.requireComplaint(complaintId);
             Complaint beforeComplaint = copyComplaint(complaint);
             if (!Objects.equals(complaint.getAssignedTo(), regulator.getId())) {
                 throw new IllegalArgumentException("complaint not assigned to you");
             }
+
             complaintDataSupport.transitionComplaint(complaint, ComplaintStatus.PROCESSING);
             complaint.setUpdateTime(LocalDateTime.now());
             complaintMapper.updateById(complaint);
+
             auditLogService.recordComplaintAudit(
                 regulator.getUserId(),
                 regulator.getRoleType(),
-                regulator.getName(),
+                complaintAuditOperatorNameResolver.resolveRegulatorOperatorName(
+                    regulator.getName(),
+                    regulator.getUsername()
+                ),
                 "COMPLAINT_PROCESS_START",
                 "开始处理投诉",
                 beforeComplaint,
                 copyComplaint(complaint),
-                "投诉开始处理，状态由已分派调整为处理中");
+                "投诉开始处理，状态由已分派调整为处理中"
+            );
             return complaintDataSupport.toVOWithNames(complaint);
         });
     }
 
-    /**
-     * 处理投诉
-     * @param operatorUserId 操作员用户ID
-     * @param complaintId 投诉ID
-     * @param dto 投诉处理DTO
-     * @return 投诉VO
-     */
     public ComplaintVO handle(Long operatorUserId, Long complaintId, ComplaintHandleDTO dto) {
         return complaintLockSupport.executeWithLock("complaint-action", complaintId, () -> {
             InternalRegulatorIdentityVO regulator = complaintDataSupport.requireRegulatorByUserId(operatorUserId);
             complaintDataSupport.requireRole(regulator, ComplaintDataSupport.ROLE_ENFORCER);
+
             Complaint complaint = complaintDataSupport.requireComplaint(complaintId);
             Complaint beforeComplaint = copyComplaint(complaint);
             if (!Objects.equals(complaint.getAssignedTo(), regulator.getId())) {
@@ -229,6 +230,7 @@ public class ComplaintCommandService {
             if (!ComplaintStatus.PROCESSING.equals(complaint.getStatus())) {
                 throw new IllegalArgumentException("complaint not in processing");
             }
+
             String feedbackSummary = resolveFeedbackSummary(dto);
             String handleResult = resolveHandleResult(dto, feedbackSummary);
             complaintDataSupport.saveSingleHandle(complaint.getId(), regulator.getId(), handleResult);
@@ -238,35 +240,35 @@ public class ComplaintCommandService {
             complaint.setFeedbackSummary(feedbackSummary);
             complaint.setUpdateTime(LocalDateTime.now());
             complaintMapper.updateById(complaint);
+
             auditLogService.recordComplaintAudit(
                 regulator.getUserId(),
                 regulator.getRoleType(),
-                regulator.getName(),
+                complaintAuditOperatorNameResolver.resolveRegulatorOperatorName(
+                    regulator.getName(),
+                    regulator.getUsername()
+                ),
                 "COMPLAINT_HANDLE",
                 "处理完成投诉",
                 beforeComplaint,
                 copyComplaint(complaint),
-                "投诉处理完成，状态调整为已反馈");
+                "投诉处理完成，状态调整为已反馈"
+            );
             return complaintDataSupport.toVOWithNames(complaint);
         });
     }
 
-    /**
-     * 驳回投诉
-     * @param operatorUserId 操作员用户ID
-     * @param complaintId 投诉ID
-     * @param dto 驳回原因
-     * @return 投诉VO
-     */
     public ComplaintVO reject(Long operatorUserId, Long complaintId, ComplaintRejectDTO dto) {
         return complaintLockSupport.executeWithLock("complaint-action", complaintId, () -> {
             InternalRegulatorIdentityVO regulator = complaintDataSupport.requireRegulatorByUserId(operatorUserId);
             complaintDataSupport.requireRole(regulator, ComplaintDataSupport.ROLE_ADMIN);
+
             Complaint complaint = complaintDataSupport.requireComplaint(complaintId);
             Complaint beforeComplaint = copyComplaint(complaint);
             if (!complaintDataSupport.isComplaintInRegion(regulator, complaint.getEnterpriseId())) {
                 throw new IllegalArgumentException("complaint not in regulator region");
             }
+
             String rejectReason = complaintDataSupport.trim(dto.getReason());
             complaintDataSupport.transitionComplaint(complaint, ComplaintStatus.REJECTED);
             complaintDataSupport.saveSingleHandle(complaint.getId(), regulator.getId(), rejectReason);
@@ -275,15 +277,20 @@ public class ComplaintCommandService {
             complaint.setRejectReason(rejectReason);
             complaint.setUpdateTime(LocalDateTime.now());
             complaintMapper.updateById(complaint);
+
             auditLogService.recordComplaintAudit(
                 regulator.getUserId(),
                 regulator.getRoleType(),
-                regulator.getName(),
+                complaintAuditOperatorNameResolver.resolveRegulatorOperatorName(
+                    regulator.getName(),
+                    regulator.getUsername()
+                ),
                 "COMPLAINT_REJECT",
                 "驳回投诉",
                 beforeComplaint,
                 copyComplaint(complaint),
-                "投诉已驳回，状态调整为已驳回");
+                "投诉已驳回，状态调整为已驳回"
+            );
             return complaintDataSupport.toVOWithNames(complaint);
         });
     }
@@ -298,6 +305,7 @@ public class ComplaintCommandService {
         target.setComplainantName(source.getComplainantName());
         target.setContact(source.getContact());
         target.setSubmitterUserId(source.getSubmitterUserId());
+        target.setAnonymousFlag(source.getAnonymousFlag());
         target.setEnterpriseId(source.getEnterpriseId());
         target.setComplaintType(source.getComplaintType());
         target.setContent(source.getContent());
@@ -331,11 +339,7 @@ public class ComplaintCommandService {
         }
         return resolved;
     }
-    /**
-     * 解析反馈摘要
-     * @param dto 投诉处理DTO
-     * @return 反馈摘要
-     */
+
     private String resolveFeedbackSummary(ComplaintHandleDTO dto) {
         String summary = complaintDataSupport.trim(dto.getFeedbackSummary());
         String handleResult = complaintDataSupport.trim(dto.getHandleResult());
@@ -353,11 +357,14 @@ public class ComplaintCommandService {
         return StringUtils.hasText(handleResult) ? handleResult : feedbackSummary;
     }
 
-    /**
-     * 尝试标记投诉超限为关键企业
-     * @param complaint 投诉
-     * @param operatorId 操作员ID
-     */
+    private String resolveComplaintType(String complaintType) {
+        String normalized = complaintDataSupport.trim(complaintType);
+        if (!StringUtils.hasText(normalized)) {
+            return null;
+        }
+        return complaintDataSupport.normalizeComplaintType(normalized);
+    }
+
     private void tryMarkComplaintOverflowAsKey(Complaint complaint, Long operatorId) {
         if (complaint == null || complaint.getEnterpriseId() == null || complaint.getId() == null) {
             return;
@@ -371,6 +378,8 @@ public class ComplaintCommandService {
         if (acceptedCount < safeThreshold) {
             return;
         }
+
+        InternalEnterpriseDetailVO enterprise = complaintDataSupport.requireEnterprise(complaint.getEnterpriseId());
         String reasonDetail = "企业近" + safeWindowDays + "天有效投诉达到" + acceptedCount + "件，已自动纳入重点监管";
         complaintDataSupport.markEnterpriseAsKey(
             complaint.getEnterpriseId(),
@@ -379,6 +388,13 @@ public class ComplaintCommandService {
             KEY_SOURCE_COMPLAINT,
             complaint.getId(),
             operatorId
+        );
+        complaintDataSupport.upsertComplaintOverflowWarning(
+            complaint,
+            enterprise,
+            acceptedCount,
+            safeThreshold,
+            safeWindowDays
         );
     }
 }

@@ -2,6 +2,8 @@ package com.mortal.regulation.controller.internal;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.mortal.platform.common.ApiResponse;
+import com.mortal.regulation.client.UserServiceClient;
+import com.mortal.regulation.client.vo.UserVO;
 import com.mortal.regulation.entity.AddrRegion;
 import com.mortal.regulation.entity.FoodEnterprise;
 import com.mortal.regulation.entity.FoodRegulator;
@@ -40,17 +42,20 @@ public class InternalRegulatorController {
     private final AddrRegionMapper addrRegionMapper;
     private final FoodEnterpriseMapper foodEnterpriseMapper;
     private final RegulatorMasterCacheService regulatorMasterCacheService;
+    private final UserServiceClient userServiceClient;
 
     public InternalRegulatorController(FoodRegulatorMapper foodRegulatorMapper,
                                        FoodRegulatorRegionMapper foodRegulatorRegionMapper,
                                        AddrRegionMapper addrRegionMapper,
                                        FoodEnterpriseMapper foodEnterpriseMapper,
-                                       RegulatorMasterCacheService regulatorMasterCacheService) {
+                                       RegulatorMasterCacheService regulatorMasterCacheService,
+                                       UserServiceClient userServiceClient) {
         this.foodRegulatorMapper = foodRegulatorMapper;
         this.foodRegulatorRegionMapper = foodRegulatorRegionMapper;
         this.addrRegionMapper = addrRegionMapper;
         this.foodEnterpriseMapper = foodEnterpriseMapper;
         this.regulatorMasterCacheService = regulatorMasterCacheService;
+        this.userServiceClient = userServiceClient;
     }
 
     @GetMapping("/by-user/{userId}")
@@ -219,6 +224,7 @@ public class InternalRegulatorController {
         vo.setId(regulator.getId());
         vo.setUserId(regulator.getUserId());
         vo.setName(regulator.getName());
+        vo.setUsername(resolveUsername(regulator.getUserId()));
         vo.setPhone(regulator.getPhone());
         vo.setRoleType(regulator.getRoleType());
         vo.setStatus(regulator.getStatus());
@@ -231,10 +237,22 @@ public class InternalRegulatorController {
         vo.setId(regulator.getId());
         vo.setUserId(regulator.getUserId());
         vo.setName(regulator.getName());
+        vo.setUsername(resolveUsername(regulator.getUserId()));
         vo.setPhone(regulator.getPhone());
         vo.setRoleType(regulator.getRoleType());
         vo.setStatus(regulator.getStatus());
         return vo;
+    }
+
+    private String resolveUsername(Long userId) {
+        if (userId == null) {
+            return null;
+        }
+        ApiResponse<UserVO> response = userServiceClient.getUserById(userId);
+        if (response == null || response.getCode() != 0 || response.getData() == null) {
+            return null;
+        }
+        return response.getData().getUsername();
     }
 
     private List<Long> findDirectRegionIds(Long regulatorId) {

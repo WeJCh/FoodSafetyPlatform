@@ -28,8 +28,7 @@ spring:
     password: ${DB_PASSWORD:123456}
   sql:
     init:
-      mode: always
-      schema-locations: classpath:sql/schema.sql
+      mode: never
 
 mybatis-plus:
   configuration:
@@ -38,6 +37,10 @@ mybatis-plus:
 regulation:
   internal:
     token: ${REGULATION_INTERNAL_TOKEN:regulation-internal-token}
+
+warning:
+  internal:
+    token: ${WARNING_INTERNAL_TOKEN:warning-internal-token}
 
 complaint:
   lock:

@@ -25,7 +25,7 @@ class InternalEnterpriseControllerTest {
             enterpriseKeyReasonService
         );
         EnterpriseKeyReasonUpsertDTO dto = new EnterpriseKeyReasonUpsertDTO();
-        dto.setReasonType("CONSECUTIVE_FAIL");
+        dto.setReasonType("CONSECUTIVE_INSPECTION_FAIL");
         dto.setReasonDetail("企业最近2次检查均为不合格，已自动纳入重点监管");
         dto.setSourceType("ROUTINE");
         dto.setSourceId(101L);
@@ -36,7 +36,7 @@ class InternalEnterpriseControllerTest {
         assertEquals(0, response.getCode());
         verify(enterpriseKeyReasonService).markEnterpriseAsKey(
             8L,
-            "CONSECUTIVE_FAIL",
+            "CONSECUTIVE_INSPECTION_FAIL",
             "企业最近2次检查均为不合格，已自动纳入重点监管",
             "ROUTINE",
             101L,

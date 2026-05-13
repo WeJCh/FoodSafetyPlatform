@@ -159,7 +159,7 @@ public class WarningEscalationScheduler {
         processLog.setWarningId(warningId);
         processLog.setActionType(WarningActionType.AUTO_LEVEL_UP.name());
         processLog.setOperatorId(null);
-        processLog.setOperatorName("system");
+        processLog.setOperatorName("系统");
         processLog.setActionComment(String.format(
             "整改超时达到二级阈值（%d 分钟），当前超时 %d 分钟，截止时间 %s，系统自动升级为 L2",
             rectificationL2Minutes,

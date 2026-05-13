@@ -12,5 +12,7 @@ public class InternalStatsQueryDTO {
 
     private String regionIds;
 
+    private Long scopeRegulatorId;
+
     private Long ownerRegulatorId;
 }

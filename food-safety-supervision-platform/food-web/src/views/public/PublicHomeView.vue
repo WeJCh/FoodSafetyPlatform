@@ -1,45 +1,20 @@
 ﻿<template>
-  <div class="public-home-page">
-    <header class="public-home-page__topbar">
-      <div class="public-home-page__topbar-inner">
-        <div class="public-home-page__brand-nav">
-          <span class="public-home-page__brand">食品安全监管平台</span>
-          <nav class="public-home-page__nav" aria-label="公众导航">
-            <button
-              v-for="item in topNavItems"
-              :key="item.key"
-              type="button"
-              class="public-home-page__nav-item"
-              :class="{ 'is-active': item.key === 'home' }"
-              @click="goTo(item.routeName)"
-            >
-              {{ item.label }}
-            </button>
-          </nav>
-        </div>
-
-        <div class="public-home-page__toolbar">
-          <label class="public-home-page__search-box">
-            <span class="material-symbols-outlined" aria-hidden="true">search</span>
-            <input
-              v-model.trim="globalKeyword"
-              type="text"
-              placeholder="搜索企业、产品、法规..."
-              @keyup.enter="handleGlobalSearch"
-            />
-          </label>
-          <button type="button" class="ghost public-home-page__logout" @click="handleLogout">退出登录</button>
-        </div>
-      </div>
-    </header>
-
+    <PublicWorkspacePage
+    page-class="public-home-page"
+    active-key="home"
+    :show-search="true"
+    v-model:search-value="globalKeyword"
+    search-placeholder="搜索企业、产品或公告关键词"
+    :search-min-width="210"
+    @search="handleGlobalSearch"
+  >
     <main>
       <section class="public-home-page__hero">
         <div class="public-home-page__hero-bg" />
         <div class="public-home-page__hero-inner">
           <div class="public-home-page__hero-copy">
             <h1>食品安全公共服务门户</h1>
-            <p>透明、权威、实时。我们致力于通过数据透明与社会共治，保障每一份餐桌上的安全。</p>
+            <p>透明、权威、实时。我们致力于通过数据公开与社会共治，保障每一份餐桌食品安全。</p>
             <div class="public-home-page__hero-search">
               <label>
                 <span class="material-symbols-outlined" aria-hidden="true">corporate_fare</span>
@@ -59,7 +34,7 @@
           <button type="button" class="public-home-page__entry-card is-large" @click="goTo('public-bulletins')">
             <span class="material-symbols-outlined" aria-hidden="true">campaign</span>
             <h3>监管公告</h3>
-            <p>获取最新国家、省、市级食品安全法规修订与行政管理动态。</p>
+            <p>获取最新国家、省、市级食品安全法规修订与监管动态。</p>
             <i>查看详情</i>
           </button>
 
@@ -84,7 +59,7 @@
           <div class="public-home-page__rights-card">
             <span class="material-symbols-outlined" aria-hidden="true">support_agent</span>
             <h3>维权服务中心</h3>
-            <p>发现食品安全隐患？我们将竭诚为您排忧解难，保护合法权益。</p>
+            <p>发现食品安全隐患？我们将及时协助处理，维护公众合法权益。</p>
             <button type="button" @click="goTo('public-complaint-create')">我要投诉</button>
             <button type="button" class="is-outline" @click="goTo('public-complaints')">我的投诉</button>
           </div>
@@ -157,15 +132,16 @@
     <footer class="public-home-page__footer">
       <p>© 2024 食品安全监管公共服务门户 版权所有</p>
     </footer>
-  </div>
+    </PublicWorkspacePage>
 </template>
 
 <script setup>
 import { computed, onMounted, ref } from "vue";
 import { useRouter } from "vue-router";
+import PublicWorkspacePage from "../../components/public/PublicWorkspacePage.vue";
 import { fetchPublicBulletins, fetchPublicEnterprises } from "../../api/regulation";
 import { fetchPublicSamplingResults } from "../../api/regulationOperation";
-import { getActiveSession, performLogout } from "../../session/authRuntime";
+import { getActiveSession } from "../../session/authRuntime";
 import { formatTime } from "../../utils/formatters";
 
 const router = useRouter();
@@ -181,15 +157,6 @@ const publicStats = ref({
   bulletinTotal: null,
   samplingTotal: null
 });
-
-const topNavItems = [
-  { key: "home", label: "首页", routeName: "public-home" },
-  { key: "bulletins", label: "监管公告", routeName: "public-bulletins" },
-  { key: "enterprises", label: "企业公示", routeName: "public-enterprises" },
-  { key: "sampling", label: "抽检结果", routeName: "public-sampling-results" },
-  { key: "complaint-create", label: "我要投诉", routeName: "public-complaint-create" },
-  { key: "complaints", label: "我的投诉", routeName: "public-complaints" }
-];
 
 const quickLinks = [
   { key: "bulletins", icon: "campaign", label: "公告查询", routeName: "public-bulletins" },
@@ -355,11 +322,6 @@ function handleGlobalSearch() {
   }).catch(() => {});
 }
 
-async function handleLogout() {
-  await performLogout();
-  router.replace({ name: "login" }).catch(() => {});
-}
-
 function goTo(name) {
   if (name === "public-home") return;
   router.push({ name }).catch(() => {});
@@ -488,6 +450,16 @@ onMounted(() => {
   border-color: rgba(195, 198, 211, 0.45);
   background: rgba(255, 255, 255, 0.74);
   color: var(--on-surface-variant);
+}
+
+.public-home-page__account {
+  min-height: var(--public-toolbar-min-h);
+  margin: 0;
+  padding-inline: 12px;
+}
+
+.public-home-page__account .material-symbols-outlined {
+  font-size: 22px;
 }
 
 .public-home-page__logout:hover {
@@ -1022,6 +994,9 @@ onMounted(() => {
   }
 }
 </style>
+
+
+
 
 
 

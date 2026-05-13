@@ -1,7 +1,7 @@
 <template>
   <RegulatorAdminWorkspacePage
     active-key="warnings"
-    :username="regulatorUser.username"
+    :username="regulatorUser.username || regulatorUser.realName || ''"
     @navigate="handleSidebarNavigate"
     @logout="handleLogout"
   >
@@ -10,7 +10,7 @@
         <div>
           <p class="hero-eyebrow">Risk Intelligence Center</p>
           <h1>风险预警中心</h1>
-          <p class="hero-desc">实时监控食品安全风险信号，支持快速筛选、处置与追踪。</p>
+          <p class="hero-desc">统一查看辖区风险预警，进入详情页完成分派、改派与处置闭环。</p>
         </div>
         <div class="hero-metrics">
           <article>
@@ -18,7 +18,7 @@
             <strong>{{ activeWarningCount }}</strong>
           </article>
           <article>
-            <span>待处置</span>
+            <span>待处理</span>
             <strong>{{ pendingWarningCount }}</strong>
           </article>
         </div>
@@ -36,7 +36,7 @@
           </div>
           <div class="filter-block">
             <label>预警类型</label>
-            <select v-model="filters.warningType">
+            <select v-model="filters.warningType" @change="handleSearch">
               <option value="">全部类型</option>
               <option v-for="item in warningTypeOptions" :key="item" :value="item">{{ item }}</option>
             </select>
@@ -45,29 +45,10 @@
             <label>当前状态</label>
             <div class="chip-group">
               <button type="button" :class="['chip', { active: filters.status === '' }]" @click="setStatusFilter('')">全部</button>
-              <button type="button" :class="['chip', { active: filters.status === 'OPEN' }]" @click="setStatusFilter('OPEN')">待处置</button>
+              <button type="button" :class="['chip', { active: filters.status === 'OPEN' }]" @click="setStatusFilter('OPEN')">待处理</button>
               <button type="button" :class="['chip', { active: filters.status === 'PROCESSING' }]" @click="setStatusFilter('PROCESSING')">处理中</button>
               <button type="button" :class="['chip', { active: filters.status === 'RESOLVED' }]" @click="setStatusFilter('RESOLVED')">已解决</button>
             </div>
-          </div>
-          <button class="advanced-btn" type="button" @click="advancedVisible = !advancedVisible">
-            {{ advancedVisible ? "收起筛选" : "高级筛选" }}
-          </button>
-        </div>
-        <div v-if="advancedVisible" class="advanced-row">
-          <label>
-            业务类型
-            <input v-model.trim="filters.bizType" placeholder="例如：RECTIFICATION" />
-          </label>
-          <label>
-            关键词
-            <input v-model.trim="filters.keyword" placeholder="标题或内容关键词" />
-          </label>
-          <div class="advanced-actions">
-            <button class="primary" type="button" :disabled="loading || actionLoading" @click="handleSearch">
-              {{ loading ? "查询中..." : "查询" }}
-            </button>
-            <button class="ghost" type="button" :disabled="loading || actionLoading" @click="resetFilters">重置</button>
           </div>
         </div>
       </section>
@@ -82,7 +63,7 @@
                 <th>关联对象</th>
                 <th>预警摘要</th>
                 <th>状态</th>
-                <th>处理人</th>
+                <th>当前处理人</th>
                 <th class="right">操作</th>
               </tr>
             </thead>
@@ -106,7 +87,16 @@
                 <td>{{ item.assignedToName || item.ownerName || "尚未指派" }}</td>
                 <td>
                   <div class="action-row">
-                    <button class="ghost action-btn" type="button" @click="openWarningDetail(item)">详情</button>
+                    <button class="ghost action-btn" type="button" @click="openDetail(item)">详情</button>
+                    <button
+                      v-if="canAssignWarning(item.status)"
+                      class="ghost action-btn"
+                      type="button"
+                      :disabled="actionLoading"
+                      @click="openDetail(item, { action: 'assign' })"
+                    >
+                      {{ item.assignedTo ? "改派" : "分派" }}
+                    </button>
                     <button
                       v-if="warningQuickAction(item.status)"
                       class="primary action-btn"
@@ -139,78 +129,58 @@
         </div>
       </section>
 
-      <div v-if="warningDetailVisible" class="modal-mask" @click.self="closeWarningDetail">
+      <AppStatusToast :message="status.message" :type="status.type" />
+
+      <div v-if="processConfirm.visible" class="modal-mask" @click.self="closeProcessConfirm">
         <div class="modal-card">
-          <div class="modal-title">预警详情</div>
+          <div class="modal-title">确认开始处理该预警？</div>
           <div class="modal-body">
-            <div v-if="warningDetailLoading" class="modal-empty">详情加载中...</div>
-            <template v-else-if="warningDetail">
-              <div class="summary-grid">
-                <div class="summary-item"><span>预警编号</span><strong>{{ warningDetail.warningNo || "-" }}</strong></div>
-                <div class="summary-item"><span>状态</span><strong>{{ formatWarningStatus(warningDetail.status) }}</strong></div>
-                <div class="summary-item"><span>等级</span><strong>{{ formatWarningLevel(warningDetail.level) }}</strong></div>
-                <div class="summary-item"><span>触发次数</span><strong>{{ warningDetail.triggerCount || 0 }}</strong></div>
-              </div>
-              <div class="field"><span>预警标题</span><strong>{{ warningDetail.title || "-" }}</strong></div>
-              <div class="field"><span>预警内容</span><strong>{{ warningDetail.content || "-" }}</strong></div>
-              <div class="field">
-                <span>处理记录</span>
-                <div class="timeline-list">
-                  <div v-if="!warningDetail.processLogs?.length" class="modal-empty">暂无处理记录</div>
-                  <div v-for="log in warningDetail.processLogs || []" :key="log.id" class="timeline-item">
-                    <div class="timeline-main">
-                      <div class="timeline-head">
-                        <strong>{{ formatWarningAction(log.actionType) }}</strong>
-                        <time>{{ formatTime(log.createTime) }}</time>
-                      </div>
-                      <p>操作人：{{ log.operatorName || "-" }}</p>
-                      <p>{{ log.actionComment || "无说明" }}</p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </template>
+            <p>确认后，该预警将从“待处理”变为“处理中”，系统会记录当前区域管理员的介入操作。</p>
+            <p v-if="!processConfirm.assignedToName" class="modal-note">该预警当前尚未分派执法人员，建议尽快完成分派。</p>
+            <div class="modal-summary">
+              <div><span>预警标题</span><strong>{{ processConfirm.title || "-" }}</strong></div>
+              <div><span>关联对象</span><strong>{{ processConfirm.bizName || "-" }}</strong></div>
+            </div>
           </div>
           <div class="modal-actions">
-            <button v-if="warningDetail && canJumpWarningComplaint(warningDetail)" class="ghost" type="button" @click="jumpToWarningComplaint(warningDetail)">
-              跳转投诉详情
+            <button class="ghost" type="button" :disabled="actionLoading" @click="closeProcessConfirm">取消</button>
+            <button class="primary" type="button" :disabled="actionLoading" @click="confirmProcessWarning">
+              {{ actionLoading ? "处理中..." : "确认开始处理" }}
             </button>
-            <button
-              v-if="warningDetail && canJumpWarningRectification(warningDetail)"
-              class="ghost"
-              type="button"
-              @click="jumpToWarningRectification(warningDetail)"
-            >
-              跳转整改详情
-            </button>
-            <button
-              v-if="warningDetail && warningQuickAction(warningDetail.status)"
-              class="primary"
-              type="button"
-              :disabled="actionLoading"
-              @click="handleWarningAction(warningDetail, warningQuickAction(warningDetail.status).actionType)"
-            >
-              {{ warningQuickAction(warningDetail.status).label }}
-            </button>
-            <button class="ghost" type="button" @click="closeWarningDetail">关闭</button>
           </div>
         </div>
       </div>
 
-      <AppStatusToast :message="status.message" :type="status.type" />
+      <div v-if="resolveConfirm.visible" class="modal-mask" @click.self="closeResolveConfirm">
+        <div class="modal-card">
+          <div class="modal-title">确认标记该预警为已解决？</div>
+          <div class="modal-body">
+            <p>确认后，该预警将从“处理中”变为“已解决”，系统会记录当前区域管理员的处置结论。</p>
+            <div class="modal-summary">
+              <div><span>预警标题</span><strong>{{ resolveConfirm.title || "-" }}</strong></div>
+              <div><span>关联对象</span><strong>{{ resolveConfirm.bizName || "-" }}</strong></div>
+            </div>
+          </div>
+          <div class="modal-actions">
+            <button class="ghost" type="button" :disabled="actionLoading" @click="closeResolveConfirm">取消</button>
+            <button class="primary" type="button" :disabled="actionLoading" @click="confirmResolveWarning">
+              {{ actionLoading ? "处理中..." : "确认标记解决" }}
+            </button>
+          </div>
+        </div>
+      </div>
     </section>
   </RegulatorAdminWorkspacePage>
 </template>
 
 <script setup>
 import { computed, onMounted, reactive, ref } from "vue";
-import { useRouter } from "vue-router";
+import { useRoute, useRouter } from "vue-router";
 import AppEmptyState from "../../components/common/AppEmptyState.vue";
 import AppStatusTag from "../../components/common/AppStatusTag.vue";
 import AppStatusToast from "../../components/common/AppStatusToast.vue";
 import {
   fetchWarningOverview,
-  fetchWarningRecordDetail,
   fetchWarningRecords,
   fetchWarningTypes,
   processWarningRecord
@@ -221,29 +191,37 @@ import { getStatusTone, warningActionMap, warningLevelMap, warningStatusMap } fr
 import { resolveErrorMessage } from "../../utils/uiFeedback";
 import { useRegulatorAdminShellSession } from "./regulatorAdminShared";
 
+const route = useRoute();
 const router = useRouter();
 const { regulatorUser, token, handleSidebarNavigate, handleLogout } = useRegulatorAdminShellSession();
 
 const loading = ref(false);
 const actionLoading = ref(false);
-const warningDetailLoading = ref(false);
-const warningDetailVisible = ref(false);
-const warningDetail = ref(null);
 const records = ref([]);
 const page = ref(1);
 const size = ref(8);
 const total = ref(0);
 const pages = ref(1);
-const advancedVisible = ref(false);
 const status = reactive({ message: "", type: "" });
 const summary = ref({});
 const typeOptions = ref([]);
+const processConfirm = reactive({
+  visible: false,
+  id: null,
+  title: "",
+  bizName: "",
+  assignedToName: ""
+});
+const resolveConfirm = reactive({
+  visible: false,
+  id: null,
+  title: "",
+  bizName: ""
+});
 const filters = reactive({
   status: "",
   level: "",
-  warningType: "",
-  bizType: "",
-  keyword: ""
+  warningType: ""
 });
 
 const activeWarningCount = computed(() => (Number(summary.value?.openCount) || 0) + (Number(summary.value?.processingCount) || 0));
@@ -260,11 +238,11 @@ const warningTypeOptions = computed(() => {
   }
   return [...new Set(values)].sort();
 });
-const hasFilters = computed(() => Boolean(filters.status || filters.level || filters.warningType || filters.bizType.trim() || filters.keyword.trim()));
+const hasFilters = computed(() => Boolean(filters.status || filters.level || filters.warningType));
 const emptyTitle = computed(() => (hasFilters.value ? "暂无符合条件的预警记录" : "暂无预警记录"));
 const emptyDescription = computed(() => (hasFilters.value ? "可以调整筛选条件后再试。" : "新的风险预警会展示在这里。"));
 
-function setStatus(message = "", type = "info") {
+function setToast(message = "", type = "info") {
   status.message = message;
   status.type = type;
 }
@@ -275,18 +253,14 @@ function buildListParams() {
     size: size.value,
     status: filters.status || undefined,
     level: filters.level || undefined,
-    warningType: filters.warningType || undefined,
-    bizType: filters.bizType || undefined,
-    keyword: filters.keyword || undefined
+    warningType: filters.warningType || undefined
   };
 }
 
 function buildTypeParams() {
   return {
     status: filters.status || undefined,
-    level: filters.level || undefined,
-    bizType: filters.bizType || undefined,
-    keyword: filters.keyword || undefined
+    level: filters.level || undefined
   };
 }
 
@@ -297,15 +271,6 @@ function setLevel(level) {
 
 function setStatusFilter(value) {
   filters.status = value;
-  handleSearch();
-}
-
-function resetFilters() {
-  filters.status = "";
-  filters.level = "";
-  filters.warningType = "";
-  filters.bizType = "";
-  filters.keyword = "";
   handleSearch();
 }
 
@@ -326,29 +291,51 @@ function warningTone(value) {
 }
 
 function warningQuickAction(statusValue) {
-  if (statusValue === "OPEN") return { actionType: "PROCESS", label: "立即处理" };
+  if (statusValue === "OPEN") return { actionType: "PROCESS", label: "开始处理" };
   if (statusValue === "PROCESSING") return { actionType: "RESOLVE", label: "标记解决" };
   return null;
 }
 
-function canJumpWarningComplaint(warning) {
-  return String(warning?.bizType || "").toUpperCase() === "COMPLAINT" && Number(warning?.bizId) > 0;
+function canAssignWarning(statusValue) {
+  return statusValue === "OPEN" || statusValue === "PROCESSING";
 }
 
-function canJumpWarningRectification(warning) {
-  return String(warning?.bizType || "").toUpperCase() === "RECTIFICATION" && Number(warning?.bizId) > 0;
+function requiresProcessConfirm(actionType) {
+  return String(actionType || "").toUpperCase() === "PROCESS";
 }
 
-function jumpToWarningComplaint(warning) {
-  if (!canJumpWarningComplaint(warning)) return;
-  router.push({ name: "regulator-admin-complaint-detail", params: { complaintId: Number(warning.bizId) }, query: { from: "warnings" } }).catch(() => {});
-  closeWarningDetail();
+function requiresResolveConfirm(actionType) {
+  return String(actionType || "").toUpperCase() === "RESOLVE";
 }
 
-function jumpToWarningRectification(warning) {
-  if (!canJumpWarningRectification(warning)) return;
-  router.push({ name: "regulator-admin-rectification-detail", params: { rectificationId: Number(warning.bizId) }, query: { from: "warnings" } }).catch(() => {});
-  closeWarningDetail();
+function openProcessConfirm(target) {
+  processConfirm.visible = true;
+  processConfirm.id = target?.id || null;
+  processConfirm.title = target?.title || "";
+  processConfirm.bizName = target?.bizName || target?.title || "";
+  processConfirm.assignedToName = target?.assignedToName || "";
+}
+
+function closeProcessConfirm() {
+  processConfirm.visible = false;
+  processConfirm.id = null;
+  processConfirm.title = "";
+  processConfirm.bizName = "";
+  processConfirm.assignedToName = "";
+}
+
+function openResolveConfirm(target) {
+  resolveConfirm.visible = true;
+  resolveConfirm.id = target?.id || null;
+  resolveConfirm.title = target?.title || "";
+  resolveConfirm.bizName = target?.bizName || target?.title || "";
+}
+
+function closeResolveConfirm() {
+  resolveConfirm.visible = false;
+  resolveConfirm.id = null;
+  resolveConfirm.title = "";
+  resolveConfirm.bizName = "";
 }
 
 async function loadWarningSummary() {
@@ -370,7 +357,7 @@ async function loadWarningTypeOptions() {
 
 async function loadWarnings() {
   loading.value = true;
-  setStatus("");
+  setToast("");
   try {
     const data = await fetchWarningRecords(token.value, buildListParams());
     records.value = data.records || [];
@@ -379,7 +366,7 @@ async function loadWarnings() {
     size.value = data.size || size.value;
     pages.value = data.pages || 1;
   } catch (error) {
-    setStatus(resolveErrorMessage(error, "预警列表加载失败，请稍后重试"), "error");
+    setToast(resolveErrorMessage(error, "预警列表加载失败，请稍后重试"), "error");
   } finally {
     loading.value = false;
   }
@@ -399,47 +386,83 @@ async function changePage(nextPage) {
   await loadWarnings();
 }
 
-async function openWarningDetail(item) {
+function openDetail(item, extraQuery = {}) {
   if (!item?.id) return;
-  warningDetailVisible.value = true;
-  warningDetailLoading.value = true;
-  warningDetail.value = null;
-  try {
-    warningDetail.value = await fetchWarningRecordDetail(token.value, item.id);
-  } catch (error) {
-    setStatus(resolveErrorMessage(error, "预警详情加载失败，请稍后重试"), "error");
-    warningDetailVisible.value = false;
-  } finally {
-    warningDetailLoading.value = false;
-  }
-}
-
-function closeWarningDetail() {
-  warningDetailVisible.value = false;
-  warningDetailLoading.value = false;
-  warningDetail.value = null;
+  router.push({
+    name: "regulator-admin-warning-detail",
+    params: { warningId: item.id },
+    query: {
+      from: route.query.from || "list",
+      ...extraQuery
+    }
+  }).catch(() => {});
 }
 
 async function handleWarningAction(target, actionType) {
   const warningId = target?.id;
   if (!warningId || !actionType) return;
+  if (requiresProcessConfirm(actionType)) {
+    openProcessConfirm(target);
+    return;
+  }
+  if (requiresResolveConfirm(actionType)) {
+    openResolveConfirm(target);
+    return;
+  }
   actionLoading.value = true;
-  setStatus("");
+  setToast("");
   try {
-    const detailData = await processWarningRecord(token.value, warningId, { actionType });
-    if (warningDetailVisible.value && warningDetail.value?.id === warningId) {
-      warningDetail.value = detailData;
-    }
-    setStatus(`预警已执行：${formatWarningAction(actionType)}`, "success");
+    await processWarningRecord(token.value, warningId, { actionType });
+    setToast(`预警已执行：${formatWarningAction(actionType)}`, "success");
     await Promise.all([loadWarnings(), loadWarningSummary()]);
   } catch (error) {
-    setStatus(resolveErrorMessage(error, "预警处理失败，请稍后重试"), "error");
+    setToast(resolveErrorMessage(error, "预警处理失败，请稍后重试"), "error");
+  } finally {
+    actionLoading.value = false;
+  }
+}
+
+async function confirmResolveWarning() {
+  if (!resolveConfirm.id) return;
+  actionLoading.value = true;
+  setToast("");
+  try {
+    await processWarningRecord(token.value, resolveConfirm.id, { actionType: "RESOLVE" });
+    setToast(`预警已执行：${formatWarningAction("RESOLVE")}`, "success");
+    closeResolveConfirm();
+    await Promise.all([loadWarnings(), loadWarningSummary()]);
+  } catch (error) {
+    setToast(resolveErrorMessage(error, "预警处理失败，请稍后重试"), "error");
+  } finally {
+    actionLoading.value = false;
+  }
+}
+
+async function confirmProcessWarning() {
+  if (!processConfirm.id) return;
+  actionLoading.value = true;
+  setToast("");
+  try {
+    await processWarningRecord(token.value, processConfirm.id, { actionType: "PROCESS" });
+    setToast(`预警已执行：${formatWarningAction("PROCESS")}`, "success");
+    closeProcessConfirm();
+    await Promise.all([loadWarnings(), loadWarningSummary()]);
+  } catch (error) {
+    setToast(resolveErrorMessage(error, "预警处理失败，请稍后重试"), "error");
   } finally {
     actionLoading.value = false;
   }
 }
 
 onMounted(async () => {
+  if (Number(route.query.warningId || 0) > 0) {
+    router.replace({
+      name: "regulator-admin-warning-detail",
+      params: { warningId: Number(route.query.warningId) },
+      query: { from: route.query.from || "list" }
+    }).catch(() => {});
+    return;
+  }
   await Promise.all([loadWarnings(), loadPageMeta()]);
 });
 </script>
@@ -457,7 +480,7 @@ onMounted(async () => {
   gap: 20px;
 }
 .hero-eyebrow { margin: 0; font-size: 11px; color: #bfdbfe; letter-spacing: 0.12em; text-transform: uppercase; font-weight: 800; }
-.hero h1 { margin: 8px 0 0; font-size: 36px; line-height: 1.05; font-weight: 900; letter-spacing: -0.02em; }
+.hero h1 { margin: 8px 0 0; font-size: 36px; line-height: 1.05; font-weight: 900; }
 .hero-desc { margin: 10px 0 0; color: #dbeafe; font-size: 13px; max-width: 620px; }
 .hero-metrics { display: flex; gap: 18px; }
 .hero-metrics article { text-align: right; }
@@ -481,7 +504,7 @@ onMounted(async () => {
   cursor: pointer;
 }
 .chip.active { background: #002660; color: #fff; border-color: #002660; }
-select, input {
+select {
   min-height: 34px;
   border: 1px solid #cdd5df;
   border-radius: 3px;
@@ -489,25 +512,9 @@ select, input {
   font-size: 12px;
   background: #e0e3e6;
 }
-.advanced-btn {
-  margin-left: auto;
-  min-height: 34px;
-  border: 1px solid #cdd5df;
-  border-radius: 3px;
-  padding: 0 14px;
-  background: #e0e3e6;
-  color: #002660;
-  font-size: 12px;
-  font-weight: 900;
-  cursor: pointer;
-}
-.advanced-row { display: grid; grid-template-columns: 1fr 1fr auto; gap: 10px; align-items: end; }
-.advanced-row label { display: grid; gap: 6px; color: #475569; font-size: 12px; font-weight: 800; }
-.advanced-actions { display: flex; gap: 8px; }
-
 .table-card { background: #fff; border: 1px solid #e2e8f0; border-radius: 4px; overflow: hidden; }
 .table-wrap { overflow: auto; }
-table { width: 100%; min-width: 1160px; border-collapse: collapse; }
+table { width: 100%; min-width: 1220px; border-collapse: collapse; }
 thead tr { background: #e6e8eb; border-bottom: 1px solid #d1d5db; }
 th { padding: 12px 14px; font-size: 10px; color: #64748b; font-weight: 900; letter-spacing: 0.08em; text-transform: uppercase; text-align: left; }
 td { padding: 12px 14px; border-top: 1px solid #edf2f7; color: #1e293b; font-size: 13px; vertical-align: middle; }
@@ -521,7 +528,7 @@ tbody tr:hover { background: #f1f5f9; }
 .reason { max-width: 360px; }
 .reason-title { margin: 0; color: #334155; font-weight: 800; }
 .reason p:last-child { margin: 4px 0 0; color: #64748b; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.action-row { display: flex; justify-content: flex-end; gap: 8px; }
+.action-row { display: flex; justify-content: flex-end; gap: 8px; flex-wrap: wrap; }
 .action-btn { min-height: 30px; font-size: 11px; font-weight: 800; padding: 0 10px; }
 .warning-page__empty-state { margin: 16px; }
 
@@ -540,36 +547,24 @@ tbody tr:hover { background: #f1f5f9; }
 .ghost { border: 1px solid #d1d5db; background: #fff; color: #334155; }
 
 .modal-mask { position: fixed; inset: 0; background: rgba(15, 23, 42, 0.42); display: flex; justify-content: center; align-items: center; z-index: 1200; padding: 16px; }
-.modal-card { width: min(920px, 96vw); max-height: 88vh; display: grid; grid-template-rows: auto 1fr auto; background: #fff; border-radius: 4px; overflow: hidden; }
-.modal-title { padding: 14px 16px; border-bottom: 1px solid #e2e8f0; font-size: 14px; font-weight: 900; color: #002660; }
-.modal-body { overflow: auto; padding: 14px 16px; display: grid; gap: 10px; }
-.summary-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
-.summary-item { border: 1px solid #e2e8f0; border-radius: 3px; background: #f8fafc; padding: 10px; }
-.summary-item span { display: block; font-size: 11px; color: #64748b; margin-bottom: 4px; }
-.summary-item strong { font-size: 13px; color: #0f172a; }
-.field { display: grid; gap: 6px; }
-.field > span { font-size: 12px; color: #64748b; font-weight: 800; }
-.field > strong { color: #1e293b; font-size: 13px; }
-.timeline-list { display: grid; gap: 8px; border: 1px solid #e2e8f0; border-radius: 3px; padding: 10px; max-height: 280px; overflow: auto; }
-.timeline-item { border-bottom: 1px dashed #e2e8f0; padding-bottom: 8px; }
-.timeline-item:last-child { border-bottom: 0; padding-bottom: 0; }
-.timeline-head { display: flex; justify-content: space-between; gap: 10px; align-items: center; }
-.timeline-head strong { font-size: 12px; color: #0f172a; }
-.timeline-head time { font-size: 11px; color: #94a3b8; white-space: nowrap; }
-.timeline-main p { margin: 4px 0 0; font-size: 12px; color: #64748b; }
-.modal-empty { color: #94a3b8; font-size: 12px; }
-.modal-actions { border-top: 1px solid #e2e8f0; padding: 10px 16px; display: flex; justify-content: flex-end; gap: 8px; flex-wrap: wrap; }
+.modal-card { width: min(520px, 96vw); background: #fff; border-radius: 10px; overflow: hidden; box-shadow: 0 24px 60px rgba(15, 23, 42, 0.2); }
+.modal-title { padding: 16px 18px; border-bottom: 1px solid #e2e8f0; font-size: 16px; font-weight: 900; color: #0f172a; }
+.modal-body { padding: 16px 18px; display: grid; gap: 10px; color: #475569; font-size: 13px; line-height: 1.7; }
+.modal-note { color: #9a3412; background: #fff7ed; border: 1px solid #fed7aa; padding: 10px 12px; border-radius: 8px; }
+.modal-summary { display: grid; gap: 8px; }
+.modal-summary div { padding: 10px 12px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; }
+.modal-summary span { display: block; color: #64748b; font-size: 11px; font-weight: 800; margin-bottom: 4px; }
+.modal-summary strong { color: #0f172a; font-size: 13px; }
+.modal-actions { padding: 12px 18px 16px; display: flex; justify-content: flex-end; gap: 10px; border-top: 1px solid #e2e8f0; }
 
 @media (max-width: 980px) {
   .hero { flex-direction: column; align-items: flex-start; }
   .hero-metrics article { text-align: left; }
-  .advanced-row { grid-template-columns: 1fr; }
-  .summary-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
 @media (max-width: 720px) {
   .hero h1 { font-size: 30px; }
   .hero-metrics { width: 100%; justify-content: space-between; }
-  .summary-grid { grid-template-columns: 1fr; }
+  .action-row { justify-content: flex-start; }
 }
 </style>

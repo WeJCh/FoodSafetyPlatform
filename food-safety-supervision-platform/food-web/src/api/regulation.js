@@ -41,6 +41,30 @@ export function updateProduct(token, id, payload) {
   });
 }
 
+export function fetchProductLogs(token, id, limit = 10) {
+  const query = limit ? `?limit=${limit}` : "";
+  return requestWithBase(REGULATION_BASE_URL, `/api/regulation/products/${id}/logs${query}`, {
+    method: "GET",
+    headers: {
+      Authorization: `Bearer ${token}`
+    }
+  });
+}
+
+export function fetchEnterpriseProductLogs(token, enterpriseId, id, limit = 10) {
+  const query = limit ? `?limit=${limit}` : "";
+  return requestWithBase(
+    REGULATION_BASE_URL,
+    `/api/regulation/enterprises/${enterpriseId}/products/${id}/logs${query}`,
+    {
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${token}`
+      }
+    }
+  );
+}
+
 export function submitEnterpriseProfile(token, payload) {
   return requestWithBase(REGULATION_BASE_URL, "/api/regulation/enterprise/profile", {
     method: "POST",
@@ -94,6 +118,16 @@ export function fetchRegulatorProfile(token) {
     headers: {
       Authorization: `Bearer ${token}`
     }
+  });
+}
+
+export function updateMyRegulatorProfile(token, payload) {
+  return requestWithBase(REGULATION_BASE_URL, "/api/regulation/regulators/me", {
+    method: "PUT",
+    headers: {
+      Authorization: `Bearer ${token}`
+    },
+    body: JSON.stringify(payload)
   });
 }
 
@@ -507,6 +541,16 @@ export function fetchWarningRecordDetail(token, id) {
   });
 }
 
+export function fetchRecentWarningLogs(token, limit = 10) {
+  const query = limit ? `?limit=${limit}` : "";
+  return requestWithBase(REGULATION_BASE_URL, `/api/regulation/warnings/logs/recent${query}`, {
+    method: "GET",
+    headers: {
+      Authorization: `Bearer ${token}`
+    }
+  });
+}
+
 /**
  * 处理预警动作
  * @param token 令牌
@@ -579,6 +623,16 @@ export function fetchMyWarningRecords(token, params = {}) {
  */
 export function fetchMyWarningDetail(token, id) {
   return requestWithBase(REGULATION_BASE_URL, `/api/regulation/warnings/my/${id}`, {
+    method: "GET",
+    headers: {
+      Authorization: `Bearer ${token}`
+    }
+  });
+}
+
+export function fetchRecentMyWarningLogs(token, limit = 10) {
+  const query = limit ? `?limit=${limit}` : "";
+  return requestWithBase(REGULATION_BASE_URL, `/api/regulation/warnings/my/logs/recent${query}`, {
     method: "GET",
     headers: {
       Authorization: `Bearer ${token}`

@@ -13,7 +13,8 @@
       <EnterpriseTopbar
         :search-placeholder="topSearchPlaceholder"
         :username="username"
-        :role-label="userType || '企业用户'"
+        :role-label="userType || '浼佷笟鐢ㄦ埛'"
+        @account="handleAccountNavigate"
       >
         <template #actions>
           <slot name="actions">
@@ -29,6 +30,7 @@
 </template>
 
 <script setup>
+import { useRouter } from "vue-router";
 import EnterpriseSidebar from "./EnterpriseSidebar.vue";
 import EnterpriseStatusChip from "./EnterpriseStatusChip.vue";
 import EnterpriseTopbar from "./EnterpriseTopbar.vue";
@@ -43,8 +45,14 @@ defineProps({
   userType: { type: String, default: "" },
   statusLabel: { type: String, default: "" },
   statusTone: { type: String, default: "neutral" },
-  topSearchPlaceholder: { type: String, default: "搜索监管记录、产品或任务..." }
+  topSearchPlaceholder: { type: String, default: "鎼滅储鐩戠璁板綍銆佷骇鍝佹垨浠诲姟..." }
 });
 
+const router = useRouter();
+
 defineEmits(["navigate", "logout"]);
+
+function handleAccountNavigate() {
+  router.push({ name: "enterprise-account" }).catch(() => {});
+}
 </script>

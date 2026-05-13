@@ -10,7 +10,21 @@ public class InternalComplaintStatsOverviewVO {
 
     private Long totalCount;
 
+    private Long submittedCount;
+
+    private Long pendingCount;
+
+    private Long assignedCount;
+
+    private Long processingCount;
+
     private Long feedbackedCount;
+
+    private Long rejectedCount;
+
+    private Long todoCount;
+
+    private Long doneCount;
 
     private Long overdueCount;
 }

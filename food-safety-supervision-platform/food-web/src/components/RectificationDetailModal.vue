@@ -74,7 +74,7 @@
       <div v-if="highlightLatestRework && latestReworkLog" class="rework-highlight">
         <div class="rework-highlight-title">最近一次退回意见</div>
         <div class="rework-highlight-meta">
-          <span>操作人：{{ latestReworkLog.operatorName || "-" }}</span>
+          <span>操作人：{{ latestReworkLog.operatorName }}</span>
           <span>时间：{{ formatTime(latestReworkLog.createTime) }}</span>
         </div>
         <div class="rework-highlight-content">{{ latestReworkLog.actionComment || "未填写退回意见。" }}</div>
@@ -83,7 +83,7 @@
       <div v-if="highlightLatestSubmit && latestEnterpriseSubmitLog" class="submit-highlight">
         <div class="submit-highlight-title">最近一次企业提交说明</div>
         <div class="submit-highlight-meta">
-          <span>提交方：{{ latestEnterpriseSubmitLog.operatorName || "-" }}</span>
+          <span>提交方：{{ latestEnterpriseSubmitLog.operatorName }}</span>
           <span>时间：{{ formatTime(latestEnterpriseSubmitLog.createTime) }}</span>
         </div>
         <div class="submit-highlight-content">{{ latestEnterpriseSubmitLog.actionComment || "未填写整改说明。" }}</div>
@@ -144,6 +144,8 @@ import { computed, nextTick, ref, watch } from "vue";
 import AppStatusTag from "./common/AppStatusTag.vue";
 import { getStatusTone } from "../utils/statusMaps";
 import { formatRectificationActionLabel, formatRectificationStatus } from "../views/enterprise/enterpriseShared";
+
+const SYSTEM_OPERATOR_NAME = "系统";
 
 const props = defineProps({
   visible: {
@@ -214,6 +216,10 @@ function toAttachmentThumbs(urls) {
   return urls.slice(0, 4);
 }
 
+function formatLogOperatorName(value) {
+  return String(value || "").trim() || SYSTEM_OPERATOR_NAME;
+}
+
 const timelineItems = computed(() => {
   if (Array.isArray(props.actionLogs) && props.actionLogs.length) {
     return props.actionLogs.map((log, index) => ({
@@ -221,7 +227,7 @@ const timelineItems = computed(() => {
       actionType: String(log.actionType || "").toUpperCase(),
       label: formatRectificationActionLabel(log.actionType, log.actionName),
       time: log.createTime,
-      operatorName: log.operatorName || null,
+      operatorName: formatLogOperatorName(log.operatorName),
       comment: log.actionComment || "",
       attachments: Array.isArray(log.attachmentUrls) ? log.attachmentUrls : [],
       done: true,
@@ -288,7 +294,10 @@ const latestReworkLog = computed(() => {
   for (let i = props.actionLogs.length - 1; i >= 0; i -= 1) {
     const log = props.actionLogs[i];
     if (String(log?.actionType || "").toUpperCase() === "REVIEW_REWORK") {
-      return log;
+      return {
+        ...log,
+        operatorName: formatLogOperatorName(log?.operatorName)
+      };
     }
   }
   return null;
@@ -301,7 +310,10 @@ const latestEnterpriseSubmitLog = computed(() => {
   for (let i = props.actionLogs.length - 1; i >= 0; i -= 1) {
     const log = props.actionLogs[i];
     if (String(log?.actionType || "").toUpperCase() === "ENTERPRISE_SUBMIT") {
-      return log;
+      return {
+        ...log,
+        operatorName: formatLogOperatorName(log?.operatorName)
+      };
     }
   }
   return null;

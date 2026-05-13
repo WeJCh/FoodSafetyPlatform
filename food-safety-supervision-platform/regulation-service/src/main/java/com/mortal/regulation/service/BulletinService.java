@@ -11,13 +11,13 @@ public interface BulletinService {
 
     BulletinDetailVO getAdminDetail(Long userId, Long bulletinId);
 
-    BulletinDetailVO create(Long userId, BulletinSaveDTO dto);
+    BulletinDetailVO create(Long userId, String username, BulletinSaveDTO dto);
 
-    BulletinDetailVO update(Long userId, Long bulletinId, BulletinSaveDTO dto);
+    BulletinDetailVO update(Long userId, String username, Long bulletinId, BulletinSaveDTO dto);
 
-    BulletinDetailVO publish(Long userId, Long bulletinId);
+    BulletinDetailVO publish(Long userId, String username, Long bulletinId);
 
-    BulletinDetailVO offline(Long userId, Long bulletinId);
+    BulletinDetailVO offline(Long userId, String username, Long bulletinId);
 
     PageResult<BulletinVO> listPublic(String keyword, String category, int page, int size);
 

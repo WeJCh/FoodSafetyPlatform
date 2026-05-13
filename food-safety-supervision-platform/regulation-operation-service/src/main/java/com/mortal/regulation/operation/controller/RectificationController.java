@@ -103,6 +103,13 @@ public class RectificationController {
         return ApiResponse.success(rectificationService.listActions(identity.userId(), identity.userType(), id));
     }
 
+    @GetMapping("/actions/recent")
+    public ApiResponse<List<RectificationActionLogVO>> recentActions(@RequestHeader("Authorization") String token,
+                                                                     @RequestParam(required = false) Integer limit) {
+        RequestIdentity identity = requestIdentityResolver.resolve(token);
+        return ApiResponse.success(rectificationService.listRecentActions(identity.userId(), identity.userType(), limit));
+    }
+
     @PostMapping("/{id}/review")
     public ApiResponse<RectificationTaskVO> review(@RequestHeader("Authorization") String token,
                                                    @PathVariable Long id,

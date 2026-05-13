@@ -25,6 +25,7 @@ import com.mortal.regulation.mapper.FoodRegulatorRegionMapper;
 import com.mortal.regulation.service.AuditLogService;
 import com.mortal.regulation.service.EnterpriseKeyReasonService;
 import com.mortal.regulation.service.EnterpriseProfileService;
+import com.mortal.regulation.support.AuditOperatorNameResolver;
 import com.mortal.regulation.support.EnterpriseMasterCacheService;
 import com.mortal.regulation.support.EnterprisePublicCacheService;
 import com.mortal.regulation.support.RegulatorMasterCacheService;
@@ -73,6 +74,7 @@ public class EnterpriseProfileServiceImpl implements EnterpriseProfileService {
     private final EnterpriseMasterCacheService enterpriseMasterCacheService;
     private final EnterprisePublicCacheService enterprisePublicCacheService;
     private final RegulatorMasterCacheService regulatorMasterCacheService;
+    private final AuditOperatorNameResolver auditOperatorNameResolver;
 
     public EnterpriseProfileServiceImpl(FoodEnterpriseMapper foodEnterpriseMapper,
                                         EnterpriseProfileAttachmentMapper enterpriseProfileAttachmentMapper,
@@ -86,7 +88,8 @@ public class EnterpriseProfileServiceImpl implements EnterpriseProfileService {
                                         MinioProperties minioProperties,
                                         EnterpriseMasterCacheService enterpriseMasterCacheService,
                                         EnterprisePublicCacheService enterprisePublicCacheService,
-                                        RegulatorMasterCacheService regulatorMasterCacheService) {
+                                        RegulatorMasterCacheService regulatorMasterCacheService,
+                                        AuditOperatorNameResolver auditOperatorNameResolver) {
         this.foodEnterpriseMapper = foodEnterpriseMapper;
         this.enterpriseProfileAttachmentMapper = enterpriseProfileAttachmentMapper;
         this.addrLocationMapper = addrLocationMapper;
@@ -100,6 +103,7 @@ public class EnterpriseProfileServiceImpl implements EnterpriseProfileService {
         this.enterpriseMasterCacheService = enterpriseMasterCacheService;
         this.enterprisePublicCacheService = enterprisePublicCacheService;
         this.regulatorMasterCacheService = regulatorMasterCacheService;
+        this.auditOperatorNameResolver = auditOperatorNameResolver;
     }
 
     @Override
@@ -146,7 +150,7 @@ public class EnterpriseProfileServiceImpl implements EnterpriseProfileService {
         auditLogService.recordEnterpriseAudit(
             userId,
             operatorUserType,
-            operatorName,
+            auditOperatorNameResolver.resolveEnterpriseOperatorName(enterprise, operatorName),
             created ? "ENTERPRISE_SUBMIT" : "ENTERPRISE_UPDATE",
             created ? "企业提交备案档案" : "企业更新备案档案",
             before,
@@ -169,6 +173,7 @@ public class EnterpriseProfileServiceImpl implements EnterpriseProfileService {
             resolveAddressDetail(enterprise.getAddressId()),
             resolveRegionPath(enterprise.getRegionId())
         );
+        enrichApprovalMeta(vo);
         attachAttachments(vo, listAttachmentVOs(enterprise.getId()));
         attachKeyReasons(vo, enterprise.getId());
         return vo;
@@ -185,6 +190,7 @@ public class EnterpriseProfileServiceImpl implements EnterpriseProfileService {
             resolveAddressDetail(enterprise.getAddressId()),
             resolveRegionPath(enterprise.getRegionId())
         );
+        enrichApprovalMeta(vo);
         attachAttachments(vo, listAttachmentVOs(enterprise.getId()));
         attachKeyReasons(vo, enterprise.getId());
         return vo;
@@ -325,12 +331,12 @@ public class EnterpriseProfileServiceImpl implements EnterpriseProfileService {
                                        EnterpriseApprovalDTO dto) {
         FoodEnterprise enterprise = requireEnterprise(enterpriseId);
         FoodEnterprise before = copyEnterprise(enterprise);
-        applyApproval(enterprise, APPROVAL_APPROVED, operatorId, dto.getComment(), dto.getRegulatorName());
+        applyApproval(enterprise, APPROVAL_APPROVED, operatorId, dto.getComment(), dto.getRegulatorId());
         evictEnterpriseMasterCaches(enterprise);
         auditLogService.recordEnterpriseAudit(
             operatorId,
             operatorUserType,
-            operatorName,
+            resolveOperatorName(operatorUserType, operatorId, operatorName),
             "ENTERPRISE_APPROVE",
             "企业档案审核通过",
             before,
@@ -342,6 +348,7 @@ public class EnterpriseProfileServiceImpl implements EnterpriseProfileService {
             resolveAddressDetail(enterprise.getAddressId()),
             resolveRegionPath(enterprise.getRegionId())
         );
+        enrichApprovalMeta(vo);
         attachAttachments(vo, listAttachmentVOs(enterprise.getId()));
         return vo;
     }
@@ -354,12 +361,12 @@ public class EnterpriseProfileServiceImpl implements EnterpriseProfileService {
                                       EnterpriseApprovalDTO dto) {
         FoodEnterprise enterprise = requireEnterprise(enterpriseId);
         FoodEnterprise before = copyEnterprise(enterprise);
-        applyApproval(enterprise, APPROVAL_REJECTED, operatorId, dto.getComment(), dto.getRegulatorName());
+        applyApproval(enterprise, APPROVAL_REJECTED, operatorId, dto.getComment(), dto.getRegulatorId());
         evictEnterpriseMasterCaches(enterprise);
         auditLogService.recordEnterpriseAudit(
             operatorId,
             operatorUserType,
-            operatorName,
+            resolveOperatorName(operatorUserType, operatorId, operatorName),
             "ENTERPRISE_REJECT",
             "企业档案审核驳回",
             before,
@@ -371,6 +378,7 @@ public class EnterpriseProfileServiceImpl implements EnterpriseProfileService {
             resolveAddressDetail(enterprise.getAddressId()),
             resolveRegionPath(enterprise.getRegionId())
         );
+        enrichApprovalMeta(vo);
         attachAttachments(vo, listAttachmentVOs(enterprise.getId()));
         return vo;
     }
@@ -389,7 +397,7 @@ public class EnterpriseProfileServiceImpl implements EnterpriseProfileService {
             "ENTERPRISE_APPROVE",
             "企业档案批量审核通过",
             dto.getComment(),
-            dto.getRegulatorName()
+            dto.getRegulatorId()
         );
     }
 
@@ -407,7 +415,7 @@ public class EnterpriseProfileServiceImpl implements EnterpriseProfileService {
             "ENTERPRISE_REJECT",
             "企业档案批量审核驳回",
             dto.getComment(),
-            dto.getRegulatorName()
+            dto.getRegulatorId()
         );
     }
 
@@ -424,7 +432,7 @@ public class EnterpriseProfileServiceImpl implements EnterpriseProfileService {
         auditLogService.recordEnterpriseAudit(
             operatorUserId,
             operatorUserType,
-            operatorName,
+            resolveOperatorName(operatorUserType, operatorUserId, operatorName),
             "ENTERPRISE_DELETE",
             "删除企业档案",
             before,
@@ -510,6 +518,41 @@ public class EnterpriseProfileServiceImpl implements EnterpriseProfileService {
             }
         }
         return result.stream().toList();
+    }
+
+    private FoodRegulator requireEnterpriseRegulator(Long regulatorId, Long enterpriseRegionId) {
+        if (regulatorId == null) {
+            throw new IllegalArgumentException("regulatorId required");
+        }
+        FoodRegulator regulator = foodRegulatorMapper.selectById(regulatorId);
+        if (regulator == null || isDeleted(regulator.getDeleted())) {
+            throw new IllegalArgumentException("regulator not found");
+        }
+        if (!"REGULATOR_ENFORCER".equals(regulator.getRoleType())) {
+            throw new IllegalArgumentException("regulator must be enforcer");
+        }
+        if (regulator.getStatus() != null && regulator.getStatus() != 1) {
+            throw new IllegalArgumentException("regulator disabled");
+        }
+        if (enterpriseRegionId == null) {
+            throw new IllegalArgumentException("enterprise region missing");
+        }
+        List<Long> scopeRegionIds = foodRegulatorRegionMapper.selectList(new LambdaQueryWrapper<FoodRegulatorRegion>()
+                .eq(FoodRegulatorRegion::getRegulatorId, regulatorId)
+                .eq(FoodRegulatorRegion::getDeleted, 0))
+            .stream()
+            .map(FoodRegulatorRegion::getRegionId)
+            .filter(Objects::nonNull)
+            .distinct()
+            .toList();
+        if (scopeRegionIds.isEmpty()) {
+            throw new IllegalArgumentException("regulator has no region scope");
+        }
+        boolean assignable = scopeRegionIds.stream().anyMatch(scopeRegionId -> Objects.equals(scopeRegionId, enterpriseRegionId));
+        if (!assignable) {
+            throw new IllegalArgumentException("regulator not assignable to enterprise region");
+        }
+        return regulator;
     }
 
     private AddrLocation upsertLocation(Long addressId, Long regionId, String detail) {
@@ -712,13 +755,15 @@ public class EnterpriseProfileServiceImpl implements EnterpriseProfileService {
                                String status,
                                Long operatorId,
                                String comment,
-                               String regulatorName) {
+                               Long regulatorId) {
         enterprise.setApprovalStatus(status);
         enterprise.setApprovalComment(comment);
         enterprise.setApprovedBy(operatorId);
         enterprise.setApprovedTime(LocalDateTime.now());
-        if (StringUtils.hasText(regulatorName)) {
-            enterprise.setRegulatorName(regulatorName.trim());
+        if (APPROVAL_APPROVED.equals(status)) {
+            FoodRegulator assignee = requireEnterpriseRegulator(regulatorId, enterprise.getRegionId());
+            enterprise.setRegulatorId(assignee.getId());
+            enterprise.setRegulatorName(assignee.getName());
         }
         enterprise.setUpdateTime(LocalDateTime.now());
         foodEnterpriseMapper.updateById(enterprise);
@@ -732,7 +777,7 @@ public class EnterpriseProfileServiceImpl implements EnterpriseProfileService {
                                          String actionType,
                                          String actionName,
                                          String comment,
-                                         String regulatorName) {
+                                         Long regulatorId) {
         BatchActionResult result = new BatchActionResult();
         if (ids == null || ids.isEmpty()) {
             result.setSuccessCount(0);
@@ -754,12 +799,12 @@ public class EnterpriseProfileServiceImpl implements EnterpriseProfileService {
                 continue;
             }
             FoodEnterprise before = copyEnterprise(enterprise);
-            applyApproval(enterprise, status, operatorId, comment, regulatorName);
+            applyApproval(enterprise, status, operatorId, comment, regulatorId);
             evictEnterpriseMasterCaches(enterprise);
             auditLogService.recordEnterpriseAudit(
                 operatorId,
                 operatorUserType,
-                operatorName,
+                resolveOperatorName(operatorUserType, operatorId, operatorName),
                 actionType,
                 actionName,
                 before,
@@ -835,6 +880,7 @@ public class EnterpriseProfileServiceImpl implements EnterpriseProfileService {
         copy.setAddressId(source.getAddressId());
         copy.setPrincipal(source.getPrincipal());
         copy.setPrincipalPhone(source.getPrincipalPhone());
+        copy.setRegulatorId(source.getRegulatorId());
         copy.setRegulatorName(source.getRegulatorName());
         copy.setStatus(source.getStatus());
         copy.setApprovalStatus(source.getApprovalStatus());
@@ -943,6 +989,33 @@ public class EnterpriseProfileServiceImpl implements EnterpriseProfileService {
         return value.trim();
     }
 
+    private String buildEnterpriseOperatorName(FoodEnterprise enterprise, String username) {
+        String enterpriseName = enterprise == null ? null : normalizeOptionalText(enterprise.getEnterpriseName());
+        String normalizedUsername = normalizeOptionalText(username);
+        if (StringUtils.hasText(enterpriseName) && StringUtils.hasText(normalizedUsername)) {
+            return enterpriseName + "（" + normalizedUsername + "）";
+        }
+        if (StringUtils.hasText(enterpriseName)) {
+            return enterpriseName;
+        }
+        return normalizedUsername;
+    }
+
+    private String resolveOperatorName(String operatorUserType, Long operatorUserId, String username) {
+        if ("ENTERPRISE".equalsIgnoreCase(operatorUserType)) {
+            FoodEnterprise enterprise = findEnterpriseByUserId(operatorUserId);
+            return auditOperatorNameResolver.resolveEnterpriseOperatorName(enterprise, username);
+        }
+        if ("REGULATOR".equalsIgnoreCase(operatorUserType) || "ADMIN".equalsIgnoreCase(operatorUserType)) {
+            FoodRegulator regulator = foodRegulatorMapper.selectOne(new LambdaQueryWrapper<FoodRegulator>()
+                .eq(FoodRegulator::getUserId, operatorUserId)
+                .eq(FoodRegulator::getDeleted, 0)
+                .last("limit 1"));
+            return auditOperatorNameResolver.resolveRegulatorOperatorName(regulator, username);
+        }
+        return auditOperatorNameResolver.resolveSystemOperatorName();
+    }
+
     private EnterpriseProfileVO toVO(FoodEnterprise enterprise, String addressDetail, List<RegionVO> regionPath) {
         EnterpriseProfileVO vo = new EnterpriseProfileVO();
         vo.setId(enterprise.getId());
@@ -956,6 +1029,7 @@ public class EnterpriseProfileServiceImpl implements EnterpriseProfileService {
         vo.setAddressDetail(addressDetail);
         vo.setPrincipal(enterprise.getPrincipal());
         vo.setPrincipalPhone(enterprise.getPrincipalPhone());
+        vo.setRegulatorId(enterprise.getRegulatorId());
         vo.setRegulatorName(enterprise.getRegulatorName());
         vo.setStatus(enterprise.getStatus());
         vo.setApprovalStatus(enterprise.getApprovalStatus());
@@ -968,6 +1042,16 @@ public class EnterpriseProfileServiceImpl implements EnterpriseProfileService {
         vo.setCreateTime(enterprise.getCreateTime());
         vo.setUpdateTime(enterprise.getUpdateTime());
         return vo;
+    }
+
+    private void enrichApprovalMeta(EnterpriseProfileVO vo) {
+        if (vo == null || vo.getApprovedBy() == null) {
+            return;
+        }
+        FoodRegulator regulator = foodRegulatorMapper.selectById(vo.getApprovedBy());
+        if (regulator != null && StringUtils.hasText(regulator.getName())) {
+            vo.setApprovedByName(regulator.getName());
+        }
     }
 
     private String buildRegionPathText(List<RegionVO> regionPath) {

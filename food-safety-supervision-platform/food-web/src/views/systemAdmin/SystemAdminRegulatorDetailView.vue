@@ -101,7 +101,7 @@
                   <div class="sys-admin-timeline__title">{{ item.title }}</div>
                   <div class="sys-admin-timeline__desc">{{ item.desc }}</div>
                   <div v-if="item.remark" class="sys-admin-timeline__desc is-remark">备注：{{ item.remark }}</div>
-                  <div class="sys-admin-timeline__desc is-operator">操作人：{{ item.operatorName || "系统管理员" }}</div>
+                  <div class="sys-admin-timeline__desc is-operator">操作人：{{ item.operatorName || "系统" }}</div>
                   <div class="sys-admin-timeline__time">{{ item.time }}</div>
                 </div>
               </li>

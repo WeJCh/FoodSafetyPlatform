@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <RegulatorEnforcerPageShell
     active-key="tasks"
     title="我的检查任务"
@@ -137,6 +137,7 @@
         <strong>{{ stats.completedToday }}</strong>
       </article>
     </section>
+
 
     <div v-if="status.message" class="status-banner" :class="`is-${status.type}`">{{ status.message }}</div>
   </RegulatorEnforcerPageShell>

@@ -19,6 +19,7 @@ import com.mortal.regulation.operation.mapper.RectificationActionLogMapper;
 import com.mortal.regulation.operation.mapper.RectificationTaskMapper;
 import com.mortal.regulation.operation.service.RectificationService;
 import com.mortal.regulation.operation.service.StatusTransitionValidator;
+import com.mortal.regulation.operation.support.OperationAuditOperatorNameResolver;
 import com.mortal.regulation.operation.support.OperationLockSupport;
 import com.mortal.regulation.operation.support.OperationMasterDataSupport;
 import com.mortal.regulation.operation.vo.RectificationActionLogVO;
@@ -55,17 +56,20 @@ public class RectificationServiceImpl implements RectificationService {
     private final RectificationActionLogMapper rectificationActionLogMapper;
     private final OperationMasterDataSupport masterDataSupport;
     private final OperationLockSupport operationLockSupport;
+    private final OperationAuditOperatorNameResolver operationAuditOperatorNameResolver;
     private final ObjectMapper objectMapper;
 
     public RectificationServiceImpl(RectificationTaskMapper rectificationTaskMapper,
                                     RectificationActionLogMapper rectificationActionLogMapper,
                                     OperationMasterDataSupport masterDataSupport,
                                     OperationLockSupport operationLockSupport,
+                                    OperationAuditOperatorNameResolver operationAuditOperatorNameResolver,
                                     ObjectMapper objectMapper) {
         this.rectificationTaskMapper = rectificationTaskMapper;
         this.rectificationActionLogMapper = rectificationActionLogMapper;
         this.masterDataSupport = masterDataSupport;
         this.operationLockSupport = operationLockSupport;
+        this.operationAuditOperatorNameResolver = operationAuditOperatorNameResolver;
         this.objectMapper = objectMapper;
     }
 
@@ -227,7 +231,56 @@ public class RectificationServiceImpl implements RectificationService {
             return List.of();
         }
         Map<Long, String> operatorNames = loadActionOperatorNames(logs);
-        return logs.stream().map(log -> toActionLogVO(log, operatorNames)).toList();
+        Map<Long, RectificationTask> taskMap = Map.of(task.getId(), task);
+        Map<Long, String> enterpriseNames = loadEnterpriseNames(List.of(task));
+        return logs.stream().map(log -> toActionLogVO(log, operatorNames, taskMap, enterpriseNames)).toList();
+    }
+
+    @Override
+    public List<RectificationActionLogVO> listRecentActions(Long operatorUserId, String userType, Integer limit) {
+        int safeLimit = normalizeRecentLimit(limit);
+        int candidateLimit = Math.max(safeLimit * 5, 30);
+        List<RectificationActionLog> logs = rectificationActionLogMapper.selectList(new LambdaQueryWrapper<RectificationActionLog>()
+            .eq(RectificationActionLog::getDeleted, 0)
+            .orderByDesc(RectificationActionLog::getCreateTime, RectificationActionLog::getId)
+            .last("LIMIT " + candidateLimit));
+        if (logs.isEmpty()) {
+            return List.of();
+        }
+
+        List<Long> rectificationIds = logs.stream()
+            .map(RectificationActionLog::getRectificationId)
+            .filter(Objects::nonNull)
+            .distinct()
+            .toList();
+        if (rectificationIds.isEmpty()) {
+            return List.of();
+        }
+
+        Map<Long, RectificationTask> taskMap = rectificationTaskMapper.selectBatchIds(rectificationIds).stream()
+            .filter(Objects::nonNull)
+            .filter(task -> !isDeleted(task.getDeleted()))
+            .collect(Collectors.toMap(RectificationTask::getId, task -> task));
+        if (taskMap.isEmpty()) {
+            return List.of();
+        }
+
+        Set<Long> visibleRectificationIds = resolveVisibleRectificationIds(operatorUserId, userType, taskMap.values());
+        if (visibleRectificationIds.isEmpty()) {
+            return List.of();
+        }
+
+        List<RectificationActionLog> visibleLogs = logs.stream()
+            .filter(log -> log.getRectificationId() != null && visibleRectificationIds.contains(log.getRectificationId()))
+            .limit(safeLimit)
+            .toList();
+        if (visibleLogs.isEmpty()) {
+            return List.of();
+        }
+
+        Map<Long, String> operatorNames = loadActionOperatorNames(visibleLogs);
+        Map<Long, String> enterpriseNames = loadEnterpriseNames(new ArrayList<>(taskMap.values()));
+        return visibleLogs.stream().map(log -> toActionLogVO(log, operatorNames, taskMap, enterpriseNames)).toList();
     }
 
     private PageResult<RectificationTaskVO> listForRegulatorRole(Long regulatorId,
@@ -333,6 +386,35 @@ public class RectificationServiceImpl implements RectificationService {
         throw new IllegalArgumentException(OperationErrorMessages.UNAUTHORIZED);
     }
 
+    private Set<Long> resolveVisibleRectificationIds(Long operatorUserId,
+                                                     String userType,
+                                                     java.util.Collection<RectificationTask> tasks) {
+        if (tasks == null || tasks.isEmpty()) {
+            return Set.of();
+        }
+        if ("ENTERPRISE".equalsIgnoreCase(userType)) {
+            InternalEnterpriseDetailVO enterprise = masterDataSupport.requireEnterpriseByUserId(operatorUserId);
+            return tasks.stream()
+                .filter(task -> Objects.equals(task.getEnterpriseId(), enterprise.getId()))
+                .map(RectificationTask::getId)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toCollection(LinkedHashSet::new));
+        }
+        if ("REGULATOR".equalsIgnoreCase(userType) || "ADMIN".equalsIgnoreCase(userType)) {
+            InternalRegulatorIdentityVO regulator = masterDataSupport.requireRegulatorByUserId(operatorUserId);
+            Set<Long> scopedEnterpriseIds = new LinkedHashSet<>(masterDataSupport.resolveScopedEnterpriseIds(regulator.getId(), null));
+            if (scopedEnterpriseIds.isEmpty()) {
+                return Set.of();
+            }
+            return tasks.stream()
+                .filter(task -> task.getEnterpriseId() != null && scopedEnterpriseIds.contains(task.getEnterpriseId()))
+                .map(RectificationTask::getId)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toCollection(LinkedHashSet::new));
+        }
+        throw new IllegalArgumentException(OperationErrorMessages.UNAUTHORIZED);
+    }
+
     private RectificationTask requireTask(Long rectificationId) {
         RectificationTask task = rectificationTaskMapper.selectById(rectificationId);
         if (task == null || isDeleted(task.getDeleted())) {
@@ -420,14 +502,29 @@ public class RectificationServiceImpl implements RectificationService {
         }
     }
 
-    private RectificationActionLogVO toActionLogVO(RectificationActionLog log, Map<Long, String> operatorNames) {
+    private RectificationActionLogVO toActionLogVO(RectificationActionLog log,
+                                                   Map<Long, String> operatorNames,
+                                                   Map<Long, RectificationTask> taskMap,
+                                                   Map<Long, String> enterpriseNames) {
         RectificationActionLogVO vo = new RectificationActionLogVO();
+        RectificationTask task = taskMap.get(log.getRectificationId());
         vo.setId(log.getId());
         vo.setRectificationId(log.getRectificationId());
+        if (task != null) {
+            vo.setRectificationNo("RECT-" + task.getId());
+            vo.setEnterpriseId(task.getEnterpriseId());
+            vo.setEnterpriseName(enterpriseNames.get(task.getEnterpriseId()));
+            vo.setStatus(task.getStatus() == null ? null : task.getStatus().name());
+        }
         vo.setActionType(log.getActionType());
         vo.setActionName(resolveActionDisplayName(log.getActionType()));
         vo.setOperatorId(log.getOperatorId());
-        vo.setOperatorName(operatorNames.get(log.getOperatorId()));
+        vo.setOperatorName(log.getOperatorId() == null
+            ? operationAuditOperatorNameResolver.resolveSystemOperatorName()
+            : operatorNames.getOrDefault(
+                log.getOperatorId(),
+                operationAuditOperatorNameResolver.resolveSystemOperatorName()
+            ));
         vo.setActionComment(log.getActionComment());
         vo.setAttachmentUrls(parseAttachmentUrls(log.getAttachmentUrls()));
         vo.setCreateTime(log.getCreateTime());
@@ -503,6 +600,13 @@ public class RectificationServiceImpl implements RectificationService {
             return normalized;
         }
         return null;
+    }
+
+    private int normalizeRecentLimit(Integer limit) {
+        if (limit == null || limit <= 0) {
+            return 10;
+        }
+        return Math.min(limit, 50);
     }
 
     private RectificationReviewAction normalizeReviewAction(String value) {

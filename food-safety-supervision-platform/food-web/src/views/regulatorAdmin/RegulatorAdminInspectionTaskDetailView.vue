@@ -35,6 +35,14 @@
             查看企业档案
           </button>
           <button
+            v-if="inspectionRecord?.record?.id"
+            class="btn-ghost"
+            type="button"
+            @click="openInspectionRecord"
+          >
+            查看检查记录
+          </button>
+          <button
             v-if="canClose"
             class="btn-primary"
             type="button"
@@ -299,6 +307,15 @@ function openEnterprise() {
   }).catch(() => {});
 }
 
+function openInspectionRecord() {
+  if (!inspectionRecord.value?.record?.id) return;
+  router.push({
+    name: "regulator-admin-inspection-detail",
+    params: { inspectionId: inspectionRecord.value.record.id },
+    query: { from: "task-detail", taskId: task.value?.id || "" }
+  }).catch(() => {});
+}
+
 async function handleCloseTask() {
   if (!task.value?.id || !canClose.value) return;
   actionLoading.value = true;
@@ -384,10 +401,9 @@ watch(
 .detail-layout {
   display: grid;
   width: 100%;
-  grid-template-columns: minmax(0, 1.7fr) 360px;
+  grid-template-columns: minmax(0, 1fr) 360px;
   gap: 16px;
   align-items: start;
-  justify-items: stretch;
 }
 .left,
 .right {
@@ -395,7 +411,15 @@ watch(
   gap: 16px;
   min-width: 0;
   align-content: start;
-  justify-items: stretch;
+  width: 100%;
+}
+.left {
+  grid-column: 1;
+}
+.right {
+  grid-column: 2;
+  max-width: 360px;
+  justify-self: end;
 }
 .card {
   border: 1px solid #e2e8f0;

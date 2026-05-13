@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.mortal.regulation.operation.entity.AuditLog;
 import com.mortal.regulation.operation.mapper.AuditLogMapper;
 import com.mortal.regulation.operation.service.AuditLogService;
+import com.mortal.regulation.operation.support.OperationAuditOperatorNameResolver;
 import com.mortal.regulation.operation.vo.AuditLogVO;
 import jakarta.servlet.http.HttpServletRequest;
 import java.time.LocalDateTime;
@@ -21,9 +22,12 @@ public class AuditLogServiceImpl implements AuditLogService {
     private static final String SERVICE_NAME = "regulation-operation-service";
 
     private final AuditLogMapper auditLogMapper;
+    private final OperationAuditOperatorNameResolver operationAuditOperatorNameResolver;
 
-    public AuditLogServiceImpl(AuditLogMapper auditLogMapper) {
+    public AuditLogServiceImpl(AuditLogMapper auditLogMapper,
+                               OperationAuditOperatorNameResolver operationAuditOperatorNameResolver) {
         this.auditLogMapper = auditLogMapper;
+        this.operationAuditOperatorNameResolver = operationAuditOperatorNameResolver;
     }
 
     @Override
@@ -48,7 +52,7 @@ public class AuditLogServiceImpl implements AuditLogService {
         log.setServiceName(SERVICE_NAME);
         log.setOperatorUserId(operatorUserId);
         log.setOperatorUserType(trimToNull(operatorUserType));
-        log.setOperatorName(StringUtils.hasText(operatorName) ? operatorName.trim() : buildOperatorFallback(operatorUserId));
+        log.setOperatorName(StringUtils.hasText(operatorName) ? operatorName.trim() : buildOperatorFallback());
         log.setTargetType(targetType.trim());
         log.setTargetId(targetId);
         log.setTargetUserId(targetUserId);
@@ -100,7 +104,7 @@ public class AuditLogServiceImpl implements AuditLogService {
         vo.setTargetType(log.getTargetType());
         vo.setActionType(log.getActionType());
         vo.setActionName(log.getActionName());
-        vo.setOperatorName(StringUtils.hasText(log.getOperatorName()) ? log.getOperatorName() : buildOperatorFallback(log.getOperatorUserId()));
+        vo.setOperatorName(StringUtils.hasText(log.getOperatorName()) ? log.getOperatorName() : buildOperatorFallback());
         vo.setTargetId(log.getTargetId());
         vo.setTargetUserId(log.getTargetUserId());
         vo.setTargetName(log.getTargetName());
@@ -151,7 +155,7 @@ public class AuditLogServiceImpl implements AuditLogService {
         return request.getRemoteAddr();
     }
 
-    private String buildOperatorFallback(Long operatorUserId) {
-        return operatorUserId == null ? "system" : "user#" + operatorUserId;
+    private String buildOperatorFallback() {
+        return operationAuditOperatorNameResolver.resolveSystemOperatorName();
     }
 }

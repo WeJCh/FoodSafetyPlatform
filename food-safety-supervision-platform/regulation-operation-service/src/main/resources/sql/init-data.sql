@@ -189,17 +189,13 @@ VALUES
 -- ============================================
 INSERT INTO warning_event_outbox (event_key, event_type, payload_json, status, retry_count, next_retry_time, deleted)
 VALUES
-('SAMPLING_FAIL_4_10_20240306', 'SAMPLING_FAIL',
- '{"warningType":"SAMPLING_FAIL","bizType":"SAMPLING","bizId":3,"regionId":7,"ownerRegulatorId":3,"title":"抽检不合格预警","content":"快乐小吃店炸鸡腿抽检不合格，菌落总数超标","sourceService":"regulation-operation-service","dedupKey":"SAMPLING_FAIL_4_10_20240306"}',
+('SAMPLING:3:SAMPLING_FAIL', 'SAMPLING_FAIL',
+ '{"warningType":"SAMPLING_FAIL","bizType":"SAMPLING","bizId":3,"regionId":7,"ownerRegulatorId":3,"title":"抽检不合格预警","content":"快乐小吃店炸鸡腿抽检不合格，菌落总数超标","sourceService":"regulation-operation-service","dedupKey":"SAMPLING:3:SAMPLING_FAIL","samplingResultId":3,"enterpriseId":4}',
  'SENT', 0, '2024-03-06 16:30:00', 0),
 
-('RECTIFICATION_OVERDUE_1_20240227', 'RECTIFICATION_OVERDUE',
- '{"warningType":"RECTIFICATION_OVERDUE","bizType":"RECTIFICATION","bizId":1,"regionId":7,"ownerRegulatorId":3,"title":"整改逾期预警","content":"快乐小吃店整改任务即将逾期，请及时跟进","sourceService":"regulation-operation-service","dedupKey":"RECTIFICATION_OVERDUE_1_20240227"}',
- 'SENT', 0, '2024-02-27 09:00:00', 0),
-
-('RECTIFICATION_OVERDUE_2_20240412', 'RECTIFICATION_OVERDUE',
- '{"warningType":"RECTIFICATION_OVERDUE","bizType":"RECTIFICATION","bizId":2,"regionId":10,"ownerRegulatorId":6,"title":"整改逾期预警","content":"香满楼餐厅整改任务已逾期，请立即处理","sourceService":"regulation-operation-service","dedupKey":"RECTIFICATION_OVERDUE_2_20240412"}',
- 'PENDING', 0, '2024-04-12 09:00:00', 0);
+('RECTIFICATION:2:SLA_OVERDUE_SUBMIT', 'RECTIFICATION_OVERDUE',
+ '{"warningType":"RECTIFICATION_OVERDUE","bizType":"RECTIFICATION","bizId":2,"regionId":10,"ownerRegulatorId":6,"title":"整改逾期预警","content":"香满楼餐厅整改任务已超过提交截止时间，请立即处理","sourceService":"regulation-operation-service","dedupKey":"RECTIFICATION:2:SLA_OVERDUE_SUBMIT","rectificationId":2,"inspectionId":4,"enterpriseId":5,"actionType":"SLA_OVERDUE_SUBMIT","deadline":"2024-03-21 18:00:00"}',
+ 'SENT', 0, '2024-04-12 09:00:00', 0);
 
 -- 重置自增 ID
 ALTER TABLE inspection_task AUTO_INCREMENT = 100;

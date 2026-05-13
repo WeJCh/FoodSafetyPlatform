@@ -175,6 +175,7 @@ public class InternalEnterpriseController {
         vo.setAddressDetail(addressDetail);
         vo.setPrincipal(enterprise.getPrincipal());
         vo.setPrincipalPhone(enterprise.getPrincipalPhone());
+        vo.setRegulatorId(enterprise.getRegulatorId());
         vo.setRegulatorName(enterprise.getRegulatorName());
         vo.setStatus(enterprise.getStatus());
         vo.setApprovalStatus(enterprise.getApprovalStatus());
@@ -276,5 +277,4 @@ public class InternalEnterpriseController {
         return deleted != null && deleted == 1;
     }
 }
-
 

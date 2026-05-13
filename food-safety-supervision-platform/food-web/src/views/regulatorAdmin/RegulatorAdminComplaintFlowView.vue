@@ -8,41 +8,61 @@
     <section class="complaint-page">
       <header class="complaint-page__head">
         <div>
-          <h1>投诉流转中心</h1>
-          <p>统一查看投诉受理、分派、处理和反馈进度。</p>
+          <h1>{{ uiText.title }}</h1>
+          <p>{{ uiText.subtitle }}</p>
         </div>
       </header>
+
+      <section class="stats-grid">
+        <article class="stat-card stat-card--primary">
+          <span>{{ uiText.submittedTitle }}</span>
+          <strong>{{ summary.submittedCount }}</strong>
+          <p>{{ uiText.submittedHint }}</p>
+        </article>
+        <article class="stat-card">
+          <span>{{ uiText.pendingTitle }}</span>
+          <strong>{{ summary.pendingCount }}</strong>
+          <p>{{ uiText.pendingHint }}</p>
+        </article>
+        <article class="stat-card">
+          <span>{{ uiText.processingTitle }}</span>
+          <strong>{{ activeProcessingCount }}</strong>
+          <p>{{ uiText.processingHint }}</p>
+        </article>
+        <article class="stat-card">
+          <span>{{ uiText.doneTitle }}</span>
+          <strong>{{ summary.doneCount }}</strong>
+          <p>{{ uiText.doneHint }}</p>
+        </article>
+      </section>
 
       <section class="filter-card">
         <div class="filter-toolbar">
           <div class="filter-grid">
             <label>
-              投诉类型
+              {{ uiText.typeFilterLabel }}
               <select v-model="filters.complaintType">
-                <option value="">全部类型</option>
+                <option value="">{{ uiText.allTypeOption }}</option>
                 <option v-for="option in complaintTypeOptions" :key="option.value" :value="option.value">
                   {{ option.label }}
                 </option>
               </select>
             </label>
             <label>
-              当前状态
+              {{ uiText.statusFilterLabel }}
               <select v-model="filters.status">
-                <option value="">全部状态</option>
-                <option value="SUBMITTED">待受理</option>
-                <option value="PENDING">待分派</option>
-                <option value="ASSIGNED">已分派</option>
-                <option value="PROCESSING">处理中</option>
-                <option value="FEEDBACKED">已反馈</option>
-                <option value="REJECTED">已驳回</option>
+                <option value="">{{ uiText.allStatusOption }}</option>
+                <option v-for="option in statusOptions" :key="option.value" :value="option.value">
+                  {{ option.label }}
+                </option>
               </select>
             </label>
           </div>
           <div class="filter-actions">
             <button class="primary" type="button" :disabled="loading" @click="handleSearch">
-              {{ loading ? "查询中..." : "执行筛选" }}
+              {{ loading ? uiText.searching : uiText.search }}
             </button>
-            <button class="ghost" type="button" :disabled="loading" @click="resetFilters">重置</button>
+            <button class="ghost" type="button" :disabled="loading" @click="resetFilters">{{ uiText.reset }}</button>
           </div>
         </div>
       </section>
@@ -52,24 +72,24 @@
           <table>
             <thead>
               <tr>
-                <th>投诉时间</th>
-                <th>编号</th>
-                <th>涉及企业</th>
-                <th>投诉摘要</th>
-                <th>责任人</th>
-                <th>状态</th>
-                <th class="th-right">操作</th>
+                <th>{{ uiText.columns.time }}</th>
+                <th>{{ uiText.columns.no }}</th>
+                <th>{{ uiText.columns.enterprise }}</th>
+                <th>{{ uiText.columns.summary }}</th>
+                <th>{{ uiText.columns.assignee }}</th>
+                <th>{{ uiText.columns.status }}</th>
+                <th class="th-right">{{ uiText.columns.action }}</th>
               </tr>
             </thead>
-            <tbody v-if="displayRecords.length">
-              <tr v-for="item in displayRecords" :key="item.id">
+            <tbody v-if="records.length">
+              <tr v-for="item in records" :key="item.id">
                 <td>{{ formatTime(item.createTime || item.updateTime) }}</td>
                 <td class="mono">{{ item.complaintNo || "-" }}</td>
                 <td class="strong">{{ item.enterpriseName || "-" }}</td>
                 <td class="summary" :title="item.content || '-'">{{ summaryText(item.content) }}</td>
                 <td>
                   <span v-if="item.assignedToName">{{ item.assignedToName }}</span>
-                  <span v-else class="muted">未分配</span>
+                  <span v-else class="muted">{{ uiText.unassigned }}</span>
                 </td>
                 <td>
                   <span class="status-pill" :class="statusClass(item.status)">
@@ -78,7 +98,7 @@
                 </td>
                 <td class="td-right">
                   <div class="action-row">
-                    <button class="ghost" type="button" @click="handleViewDetail(item)">详情</button>
+                    <button class="ghost" type="button" @click="handleViewDetail(item)">{{ uiText.detail }}</button>
                     <button
                       v-if="item.status === 'SUBMITTED'"
                       class="primary"
@@ -86,27 +106,31 @@
                       :disabled="loading"
                       @click="handleAccept(item)"
                     >
-                      受理
+                      {{ uiText.accept }}
                     </button>
                   </div>
                 </td>
               </tr>
             </tbody>
           </table>
-          <div v-if="!records.length" class="empty">暂无投诉记录</div>
+          <div v-if="!records.length" class="empty">{{ uiText.empty }}</div>
         </div>
         <div class="pager">
-          <span>共 {{ total }} 条，{{ page }}/{{ pages }} 页</span>
+          <span>{{ uiText.totalLabel(total, page, pages) }}</span>
           <div class="pager-actions">
-            <button class="ghost" type="button" :disabled="page <= 1 || loading" @click="changePage(page - 1)">上一页</button>
-            <button class="ghost" type="button" :disabled="page >= pages || loading" @click="changePage(page + 1)">下一页</button>
+            <button class="ghost" type="button" :disabled="page <= 1 || loading" @click="changePage(page - 1)">
+              {{ uiText.prev }}
+            </button>
+            <button class="ghost" type="button" :disabled="page >= pages || loading" @click="changePage(page + 1)">
+              {{ uiText.next }}
+            </button>
           </div>
         </div>
       </section>
 
       <section class="stats-bento">
         <article class="progress-card">
-          <h3>流转进度分布</h3>
+          <h3>{{ uiText.progressTitle }}</h3>
           <div class="flow-track">
             <div v-for="item in progressStats" :key="item.key" class="flow-node">
               <span class="dot">{{ item.count }}</span>
@@ -124,10 +148,11 @@
 <script setup>
 import { computed, onMounted, reactive, ref } from "vue";
 import { useRouter } from "vue-router";
-import { acceptComplaint, fetchComplaints } from "../../api/complaint";
+import { acceptComplaint, fetchComplaintStatsOverview, fetchComplaints } from "../../api/complaint";
 import RegulatorAdminWorkspacePage from "../../components/regulatorAdmin/RegulatorAdminWorkspacePage.vue";
 import { formatTime } from "../../utils/formatters";
 import { complaintStatusMap } from "../../utils/statusMaps";
+import { complaintTypeOptions } from "../../utils/complaintTypes";
 import { resolveErrorMessage } from "../../utils/uiFeedback";
 import { useRegulatorAdminShellSession } from "./regulatorAdminShared";
 
@@ -141,10 +166,69 @@ const page = ref(1);
 const size = ref(8);
 const total = ref(0);
 const pages = ref(1);
+const summary = reactive({
+  submittedCount: 0,
+  pendingCount: 0,
+  assignedCount: 0,
+  processingCount: 0,
+  feedbackedCount: 0,
+  rejectedCount: 0,
+  todoCount: 0,
+  doneCount: 0,
+  overdueCount: 0
+});
 const filters = reactive({
   complaintType: "",
   status: ""
 });
+
+const statusOptions = [
+  { value: "SUBMITTED", label: "待受理" },
+  { value: "PENDING", label: "待分派" },
+  { value: "ASSIGNED", label: "已分派" },
+  { value: "PROCESSING", label: "处理中" },
+  { value: "FEEDBACKED", label: "已反馈" },
+  { value: "REJECTED", label: "已驳回" }
+];
+
+const uiText = {
+  title: "投诉流转中心",
+  subtitle: "统一查看投诉受理、分派、处理和反馈进度。",
+  submittedTitle: "待受理",
+  submittedHint: "公众提交后尚未受理的投诉",
+  pendingTitle: "待分派",
+  pendingHint: "已受理但尚未分派的投诉",
+  processingTitle: "处理中",
+  processingHint: "已分派或正在办理的投诉",
+  doneTitle: "已办结",
+  doneHint: "已反馈或已驳回的投诉",
+  typeFilterLabel: "投诉类别",
+  allTypeOption: "全部类别",
+  statusFilterLabel: "当前状态",
+  allStatusOption: "全部状态",
+  search: "执行筛选",
+  searching: "查询中...",
+  reset: "重置",
+  columns: {
+    time: "投诉时间",
+    no: "编号",
+    enterprise: "涉及企业",
+    summary: "投诉摘要",
+    assignee: "责任人",
+    status: "状态",
+    action: "操作"
+  },
+  unassigned: "未分配",
+  detail: "详情",
+  accept: "受理",
+  empty: "暂无投诉记录",
+  prev: "上一页",
+  next: "下一页",
+  progressTitle: "流转进度分布",
+  totalLabel(totalCount, currentPage, totalPages) {
+    return `共 ${totalCount} 条，${currentPage}/${totalPages} 页`;
+  }
+};
 
 function setStatus(message, type = "info") {
   status.message = message;
@@ -172,64 +256,42 @@ function statusClass(value) {
   return "";
 }
 
-const complaintTypeLabelMap = {
-  FOOD_SAFETY: "食品安全",
-  FOOD_SPOILAGE: "食品变质",
-  FALSE_AD: "虚假宣传",
-  HYGIENE: "卫生环境",
-  PRICE: "价格违规",
-  OTHER: "其他"
-};
+const activeProcessingCount = computed(() => Number(summary.assignedCount || 0) + Number(summary.processingCount || 0));
 
-function formatComplaintType(value) {
-  return complaintTypeLabelMap[value] || value || "其他";
+const progressStats = computed(() => ([
+  { key: "SUBMITTED", label: "待受理", count: Number(summary.submittedCount || 0) },
+  { key: "PENDING", label: "待分派", count: Number(summary.pendingCount || 0) },
+  { key: "ASSIGNED", label: "分派", count: Number(summary.assignedCount || 0) },
+  { key: "PROCESSING", label: "处理", count: Number(summary.processingCount || 0) },
+  { key: "FEEDBACKED", label: "反馈", count: Number(summary.feedbackedCount || 0) }
+]));
+
+async function loadSummary() {
+  const data = await fetchComplaintStatsOverview(token.value);
+  summary.submittedCount = Number(data?.submittedCount || 0);
+  summary.pendingCount = Number(data?.pendingCount || 0);
+  summary.assignedCount = Number(data?.assignedCount || 0);
+  summary.processingCount = Number(data?.processingCount || 0);
+  summary.feedbackedCount = Number(data?.feedbackedCount || 0);
+  summary.rejectedCount = Number(data?.rejectedCount || 0);
+  summary.todoCount = Number(data?.todoCount || 0);
+  summary.doneCount = Number(data?.doneCount || 0);
+  summary.overdueCount = Number(data?.overdueCount || 0);
 }
-
-const complaintTypeOptions = computed(() => {
-  const set = new Set();
-  records.value.forEach((item) => {
-    const value = String(item.complaintType || "").trim();
-    if (value) set.add(value);
-  });
-  return Array.from(set).map((value) => ({ value, label: formatComplaintType(value) }));
-});
-
-const displayRecords = computed(() => {
-  const type = String(filters.complaintType || "").trim();
-  if (!type) return records.value;
-  return records.value.filter((item) => String(item.complaintType || "").trim() === type);
-});
-
-const progressStats = computed(() => {
-  const stats = {
-    SUBMITTED: 0,
-    PENDING: 0,
-    ASSIGNED: 0,
-    PROCESSING: 0,
-    FEEDBACKED: 0
-  };
-  records.value.forEach((item) => {
-    const key = item.status;
-    if (stats[key] !== undefined) stats[key] += 1;
-  });
-  return [
-    { key: "SUBMITTED", label: "待受理", count: stats.SUBMITTED },
-    { key: "PENDING", label: "待分派", count: stats.PENDING },
-    { key: "ASSIGNED", label: "分派", count: stats.ASSIGNED },
-    { key: "PROCESSING", label: "处理", count: stats.PROCESSING },
-    { key: "FEEDBACKED", label: "反馈", count: stats.FEEDBACKED }
-  ];
-});
 
 async function loadComplaints() {
   loading.value = true;
   setStatus("");
   try {
-    const data = await fetchComplaints(token.value, {
-      status: filters.status,
-      page: page.value,
-      size: size.value
-    });
+    const [data] = await Promise.all([
+      fetchComplaints(token.value, {
+        complaintType: filters.complaintType,
+        status: filters.status,
+        page: page.value,
+        size: size.value
+      }),
+      loadSummary()
+    ]);
     records.value = data.records || [];
     total.value = data.total || 0;
     page.value = data.page || 1;
@@ -285,6 +347,13 @@ onMounted(loadComplaints);
 .complaint-page { display: grid; gap: 16px; }
 .complaint-page__head h1 { margin: 0; color: #002660; font-size: 30px; font-weight: 900; letter-spacing: -0.02em; }
 .complaint-page__head p { margin: 6px 0 0; color: #64748b; font-size: 14px; }
+.stats-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+.stat-card { background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 14px; }
+.stat-card span { color: #64748b; font-size: 11px; font-weight: 700; text-transform: uppercase; }
+.stat-card strong { display: block; margin-top: 8px; font-size: 30px; color: #0f172a; }
+.stat-card p { margin: 6px 0 0; color: #64748b; font-size: 12px; line-height: 1.5; }
+.stat-card--primary { background: linear-gradient(120deg, #002660, #003a8c); border-color: #002660; }
+.stat-card--primary span, .stat-card--primary strong, .stat-card--primary p { color: #fff; }
 .filter-card { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 14px; }
 .filter-toolbar { display: flex; align-items: stretch; gap: 14px; flex-wrap: wrap; }
 .filter-grid { flex: 1 1 540px; min-width: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px 14px; padding: 6px 2px; }
@@ -329,6 +398,7 @@ tbody tr:hover { background: #f1f5f9; }
 .status.error { background: #b91c1c; }
 .status.success { background: #166534; }
 @media (max-width: 760px) {
+  .stats-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .filter-grid { grid-template-columns: 1fr; }
   .filter-actions { justify-content: stretch; width: 100%; }
   .filter-actions button { flex: 1; }

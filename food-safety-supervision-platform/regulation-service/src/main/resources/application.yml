@@ -81,6 +81,10 @@ warning:
   internal:
     token: ${WARNING_INTERNAL_TOKEN:warning-internal-token}
 
+user:
+  internal:
+    token: ${USER_INTERNAL_TOKEN:user-internal-token}
+
 platform:
   redis:
     key-prefix: ${PLATFORM_REDIS_KEY_PREFIX:fsp}

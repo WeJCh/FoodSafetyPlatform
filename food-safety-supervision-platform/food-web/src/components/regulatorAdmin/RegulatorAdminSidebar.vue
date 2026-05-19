@@ -16,15 +16,17 @@
         type="button"
         @click="$emit('navigate', item.key)"
       >
-        <span class="material-symbols-outlined">{{ item.icon }}</span>
-        <span>{{ item.label }}</span>
+        <span class="material-symbols-outlined reg-admin-nav__icon">{{ item.icon }}</span>
+        <span class="reg-admin-nav__label">{{ item.label }}</span>
       </button>
     </nav>
 
-    <button type="button" class="reg-admin-logout" @click="$emit('logout')">
-      <span class="material-symbols-outlined">logout</span>
-      <span>退出登录</span>
-    </button>
+    <div class="reg-admin-sidebar__footer">
+      <button type="button" class="reg-admin-logout" @click="$emit('logout')">
+        <span class="material-symbols-outlined">logout</span>
+        <span>退出登录</span>
+      </button>
+    </div>
   </aside>
 </template>
 
@@ -39,15 +41,127 @@ defineEmits(["navigate", "logout"]);
 </script>
 
 <style scoped>
-.reg-admin-sidebar { width: 256px; min-height: 100vh; background: #0f172a; color: #cbd5e1; padding: 24px 16px; display: flex; flex-direction: column; position: fixed; left: 0; top: 0; }
-.reg-admin-brand { display: flex; gap: 12px; align-items: center; margin-bottom: 20px; }
-.reg-admin-brand__logo { width: 40px; height: 40px; border-radius: 8px; display: grid; place-items: center; background: #2563eb; color: #fff; font-weight: 700; }
-.reg-admin-brand__title { margin: 0; color: #fff; font-size: 15px; font-weight: 700; letter-spacing: 0.04em; }
-.reg-admin-nav { display: grid; gap: 6px; flex: 1; overflow: auto; }
-.reg-admin-nav__item { border: 0; background: transparent; color: inherit; border-radius: 8px; padding: 10px 12px; display: flex; gap: 10px; align-items: center; cursor: pointer; text-align: left; }
-.reg-admin-nav__item:hover { background: rgba(51, 65, 85, 0.55); color: #fff; }
-.reg-admin-nav__item.is-active { background: rgba(37, 99, 235, 0.22); color: #bfdbfe; border-left: 3px solid #60a5fa; }
-.reg-admin-logout { border: 1px solid #334155; background: #111827; color: #e2e8f0; padding: 10px 12px; border-radius: 8px; display: flex; align-items: center; gap: 10px; cursor: pointer; margin-top: auto; }
-.reg-admin-sidebar__footer p { margin: 0; font-size: 12px; color: #e2e8f0; }
-.reg-admin-logout:hover { background: #0b1220; color: #fecaca; border-color: rgba(248, 113, 113, 0.35); }
+.reg-admin-sidebar {
+  position: fixed;
+  inset: 0 auto 0 0;
+  width: 256px;
+  min-height: 100vh;
+  padding: 24px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  background: #0f172a;
+  color: #cbd5e1;
+  border-right: none;
+}
+
+.reg-admin-brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 20px;
+  padding: 0;
+}
+
+.reg-admin-brand__logo {
+  width: 40px;
+  height: 40px;
+  display: grid;
+  place-items: center;
+  background: #2563eb;
+  color: #fff;
+  font-weight: 700;
+  border-radius: 8px;
+}
+
+.reg-admin-brand__title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: #fff;
+}
+
+.reg-admin-nav {
+  display: grid;
+  gap: 6px;
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  align-content: start;
+}
+
+.reg-admin-nav__item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 48px;
+  text-align: left;
+  padding: 10px 12px;
+  border: none;
+  border-left: 3px solid transparent;
+  border-radius: 8px;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  transition: background-color 120ms ease, color 120ms ease, border-color 120ms ease;
+}
+
+.reg-admin-nav__item:hover {
+  background: rgba(51, 65, 85, 0.55);
+  color: #fff;
+}
+
+.reg-admin-nav__item.is-active {
+  background: rgba(37, 99, 235, 0.22);
+  border-left-color: #60a5fa;
+  color: #bfdbfe;
+}
+
+.reg-admin-nav__icon {
+  width: 28px;
+  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: currentColor;
+  font-size: 22px;
+  font-weight: normal;
+}
+
+.reg-admin-nav__label {
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.reg-admin-logout {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid rgba(248, 113, 113, 0.35);
+  border-radius: 8px;
+  background: #111827;
+  color: #fecaca;
+  font-size: 13px;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+.reg-admin-logout:hover {
+  background: #0b1220;
+}
+
+.reg-admin-sidebar__footer {
+  margin-top: auto;
+  padding-top: 16px;
+  border-top: 1px solid rgba(148, 163, 184, 0.2);
+  display: grid;
+  gap: 6px;
+}
 </style>

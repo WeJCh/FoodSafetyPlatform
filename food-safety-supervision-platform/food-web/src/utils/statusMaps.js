@@ -91,7 +91,6 @@ export const taskPriorityMap = defineStatus({
 export const samplingTaskStatusMap = defineStatus({
   CREATED: "待派发",
   ASSIGNED: "待抽检",
-  IN_PROGRESS: "抽检中",
   COMPLETED: "已完成",
   CLOSED: "已归档"
 });

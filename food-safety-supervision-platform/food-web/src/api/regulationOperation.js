@@ -207,6 +207,7 @@ export async function findMySamplingTaskById(token, id) {
 
 export function fetchMySamplingTasks(token, params = {}) {
   const search = new URLSearchParams();
+  if (params.enterpriseName) search.append("enterpriseName", params.enterpriseName);
   if (params.status) search.append("status", params.status);
   if (params.page) search.append("page", params.page);
   if (params.size) search.append("size", params.size);

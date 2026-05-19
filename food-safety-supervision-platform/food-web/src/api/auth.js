@@ -71,6 +71,16 @@ export function changeCurrentUserPassword(token, payload) {
   });
 }
 
+export function fetchCurrentUserAuditLogs(token, limit = 10) {
+  const query = limit ? `?limit=${limit}` : "";
+  return request(`/api/users/me/audit-logs${query}`, {
+    method: "GET",
+    headers: {
+      Authorization: `Bearer ${token}`
+    }
+  });
+}
+
 export function verify(token) {
   return request("/api/auth/verify", {
     method: "POST",

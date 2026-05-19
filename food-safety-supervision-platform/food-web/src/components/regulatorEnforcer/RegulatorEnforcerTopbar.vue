@@ -2,27 +2,47 @@
   <header class="enforcer-topbar">
     <div class="enforcer-topbar__left">
       <h1>执法人员</h1>
-      <label class="enforcer-search">
-        <span class="material-symbols-outlined">search</span>
-        <input :placeholder="searchPlaceholder" type="text" />
+      <label class="regulator-topbar-search">
+        <span class="material-symbols-outlined regulator-topbar-search__icon">search</span>
+        <input class="regulator-topbar-search__input" :placeholder="searchPlaceholder" type="text" />
       </label>
     </div>
     <div class="enforcer-topbar__right">
       <button type="button" class="enforcer-topbar__account" title="个人信息" @click="goAccount">
         <span class="material-symbols-outlined">account_circle</span>
       </button>
-      <div class="enforcer-user">
-        <strong>{{ username || "执法账号" }}</strong>
-        <small>执法人员</small>
+      <div class="topbar-user-badge__divider" />
+      <div class="topbar-user-badge">
+        <div class="topbar-user-badge__avatar" aria-hidden="true">{{ userInitials }}</div>
+        <div class="topbar-user-badge__body">
+          <strong class="topbar-user-badge__name">{{ displayName }}</strong>
+          <small class="topbar-user-badge__role">执法人员</small>
+        </div>
       </div>
     </div>
   </header>
 </template>
 
 <script setup>
-defineProps({
+import { computed } from "vue";
+
+const props = defineProps({
   username: { type: String, default: "" },
-  searchPlaceholder: { type: String, default: "搜索功能、任务或企业..." }
+  searchPlaceholder: { type: String, default: "搜索企业、任务或待办事项" }
+});
+
+const displayName = computed(() => props.username?.trim() || "执法账号");
+
+const userInitials = computed(() => {
+  const raw = (props.username || "").trim();
+  if (!raw) return "EF";
+  const parts = raw.split(/[\s@._-]+/).filter(Boolean);
+  const ascii = /^[A-Za-z0-9]+$/.test(raw.replace(/[\s@._-]+/g, ""));
+  if (ascii && parts.length >= 2) {
+    return `${parts[0][0]}${parts[1][0]}`.toUpperCase().slice(0, 2);
+  }
+  if (/[\u4e00-\u9fff]/.test(raw)) return raw.slice(0, 1);
+  return raw.slice(0, 2).toUpperCase();
 });
 
 const emit = defineEmits(["account"]);
@@ -48,41 +68,26 @@ function goAccount() {
   justify-content: space-between;
   z-index: 35;
 }
+
 .enforcer-topbar__left {
   display: flex;
   align-items: center;
   gap: 14px;
 }
+
 .enforcer-topbar__left h1 {
   margin: 0;
   color: #002660;
   font-size: 19px;
   font-weight: 700;
 }
-.enforcer-search {
-  width: 300px;
-  background: #e6e8eb;
-  border-radius: 2px;
-  padding: 7px 10px;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-.enforcer-search span {
-  color: #94a3b8;
-  font-size: 18px;
-}
-.enforcer-search input {
-  border: 0;
-  background: transparent;
-  width: 100%;
-  font-size: 13px;
-}
+
 .enforcer-topbar__right {
   display: flex;
   align-items: center;
   gap: 8px;
 }
+
 .enforcer-topbar__account {
   width: 40px;
   height: 40px;
@@ -95,24 +100,10 @@ function goAccount() {
   justify-content: center;
   cursor: pointer;
 }
+
 .enforcer-topbar__account:hover {
   color: #2563eb;
   border-color: #bfdbfe;
   background: #eff6ff;
-}
-.enforcer-user {
-  border-left: 1px solid #e2e8f0;
-  margin-left: 8px;
-  padding-left: 12px;
-  line-height: 1.2;
-}
-.enforcer-user strong {
-  display: block;
-  color: #0f172a;
-  font-size: 12px;
-}
-.enforcer-user small {
-  color: #64748b;
-  font-size: 10px;
 }
 </style>

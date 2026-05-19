@@ -35,6 +35,10 @@ jwt:
   secret: "foodUserServiceJwtSecretKey123456"
   expiration-minutes: 120
 
+user:
+  internal:
+    token: ${USER_INTERNAL_TOKEN:user-internal-token}
+
 platform:
   redis:
     key-prefix: ${PLATFORM_REDIS_KEY_PREFIX:fsp}

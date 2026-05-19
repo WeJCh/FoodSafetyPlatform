@@ -57,6 +57,7 @@ public class ComplaintDataSupport {
     private final WarningServiceClient warningServiceClient;
     private final ObjectMapper objectMapper;
     private final String regulationInternalToken;
+    private final String userInternalToken;
     private final String warningInternalToken;
 
     public ComplaintDataSupport(ComplaintMapper complaintMapper,
@@ -67,6 +68,8 @@ public class ComplaintDataSupport {
                                 ObjectMapper objectMapper,
                                 @Value("${regulation.internal.token:regulation-internal-token}")
                                 String regulationInternalToken,
+                                @Value("${user.internal.token:user-internal-token}")
+                                String userInternalToken,
                                 @Value("${warning.internal.token:warning-internal-token}")
                                 String warningInternalToken) {
         this.complaintMapper = complaintMapper;
@@ -76,6 +79,7 @@ public class ComplaintDataSupport {
         this.warningServiceClient = warningServiceClient;
         this.objectMapper = objectMapper;
         this.regulationInternalToken = regulationInternalToken;
+        this.userInternalToken = userInternalToken;
         this.warningInternalToken = warningInternalToken;
     }
 
@@ -256,7 +260,7 @@ public class ComplaintDataSupport {
         if (userId == null) {
             throw new IllegalArgumentException("unauthorized");
         }
-        ApiResponse<UserVO> response = userServiceClient.getUserById(userId);
+        ApiResponse<UserVO> response = userServiceClient.getUserById(userId, userInternalToken);
         if (response == null || !response.isSuccess() || response.getData() == null) {
             throw new IllegalArgumentException("public user not found");
         }

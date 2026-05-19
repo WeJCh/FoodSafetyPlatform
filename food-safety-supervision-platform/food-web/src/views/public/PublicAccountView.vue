@@ -33,100 +33,139 @@
             </div>
           </section>
 
-          <section class="account-card">
-            <div class="section-head">
-              <div class="section-head__title">
-                <span class="material-symbols-outlined">person</span>
-                <div>
-                  <h2>基本信息</h2>
-                  <p>这里仅维护当前公众账号的基础资料。</p>
+          <div class="account-layout__overview">
+            <section class="account-card">
+              <div class="section-head">
+                <div class="section-head__title">
+                  <span class="material-symbols-outlined">person</span>
+                  <div>
+                    <h2>基本信息</h2>
+                    <p>这里仅维护当前公众账号的基础资料。</p>
+                  </div>
+                </div>
+                <div class="section-head__actions">
+                  <button
+                    v-if="!editingBasic"
+                    type="button"
+                    class="ghost-btn"
+                    :disabled="loading"
+                    @click="startBasicEdit"
+                  >
+                    编辑资料
+                  </button>
+                  <template v-else>
+                    <button type="button" class="ghost-btn" :disabled="savingBasic" @click="cancelBasicEdit">取消</button>
+                    <button type="button" class="primary-btn" :disabled="savingBasic || loading" @click="handleBasicSave">
+                      {{ savingBasic ? "保存中..." : "保存基本信息" }}
+                    </button>
+                  </template>
                 </div>
               </div>
-              <div class="section-head__actions">
-                <button
-                  v-if="!editingBasic"
-                  type="button"
-                  class="ghost-btn"
-                  :disabled="loading"
-                  @click="startBasicEdit"
-                >
-                  编辑资料
-                </button>
-                <template v-else>
-                  <button type="button" class="ghost-btn" :disabled="savingBasic" @click="cancelBasicEdit">取消</button>
-                  <button type="button" class="primary-btn" :disabled="savingBasic || loading" @click="handleBasicSave">
-                    {{ savingBasic ? "保存中..." : "保存基本信息" }}
-                  </button>
-                </template>
-              </div>
-            </div>
 
-            <div class="info-panel">
-              <div v-if="!editingBasic" class="field-grid">
-                <article class="field-card">
-                  <span>鐪熷疄濮撳悕</span>
-                  <strong>{{ currentUser.realName || "-" }}</strong>
-                </article>
-                <article class="field-card">
-                  <span>账号类型</span>
-                  <strong>{{ roleLabel }}</strong>
-                </article>
-                <article class="field-card">
-                  <span>手机号</span>
-                  <strong>{{ currentUser.phone || "-" }}</strong>
-                </article>
-                <article class="field-card">
-                  <span>登录账号</span>
-                  <strong>{{ currentUser.username || publicUser.username || "-" }}</strong>
-                </article>
-                <article class="field-card">
-                  <span>账号状态</span>
-                  <strong>{{ userStatusLabel }}</strong>
-                </article>
-                <article class="field-card">
-                  <span>最近更新时间</span>
-                  <strong>{{ accountUpdatedAt }}</strong>
-                </article>
+              <div class="info-panel">
+                <div v-if="!editingBasic" class="field-grid">
+                  <article class="field-card">
+                    <span>真实姓名</span>
+                    <strong>{{ currentUser.realName || "-" }}</strong>
+                  </article>
+                  <article class="field-card">
+                    <span>账号类型</span>
+                    <strong>{{ roleLabel }}</strong>
+                  </article>
+                  <article class="field-card">
+                    <span>手机号</span>
+                    <strong>{{ currentUser.phone || "-" }}</strong>
+                  </article>
+                  <article class="field-card">
+                    <span>登录账号</span>
+                    <strong>{{ currentUser.username || publicUser.username || "-" }}</strong>
+                  </article>
+                  <article class="field-card">
+                    <span>账号状态</span>
+                    <strong>{{ userStatusLabel }}</strong>
+                  </article>
+                  <article class="field-card">
+                    <span>最近更新时间</span>
+                    <strong>{{ accountUpdatedAt }}</strong>
+                  </article>
+                </div>
+
+                <div v-else class="field-grid">
+                  <label class="field">
+                    <span>真实姓名</span>
+                    <input v-model="basicForm.realName" type="text" :disabled="savingBasic" />
+                  </label>
+                  <label class="field">
+                    <span>账号类型</span>
+                    <input :value="roleLabel" type="text" readonly />
+                  </label>
+                  <label class="field">
+                    <span>手机号</span>
+                    <input
+                      v-model="basicForm.phone"
+                      type="tel"
+                      inputmode="numeric"
+                      maxlength="11"
+                      :disabled="savingBasic"
+                    />
+                  </label>
+                  <label class="field">
+                    <span>登录账号</span>
+                    <input :value="currentUser.username || publicUser.username || '-'" type="text" readonly />
+                  </label>
+                  <label class="field">
+                    <span>账号状态</span>
+                    <input :value="userStatusLabel" type="text" readonly />
+                  </label>
+                  <label class="field">
+                    <span>最近更新时间</span>
+                    <input :value="accountUpdatedAt" type="text" readonly />
+                  </label>
+                </div>
               </div>
 
-              <div v-else class="field-grid">
-                <label class="field">
-                  <span>鐪熷疄濮撳悕</span>
-                  <input v-model="basicForm.realName" type="text" :disabled="savingBasic" />
-                </label>
-                <label class="field">
-                  <span>账号类型</span>
-                  <input :value="roleLabel" type="text" readonly />
-                </label>
-                <label class="field">
-                  <span>手机号</span>
-                  <input
-                    v-model="basicForm.phone"
-                    type="tel"
-                    inputmode="numeric"
-                    maxlength="11"
-                    :disabled="savingBasic"
-                  />
-                </label>
-                <label class="field">
-                  <span>登录账号</span>
-                  <input :value="currentUser.username || publicUser.username || '-'" type="text" readonly />
-                </label>
-                <label class="field">
-                  <span>账号状态</span>
-                  <input :value="userStatusLabel" type="text" readonly />
-                </label>
-                <label class="field">
-                  <span>最近更新时间</span>
-                  <input :value="accountUpdatedAt" type="text" readonly />
-                </label>
+              <div v-if="basicMessage.message" class="inline-feedback" :class="`is-${basicMessage.type}`">
+                {{ basicMessage.message }}
               </div>
-            </div>
+            </section>
 
-            <div v-if="basicMessage.message" class="inline-feedback" :class="`is-${basicMessage.type}`">
-              {{ basicMessage.message }}
-            </div>
-          </section>
+            <section class="account-card account-card--log-side">
+              <div class="section-head">
+                <div class="section-head__title">
+                  <span class="material-symbols-outlined">history</span>
+                  <div>
+                    <h2>账户变更记录</h2>
+                    <p>展示当前账号最近的资料、密码与权限变更记录。</p>
+                  </div>
+                </div>
+              </div>
+
+              <div class="log-list">
+                <article v-if="loadingLogs" class="log-record">
+                  <div class="log-record__head">
+                    <strong>正在加载账户变更记录...</strong>
+                  </div>
+                </article>
+                <article v-for="item in accountLogs" :key="item.id || item.createTime || item.actionType" class="log-record">
+                  <div class="log-record__head">
+                    <strong>{{ resolveAuditLogTitle(item) }}</strong>
+                    <span>{{ formatTime(item.createTime) || "-" }}</span>
+                  </div>
+                  <p v-if="resolveAuditLogDetail(item)" class="log-record__detail">
+                    {{ resolveAuditLogDetail(item) }}
+                  </p>
+                  <div class="log-record__meta">
+                    <span>操作人</span>
+                    <strong>{{ item.operatorName || "系统" }}</strong>
+                  </div>
+                </article>
+                <article v-if="!loadingLogs && !accountLogs.length" class="log-record">
+                  <div class="log-record__head">
+                    <strong>当前暂无账户变更记录。</strong>
+                  </div>
+                </article>
+              </div>
+            </section>
 
           <section class="account-card">
             <div class="section-head">
@@ -181,6 +220,8 @@
               </button>
             </div>
           </section>
+          </div>
+
         </div>
       </section>
     </main>
@@ -191,7 +232,7 @@
 import { computed, onMounted, reactive, ref } from "vue";
 import { useRouter } from "vue-router";
 import PublicWorkspacePage from "../../components/public/PublicWorkspacePage.vue";
-import { changeCurrentUserPassword, fetchCurrentUser, updateCurrentUser } from "../../api/auth";
+import { changeCurrentUserPassword, fetchCurrentUser, fetchCurrentUserAuditLogs, updateCurrentUser } from "../../api/auth";
 import { getActiveSession, performLogout } from "../../session/authRuntime";
 import { formatTime } from "../../utils/formatters";
 import { resolveErrorMessage } from "../../utils/uiFeedback";
@@ -201,9 +242,11 @@ const publicUser = computed(() => getActiveSession() || {});
 const publicToken = computed(() => getActiveSession()?.token || "");
 
 const loading = ref(false);
+const loadingLogs = ref(false);
 const savingBasic = ref(false);
 const savingPassword = ref(false);
 const editingBasic = ref(false);
+const accountLogs = ref([]);
 
 const currentUser = reactive({
   username: "",
@@ -253,6 +296,16 @@ function syncBasicForm() {
   basicSnapshot.phone = basicForm.phone;
 }
 
+function resolveAuditLogTitle(item) {
+  return item?.actionName || item?.summary || item?.remark || "账户变更";
+}
+
+function resolveAuditLogDetail(item) {
+  const detail = String(item?.summary || item?.remark || "").trim();
+  const title = String(resolveAuditLogTitle(item) || "").trim();
+  return detail && detail !== title ? detail : "";
+}
+
 function startBasicEdit() {
   editingBasic.value = true;
   basicMessage.message = "";
@@ -270,12 +323,27 @@ async function handleLogout() {
   router.replace({ name: "login" }).catch(() => {});
 }
 
+async function loadAccountLogs() {
+  loadingLogs.value = true;
+  try {
+    const logData = await fetchCurrentUserAuditLogs(publicToken.value, 6);
+    accountLogs.value = Array.isArray(logData) ? logData.slice(0, 6) : [];
+  } catch (error) {
+    accountLogs.value = [];
+  } finally {
+    loadingLogs.value = false;
+  }
+}
+
 async function loadPageData() {
   loading.value = true;
   basicMessage.message = "";
   passwordMessage.message = "";
   try {
-    const userData = await fetchCurrentUser(publicToken.value);
+    const [userData] = await Promise.all([
+      fetchCurrentUser(publicToken.value),
+      loadAccountLogs()
+    ]);
     fillCurrentUser(userData || {});
     syncBasicForm();
   } catch (error) {
@@ -297,6 +365,7 @@ async function handleBasicSave() {
     const userData = await updateCurrentUser(publicToken.value, payload);
     fillCurrentUser(userData || {});
     syncBasicForm();
+    await loadAccountLogs();
     editingBasic.value = false;
     basicMessage.message = "基本信息已更新。";
     basicMessage.type = "success";
@@ -441,9 +510,30 @@ onMounted(() => {
 }
 
 .account-layout__main {
-  width: min(100%, 920px);
+  width: 100%;
   display: grid;
   gap: 20px;
+}
+
+.account-layout__overview {
+  display: grid;
+  grid-template-columns: minmax(0, 1.85fr) minmax(320px, 0.95fr);
+  gap: 20px;
+  align-items: start;
+}
+
+.account-layout__overview > :first-child {
+  grid-column: 1 / -1;
+}
+
+.account-layout__overview > :nth-child(2) {
+  grid-column: 2;
+  grid-row: 2;
+}
+
+.account-layout__overview > :nth-child(3) {
+  grid-column: 1;
+  grid-row: 2;
 }
 
 .account-card {
@@ -456,6 +546,10 @@ onMounted(() => {
 
 .account-card--hero {
   padding: 14px 18px;
+}
+
+.account-card--log-side {
+  min-height: 100%;
 }
 
 .hero-profile {
@@ -577,7 +671,8 @@ onMounted(() => {
   gap: 10px;
 }
 
-.info-panel {
+.info-panel,
+.log-list {
   margin: 16px 18px 18px;
   padding: 18px;
   background: var(--surface-container-low);
@@ -696,6 +791,60 @@ onMounted(() => {
   padding: 14px 18px 18px;
 }
 
+.log-record {
+  display: grid;
+  gap: 8px;
+  padding: 12px;
+  border: 1px solid rgba(195, 198, 211, 0.5);
+  background: #ffffff;
+}
+
+.log-record + .log-record {
+  margin-top: 14px;
+}
+
+.log-record__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.log-record__head strong {
+  color: var(--on-surface);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.log-record__head span {
+  color: var(--on-surface-variant);
+  font-size: 11px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.log-record__detail {
+  margin: 0;
+  color: #334155;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.log-record__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  color: var(--on-surface-variant);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.log-record__meta strong {
+  color: #334155;
+  font-size: 11px;
+  font-weight: 700;
+}
+
 .security-submit-btn,
 .ghost-btn,
 .primary-btn {
@@ -753,8 +902,16 @@ onMounted(() => {
 }
 
 @media (max-width: 1180px) {
+  .account-layout__overview,
   .security-panel {
     grid-template-columns: 1fr;
+  }
+
+  .account-layout__overview > :first-child,
+  .account-layout__overview > :nth-child(2),
+  .account-layout__overview > :nth-child(3) {
+    grid-column: auto;
+    grid-row: auto;
   }
 }
 
@@ -784,8 +941,13 @@ onMounted(() => {
   }
 
   .info-panel,
-  .security-panel {
+  .security-panel,
+  .log-list {
     padding: 14px;
+  }
+
+  .log-record__head {
+    flex-direction: column;
   }
 }
 </style>

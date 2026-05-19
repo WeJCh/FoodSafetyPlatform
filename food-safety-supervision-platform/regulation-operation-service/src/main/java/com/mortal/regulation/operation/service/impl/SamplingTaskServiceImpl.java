@@ -174,7 +174,7 @@ public class SamplingTaskServiceImpl implements SamplingTaskService {
             ACTION_SAMPLING_ASSIGN,
             before,
             task,
-            "assignedTo=" + assignee.getId());
+            "已分派给执法人员 " + resolveRegulatorDisplayName(assignee));
         return toVO(task,
             loadEnterpriseNames(List.of(task)),
             loadProductSummaries(List.of(task)),
@@ -232,6 +232,7 @@ public class SamplingTaskServiceImpl implements SamplingTaskService {
      */
     @Override
     public PageResult<SamplingTaskVO> listTasksForEnforcer(Long userId,
+                                                           String enterpriseName,
                                                            String status,
                                                            int page,
                                                            int size) {
@@ -239,6 +240,13 @@ public class SamplingTaskServiceImpl implements SamplingTaskService {
         LambdaQueryWrapper<SamplingTask> wrapper = new LambdaQueryWrapper<SamplingTask>()
             .eq(SamplingTask::getDeleted, 0)
             .eq(SamplingTask::getAssignedTo, regulator.getId());
+        if (StringUtils.hasText(enterpriseName)) {
+            List<Long> enterpriseIds = masterDataSupport.queryEnterpriseIdsByName(enterpriseName);
+            if (enterpriseIds == null || enterpriseIds.isEmpty()) {
+                return PageResult.of(List.of(), 0, page, size);
+            }
+            wrapper.in(SamplingTask::getEnterpriseId, enterpriseIds);
+        }
         if (StringUtils.hasText(status)) {
             wrapper.eq(SamplingTask::getStatus, normalize(status));
         }
@@ -296,7 +304,7 @@ public class SamplingTaskServiceImpl implements SamplingTaskService {
             ACTION_SAMPLING_RESULT_SUBMIT,
             null,
             result,
-            "taskId=" + task.getId());
+            "已提交抽检结果，结论：" + resolveSamplingResultLabel(result.getResult()));
         samplingPublicCacheService.evict(result.getId());
 
         if (RESULT_FAIL.equals(result.getResult())) {
@@ -335,7 +343,7 @@ public class SamplingTaskServiceImpl implements SamplingTaskService {
                 ACTION_SAMPLING_RESULT_PUBLISH,
                 before,
                 result,
-                null
+                "抽检结果已对外公示"
             );
             samplingPublicCacheService.evict(resultId);
         }
@@ -367,7 +375,7 @@ public class SamplingTaskServiceImpl implements SamplingTaskService {
             ACTION_SAMPLING_RESULT_OFFLINE,
             before,
             result,
-            null
+            "抽检结果已从公示中下线"
         );
         samplingPublicCacheService.evict(resultId);
         return toResultVO(result, task,
@@ -846,6 +854,30 @@ public class SamplingTaskServiceImpl implements SamplingTaskService {
 
     private String normalize(String value) {
         return StringUtils.hasText(value) ? value.trim().toUpperCase() : null;
+    }
+
+    private String resolveRegulatorDisplayName(InternalRegulatorIdentityVO regulator) {
+        if (regulator == null) {
+            return "未指定人员";
+        }
+        if (StringUtils.hasText(regulator.getName())) {
+            return regulator.getName().trim();
+        }
+        if (StringUtils.hasText(regulator.getUsername())) {
+            return regulator.getUsername().trim();
+        }
+        return "未指定人员";
+    }
+
+    private String resolveSamplingResultLabel(String result) {
+        String normalized = normalize(result);
+        if (RESULT_FAIL.equals(normalized)) {
+            return "不合格";
+        }
+        if (RESULT_PASS.equals(normalized)) {
+            return "合格";
+        }
+        return "待确认";
     }
 
     private String lookupName(Map<Long, String> source, Long id) {

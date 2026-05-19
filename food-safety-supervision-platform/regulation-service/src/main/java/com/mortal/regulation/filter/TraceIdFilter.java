@@ -15,6 +15,8 @@ public class TraceIdFilter extends OncePerRequestFilter {
 
     public static final String TRACE_ID_HEADER = "X-Trace-Id";
     public static final String USER_ID_HEADER = "X-User-Id";
+    public static final String USERNAME_HEADER = "X-Username";
+    public static final String USER_TYPE_HEADER = "X-User-Type";
     public static final String USER_ROLES_HEADER = "X-User-Roles";
 
     @Override

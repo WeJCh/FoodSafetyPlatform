@@ -53,6 +53,7 @@ public interface SamplingTaskService {
      * @return 抽检任务列表
      */
     PageResult<SamplingTaskVO> listTasksForEnforcer(Long userId,
+                                                    String enterpriseName,
                                                     String status,
                                                     int page,
                                                     int size);

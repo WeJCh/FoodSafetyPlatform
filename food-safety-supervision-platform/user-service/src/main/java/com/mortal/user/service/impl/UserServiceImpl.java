@@ -18,11 +18,14 @@ import com.mortal.user.enums.UserType;
 import com.mortal.user.mapper.RoleMapper;
 import com.mortal.user.mapper.UserMapper;
 import com.mortal.user.mapper.UserRoleMapper;
+import com.mortal.user.service.AuditLogService;
 import com.mortal.user.service.AuthRedisService;
 import com.mortal.user.service.AuthSessionCacheValue;
 import com.mortal.user.service.UserService;
+import com.mortal.user.support.UserAuditSupport;
 import com.mortal.user.util.PasswordEncoderUtil;
 import com.mortal.user.util.TokenUtil;
+import com.mortal.user.vo.AuditLogVO;
 import com.mortal.user.vo.UserVO;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -34,26 +37,58 @@ import org.springframework.util.StringUtils;
 @Service
 public class UserServiceImpl implements UserService {
 
+    private static final String AUDIT_TARGET_TYPE_USER = "USER";
+    private static final String AUDIT_BIZ_TYPE_USER = "USER";
+    private static final String ACTION_USER_REGISTER = "USER_REGISTER";
+    private static final String ACTION_USER_REGISTER_PUBLIC = "USER_REGISTER_PUBLIC";
+    private static final String ACTION_USER_REGISTER_ENTERPRISE = "USER_REGISTER_ENTERPRISE";
+    private static final String ACTION_USER_CREATE_REGULATOR = "USER_CREATE_REGULATOR";
+    private static final String ACTION_USER_ADMIN_UPDATE = "USER_ADMIN_UPDATE";
+    private static final String ACTION_USER_SELF_UPDATE = "USER_SELF_UPDATE";
+    private static final String ACTION_USER_PASSWORD_CHANGE = "USER_PASSWORD_CHANGE";
+    private static final String ACTION_USER_DELETE = "USER_DELETE";
+
     private final UserMapper userMapper;
     private final TokenUtil tokenUtil;
     private final RoleMapper roleMapper;
     private final UserRoleMapper userRoleMapper;
     private final AuthRedisService authRedisService;
+    private final AuditLogService auditLogService;
+    private final UserAuditSupport userAuditSupport;
 
     public UserServiceImpl(UserMapper userMapper,
                            TokenUtil tokenUtil,
                            RoleMapper roleMapper,
                            UserRoleMapper userRoleMapper,
-                           AuthRedisService authRedisService) {
+                           AuthRedisService authRedisService,
+                           AuditLogService auditLogService,
+                           UserAuditSupport userAuditSupport) {
         this.userMapper = userMapper;
         this.tokenUtil = tokenUtil;
         this.roleMapper = roleMapper;
         this.userRoleMapper = userRoleMapper;
         this.authRedisService = authRedisService;
+        this.auditLogService = auditLogService;
+        this.userAuditSupport = userAuditSupport;
     }
 
     @Override
-    public UserVO register(UserRegisterDTO dto) {
+    public UserVO registerPublic(PublicRegisterDTO dto) {
+        return register(buildRegisterDTO(dto, UserType.PUBLIC.code()), ACTION_USER_REGISTER_PUBLIC);
+    }
+
+    @Override
+    public UserVO registerEnterprise(PublicRegisterDTO dto) {
+        return register(buildRegisterDTO(dto, UserType.ENTERPRISE.code()), ACTION_USER_REGISTER_ENTERPRISE);
+    }
+
+    @Override
+    public UserVO createRegulator(UserRegisterDTO dto) {
+        dto.setUserType(UserType.REGULATOR.code());
+        return register(dto, ACTION_USER_CREATE_REGULATOR);
+    }
+
+    private UserVO register(UserRegisterDTO dto, String forcedActionType) {
         String rawUserType = normalize(dto.getUserType());
         String roleCode = normalize(dto.getRoleCode());
         String userType = rawUserType;
@@ -67,20 +102,21 @@ public class UserServiceImpl implements UserService {
         if (!UserType.isValid(userType)) {
             throw new IllegalArgumentException("invalid user type");
         }
+        String resolvedRoleCode = resolveRoleCode(userType, roleCode);
         User user = createBaseUser(dto.getUsername(), dto.getPassword(), dto.getRealName(), dto.getPhone(), userType);
-        bindRoleByCode(user.getId(), resolveRoleCode(userType, roleCode));
+        bindRoleByCode(user.getId(), resolvedRoleCode);
+        List<String> roleCodes = loadRoleCodes(user.getId());
+        RegistrationAuditAction auditAction = resolveRegistrationAuditAction(forcedActionType, userType, resolvedRoleCode);
+        recordUserAudit(
+            resolveRegistrationOperator(user, auditAction.selfRegistration()),
+            user,
+            auditAction.actionType(),
+            auditAction.actionName(),
+            "{}",
+            userAuditSupport.writeUserSnapshot(user, roleCodes),
+            auditAction.remark()
+        );
         return toUserVO(user);
-    }
-
-    @Override
-    public UserVO registerPublic(PublicRegisterDTO dto) {
-        UserRegisterDTO registerDTO = new UserRegisterDTO();
-        registerDTO.setUsername(dto.getUsername());
-        registerDTO.setPassword(dto.getPassword());
-        registerDTO.setRealName(dto.getRealName());
-        registerDTO.setPhone(dto.getPhone());
-        registerDTO.setUserType(UserType.PUBLIC.code());
-        return register(registerDTO);
     }
 
     @Override
@@ -154,11 +190,22 @@ public class UserServiceImpl implements UserService {
         if (user == null || (user.getDeleted() != null && user.getDeleted() == 1)) {
             throw new IllegalArgumentException("user not found");
         }
+        List<String> roleCodes = loadRoleCodes(user.getId());
+        String beforeData = userAuditSupport.writeUserSnapshot(user, roleCodes);
         user.setRealName(dto.getRealName());
         user.setPhone(dto.getPhone());
         user.setStatus(dto.getStatus());
         user.setUpdateTime(LocalDateTime.now());
         userMapper.updateById(user);
+        recordUserAudit(
+            userAuditSupport.resolveCurrentOperator(),
+            user,
+            ACTION_USER_ADMIN_UPDATE,
+            "\u66F4\u65B0\u7528\u6237\u4FE1\u606F",
+            beforeData,
+            userAuditSupport.writeUserSnapshot(user, roleCodes),
+            "\u66F4\u65B0\u7528\u6237\u4FE1\u606F"
+        );
         authRedisService.invalidateUserAllSessions(user.getId());
         return toUserVO(user);
     }
@@ -166,18 +213,31 @@ public class UserServiceImpl implements UserService {
     @Override
     public UserVO updateCurrentUser(String token, UserSelfUpdateDTO dto) {
         User user = requireActiveUser(requireUserId(token));
+        List<String> roleCodes = loadRoleCodes(user.getId());
+        String beforeData = userAuditSupport.writeUserSnapshot(user, roleCodes);
         user.setRealName(dto.getRealName());
         user.setPhone(dto.getPhone());
         user.setUpdateTime(LocalDateTime.now());
         userMapper.updateById(user);
+        recordUserAudit(
+            resolveSelfOperator(user),
+            user,
+            ACTION_USER_SELF_UPDATE,
+            "\u4FEE\u6539\u4E2A\u4EBA\u4FE1\u606F",
+            beforeData,
+            userAuditSupport.writeUserSnapshot(user, roleCodes),
+            "\u4FEE\u6539\u4E2A\u4EBA\u4FE1\u606F"
+        );
         UserVO vo = toUserVO(user);
-        vo.setRoles(loadRoleCodes(user.getId()));
+        vo.setRoles(roleCodes);
         return vo;
     }
 
     @Override
     public void changeCurrentUserPassword(String token, UserPasswordChangeDTO dto) {
         User user = requireActiveUser(requireUserId(token));
+        List<String> roleCodes = loadRoleCodes(user.getId());
+        String beforeData = userAuditSupport.writeUserSnapshot(user, roleCodes);
         if (!PasswordEncoderUtil.matches(dto.getOldPassword(), user.getPassword())) {
             throw new IllegalArgumentException("old password incorrect");
         }
@@ -187,7 +247,22 @@ public class UserServiceImpl implements UserService {
         user.setPassword(PasswordEncoderUtil.encode(dto.getNewPassword()));
         user.setUpdateTime(LocalDateTime.now());
         userMapper.updateById(user);
+        recordUserAudit(
+            resolveSelfOperator(user),
+            user,
+            ACTION_USER_PASSWORD_CHANGE,
+            "\u4FEE\u6539\u5BC6\u7801",
+            beforeData,
+            userAuditSupport.writeUserSnapshot(user, roleCodes),
+            "\u53D1\u751F\u4E86\u5BC6\u7801\u53D8\u66F4"
+        );
         authRedisService.invalidateUserAllSessions(user.getId());
+    }
+
+    @Override
+    public List<AuditLogVO> listCurrentUserAuditLogs(String token, int limit) {
+        User user = requireActiveUser(requireUserId(token));
+        return auditLogService.listTargetLogs(AUDIT_TARGET_TYPE_USER, user.getId(), limit);
     }
 
     @Override
@@ -196,6 +271,8 @@ public class UserServiceImpl implements UserService {
         if (user == null || (user.getDeleted() != null && user.getDeleted() == 1)) {
             return;
         }
+        List<String> roleCodes = loadRoleCodes(id);
+        String beforeData = userAuditSupport.writeUserSnapshot(user, roleCodes);
         user.setDeleted(1);
         user.setStatus(UserStatus.DISABLED.code());
         user.setUpdateTime(LocalDateTime.now());
@@ -203,6 +280,15 @@ public class UserServiceImpl implements UserService {
         userRoleMapper.update(null, new LambdaUpdateWrapper<UserRole>()
             .eq(UserRole::getUserId, id)
             .set(UserRole::getDeleted, 1));
+        recordUserAudit(
+            userAuditSupport.resolveCurrentOperator(),
+            user,
+            ACTION_USER_DELETE,
+            "\u5220\u9664\u7528\u6237",
+            beforeData,
+            userAuditSupport.writeUserSnapshot(user, List.of()),
+            "\u5220\u9664\u7528\u6237"
+        );
         authRedisService.invalidateUserAllSessions(id);
     }
 
@@ -236,6 +322,115 @@ public class UserServiceImpl implements UserService {
         vo.setCreateTime(user.getCreateTime());
         vo.setUpdateTime(user.getUpdateTime());
         return vo;
+    }
+
+    private UserRegisterDTO buildRegisterDTO(PublicRegisterDTO dto, String userType) {
+        UserRegisterDTO registerDTO = new UserRegisterDTO();
+        registerDTO.setUsername(dto.getUsername());
+        registerDTO.setPassword(dto.getPassword());
+        registerDTO.setRealName(dto.getRealName());
+        registerDTO.setPhone(dto.getPhone());
+        registerDTO.setUserType(userType);
+        return registerDTO;
+    }
+
+    private RegistrationAuditAction resolveRegistrationAuditAction(String forcedActionType,
+                                                                  String userType,
+                                                                  String resolvedRoleCode) {
+        if (ACTION_USER_REGISTER_PUBLIC.equals(forcedActionType)) {
+            return new RegistrationAuditAction(
+                ACTION_USER_REGISTER_PUBLIC,
+                "\u516C\u4F17\u7528\u6237\u6CE8\u518C",
+                true,
+                "\u516C\u4F17\u7528\u6237\u5B8C\u6210\u6CE8\u518C"
+            );
+        }
+        if (ACTION_USER_REGISTER_ENTERPRISE.equals(forcedActionType)) {
+            return new RegistrationAuditAction(
+                ACTION_USER_REGISTER_ENTERPRISE,
+                "\u4F01\u4E1A\u7528\u6237\u6CE8\u518C",
+                true,
+                "\u4F01\u4E1A\u7528\u6237\u5B8C\u6210\u6CE8\u518C"
+            );
+        }
+        if (ACTION_USER_CREATE_REGULATOR.equals(forcedActionType)) {
+            return new RegistrationAuditAction(
+                ACTION_USER_CREATE_REGULATOR,
+                "\u521B\u5EFA\u76D1\u7BA1\u8D26\u53F7",
+                false,
+                buildCreateRegulatorRemark(resolvedRoleCode)
+            );
+        }
+        if (UserType.PUBLIC.code().equals(userType)) {
+            return new RegistrationAuditAction(
+                ACTION_USER_REGISTER_PUBLIC,
+                "\u516C\u4F17\u7528\u6237\u6CE8\u518C",
+                true,
+                "\u516C\u4F17\u7528\u6237\u5B8C\u6210\u6CE8\u518C"
+            );
+        }
+        if (UserType.ENTERPRISE.code().equals(userType)) {
+            return new RegistrationAuditAction(
+                ACTION_USER_REGISTER_ENTERPRISE,
+                "\u4F01\u4E1A\u7528\u6237\u6CE8\u518C",
+                true,
+                "\u4F01\u4E1A\u7528\u6237\u5B8C\u6210\u6CE8\u518C"
+            );
+        }
+        if (UserType.REGULATOR.code().equals(userType)) {
+            return new RegistrationAuditAction(
+                ACTION_USER_CREATE_REGULATOR,
+                "\u521B\u5EFA\u76D1\u7BA1\u8D26\u53F7",
+                false,
+                buildCreateRegulatorRemark(resolvedRoleCode)
+            );
+        }
+        return new RegistrationAuditAction(
+            ACTION_USER_REGISTER,
+            "\u6CE8\u518C\u7528\u6237",
+            false,
+            "\u5B8C\u6210\u7528\u6237\u6CE8\u518C"
+        );
+    }
+
+    private UserAuditSupport.AuditActor resolveRegistrationOperator(User createdUser, boolean selfRegistration) {
+        UserAuditSupport.AuditActor operator = userAuditSupport.resolveCurrentOperator();
+        if (operator != null) {
+            return operator;
+        }
+        return selfRegistration ? userAuditSupport.actorFromUser(createdUser) : null;
+    }
+
+    private UserAuditSupport.AuditActor resolveSelfOperator(User user) {
+        UserAuditSupport.AuditActor operator = userAuditSupport.resolveCurrentOperator();
+        return operator != null ? operator : userAuditSupport.actorFromUser(user);
+    }
+
+    private void recordUserAudit(UserAuditSupport.AuditActor operator,
+                                 User targetUser,
+                                 String actionType,
+                                 String actionName,
+                                 String beforeData,
+                                 String afterData,
+                                 String remark) {
+        if (targetUser == null || targetUser.getId() == null) {
+            return;
+        }
+        auditLogService.recordAudit(
+            operator == null ? null : operator.userId(),
+            operator == null ? null : operator.userType(),
+            operator == null ? null : operator.operatorName(),
+            AUDIT_TARGET_TYPE_USER,
+            targetUser.getId(),
+            targetUser.getId(),
+            userAuditSupport.buildTargetName(targetUser),
+            AUDIT_BIZ_TYPE_USER,
+            actionType,
+            actionName,
+            beforeData,
+            afterData,
+            userAuditSupport.normalizeText(remark)
+        );
     }
 
     private Long requireUserId(String token) {
@@ -328,5 +523,19 @@ public class UserServiceImpl implements UserService {
 
     private String normalize(String value) {
         return StringUtils.hasText(value) ? value.trim().toUpperCase() : null;
+    }
+
+    private String buildCreateRegulatorRemark(String roleCode) {
+        String roleDisplayName = userAuditSupport.resolveRoleDisplayName(roleCode);
+        if (StringUtils.hasText(roleDisplayName)) {
+            return "\u521B\u5EFA\u76D1\u7BA1\u8D26\u53F7\uFF1A" + roleDisplayName;
+        }
+        return "\u521B\u5EFA\u76D1\u7BA1\u8D26\u53F7";
+    }
+
+    private record RegistrationAuditAction(String actionType,
+                                           String actionName,
+                                           boolean selfRegistration,
+                                           String remark) {
     }
 }

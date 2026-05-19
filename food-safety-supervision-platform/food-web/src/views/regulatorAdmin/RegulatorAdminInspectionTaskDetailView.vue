@@ -58,8 +58,8 @@
       <div v-else-if="!task" class="status error">未找到该任务或当前账号无权查看。</div>
 
       <section v-else class="detail-layout">
-        <div class="left">
-          <article class="card card-accent">
+        <div class="task-detail-main">
+          <article class="task-card task-card-accent">
             <h2>任务要求说明</h2>
             <p>{{ task.taskDesc || "暂无任务描述" }}</p>
             <div class="meta-grid">
@@ -82,8 +82,8 @@
             </div>
           </article>
 
-          <article class="card">
-            <div class="card-head">
+          <article class="task-card">
+            <div class="task-card-head">
               <h2>检查项目清单概览</h2>
               <span>{{ inspectionOverviewHint }}</span>
             </div>
@@ -116,8 +116,8 @@
           </article>
         </div>
 
-        <aside class="right">
-          <article class="card">
+        <aside class="task-detail-side">
+          <article class="task-card">
             <h2>状态流转时间线</h2>
             <ul v-if="timelineItems.length" class="timeline">
               <li v-for="item in timelineItems" :key="item.key">
@@ -129,7 +129,7 @@
             <div v-else class="timeline-empty">暂无操作日志</div>
           </article>
 
-          <article class="card">
+          <article class="task-card">
             <h2>企业地理信息</h2>
             <div class="info-list">
               <p><span>详细地址</span><strong>{{ enterprise?.addressDetail || "-" }}</strong></p>
@@ -405,38 +405,39 @@ watch(
   gap: 16px;
   align-items: start;
 }
-.left,
-.right {
+.task-detail-main,
+.task-detail-side {
   display: grid;
   gap: 16px;
   min-width: 0;
   align-content: start;
   width: 100%;
 }
-.left {
+.task-detail-main {
   grid-column: 1;
 }
-.right {
+.task-detail-side {
   grid-column: 2;
   max-width: 360px;
   justify-self: end;
 }
-.card {
+.task-card {
   border: 1px solid #e2e8f0;
   border-radius: 12px;
   background: #fff;
   padding: 18px;
   box-shadow: 0 10px 30px rgba(15, 23, 42, 0.05);
   width: 100%;
+  min-width: 0;
 }
-.card-accent {
+.task-card-accent {
   background: linear-gradient(180deg, #f8fbff, #ffffff);
   border-color: #cfe0f6;
 }
-.card h2 { margin: 0 0 12px; color: #0f172a; font-size: 18px; }
-.card p { margin: 0; color: #334155; line-height: 1.7; }
-.card-head { display: flex; justify-content: space-between; gap: 12px; align-items: flex-start; margin-bottom: 12px; }
-.card-head span { color: #64748b; font-size: 12px; line-height: 1.6; }
+.task-card h2 { margin: 0 0 12px; color: #0f172a; font-size: 18px; }
+.task-card p { margin: 0; color: #334155; line-height: 1.7; }
+.task-card-head { display: flex; justify-content: space-between; gap: 12px; align-items: flex-start; margin-bottom: 12px; }
+.task-card-head span { color: #64748b; font-size: 12px; line-height: 1.6; }
 .meta-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin-top: 16px; }
 .meta-grid div {
   border-radius: 10px;

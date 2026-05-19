@@ -13,10 +13,7 @@
             <span class="chip chip-status" :class="`is-${String(task?.status || '').toLowerCase()}`">
               {{ formatTaskStatus(task?.status) }}
             </span>
-            <span
-              v-if="inspectionRecord?.record?.id"
-              class="chip chip-record"
-            >
+            <span v-if="inspectionRecord?.record?.id" class="chip chip-record">
               已生成检查记录
             </span>
           </div>
@@ -29,6 +26,14 @@
         </div>
         <div class="hero-actions">
           <button class="btn-ghost" type="button" @click="goBack">返回列表</button>
+          <button
+            v-if="task?.enterpriseId"
+            class="btn-ghost"
+            type="button"
+            @click="openEnterprise"
+          >
+            查看企业档案
+          </button>
           <button
             v-if="inspectionRecord?.record?.id"
             class="btn-ghost"
@@ -52,8 +57,8 @@
       <div v-else-if="!task" class="status error">未找到该任务或当前账号无权查看。</div>
 
       <section v-else class="detail-layout">
-        <div class="left">
-          <article class="card card-accent">
+        <div class="task-detail-main">
+          <article class="task-card task-card-accent">
             <h2>任务要求说明</h2>
             <p>{{ task.taskDesc || "暂无任务描述" }}</p>
             <div class="meta-grid">
@@ -76,9 +81,9 @@
             </div>
           </article>
 
-          <article class="card">
-            <div class="card-head">
-              <h2>检查项清单概览</h2>
+          <article class="task-card">
+            <div class="task-card-head">
+              <h2>检查项目清单概览</h2>
               <span>{{ inspectionOverviewHint }}</span>
             </div>
             <table class="check-table">
@@ -110,10 +115,10 @@
           </article>
         </div>
 
-        <aside class="right">
-          <article class="card">
+        <aside class="task-detail-side">
+          <article class="task-card">
             <h2>状态流转时间线</h2>
-            <ul class="timeline" v-if="timelineItems.length">
+            <ul v-if="timelineItems.length" class="timeline">
               <li v-for="item in timelineItems" :key="item.key">
                 <strong>{{ item.title }}</strong>
                 <span>{{ item.time }}</span>
@@ -123,14 +128,13 @@
             <div v-else class="timeline-empty">暂无操作日志</div>
           </article>
 
-          <article class="card">
+          <article class="task-card">
             <h2>企业地理信息</h2>
             <div class="info-list">
               <p><span>详细地址</span><strong>{{ enterprise?.addressDetail || "-" }}</strong></p>
               <p><span>联系电话</span><strong>{{ enterprise?.principalPhone || "-" }}</strong></p>
               <p><span>所属区域</span><strong>{{ regionPathName || "-" }}</strong></p>
             </div>
-            <button class="btn-ghost full" type="button" @click="openEnterprise">查看企业完整档案</button>
           </article>
         </aside>
       </section>
@@ -146,13 +150,18 @@ import { useRoute, useRouter } from "vue-router";
 import RegulatorEnforcerWorkspacePage from "../../components/regulatorEnforcer/RegulatorEnforcerWorkspacePage.vue";
 import { fetchEnterpriseDetail, fetchRegionPath } from "../../api/regulation";
 import {
-  fetchOperationAuditLogs,
   fetchInspectionRecordDetail,
+  fetchOperationAuditLogs,
   findMyInspectionRecordByTaskId,
   findMyInspectionTaskById
 } from "../../api/regulationOperation";
 import { formatTime } from "../../utils/formatters";
-import { formatStatusLabel, inspectionResultMap, inspectionTaskStatusMap, taskPriorityMap } from "../../utils/statusMaps";
+import {
+  formatStatusLabel,
+  inspectionResultMap,
+  inspectionTaskStatusMap,
+  taskPriorityMap
+} from "../../utils/statusMaps";
 import { resolveErrorMessage } from "../../utils/uiFeedback";
 import { useRegulatorEnforcerShellSession } from "./regulatorEnforcerShared";
 
@@ -264,10 +273,10 @@ async function loadTaskDetail() {
     task.value = detail;
 
     if (detail?.enterpriseId) {
-      const en = await fetchEnterpriseDetail(token.value, detail.enterpriseId).catch(() => null);
-      enterprise.value = en;
-      if (en?.regionId) {
-        const path = await fetchRegionPath(token.value, en.regionId).catch(() => []);
+      const enterpriseDetail = await fetchEnterpriseDetail(token.value, detail.enterpriseId).catch(() => null);
+      enterprise.value = enterpriseDetail;
+      if (enterpriseDetail?.regionId) {
+        const path = await fetchRegionPath(token.value, enterpriseDetail.regionId).catch(() => []);
         regionPathName.value = Array.isArray(path) && path.length ? path.map((item) => item.name).join("/") : "-";
       }
     }
@@ -339,44 +348,99 @@ watch(
 </script>
 
 <style scoped>
-.task-detail-page { min-height: calc(100vh - 108px); width: 100%; }
-.task-hero { display: flex; justify-content: space-between; gap: 16px; padding: 16px; border: 1px solid #dbe3ee; background: #fff; }
-.chips { display: flex; gap: 8px; margin-bottom: 8px; flex-wrap: wrap; }
-.chip { font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 2px; }
-.chip-id { background: #dbeafe; color: #1e3a8a; }
-.chip-status { background: #e2e8f0; color: #334155; }
-.chip-status.is-in_progress { background: #dbeafe; color: #1d4ed8; }
+.task-detail-page { display: grid; gap: 20px; width: 100%; }
+.task-hero {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  padding: 24px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #052b67, #0d4d9f);
+  color: #fff;
+}
+.chips { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
+.chip {
+  display: inline-flex;
+  align-items: center;
+  min-height: 28px;
+  padding: 0 10px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.14);
+  font-size: 12px;
+  font-weight: 700;
+}
 .chip-status.is-completed,
-.chip-status.is-closed { background: #dcfce7; color: #166534; }
-.chip-record { background: #eef2ff; color: #4338ca; }
-h1 { margin: 0; color: #002660; font-size: 30px; font-weight: 800; }
-.hero-meta { margin-top: 8px; display: flex; gap: 16px; font-size: 13px; color: #64748b; flex-wrap: wrap; }
-.hero-meta .deadline { color: #b91c1c; font-weight: 600; }
-.hero-actions { display: flex; align-items: flex-start; gap: 10px; flex-wrap: wrap; }
-.btn-primary,.btn-ghost { height: 36px; padding: 0 14px; border: 1px solid #cbd5e1; border-radius: 2px; cursor: pointer; }
-.btn-primary { background: #002660; color: #fff; border-color: #002660; font-weight: 700; }
-.btn-primary:disabled { opacity: 0.45; cursor: not-allowed; }
-.btn-ghost { background: #fff; color: #334155; }
+.chip-status.is-closed { background: rgba(22, 163, 74, 0.22); }
+.chip-status.is-in_progress { background: rgba(251, 191, 36, 0.22); }
+.chip-status.is-assigned { background: rgba(59, 130, 246, 0.22); }
+.chip-record { background: rgba(14, 165, 233, 0.22); }
+.task-hero h1 { margin: 0; font-size: 30px; line-height: 1.2; }
+.hero-meta { display: flex; flex-wrap: wrap; gap: 14px; margin-top: 10px; font-size: 13px; color: rgba(255, 255, 255, 0.88); }
+.hero-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 10px; }
+.btn-ghost,
+.btn-primary {
+  min-height: 38px;
+  border-radius: 8px;
+  border: 0;
+  padding: 0 14px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.btn-ghost { background: rgba(255, 255, 255, 0.14); color: #fff; }
+.btn-primary { background: #fff; color: #0b3f88; }
+.btn-primary:disabled,
+.btn-ghost:disabled { opacity: 0.6; cursor: not-allowed; }
 .detail-layout {
-  margin-top: 14px;
   display: grid;
   width: 100%;
-  grid-template-columns: minmax(0, 1.7fr) 360px;
-  gap: 14px;
+  grid-template-columns: minmax(0, 1fr) 360px;
+  gap: 16px;
   align-items: start;
-  justify-items: stretch;
 }
-.left,
-.right { display: grid; gap: 14px; min-width: 0; align-content: start; justify-items: stretch; }
-.card { background: #fff; border: 1px solid #dbe3ee; padding: 16px; width: 100%; }
-.card-accent { border-left: 4px solid #003a8c; }
-h2 { margin: 0 0 10px; font-size: 14px; color: #003a8c; font-weight: 800; }
-.meta-grid { margin-top: 12px; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; background: #f8fafc; border: 1px solid #e2e8f0; padding: 10px; }
-.meta-grid label { font-size: 11px; color: #64748b; display: block; }
-.meta-grid strong { font-size: 13px; color: #0f172a; }
-.card-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
-.card-head span { font-size: 11px; color: #64748b; }
-.check-table { width: 100%; border-collapse: collapse; font-size: 12px; table-layout: fixed; }
+.task-detail-main,
+.task-detail-side {
+  display: grid;
+  gap: 16px;
+  min-width: 0;
+  align-content: start;
+  grid-template-columns: minmax(0, 1fr);
+}
+.task-detail-main {
+  width: 100%;
+}
+.task-detail-side {
+  width: 100%;
+  min-width: 0;
+}
+.task-card {
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  background: #fff;
+  padding: 18px;
+  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.05);
+  width: 100%;
+  min-width: 0;
+}
+.task-card-accent {
+  background: linear-gradient(180deg, #f8fbff, #ffffff);
+  border-color: #cfe0f6;
+}
+.task-card h2 { margin: 0 0 12px; color: #0f172a; font-size: 18px; }
+.task-card p { margin: 0; color: #334155; line-height: 1.7; }
+.task-card-head { display: flex; justify-content: space-between; gap: 12px; align-items: flex-start; margin-bottom: 12px; }
+.task-card-head span { color: #64748b; font-size: 12px; line-height: 1.6; }
+.meta-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin-top: 16px; }
+.meta-grid div {
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.78);
+  border: 1px solid #e2e8f0;
+  padding: 12px;
+}
+.meta-grid label { display: block; color: #64748b; font-size: 12px; margin-bottom: 6px; }
+.meta-grid strong { color: #0f172a; font-size: 14px; }
+.check-table { width: 100%; border-collapse: collapse; table-layout: fixed; }
 .check-table th:nth-child(1),
 .check-table td:nth-child(1) { width: 26%; }
 .check-table th:nth-child(2),
@@ -385,33 +449,82 @@ h2 { margin: 0 0 10px; font-size: 14px; color: #003a8c; font-weight: 800; }
 .check-table td:nth-child(3) { width: 24%; }
 .check-table th,
 .check-table td {
-  border-bottom: 1px solid #e2e8f0;
-  padding: 10px;
+  padding: 12px 10px;
+  border-top: 1px solid #e2e8f0;
   text-align: left;
   vertical-align: top;
   word-break: break-word;
 }
-.empty-cell { text-align: center; color: #64748b; padding: 18px 10px; }
-.result-pill { display: inline-flex; align-items: center; justify-content: center; min-height: 24px; padding: 0 8px; border-radius: 2px; background: #f1f5f9; color: #334155; font-weight: 700; border: 1px solid transparent; }
-.result-pill.is-pass { background: #f0fdf4; color: #166534; border-color: #86efac; }
-.result-pill.is-fail { background: #fef2f2; color: #b91c1c; border-color: #fecaca; }
-.summary-note { margin: 12px 0 0; padding: 10px 12px; background: #f8fafc; border: 1px solid #e2e8f0; color: #334155; font-size: 12px; line-height: 1.6; }
-.timeline { margin: 0; padding-left: 16px; border-left: 2px solid #e2e8f0; display: grid; gap: 12px; }
-.timeline li { list-style: none; position: relative; }
-.timeline li::before { content: ""; position: absolute; left: -22px; top: 3px; width: 8px; height: 8px; border-radius: 999px; background: #1d4ed8; }
-.timeline strong { display: block; font-size: 13px; color: #0f172a; }
-.timeline span { font-size: 11px; color: #64748b; }
-.timeline p { margin: 4px 0 0; font-size: 12px; color: #475569; line-height: 1.6; }
-.timeline-empty { color: #64748b; font-size: 12px; padding: 8px 0; }
-.info-list p { margin: 0 0 8px; display: flex; justify-content: space-between; gap: 8px; font-size: 12px; }
-.info-list span { color: #64748b; }
-.info-list strong { color: #0f172a; text-align: right; }
-.full { width: 100%; margin-top: 8px; }
-.status { margin-top: 12px; border: 1px solid #fecaca; background: #fef2f2; color: #b91c1c; padding: 10px 12px; }
-.status.info { border-color: #bfdbfe; background: #eff6ff; color: #1d4ed8; }
-.status.success { border-color: #bbf7d0; background: #f0fdf4; color: #166534; }
-@media (max-width: 1280px) {
+.check-table thead th { border-top: 0; color: #64748b; font-size: 12px; font-weight: 800; background: #f8fafc; }
+.empty-cell { text-align: center; color: #94a3b8; }
+.result-pill {
+  display: inline-flex;
+  align-items: center;
+  min-height: 26px;
+  padding: 0 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+}
+.result-pill.is-pass { background: #dcfce7; color: #166534; }
+.result-pill.is-fail { background: #fee2e2; color: #991b1b; }
+.result-pill.is-default { background: #e2e8f0; color: #475569; }
+.summary-note {
+  margin-top: 14px;
+  padding: 12px 14px;
+  border-radius: 10px;
+  background: #f8fafc;
+  color: #334155;
+  line-height: 1.7;
+}
+.timeline { list-style: none; padding: 0; margin: 0; display: grid; gap: 14px; }
+.timeline li {
+  position: relative;
+  padding-left: 16px;
+  border-left: 2px solid #dbeafe;
+}
+.timeline li::before {
+  content: "";
+  position: absolute;
+  left: -6px;
+  top: 4px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #2563eb;
+}
+.timeline strong { display: block; color: #0f172a; font-size: 14px; }
+.timeline span { display: block; margin-top: 4px; color: #64748b; font-size: 12px; }
+.timeline p { margin-top: 6px; color: #334155; font-size: 13px; line-height: 1.7; }
+.timeline-empty { color: #94a3b8; font-size: 13px; }
+.info-list { display: grid; gap: 12px; }
+.info-list p {
+  display: grid;
+  gap: 6px;
+  padding: 12px;
+  border-radius: 10px;
+  background: #f8fafc;
+}
+.info-list span { color: #64748b; font-size: 12px; }
+.info-list strong { color: #0f172a; font-size: 14px; line-height: 1.6; }
+.status {
+  padding: 12px 14px;
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 600;
+}
+.status.info { background: #eff6ff; color: #1d4ed8; }
+.status.success { background: #ecfdf5; color: #047857; }
+.status.error { background: #fef2f2; color: #b91c1c; }
+
+@media (max-width: 1200px) {
   .detail-layout { grid-template-columns: 1fr; }
-  .task-hero { flex-direction: column; }
+}
+
+@media (max-width: 768px) {
+  .task-hero { padding: 18px; flex-direction: column; }
+  .task-hero h1 { font-size: 24px; }
+  .hero-actions { width: 100%; justify-content: flex-start; }
+  .meta-grid { grid-template-columns: 1fr; }
 }
 </style>

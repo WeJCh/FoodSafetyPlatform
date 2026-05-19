@@ -12,16 +12,15 @@
     </div>
 
     <div class="enterprise-topbar__meta">
-      <slot name="actions" />
       <button type="button" class="enterprise-topbar__account-btn" title="个人信息" @click="goAccount">
         <span class="material-symbols-outlined" aria-hidden="true">account_circle</span>
       </button>
-      <div class="enterprise-topbar__divider" />
-      <div class="enterprise-topbar__user enterprise-topbar__user--row">
-        <div class="enterprise-topbar__avatar" aria-hidden="true">{{ userInitials }}</div>
-        <div class="enterprise-topbar__user-lines">
-          <span>{{ displayName }}</span>
-          <span>{{ roleLabel }}</span>
+      <div class="topbar-user-badge__divider" />
+      <div class="topbar-user-badge">
+        <div class="topbar-user-badge__avatar" aria-hidden="true">{{ userInitials }}</div>
+        <div class="topbar-user-badge__body">
+          <strong class="topbar-user-badge__name">{{ displayName }}</strong>
+          <small class="topbar-user-badge__role">{{ resolvedRoleLabel }}</small>
         </div>
       </div>
     </div>
@@ -34,7 +33,7 @@ import { computed, ref, watch } from "vue";
 const props = defineProps({
   searchPlaceholder: {
     type: String,
-    default: "搜索监管记录、产品或任务..."
+    default: "搜索检查记录、产品或任务..."
   },
   username: {
     type: String,
@@ -58,9 +57,15 @@ watch(
 
 const displayName = computed(() => props.username?.trim() || "企业账号");
 
+const resolvedRoleLabel = computed(() => {
+  const raw = (props.roleLabel || "").trim().toUpperCase();
+  if (!raw || raw === "ENTERPRISE") return "企业用户";
+  return props.roleLabel;
+});
+
 const userInitials = computed(() => {
   const raw = (props.username || "").trim();
-  if (!raw) return "企";
+  if (!raw) return "EP";
   const parts = raw.split(/[\s@._-]+/).filter(Boolean);
   const ascii = /^[A-Za-z0-9]+$/.test(raw.replace(/[\s@._-]+/g, ""));
   if (ascii && parts.length >= 2) {
@@ -82,6 +87,12 @@ function goAccount() {
 </script>
 
 <style scoped>
+.enterprise-topbar__meta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
 .enterprise-topbar__account-btn {
   width: 40px;
   height: 40px;
@@ -94,6 +105,7 @@ function goAccount() {
   justify-content: center;
   cursor: pointer;
 }
+
 .enterprise-topbar__account-btn:hover {
   color: #1d4ed8;
   border-color: #bfd2ff;

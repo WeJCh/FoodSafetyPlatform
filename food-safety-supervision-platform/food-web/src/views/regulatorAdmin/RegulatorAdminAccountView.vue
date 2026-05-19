@@ -220,25 +220,38 @@
             <div class="section-head__title">
               <span class="material-symbols-outlined">history</span>
               <div>
-                <h2>系统活动日志</h2>
+                <h2>账户变更记录</h2>
+                <p>展示当前账号最近的资料、密码与权限变更记录。</p>
               </div>
             </div>
           </div>
           <div class="log-list">
-            <article class="log-item">
-              <span>上次登录时间</span>
-              <strong>{{ accountUpdatedAt }}</strong>
+            <article v-if="loadingLogs" class="log-record">
+              <div class="log-record__head">
+                <strong>正在加载账户变更记录...</strong>
+              </div>
             </article>
-            <article class="log-item">
-              <span>登录设备与环境</span>
-              <strong>{{ deviceSummary }}</strong>
+            <article v-for="item in accountLogs" :key="item.id || item.createTime || item.actionType" class="log-record">
+              <div class="log-record__head">
+                <strong>{{ resolveAuditLogTitle(item) }}</strong>
+                <span>{{ formatTime(item.createTime) || "-" }}</span>
+              </div>
+              <p v-if="resolveAuditLogDetail(item)" class="log-record__detail">
+                {{ resolveAuditLogDetail(item) }}
+              </p>
+              <div class="log-record__meta">
+                <span>操作人</span>
+                <strong>{{ item.operatorName || "系统" }}</strong>
+              </div>
             </article>
-            <article class="log-item">
-              <span>会话标识 (Session ID)</span>
-              <strong class="is-mono">{{ sessionLabel }}</strong>
+            <article v-if="!loadingLogs && !accountLogs.length" class="log-record">
+              <div class="log-record__head">
+                <strong>当前暂无账户变更记录。</strong>
+              </div>
             </article>
           </div>
         </section>
+
       </aside>
     </section>
   </RegulatorAdminWorkspacePage>
@@ -246,7 +259,7 @@
 
 <script setup>
 import { computed, onMounted, reactive, ref } from "vue";
-import { changeCurrentUserPassword, fetchCurrentUser, updateCurrentUser } from "../../api/auth";
+import { changeCurrentUserPassword, fetchCurrentUser, fetchCurrentUserAuditLogs, updateCurrentUser } from "../../api/auth";
 import { fetchRegionPath, fetchRegulatorProfile, updateMyRegulatorProfile } from "../../api/regulation";
 import RegulatorAdminWorkspacePage from "../../components/regulatorAdmin/RegulatorAdminWorkspacePage.vue";
 import { formatTime } from "../../utils/formatters";
@@ -297,7 +310,8 @@ const basicSnapshot = reactive({
 const basicMessage = reactive({ message: "", type: "neutral" });
 const passwordMessage = reactive({ message: "", type: "neutral" });
 const regionPath = ref([]);
-const deviceSummary = ref("-");
+const loadingLogs = ref(false);
+const accountLogs = ref([]);
 
 const roleLabel = "区域管理员";
 const displayName = computed(() => currentUser.realName || profile.name || regulatorUser.value.username || "监管员");
@@ -305,11 +319,6 @@ const profileStatusLabel = computed(() => (Number(profile.status) === 1 ? "活�
 const profileStatusTone = computed(() => (Number(profile.status) === 1 ? "success" : "danger"));
 const profileCreatedAt = computed(() => formatTime(profile.createTime));
 const accountUpdatedAt = computed(() => formatTime(currentUser.updateTime || ""));
-const sessionLabel = computed(() => {
-  const raw = token.value || "";
-  if (!raw) return "-";
-  return raw.length > 26 ? `${raw.slice(0, 10)}...${raw.slice(-10)}` : raw;
-});
 const regionDisplay = computed(() => ({
   province: regionPath.value[0]?.name || "-",
   city: regionPath.value[1]?.name || "-",
@@ -342,6 +351,16 @@ function syncBasicForm() {
   basicSnapshot.phone = basicForm.phone;
 }
 
+function resolveAuditLogTitle(item) {
+  return item?.actionName || item?.summary || item?.remark || "账户变更";
+}
+
+function resolveAuditLogDetail(item) {
+  const detail = String(item?.summary || item?.remark || "").trim();
+  const title = String(resolveAuditLogTitle(item) || "").trim();
+  return detail && detail !== title ? detail : "";
+}
+
 function startBasicEdit() {
   editingBasic.value = true;
   basicMessage.message = "";
@@ -361,14 +380,29 @@ async function loadProfile() {
   regionPath.value = regionId ? await fetchRegionPath(token.value, regionId).catch(() => []) : [];
 }
 
+async function loadAccountLogs() {
+  loadingLogs.value = true;
+  try {
+    const logData = await fetchCurrentUserAuditLogs(token.value, 6);
+    accountLogs.value = Array.isArray(logData) ? logData.slice(0, 6) : [];
+  } catch (error) {
+    accountLogs.value = [];
+  } finally {
+    loadingLogs.value = false;
+  }
+}
+
 async function loadPageData() {
   loading.value = true;
   basicMessage.message = "";
   passwordMessage.message = "";
   try {
-    const user = await fetchCurrentUser(token.value);
+    const [user] = await Promise.all([
+      fetchCurrentUser(token.value),
+      loadProfile(),
+      loadAccountLogs()
+    ]);
     fillCurrentUser(user || {});
-    await loadProfile();
     syncBasicForm();
   } catch (error) {
     basicMessage.message = resolveErrorMessage(error, "加载个人信息失败");
@@ -394,6 +428,7 @@ async function handleBasicSave() {
     });
     fillProfile(profileData || {});
     syncBasicForm();
+    await loadAccountLogs();
     editingBasic.value = false;
     basicMessage.message = "基本信息已更新。";
     basicMessage.type = "success";
@@ -443,22 +478,7 @@ async function handlePasswordSave() {
   }
 }
 
-function resolveDeviceSummary() {
-  if (typeof navigator === "undefined") {
-    deviceSummary.value = "-";
-    return;
-  }
-  const ua = navigator.userAgent || "";
-  let browser = "Unknown Browser";
-  if (ua.includes("Edg/")) browser = "Edge";
-  else if (ua.includes("Chrome/")) browser = "Chrome";
-  else if (ua.includes("Firefox/")) browser = "Firefox";
-  else if (ua.includes("Safari/")) browser = "Safari";
-  deviceSummary.value = `${navigator.platform || "Unknown OS"} / ${browser}`;
-}
-
 onMounted(() => {
-  resolveDeviceSummary();
   loadPageData();
 });
 </script>
@@ -635,8 +655,7 @@ onMounted(() => {
 
 .field-card span,
 .field span,
-.side-field span,
-.log-item span {
+.side-field span {
   color: #5b6472;
   font-size: 11px;
   font-weight: 700;
@@ -754,19 +773,16 @@ onMounted(() => {
   opacity: 0.7;
 }
 
-.side-field,
-.log-item {
+.side-field {
   display: grid;
   gap: 8px;
 }
 
-.side-field + .side-field,
-.log-item + .log-item {
+.side-field + .side-field {
   margin-top: 14px;
 }
 
-.side-field strong,
-.log-item strong {
+.side-field strong {
   min-height: 42px;
   padding: 11px 12px;
   border: 1px solid #e0e5ec;
@@ -776,9 +792,58 @@ onMounted(() => {
   line-height: 1.4;
 }
 
-.is-mono {
-  font-family: Consolas, "Courier New", monospace;
-  word-break: break-all;
+.log-record {
+  display: grid;
+  gap: 8px;
+  padding: 12px;
+  border: 1px solid #e0e5ec;
+  background: #ffffff;
+}
+
+.log-record + .log-record {
+  margin-top: 14px;
+}
+
+.log-record__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.log-record__head strong {
+  color: #0f172a;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.log-record__head span {
+  color: #64748b;
+  font-size: 11px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.log-record__detail {
+  margin: 0;
+  color: #334155;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.log-record__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  color: #64748b;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.log-record__meta strong {
+  color: #334155;
+  font-size: 11px;
+  font-weight: 700;
 }
 
 .ghost-btn,
@@ -844,6 +909,10 @@ onMounted(() => {
 
   .field-grid {
     grid-template-columns: 1fr;
+  }
+
+  .log-record__head {
+    flex-direction: column;
   }
 }
 </style>

@@ -6,8 +6,6 @@
     top-search-placeholder="搜索企业或档案..."
     :username="enterpriseUser.username"
     :user-type="enterpriseUser.userType"
-    :status-label="statusLabel"
-    :status-tone="statusTone"
     @navigate="handleSidebarNavigate"
     @logout="handleLogout"
   >

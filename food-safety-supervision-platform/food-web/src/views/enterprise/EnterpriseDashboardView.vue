@@ -6,8 +6,6 @@
     top-search-placeholder="搜索检查记录、产品或任务..."
     :username="enterpriseUser.username"
     :user-type="enterpriseUser.userType"
-    :status-label="approvalLabel"
-    :status-tone="approvalTone"
     @navigate="handleSidebarNavigate"
     @logout="handleLogout"
   >

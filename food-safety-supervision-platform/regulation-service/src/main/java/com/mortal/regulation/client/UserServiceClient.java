@@ -10,15 +10,15 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 
-@FeignClient("user-service")
+@FeignClient(name = "user-service", configuration = UserServiceFeignHeaderRelayConfig.class)
 public interface UserServiceClient {
 
-    @GetMapping("/api/users/{id}")
+    @GetMapping("/api/internal/users/{id}")
     ApiResponse<UserVO> getUserById(@PathVariable("id") Long id);
 
-    @PutMapping("/api/admin/users/{id}")
+    @PutMapping("/api/internal/users/{id}")
     ApiResponse<UserVO> updateUser(@PathVariable("id") Long id, @RequestBody UserUpdateDTO dto);
 
-    @DeleteMapping("/api/admin/users/{id}")
+    @DeleteMapping("/api/internal/users/{id}")
     void deleteUser(@PathVariable("id") Long id);
 }

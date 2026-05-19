@@ -106,6 +106,7 @@ public class SamplingTaskController {
      */
     @GetMapping("/my")
     public ApiResponse<PageResult<SamplingTaskVO>> listMy(@RequestHeader("Authorization") String token,
+                                                          @RequestParam(required = false) String enterpriseName,
                                                           @RequestParam(required = false) String status,
                                                           @RequestParam(defaultValue = "1") int page,
                                                           @RequestParam(defaultValue = "10") int size) {
@@ -114,7 +115,7 @@ public class SamplingTaskController {
             return ApiResponse.failure(403, OperationErrorMessages.REGULATOR_ONLY);
         }
         return ApiResponse.success(
-            samplingTaskService.listTasksForEnforcer(identity.userId(), status, page, size)
+            samplingTaskService.listTasksForEnforcer(identity.userId(), enterpriseName, status, page, size)
         );
     }
 

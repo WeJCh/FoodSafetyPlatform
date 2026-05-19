@@ -24,6 +24,7 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Component;
+import org.springframework.util.AntPathMatcher;
 import org.springframework.util.StringUtils;
 import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.server.ServerWebExchange;
@@ -33,35 +34,39 @@ import reactor.core.publisher.Mono;
 public class JwtAuthFilter implements GlobalFilter, Ordered {
 
     private static final Logger log = LoggerFactory.getLogger(JwtAuthFilter.class);
+    private static final AntPathMatcher PATH_MATCHER = new AntPathMatcher();
 
-    private static final List<String> WHITELIST = List.of(
-        "/api/auth/login",
-        "/api/auth/verify",
-        "/api/users/register",
-        "/api/users/register/public",
-        "/api/users/register/enterprise",
-        "/api/health",
-        "/actuator/health"
+    private static final List<PathRule> WHITELIST = List.of(
+        PathRule.exact("/api/auth/login"),
+        PathRule.exact("/api/auth/verify"),
+        PathRule.exact("/api/users/register/public"),
+        PathRule.exact("/api/users/register/enterprise"),
+        PathRule.exact("/api/health"),
+        PathRule.exact("/actuator/health")
     );
 
-    private static final List<RoleRule> ROLE_RULES = List.of(
-        RoleRule.of("/api/admin/", "ADMIN"),
-        RoleRule.of("/api/files/", "PUBLIC", "ENTERPRISE"),
-        RoleRule.of("/api/complaints/public", "PUBLIC"),
-        RoleRule.of("/api/complaints/my", "PUBLIC"),
-        RoleRule.of("/api/complaints/", "REGULATOR_ADMIN", "REGULATOR_ENFORCER"),
-        RoleRule.of("/api/regulation/public/", "PUBLIC"),
-        RoleRule.of("/api/regulation-operation/public/sampling/results", "PUBLIC"),
-        RoleRule.of("/api/regulation-operation/rectifications/my", "ENTERPRISE"),
-        RoleRule.of("/api/regulation-operation/rectifications/", "ENTERPRISE", "REGULATOR_ADMIN", "REGULATOR_ENFORCER"),
-        RoleRule.of("/api/regulation-operation/inspections/enterprise", "ENTERPRISE"),
-        RoleRule.of("/api/regulation-operation/", "REGULATOR_ADMIN", "REGULATOR_ENFORCER"),
-        RoleRule.of("/api/regulation/enterprise/", "ENTERPRISE", "REGULATOR_ADMIN", "REGULATOR_ENFORCER"),
-        RoleRule.of("/api/regulation/products", "ENTERPRISE"),
-        RoleRule.of("/api/regulation/regions", "ADMIN", "ENTERPRISE", "REGULATOR_ADMIN", "REGULATOR_ENFORCER"),
-        RoleRule.of("/api/regulation/regulators", "ADMIN", "REGULATOR_ADMIN", "REGULATOR_ENFORCER"),
-        RoleRule.of("/api/regulation/", "REGULATOR_ADMIN", "REGULATOR_ENFORCER"),
-        RoleRule.of("/api/query/", "ADMIN", "REGULATOR_ADMIN", "REGULATOR_ENFORCER")
+    private static final List<AccessRule> ROLE_RULES = List.of(
+        AccessRule.roles(PathRule.prefix("/api/admin/"), "ADMIN"),
+        AccessRule.roles(PathRule.prefix("/api/roles/"), "ADMIN"),
+        AccessRule.authenticated(PathRule.exact("/api/users/me")),
+        AccessRule.authenticated(PathRule.exact("/api/users/me/password")),
+        AccessRule.roles(PathRule.pattern("/api/users/*"), "ADMIN"),
+        AccessRule.roles(PathRule.prefix("/api/files/"), "PUBLIC", "ENTERPRISE"),
+        AccessRule.roles(PathRule.exact("/api/complaints/public"), "PUBLIC"),
+        AccessRule.roles(PathRule.prefix("/api/complaints/my"), "PUBLIC"),
+        AccessRule.roles(PathRule.prefix("/api/complaints/"), "REGULATOR_ADMIN", "REGULATOR_ENFORCER"),
+        AccessRule.roles(PathRule.prefix("/api/regulation/public/"), "PUBLIC"),
+        AccessRule.roles(PathRule.prefix("/api/regulation-operation/public/sampling/results"), "PUBLIC"),
+        AccessRule.roles(PathRule.prefix("/api/regulation-operation/rectifications/my"), "ENTERPRISE"),
+        AccessRule.roles(PathRule.prefix("/api/regulation-operation/rectifications/"), "ENTERPRISE", "REGULATOR_ADMIN", "REGULATOR_ENFORCER"),
+        AccessRule.roles(PathRule.prefix("/api/regulation-operation/inspections/enterprise"), "ENTERPRISE"),
+        AccessRule.roles(PathRule.prefix("/api/regulation-operation/"), "REGULATOR_ADMIN", "REGULATOR_ENFORCER"),
+        AccessRule.roles(PathRule.prefix("/api/regulation/enterprise/"), "ENTERPRISE", "REGULATOR_ADMIN", "REGULATOR_ENFORCER"),
+        AccessRule.roles(PathRule.prefix("/api/regulation/products"), "ENTERPRISE"),
+        AccessRule.roles(PathRule.prefix("/api/regulation/regions"), "ADMIN", "ENTERPRISE", "REGULATOR_ADMIN", "REGULATOR_ENFORCER"),
+        AccessRule.roles(PathRule.prefix("/api/regulation/regulators"), "ADMIN", "REGULATOR_ADMIN", "REGULATOR_ENFORCER"),
+        AccessRule.roles(PathRule.prefix("/api/regulation/"), "REGULATOR_ADMIN", "REGULATOR_ENFORCER"),
+        AccessRule.roles(PathRule.prefix("/api/query/"), "ADMIN", "REGULATOR_ADMIN", "REGULATOR_ENFORCER")
     );
 
     private final WebClient webClient;
@@ -165,7 +170,7 @@ public class JwtAuthFilter implements GlobalFilter, Ordered {
     }
 
     private boolean isWhitelisted(String path) {
-        return WHITELIST.stream().anyMatch(path::startsWith);
+        return WHITELIST.stream().anyMatch(rule -> rule.matches(path));
     }
 
     private String extractToken(HttpHeaders headers) {
@@ -245,9 +250,9 @@ public class JwtAuthFilter implements GlobalFilter, Ordered {
 
     private boolean isAllowedByRole(String path, List<String> roles, String userType) {
         List<String> effectiveRoles = enrichRoles(roles, userType);
-        for (RoleRule rule : ROLE_RULES) {
-            if (path.startsWith(rule.pathPrefix())) {
-                return rule.matches(effectiveRoles);
+        for (AccessRule rule : ROLE_RULES) {
+            if (rule.matches(path)) {
+                return rule.allows(effectiveRoles);
             }
         }
         return true;
@@ -279,13 +284,24 @@ public class JwtAuthFilter implements GlobalFilter, Ordered {
         return traceId == null ? "" : traceId;
     }
 
-    private record RoleRule(String pathPrefix, List<String> roles) {
+    private record AccessRule(PathRule pathRule, boolean authenticatedOnly, List<String> roles) {
 
-        static RoleRule of(String pathPrefix, String... roles) {
-            return new RoleRule(pathPrefix, List.of(roles));
+        static AccessRule authenticated(PathRule pathRule) {
+            return new AccessRule(pathRule, true, List.of());
         }
 
-        boolean matches(List<String> userRoles) {
+        static AccessRule roles(PathRule pathRule, String... roles) {
+            return new AccessRule(pathRule, false, List.of(roles));
+        }
+
+        boolean matches(String path) {
+            return pathRule.matches(path);
+        }
+
+        boolean allows(List<String> userRoles) {
+            if (authenticatedOnly) {
+                return true;
+            }
             if (userRoles == null || userRoles.isEmpty()) {
                 return false;
             }
@@ -296,5 +312,37 @@ public class JwtAuthFilter implements GlobalFilter, Ordered {
             }
             return false;
         }
+    }
+
+    private record PathRule(MatchType matchType, String pattern) {
+
+        static PathRule exact(String pattern) {
+            return new PathRule(MatchType.EXACT, pattern);
+        }
+
+        static PathRule prefix(String pattern) {
+            return new PathRule(MatchType.PREFIX, pattern);
+        }
+
+        static PathRule pattern(String pattern) {
+            return new PathRule(MatchType.PATTERN, pattern);
+        }
+
+        boolean matches(String path) {
+            if (path == null) {
+                return false;
+            }
+            return switch (matchType) {
+                case EXACT -> path.equals(pattern);
+                case PREFIX -> path.startsWith(pattern);
+                case PATTERN -> PATH_MATCHER.match(pattern, path);
+            };
+        }
+    }
+
+    private enum MatchType {
+        EXACT,
+        PREFIX,
+        PATTERN
     }
 }

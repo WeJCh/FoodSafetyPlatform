@@ -6,8 +6,6 @@
     top-search-placeholder="搜索任务编号、任务标题..."
     :username="enterpriseUser.username"
     :user-type="enterpriseUser.userType"
-    status-label="检查台账"
-    status-tone="neutral"
     @navigate="handleSidebarNavigate"
     @logout="handleLogout"
   >

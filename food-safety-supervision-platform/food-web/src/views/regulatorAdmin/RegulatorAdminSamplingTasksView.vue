@@ -54,9 +54,6 @@
                 <button class="ghost filter-btn" type="button" @click="resetListFilters">重置</button>
               </div>
             </div>
-            <p class="filter-hint">
-              任务名称为前端页内筛选；企业和状态由后端查询返回；右侧结果与公示筛选仅作用于当前页已加载数据。
-            </p>
           </div>
         </div>
         <div class="filter-bento__side">
@@ -80,7 +77,6 @@
               <button type="button" :class="{ active: uiFilters.publicFilter === 'OFFLINE' }" @click="togglePublicFilter('OFFLINE')">已下线</button>
             </div>
           </div>
-          <p class="side-hint">以下筛选仅作用于当前页已加载数据。</p>
         </div>
       </div>
 
@@ -470,7 +466,6 @@ h1 { margin: 6px 0 0; color: #002660; font-size: 30px; font-weight: 800; }
 .filter-actions { display: flex; gap: 8px; flex-shrink: 0; align-items: center; padding-bottom: 1px; }
 .filter-btn.primary { padding: 10px 20px; font-size: 14px; min-height: 40px; border-radius: 8px; }
 .filter-btn.ghost { padding: 10px 18px; font-size: 14px; min-height: 40px; border-radius: 8px; border-color: #cbd5e1; }
-.filter-hint { margin: 0; font-size: 12px; line-height: 1.55; color: #64748b; padding: 10px 12px; background: #f8fafc; border-radius: 8px; border: 1px dashed #cbd5e1; }
 .filter-bento__side { background: linear-gradient(135deg, #002660, #003a8c); color: #fff; border-radius: 10px; padding: 14px 16px; display: flex; flex-direction: column; gap: 12px; box-shadow: 0 12px 24px rgba(0, 38, 96, 0.2); position: relative; overflow: hidden; }
 .side-title { display: flex; justify-content: space-between; align-items: center; font-size: 13px; font-weight: 800; letter-spacing: 0.06em; opacity: 0.95; }
 .side-title-icon { opacity: 0.65; font-size: 16px; }
@@ -479,7 +474,6 @@ h1 { margin: 6px 0 0; color: #002660; font-size: 30px; font-weight: 800; }
 .pill-group { display: flex; flex-wrap: wrap; gap: 6px; }
 .pill-group button { border: 0; background: rgba(255, 255, 255, 0.14); color: #fff; font-size: 12px; font-weight: 700; padding: 8px 12px; border-radius: 6px; cursor: pointer; min-height: 36px; }
 .pill-group button.active { background: rgba(255, 255, 255, 0.38); }
-.side-hint { margin: 0; font-size: 12px; line-height: 1.45; opacity: 0.72; }
 .table-wrap { border: 1px solid #e2e8f0; border-radius: 8px; overflow: auto; background: #fff; }
 table { width: 100%; min-width: 1080px; border-collapse: collapse; }
 thead tr { background: #e2e8f0; border-bottom: 1px solid #cbd5e1; }

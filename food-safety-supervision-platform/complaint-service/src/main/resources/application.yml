@@ -38,6 +38,10 @@ regulation:
   internal:
     token: ${REGULATION_INTERNAL_TOKEN:regulation-internal-token}
 
+user:
+  internal:
+    token: ${USER_INTERNAL_TOKEN:user-internal-token}
+
 warning:
   internal:
     token: ${WARNING_INTERNAL_TOKEN:warning-internal-token}

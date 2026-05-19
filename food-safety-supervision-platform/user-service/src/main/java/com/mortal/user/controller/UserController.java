@@ -3,12 +3,12 @@ package com.mortal.user.controller;
 import com.mortal.platform.common.ApiResponse;
 import com.mortal.user.dto.PublicRegisterDTO;
 import com.mortal.user.dto.UserPasswordChangeDTO;
-import com.mortal.user.dto.UserRegisterDTO;
 import com.mortal.user.dto.UserSelfUpdateDTO;
-import com.mortal.user.enums.UserType;
+import com.mortal.user.vo.AuditLogVO;
 import com.mortal.user.service.UserService;
 import com.mortal.user.vo.UserVO;
 import jakarta.validation.Valid;
+import java.util.List;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -17,6 +17,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestParam;
 
 @RestController
 @RequestMapping("/api/users")
@@ -35,18 +36,7 @@ public class UserController {
 
     @PostMapping("/register/enterprise")
     public ApiResponse<UserVO> registerEnterprise(@Valid @RequestBody PublicRegisterDTO dto) {
-        UserRegisterDTO registerDTO = new UserRegisterDTO();
-        registerDTO.setUsername(dto.getUsername());
-        registerDTO.setPassword(dto.getPassword());
-        registerDTO.setRealName(dto.getRealName());
-        registerDTO.setPhone(dto.getPhone());
-        registerDTO.setUserType(UserType.ENTERPRISE.code());
-        return ApiResponse.success(userService.register(registerDTO));
-    }
-
-    @PostMapping("/register")
-    public ApiResponse<UserVO> register(@Valid @RequestBody UserRegisterDTO dto) {
-        return ApiResponse.success(userService.register(dto));
+        return ApiResponse.success(userService.registerEnterprise(dto));
     }
 
     @GetMapping("/me")
@@ -69,6 +59,12 @@ public class UserController {
                                                        @Valid @RequestBody UserPasswordChangeDTO dto) {
         userService.changeCurrentUserPassword(token, dto);
         return ApiResponse.success(null);
+    }
+
+    @GetMapping("/me/audit-logs")
+    public ApiResponse<List<AuditLogVO>> listCurrentUserAuditLogs(@RequestHeader("Authorization") String token,
+                                                                  @RequestParam(defaultValue = "10") int limit) {
+        return ApiResponse.success(userService.listCurrentUserAuditLogs(token, limit));
     }
 
     @GetMapping("/{id}")

@@ -6,8 +6,6 @@
     top-search-placeholder="搜索任务或编号..."
     :username="enterpriseUser.username"
     :user-type="enterpriseUser.userType"
-    status-label="已提交"
-    status-tone="success"
     @navigate="handleSidebarNavigate"
     @logout="handleLogout"
   >

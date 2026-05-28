@@ -130,9 +130,9 @@
               <h4>监管复核判定 / Review Decision</h4>
               <p class="review-desc">请基于现场查验或在线材料比对，做出最终裁定。</p>
               <label class="form-label">
-                审核批注（必填）
+                审核批注（退回整改时必填）
                 <textarea
-                  v-model.trim="reviewComment"
+                  v-model.trim="comment"
                   rows="4"
                   placeholder="请输入复核意见，如需重新整改请详细说明原因..."
                 ></textarea>
@@ -198,7 +198,7 @@ const loading = ref(false);
 const actionLoading = ref(false);
 const detail = ref(null);
 const actionLogs = ref([]);
-const reviewComment = ref("");
+const comment = ref("");
 const showAllOriginalAttachments = ref(false);
 const showAllSubmitAttachments = ref(false);
 const status = reactive({ message: "", type: "" });
@@ -290,7 +290,7 @@ async function loadDetail() {
     ]);
     detail.value = detailData || null;
     actionLogs.value = Array.isArray(actions) ? actions : [];
-    reviewComment.value = "";
+    comment.value = "";
     showAllOriginalAttachments.value = false;
     showAllSubmitAttachments.value = false;
   } catch (error) {
@@ -304,7 +304,7 @@ async function loadDetail() {
 
 async function handleReview(payload) {
   if (!detail.value?.id) return;
-  if (payload.action === "REWORK" && !reviewComment.value.trim()) {
+  if (payload.action === "REWORK" && !comment.value.trim()) {
     setStatus("打回重做必须填写复核意见", "error");
     return;
   }
@@ -313,7 +313,7 @@ async function handleReview(payload) {
   try {
     await reviewRectification(token.value, detail.value.id, {
       action: payload.action,
-      reviewComment: reviewComment.value || undefined
+      comment: comment.value
     });
     setStatus(payload.action === "REWORK" ? "整改任务已打回重做" : "整改任务已确认复核", "success");
     await loadDetail();

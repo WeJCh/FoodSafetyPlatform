@@ -31,7 +31,7 @@ public class WarningStatsQueryDTO {
     @Schema(description = "业务类型精确过滤", example = "RECTIFICATION")
     private String bizType;
 
-    @Schema(description = "等级过滤（L1/L2）", example = "L1")
+    @Schema(description = "档位过滤：L1 初发 / L2 升级", example = "L1")
     private String level;
 
     @Schema(description = "状态过滤（OPEN/PROCESSING/RESOLVED/CLOSED）", example = "OPEN")
@@ -43,8 +43,8 @@ public class WarningStatsQueryDTO {
     @Schema(description = "辖区 ID 集合过滤，逗号分隔", example = "330100,330101")
     private String regionIds;
 
-    @Schema(description = "责任执法人员 ID 过滤", example = "18")
-    private Long ownerRegulatorId;
+    @Schema(description = "分派处理人 ID 过滤（执法员）", example = "18")
+    private Long assignedTo;
 
     @Schema(description = "类型统计 TopN，默认 5，最大 20", example = "5")
     private Integer topN;

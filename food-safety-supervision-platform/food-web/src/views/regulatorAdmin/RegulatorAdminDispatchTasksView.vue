@@ -87,12 +87,12 @@
                 <tr>
                   <th>任务号</th>
                   <th>任务名称</th>
-                  <th>浼佷笟</th>
+                  <th>企业</th>
                   <th>指派人员</th>
                   <th>截止日期</th>
                   <th>状态</th>
-                  <th>杩涘害</th>
-                  <th>鎿嶄綔</th>
+                  <th>进度</th>
+                  <th>操作</th>
                 </tr>
               </thead>
               <tbody v-if="dispatchTasks.length">
@@ -126,7 +126,7 @@
                           </option>
                         </select>
                         <button class="op-btn op-btn--assign" type="button" :disabled="dispatchTaskLoading" @click="handleAssignTask(task)">
-                          娲惧彂
+                          派发
                         </button>
                       </template>
                       <span v-else-if="isTaskAssignable(task) && isTaskDeadlineExceeded(task.deadline)" class="op-expired-tip">
@@ -326,6 +326,10 @@ async function applyDispatchResult(tasks) {
   dispatchTasks.value = filteredTasks.slice(start, end);
   const regionIds = [...new Set(dispatchTasks.value.map((task) => task.regionId).filter(Boolean))];
   await Promise.all(regionIds.map((id) => ensureEnforcers(id)));
+  for (const task of dispatchTasks.value) {
+    if (!isTaskAssignable(task)) continue;
+    taskAssignments[task.id] = task.assignedTo != null ? task.assignedTo : "";
+  }
 }
 
 async function loadDispatchTasks() {

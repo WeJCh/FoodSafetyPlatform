@@ -1,0 +1,43 @@
+@startuml
+' 图3-6 企业备案审核业务流程图
+' 用途：3.1.4 第一条主线 — 企业纳管
+skinparam shadowing false
+skinparam defaultFontName Microsoft YaHei
+skinparam activity {
+  BackgroundColor #ffffff
+  BorderColor #6b7280
+  DiamondBackgroundColor #f8fafc
+  DiamondBorderColor #6b7280
+  ArrowColor #6b7280
+}
+
+|企业用户|
+start
+:注册并登录系统;
+:填写企业备案信息;
+:上传备案附件;
+:提交备案申请;
+
+|系统|
+:保存企业与附件记录;
+:备案状态置为待审核;
+
+|区域管理员|
+:查看待审核企业;
+:审核备案材料;
+
+if (审核通过?) then (是)
+  :更新状态为已通过;
+  :指定包保责任人;
+  |企业用户|
+  :维护产品档案;
+  stop
+else (否)
+  :更新状态为已驳回;
+  :记录审核意见;
+  |企业用户|
+  :查看驳回结果;
+  stop
+endif
+
+@enduml

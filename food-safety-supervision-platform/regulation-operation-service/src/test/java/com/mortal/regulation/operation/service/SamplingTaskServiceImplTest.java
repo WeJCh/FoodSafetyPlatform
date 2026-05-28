@@ -20,9 +20,11 @@ import com.mortal.regulation.operation.entity.SamplingTask;
 import com.mortal.regulation.operation.mapper.SamplingResultMapper;
 import com.mortal.regulation.operation.mapper.SamplingTaskMapper;
 import com.mortal.regulation.operation.service.impl.SamplingTaskServiceImpl;
+import com.mortal.regulation.operation.support.OperationAuditOperatorNameResolver;
 import com.mortal.regulation.operation.support.OperationLockSupport;
 import com.mortal.regulation.operation.support.OperationMasterDataSupport;
 import com.mortal.regulation.operation.support.SamplingPublicCacheService;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.mortal.regulation.operation.vo.SamplingResultVO;
 import com.mortal.regulation.operation.vo.SamplingTaskVO;
 import java.time.LocalDateTime;
@@ -47,7 +49,10 @@ class SamplingTaskServiceImplTest {
             masterDataSupport,
             operationLockSupport,
             samplingPublicCacheService,
-            warningEventOutboxService
+            warningEventOutboxService,
+            mock(AuditLogService.class),
+            mock(OperationAuditOperatorNameResolver.class),
+            new ObjectMapper()
         );
 
         InternalRegulatorIdentityVO admin = new InternalRegulatorIdentityVO();
@@ -111,7 +116,10 @@ class SamplingTaskServiceImplTest {
             masterDataSupport,
             operationLockSupport,
             samplingPublicCacheService,
-            warningEventOutboxService
+            warningEventOutboxService,
+            mock(AuditLogService.class),
+            mock(OperationAuditOperatorNameResolver.class),
+            new ObjectMapper()
         );
 
         InternalRegulatorIdentityVO enforcer = new InternalRegulatorIdentityVO();

@@ -240,7 +240,7 @@ public class WarningEventServiceImpl implements WarningEventService {
 
     @Override
     public List<WarningProcessLogVO> listRecentWarningLogs(WarningScopeDTO scopeDTO, Integer limit) {
-        ensureScope(scopeDTO == null ? null : scopeDTO.getOwnerRegulatorId(), parseRegionIds(scopeDTO == null ? null : scopeDTO.getRegionIds()));
+        ensureScope(scopeDTO);
         int safeLimit = normalizeRecentLimit(limit);
         int candidateLimit = Math.max(safeLimit * 5, 30);
         List<WarningProcessLog> logs = warningProcessLogMapper.selectList(
@@ -319,7 +319,6 @@ public class WarningEventServiceImpl implements WarningEventService {
             if (assignedTo == null || assignedTo <= 0) {
                 throw new IllegalArgumentException("assignedTo required");
             }
-            record.setOwnerRegulatorId(assignedTo);
             record.setAssignedTo(assignedTo);
             record.setAssignedTime(now);
             return;
@@ -333,9 +332,7 @@ public class WarningEventServiceImpl implements WarningEventService {
     }
 
     /**
-     * 同步业主分配
-     * @param record 预警记录
-     * @param regulatorId 监管者ID
+     * 同步责任执法员（包保责任人），不写入 assigned_to。
      */
     private void syncOwnerAssignment(WarningRecord record, Long regulatorId) {
         if (record == null) {
@@ -343,11 +340,9 @@ public class WarningEventServiceImpl implements WarningEventService {
         }
         if (regulatorId == null || regulatorId <= 0) {
             record.setOwnerRegulatorId(null);
-            record.setAssignedTo(null);
             return;
         }
         record.setOwnerRegulatorId(regulatorId);
-        record.setAssignedTo(regulatorId);
     }
 
     private WarningRecordVO toVO(WarningRecord record) {
@@ -577,7 +572,7 @@ public class WarningEventServiceImpl implements WarningEventService {
         LambdaQueryWrapper<WarningRecord> wrapper = Wrappers.lambdaQuery();
         wrapper.eq(WarningRecord::getDeleted, 0);
         Set<Long> regionIdSet = parseRegionIds(queryDTO.getRegionIds());
-        ensureScope(queryDTO.getOwnerRegulatorId(), regionIdSet);
+        ensureScope(queryDTO.getAssignedTo(), regionIdSet);
         if (StringUtils.hasText(queryDTO.getStatus())) {
             wrapper.eq(WarningRecord::getStatus, WarningStatus.fromValue(queryDTO.getStatus()).name());
         }
@@ -593,8 +588,8 @@ public class WarningEventServiceImpl implements WarningEventService {
         if (queryDTO.getBizId() != null) {
             wrapper.eq(WarningRecord::getBizId, queryDTO.getBizId());
         }
-        if (queryDTO.getOwnerRegulatorId() != null) {
-            wrapper.eq(WarningRecord::getOwnerRegulatorId, queryDTO.getOwnerRegulatorId());
+        if (queryDTO.getAssignedTo() != null) {
+            wrapper.eq(WarningRecord::getAssignedTo, queryDTO.getAssignedTo());
         }
         if (!regionIdSet.isEmpty()) {
             wrapper.in(WarningRecord::getRegionId, regionIdSet);
@@ -613,21 +608,35 @@ public class WarningEventServiceImpl implements WarningEventService {
         if (record == null || scopeDTO == null) {
             return;
         }
-        Set<Long> regionIds = parseRegionIds(scopeDTO.getRegionIds());
-        ensureScope(scopeDTO.getOwnerRegulatorId(), regionIds);
-        if (scopeDTO.getOwnerRegulatorId() != null
-            && !scopeDTO.getOwnerRegulatorId().equals(record.getOwnerRegulatorId())) {
-            throw new IllegalArgumentException("warning not found");
+        Long assignedScope = scopeDTO.getAssignedRegulatorId();
+        if (assignedScope != null && assignedScope > 0) {
+            if (record.getAssignedTo() == null || !assignedScope.equals(record.getAssignedTo())) {
+                throw new IllegalArgumentException("warning not found");
+            }
+            return;
         }
+        Set<Long> regionIds = parseRegionIds(scopeDTO.getRegionIds());
+        ensureScope(null, regionIds);
         if (!regionIds.isEmpty() && (record.getRegionId() == null || !regionIds.contains(record.getRegionId()))) {
             throw new IllegalArgumentException("warning not found");
         }
     }
 
-    private void ensureScope(Long ownerRegulatorId, Set<Long> regionIds) {
-        if (ownerRegulatorId == null && (regionIds == null || regionIds.isEmpty())) {
+    private void ensureScope(WarningScopeDTO scopeDTO) {
+        if (scopeDTO == null) {
             throw new IllegalArgumentException("scope required");
         }
+        ensureScope(scopeDTO.getAssignedRegulatorId(), parseRegionIds(scopeDTO.getRegionIds()));
+    }
+
+    private void ensureScope(Long assignedRegulatorId, Set<Long> regionIds) {
+        if (assignedRegulatorId != null && assignedRegulatorId > 0) {
+            return;
+        }
+        if (regionIds != null && !regionIds.isEmpty()) {
+            return;
+        }
+        throw new IllegalArgumentException("scope required");
     }
 
     private Set<Long> parseRegionIds(String regionIds) {

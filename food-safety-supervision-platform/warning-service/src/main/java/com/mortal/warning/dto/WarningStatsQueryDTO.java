@@ -32,9 +32,9 @@ public class WarningStatsQueryDTO {
     private String regionIds;
 
     /**
-     * 按责任执法员过滤（可选）。
+     * 按分派处理人过滤（执法员统计，可选）。
      */
-    private Long ownerRegulatorId;
+    private Long assignedTo;
 
     /**
      * 类型统计 TopN，默认 5。

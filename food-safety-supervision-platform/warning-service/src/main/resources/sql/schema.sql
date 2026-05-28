@@ -30,7 +30,7 @@ CREATE TABLE IF NOT EXISTS warning_record (
   region_id BIGINT COMMENT '辖区ID（用于管理员权限过滤）',
   owner_regulator_id BIGINT COMMENT '责任执法员ID（用于执法员权限过滤）',
   dedup_key VARCHAR(120) NOT NULL COMMENT '幂等去重键',
-  level VARCHAR(16) DEFAULT 'L1' COMMENT 'L1 / L2',
+  level VARCHAR(16) DEFAULT 'L1' COMMENT '预警档位：L1 初发 / L2 升级加重',
   status VARCHAR(20) DEFAULT 'OPEN' COMMENT 'OPEN / PROCESSING / RESOLVED / CLOSED',
   title VARCHAR(100) COMMENT '预警标题',
   content VARCHAR(500) COMMENT '预警内容',

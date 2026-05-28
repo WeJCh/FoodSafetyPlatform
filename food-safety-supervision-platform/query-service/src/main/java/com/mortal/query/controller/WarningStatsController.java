@@ -56,7 +56,7 @@ public class WarningStatsController {
 
     @Operation(
         summary = "预警总览统计",
-        description = "返回总数、状态分布、等级分布。已处理完成口径：RESOLVED + CLOSED。"
+        description = "返回总数、状态分布、档位分布（L1 初发 / L2 升级）。已处理完成口径：RESOLVED + CLOSED。"
     )
     @GetMapping("/overview")
     public ApiResponse<WarningStatsOverviewVO> overview(@ParameterObject WarningStatsQueryDTO queryDTO,
@@ -191,7 +191,7 @@ public class WarningStatsController {
             return "-";
         }
         return String.format(
-            "start=%s,end=%s,warningType=%s,bizType=%s,level=%s,status=%s,regionId=%s,regionIds=%s,ownerRegulatorId=%s,topN=%s,trendDays=%s,overdueHours=%s",
+            "start=%s,end=%s,warningType=%s,bizType=%s,level=%s,status=%s,regionId=%s,regionIds=%s,assignedTo=%s,topN=%s,trendDays=%s,overdueHours=%s",
             textOrDash(query.getStartTime()),
             textOrDash(query.getEndTime()),
             textOrDash(query.getWarningType()),
@@ -200,7 +200,7 @@ public class WarningStatsController {
             textOrDash(query.getStatus()),
             textOrDash(query.getRegionId()),
             textOrDash(query.getRegionIds()),
-            textOrDash(query.getOwnerRegulatorId()),
+            textOrDash(query.getAssignedTo()),
             textOrDash(query.getTopN()),
             textOrDash(query.getTrendDays()),
             textOrDash(query.getOverdueHours())

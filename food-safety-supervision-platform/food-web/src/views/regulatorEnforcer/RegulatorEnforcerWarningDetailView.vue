@@ -327,8 +327,8 @@ watch(() => route.params.warningId, loadDetail);
 .ghost { background: #fff; color: #334155; }
 .ghost--light { background: rgba(255, 255, 255, 0.08); border-color: rgba(255, 255, 255, 0.24); color: #fff; }
 .level-pill, .status-pill { display: inline-flex; min-height: 24px; align-items: center; justify-content: center; padding: 0 10px; border-radius: 999px; border: 1px solid transparent; font-size: 11px; font-weight: 800; }
-.level-pill.is-l1 { background: #fee2e2; color: #991b1b; }
-.level-pill.is-l2 { background: #ffedd5; color: #9a3412; }
+.level-pill.is-l1 { background: #fff4eb; color: #9a3412; border-color: #fcd9b8; }
+.level-pill.is-l2 { background: #fee2e2; color: #991b1b; border-color: #fecaca; }
 .status-pill.is-open { background: #fff4eb; color: #9b3a0a; border-color: #f8d5bf; }
 .status-pill.is-processing { background: #ecfeff; color: #155e75; border-color: #a5f3fc; }
 .status-pill.is-resolved { background: #dcfce7; color: #166534; border-color: #86efac; }

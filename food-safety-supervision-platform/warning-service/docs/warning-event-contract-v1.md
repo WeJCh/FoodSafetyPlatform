@@ -16,7 +16,7 @@
 ## 3. Scope and Payload Requirements
 - Scope fields:
   - `regionId`: region scope id
-  - `ownerRegulatorId`: responsible enforcer id
+  - `ownerRegulatorId`: enterprise owner enforcer id (metadata only, not assignment)
 - Payload fields (required for rectification SLA events):
   - `enterpriseId`
   - `regionId`

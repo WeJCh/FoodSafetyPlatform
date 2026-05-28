@@ -33,6 +33,11 @@ VALUES
  1, 5, 1, '2024-04-15 09:00:00', '2024-04-16 10:00:00', NULL,
  '2024-04-20 18:00:00', 0),
 
+-- 香满楼二次检查（连续不合格演示数据）
+(7, 'TASK202404003', 5, 10, '香满楼餐厅二次检查', '整改后复查，用于连续不合格预警演示', 'HIGH', 'COMPLETED',
+ 2, 6, 2, '2024-04-08 09:00:00', '2024-04-10 10:00:00', '2024-04-10 16:00:00',
+ '2024-04-15 18:00:00', 0),
+
 -- 待分派的检查任务
 (6, 'TASK202404002', 6, 9, '新鲜蔬菜配送中心初检', '新备案企业首次监督检查', 'MEDIUM', 'CREATED',
  2, NULL, NULL, NULL, NULL, NULL,
@@ -102,6 +107,9 @@ VALUES
 (4, 4, 5, 6, '2024-03-11', 'FAIL',
  '发现以下问题：1. 火锅底料存放温度不符合要求；2. 食品留样记录缺失；3. 餐具消毒设施运行异常。', 0),
 
+(6, 7, 5, 6, '2024-04-10', 'FAIL',
+ '复查发现：1. 消毒设施整改后短期内再次故障；2. 留样记录填写不完整；3. 后厨垃圾桶未及时清理。', 0),
+
 -- 进行中的检查（暂无结果）
 (5, 5, 3, 5, '2024-04-16', NULL, NULL, 0);
 
@@ -141,6 +149,14 @@ VALUES
 (4, '食品储存条件', 'FAIL', '火锅底料存放温度超标，未按冷藏要求存放', 0),
 (4, '食品留样管理', 'FAIL', '近一周食品留样记录缺失', 0),
 (4, '餐饮具清洗消毒', 'FAIL', '消毒柜故障，未能正常运行', 0);
+
+INSERT INTO inspection_item (inspection_id, item_name, item_result, problem_desc, deleted)
+VALUES
+(6, '食品经营许可证', 'PASS', NULL, 0),
+(6, '从业人员健康证', 'PASS', NULL, 0),
+(6, '食品留样管理', 'FAIL', '留样记录填写不完整，部分日期缺失', 0),
+(6, '餐饮具清洗消毒', 'FAIL', '消毒设施整改后短期内再次故障', 0),
+(6, '环境卫生', 'FAIL', '后厨垃圾桶未及时清理，存在异味', 0);
 
 -- ============================================
 -- 6. 整改任务
@@ -195,7 +211,11 @@ VALUES
 
 ('RECTIFICATION:2:SLA_OVERDUE_SUBMIT', 'RECTIFICATION_OVERDUE',
  '{"warningType":"RECTIFICATION_OVERDUE","bizType":"RECTIFICATION","bizId":2,"regionId":10,"ownerRegulatorId":6,"title":"整改逾期预警","content":"香满楼餐厅整改任务已超过提交截止时间，请立即处理","sourceService":"regulation-operation-service","dedupKey":"RECTIFICATION:2:SLA_OVERDUE_SUBMIT","rectificationId":2,"inspectionId":4,"enterpriseId":5,"actionType":"SLA_OVERDUE_SUBMIT","deadline":"2024-03-21 18:00:00"}',
- 'SENT', 0, '2024-04-12 09:00:00', 0);
+ 'SENT', 0, '2024-04-12 09:00:00', 0),
+
+('INSPECTION:6:CONSECUTIVE_INSPECTION_FAIL', 'CONSECUTIVE_INSPECTION_FAIL',
+ '{"warningType":"CONSECUTIVE_INSPECTION_FAIL","bizType":"INSPECTION","bizId":6,"regionId":10,"ownerRegulatorId":6,"title":"企业连续检查不合格","content":"企业最近2次检查均为不合格，已自动纳入重点监管","sourceService":"regulation-operation-service","dedupKey":"INSPECTION:6:CONSECUTIVE_INSPECTION_FAIL","enterpriseId":5,"taskId":7,"inspectionId":6,"consecutiveFailCount":2,"inspectionDate":"2024-04-10"}',
+ 'SENT', 0, '2024-04-10 11:00:00', 0);
 
 -- 重置自增 ID
 ALTER TABLE inspection_task AUTO_INCREMENT = 100;

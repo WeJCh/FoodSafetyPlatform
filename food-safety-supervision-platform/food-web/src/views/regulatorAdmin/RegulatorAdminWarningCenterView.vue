@@ -30,8 +30,12 @@
             <label>预警等级</label>
             <div class="chip-group">
               <button type="button" :class="['chip', { active: filters.level === '' }]" @click="setLevel('')">全部级别</button>
-              <button type="button" :class="['chip', { active: filters.level === 'L1' }]" @click="setLevel('L1')">L1 高风险</button>
-              <button type="button" :class="['chip', { active: filters.level === 'L2' }]" @click="setLevel('L2')">L2 一般风险</button>
+              <button type="button" :class="['chip', { active: filters.level === 'L1' }]" @click="setLevel('L1')">
+                {{ getWarningLevelShortLabel("L1") }}
+              </button>
+              <button type="button" :class="['chip', { active: filters.level === 'L2' }]" @click="setLevel('L2')">
+                {{ getWarningLevelShortLabel("L2") }}
+              </button>
             </div>
           </div>
           <div class="filter-block">
@@ -71,7 +75,7 @@
               <tr v-for="item in records" :key="item.id">
                 <td class="mono">{{ formatTime(item.lastOccurTime || item.createTime) }}</td>
                 <td class="center">
-                  <AppStatusTag :label="formatWarningLevel(item.level)" :tone="item.level === 'L1' ? 'danger' : 'warning'" />
+                  <AppStatusTag :label="formatWarningLevel(item.level)" :tone="getWarningLevelTone(item.level)" />
                 </td>
                 <td>
                   <p class="obj-main">{{ item.bizName || item.title || "-" }}</p>
@@ -84,7 +88,7 @@
                 <td>
                   <AppStatusTag :label="formatWarningStatus(item.status)" :tone="warningTone(item.status)" />
                 </td>
-                <td>{{ item.assignedToName || item.ownerName || "尚未指派" }}</td>
+                <td>{{ item.assignedToName || "尚未指派" }}</td>
                 <td>
                   <div class="action-row">
                     <button class="ghost action-btn" type="button" @click="openDetail(item)">详情</button>
@@ -187,7 +191,14 @@ import {
 } from "../../api/regulation";
 import RegulatorAdminWorkspacePage from "../../components/regulatorAdmin/RegulatorAdminWorkspacePage.vue";
 import { formatByMap, formatTime } from "../../utils/formatters";
-import { getStatusTone, warningActionMap, warningLevelMap, warningStatusMap } from "../../utils/statusMaps";
+import {
+  getStatusTone,
+  getWarningLevelShortLabel,
+  getWarningLevelTone,
+  warningActionMap,
+  warningLevelMap,
+  warningStatusMap
+} from "../../utils/statusMaps";
 import { resolveErrorMessage } from "../../utils/uiFeedback";
 import { useRegulatorAdminShellSession } from "./regulatorAdminShared";
 

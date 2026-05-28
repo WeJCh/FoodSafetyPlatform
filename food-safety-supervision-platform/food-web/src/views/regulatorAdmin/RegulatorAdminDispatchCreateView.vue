@@ -92,7 +92,7 @@
               <i></i>
               <h2>执法人员分配</h2>
             </div>
-            <p class="side-tips">当前选择会在任务创建成功后立即调用分配接口。</p>
+            <p class="side-tips">请先选择目标企业，仅展示该企业辖区内的执法人员；提交后将立即分配。</p>
             <div class="enforcer-list">
               <button
                 v-for="item in enforcers"
@@ -103,12 +103,13 @@
                 @click="form.regulatorId = item.id"
               >
                 <div>
-                  <p>{{ item.name || item.username || "未命名人员" }}</p>
-                  <span>{{ item.regionName || "可跨区调度" }}</span>
+                  <p>{{ item.name || "未命名人员" }}</p>
+                  <span>{{ formatRegulatorRegions(item.regionIds) }}</span>
                 </div>
                 <b>{{ String(form.regulatorId) === String(item.id) ? "已选" : "选择" }}</b>
               </button>
-              <div v-if="!enforcers.length" class="empty">暂无可分配执法人员</div>
+              <div v-if="!form.enterpriseId" class="empty">请先选择目标企业</div>
+              <div v-else-if="!enforcers.length" class="empty">该辖区暂无可分配执法人员</div>
             </div>
             <label class="remark-box">
               任务备注
@@ -156,10 +157,10 @@
 </template>
 
 <script setup>
-import { computed, onMounted, reactive, ref } from "vue";
+import { computed, onMounted, reactive, ref, watch } from "vue";
 import { useRouter } from "vue-router";
 import { assignInspectionTask, createInspectionTask } from "../../api/regulationOperation";
-import { fetchEligibleRegulators, fetchEnterprises } from "../../api/regulation";
+import { fetchEligibleRegulators, fetchEnterprises, fetchRegionPath } from "../../api/regulation";
 import RegulatorAdminWorkspacePage from "../../components/regulatorAdmin/RegulatorAdminWorkspacePage.vue";
 import { resolveErrorMessage } from "../../utils/uiFeedback";
 import { useRegulatorAdminShellSession } from "./regulatorAdminShared";
@@ -171,6 +172,7 @@ const loading = ref(false);
 const enterpriseKeyword = ref("");
 const enterprises = ref([]);
 const enforcers = ref([]);
+const regionNameMap = reactive({});
 const form = reactive({
   taskTitle: "",
   priority: "MEDIUM",
@@ -201,6 +203,52 @@ function formatRisk(value) {
   return value || "-";
 }
 
+function formatRegionName(regionId) {
+  if (!regionId) return "-";
+  return regionNameMap[regionId] || `区域 ${regionId}`;
+}
+
+function formatRegulatorRegions(regionIds = []) {
+  if (!Array.isArray(regionIds) || !regionIds.length) return "-";
+  return regionIds.map((id) => formatRegionName(id)).filter(Boolean).join("、");
+}
+
+async function ensureRegionName(regionId) {
+  if (!regionId || regionNameMap[regionId]) return;
+  try {
+    const path = await fetchRegionPath(token.value, regionId);
+    regionNameMap[regionId] = Array.isArray(path) && path.length
+      ? path.map((item) => item.name).join(" / ")
+      : `区域 ${regionId}`;
+  } catch {
+    regionNameMap[regionId] = `区域 ${regionId}`;
+  }
+}
+
+function findEnterpriseById(enterpriseId) {
+  return enterprises.value.find((item) => String(item.id) === String(enterpriseId)) || null;
+}
+
+async function loadEnforcers(regionId) {
+  if (!regionId) {
+    enforcers.value = [];
+    return;
+  }
+  try {
+    const data = await fetchEligibleRegulators(token.value, regionId);
+    const list = Array.isArray(data) ? data : [];
+    enforcers.value = list;
+    await Promise.all(
+      list.flatMap((item) =>
+        Array.isArray(item.regionIds) ? item.regionIds.map((region) => ensureRegionName(region)) : []
+      )
+    );
+  } catch (error) {
+    enforcers.value = [];
+    setStatus(resolveErrorMessage(error, "执法人员列表加载失败"), "error");
+  }
+}
+
 function normalizeDeadline(dateValue) {
   if (!dateValue) return "";
   const normalized = String(dateValue).trim();
@@ -224,21 +272,25 @@ function normalizeDeadline(dateValue) {
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
 }
 
-async function loadOptions() {
+async function loadEnterprises() {
   loading.value = true;
   try {
-    const [enterpriseData, enforcerData] = await Promise.all([
-      fetchEnterprises(token.value, { approvalStatus: "APPROVED", page: 1, size: 100 }),
-      fetchEligibleRegulators(token.value)
-    ]);
+    const enterpriseData = await fetchEnterprises(token.value, { approvalStatus: "APPROVED", page: 1, size: 100 });
     enterprises.value = enterpriseData?.records || [];
-    enforcers.value = Array.isArray(enforcerData) ? enforcerData : [];
   } catch (error) {
-    setStatus(resolveErrorMessage(error, "加载数据失败"), "error");
+    setStatus(resolveErrorMessage(error, "加载企业列表失败"), "error");
   } finally {
     loading.value = false;
   }
 }
+
+watch(
+  () => form.enterpriseId,
+  async (enterpriseId) => {
+    form.regulatorId = "";
+    await loadEnforcers(findEnterpriseById(enterpriseId)?.regionId);
+  }
+);
 
 function goBackToList() {
   router.push({ name: "regulator-admin-dispatch" });
@@ -282,7 +334,7 @@ async function handleSubmitTask() {
   }
 }
 
-onMounted(loadOptions);
+onMounted(loadEnterprises);
 </script>
 
 <style scoped>

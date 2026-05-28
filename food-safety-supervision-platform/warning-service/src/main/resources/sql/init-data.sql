@@ -15,7 +15,7 @@ VALUES
 -- 2. 预警记录
 -- 口径说明：
 -- - owner_regulator_id = 当前责任执法人员 food_regulator.id
--- - assigned_to 与 owner_regulator_id 保持同义、同值
+-- - assigned_to 仅管理员 assign 后写入；创建时仅写 owner_regulator_id
 -- - source_service 与真实上报来源保持一致
 -- - payload_json 与当前业务链路字段保持一致
 -- ============================================
@@ -41,7 +41,7 @@ VALUES
 ),
 (
     2, 'WARN202403002', 'SAMPLING_FAIL', 'SAMPLING', 3, 7, 3,
-    'SAMPLING:3:SAMPLING_FAIL', 'L1', 'RESOLVED',
+    'SAMPLING:3:SAMPLING_FAIL', 'L2', 'RESOLVED',
     '快乐小吃店抽检不合格预警',
     '炸鸡腿抽检不合格，菌落总数超标，存在食品安全风险。',
     'regulation-operation-service',
@@ -63,14 +63,14 @@ VALUES
     '2024-03-22 09:00:00', '2024-04-12 09:00:00', 0
 ),
 (
-    4, 'WARN202404002', 'CONSECUTIVE_INSPECTION_FAIL', 'INSPECTION', 5, 10, 6,
-    'INSPECTION:5:CONSECUTIVE_INSPECTION_FAIL', 'L2', 'OPEN',
+    4, 'WARN202404002', 'CONSECUTIVE_INSPECTION_FAIL', 'INSPECTION', 6, 10, 6,
+    'INSPECTION:6:CONSECUTIVE_INSPECTION_FAIL', 'L2', 'OPEN',
     '香满楼餐厅连续检查不合格预警',
-    '企业连续两次检查不合格，需立即开展重点核查。',
+    '企业最近2次检查均为不合格（2024-03-11、2024-04-10），已自动纳入重点监管。',
     'regulation-operation-service',
     '2024-04-10 11:00:00', '2024-04-10 11:00:00', 1,
-    6, NULL, NULL, NULL, NULL,
-    '{"warningType":"CONSECUTIVE_INSPECTION_FAIL","bizType":"INSPECTION","bizId":5,"inspectionId":5,"enterpriseId":5,"regionId":10,"ownerRegulatorId":6,"consecutiveFailCount":2}',
+    NULL, NULL, NULL, NULL, NULL,
+    '{"warningType":"CONSECUTIVE_INSPECTION_FAIL","bizType":"INSPECTION","bizId":6,"inspectionId":6,"enterpriseId":5,"taskId":7,"regionId":10,"ownerRegulatorId":6,"consecutiveFailCount":2,"inspectionDate":"2024-04-10"}',
     '2024-04-10 11:00:00', '2024-04-10 11:00:00', 0
 ),
 (
@@ -80,7 +80,7 @@ VALUES
     '企业近 30 天有效投诉达到 3 件，需重点关注并及时研判风险。',
     'complaint-service',
     '2024-04-18 10:00:00', '2024-04-18 10:00:00', 1,
-    6, NULL, NULL, NULL, NULL,
+    NULL, NULL, NULL, NULL, NULL,
     '{"warningType":"COMPLAINT_OVERFLOW","bizType":"ENTERPRISE","bizId":5,"enterpriseId":5,"regionId":10,"ownerRegulatorId":6,"complaintCount":3,"threshold":3}',
     '2024-04-18 10:00:00', '2024-04-18 10:00:00', 0
 ),

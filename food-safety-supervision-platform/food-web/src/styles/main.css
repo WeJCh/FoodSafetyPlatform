@@ -6318,7 +6318,32 @@ textarea::placeholder {
   border: 1px solid rgba(195, 198, 211, 0.42);
   border-radius: 10px;
   box-shadow: 0 12px 30px -24px rgba(0, 38, 96, 0.26);
-  overflow: hidden;
+  overflow-x: auto;
+}
+
+.enterprise-rectification-list-page__table {
+  table-layout: fixed;
+  min-width: 880px;
+}
+
+.enterprise-rectification-list-page__col-id {
+  width: 132px;
+}
+
+.enterprise-rectification-list-page__col-desc {
+  width: 42%;
+}
+
+.enterprise-rectification-list-page__col-deadline {
+  width: 128px;
+}
+
+.enterprise-rectification-list-page__col-status {
+  width: 108px;
+}
+
+.enterprise-rectification-list-page__col-action {
+  width: 104px;
 }
 
 .enterprise-rectification-list-page__table thead tr {
@@ -6331,6 +6356,17 @@ textarea::placeholder {
   letter-spacing: 0.12em;
   padding-top: 12px;
   padding-bottom: 12px;
+}
+
+.enterprise-rectification-list-page__table th.is-center,
+.enterprise-rectification-list-page__table td.is-center {
+  text-align: center;
+}
+
+.enterprise-rectification-list-page__table th.is-right,
+.enterprise-rectification-list-page__table td.is-right {
+  text-align: right;
+  white-space: nowrap;
 }
 
 .enterprise-rectification-list-page__table td {
@@ -6352,6 +6388,13 @@ textarea::placeholder {
   font-size: 12px;
   color: var(--outline);
   font-weight: 700;
+  white-space: nowrap;
+}
+
+.enterprise-rectification-list-page__desc-link {
+  display: block;
+  min-width: 0;
+  text-decoration: none;
 }
 
 .enterprise-rectification-list-page__desc-title {
@@ -6359,11 +6402,11 @@ textarea::placeholder {
   font-weight: 700;
   color: var(--on-surface);
   line-height: 1.4;
-}
-
-.enterprise-rectification-list-page__desc-link {
-  display: block;
-  text-decoration: none;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+  word-break: break-word;
 }
 
 .enterprise-rectification-list-page__desc-link:hover .enterprise-rectification-list-page__desc-title {
@@ -6375,7 +6418,6 @@ textarea::placeholder {
   font-size: 11px;
   color: var(--on-surface-variant);
   line-height: 1.45;
-  max-width: 520px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -6385,9 +6427,11 @@ textarea::placeholder {
   display: inline-flex;
   align-items: center;
   gap: 6px;
+  max-width: 100%;
   font-size: 13px;
   font-weight: 700;
   color: var(--on-surface-variant);
+  white-space: nowrap;
 }
 
 .enterprise-rectification-list-page__deadline.is-warning,
@@ -6462,6 +6506,17 @@ textarea::placeholder {
   color: var(--on-surface-variant);
   opacity: 0.6;
   cursor: not-allowed;
+}
+
+.enterprise-rectification-list-page__action-btn.is-outline {
+  border: 1px solid var(--primary);
+  background: #fff;
+  color: var(--primary);
+  cursor: pointer;
+}
+
+.enterprise-rectification-list-page__action-btn.is-outline:hover {
+  background: rgba(0, 38, 96, 0.06);
 }
 
 .enterprise-rectification-list-page__pager {

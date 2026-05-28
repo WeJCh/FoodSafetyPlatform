@@ -126,7 +126,7 @@
           </div>
           <div class="enterprise-rectification-submit-page__actions">
             <button type="button" class="ghost" @click="onBackToList">返回整改列表</button>
-            <button type="button" class="ghost" @click="onBackToDetail">返回任务详情</button>
+            <button type="button" class="ghost" @click="onBackToDetail">返回整改详情</button>
             <button class="primary" type="submit" :disabled="loading || uploading">
               <span class="material-symbols-outlined" aria-hidden="true">send</span>
               {{ loading ? "提交中..." : "提交审核" }}

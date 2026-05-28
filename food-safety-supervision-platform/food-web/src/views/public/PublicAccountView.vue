@@ -135,7 +135,7 @@
                   <span class="material-symbols-outlined">history</span>
                   <div>
                     <h2>账户变更记录</h2>
-                    <p>展示当前账号最近的资料、密码与权限变更记录。</p>
+                    <p>展示当前账号最近的开通、资料与密码变更记录。</p>
                   </div>
                 </div>
               </div>
@@ -327,7 +327,7 @@ async function loadAccountLogs() {
   loadingLogs.value = true;
   try {
     const logData = await fetchCurrentUserAuditLogs(publicToken.value, 6);
-    accountLogs.value = Array.isArray(logData) ? logData.slice(0, 6) : [];
+    accountLogs.value = Array.isArray(logData) ? logData : [];
   } catch (error) {
     accountLogs.value = [];
   } finally {

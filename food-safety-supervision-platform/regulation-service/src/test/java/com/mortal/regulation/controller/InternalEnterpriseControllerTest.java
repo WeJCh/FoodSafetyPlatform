@@ -8,8 +8,10 @@ import com.mortal.platform.common.ApiResponse;
 import com.mortal.regulation.controller.internal.InternalEnterpriseController;
 import com.mortal.regulation.dto.EnterpriseKeyReasonUpsertDTO;
 import com.mortal.regulation.mapper.AddrLocationMapper;
+import com.mortal.regulation.mapper.EnterpriseProfileAttachmentMapper;
 import com.mortal.regulation.mapper.FoodEnterpriseMapper;
 import com.mortal.regulation.service.EnterpriseKeyReasonService;
+import com.mortal.regulation.support.EnterpriseMasterCacheService;
 import org.junit.jupiter.api.Test;
 
 class InternalEnterpriseControllerTest {
@@ -17,12 +19,17 @@ class InternalEnterpriseControllerTest {
     @Test
     void markAsKey_shouldDelegateToService() {
         FoodEnterpriseMapper enterpriseMapper = mock(FoodEnterpriseMapper.class);
+        EnterpriseProfileAttachmentMapper enterpriseProfileAttachmentMapper =
+            mock(EnterpriseProfileAttachmentMapper.class);
         AddrLocationMapper addrLocationMapper = mock(AddrLocationMapper.class);
         EnterpriseKeyReasonService enterpriseKeyReasonService = mock(EnterpriseKeyReasonService.class);
+        EnterpriseMasterCacheService enterpriseMasterCacheService = mock(EnterpriseMasterCacheService.class);
         InternalEnterpriseController controller = new InternalEnterpriseController(
             enterpriseMapper,
+            enterpriseProfileAttachmentMapper,
             addrLocationMapper,
-            enterpriseKeyReasonService
+            enterpriseKeyReasonService,
+            enterpriseMasterCacheService
         );
         EnterpriseKeyReasonUpsertDTO dto = new EnterpriseKeyReasonUpsertDTO();
         dto.setReasonType("CONSECUTIVE_INSPECTION_FAIL");

@@ -1,0 +1,44 @@
+@startuml
+' 图3-9 投诉处理业务流程图
+' 用途：3.1.4 第四条主线 — 投诉受理与反馈
+skinparam shadowing false
+skinparam defaultFontName Microsoft YaHei
+skinparam activity {
+  BackgroundColor #ffffff
+  BorderColor #6b7280
+  DiamondBackgroundColor #f8fafc
+  DiamondBorderColor #6b7280
+  ArrowColor #6b7280
+}
+
+|公众用户|
+start
+:选择企业并填写投诉内容;
+:提交投诉;
+
+|系统|
+:保存投诉记录;
+:状态置为待受理;
+
+|区域管理员|
+:查看投诉详情;
+
+if (是否受理?) then (是)
+  :受理投诉;
+  :分派执法人员;
+  |执法人员|
+  :开始处理投诉;
+  :填写处理结果并反馈;
+  |系统|
+  :更新投诉状态为已反馈;
+  |公众用户|
+  :查看处理进度与结果;
+  stop
+else (否)
+  :驳回投诉并记录原因;
+  |公众用户|
+  :查看驳回结果;
+  stop
+endif
+
+@enduml

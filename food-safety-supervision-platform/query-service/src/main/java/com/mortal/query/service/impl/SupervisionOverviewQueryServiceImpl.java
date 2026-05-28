@@ -121,7 +121,7 @@ public class SupervisionOverviewQueryServiceImpl implements SupervisionOverviewQ
             normalizeText(query.getStatus()),
             query.getRegionId() == null ? "" : String.valueOf(query.getRegionId()),
             regionIds.stream().map(String::valueOf).collect(Collectors.joining(",")),
-            query.getOwnerRegulatorId() == null ? "" : String.valueOf(query.getOwnerRegulatorId()),
+            query.getAssignedTo() == null ? "" : String.valueOf(query.getAssignedTo()),
             query.getTopN() == null ? "" : String.valueOf(query.getTopN()),
             query.getTrendDays() == null ? "" : String.valueOf(query.getTrendDays()),
             query.getOverdueHours() == null ? "" : String.valueOf(query.getOverdueHours())
@@ -136,7 +136,7 @@ public class SupervisionOverviewQueryServiceImpl implements SupervisionOverviewQ
         }
         query.setRegionId(source.getRegionId());
         query.setRegionIds(source.getRegionIds());
-        query.setOwnerRegulatorId(source.getOwnerRegulatorId());
+        query.setAssignedTo(source.getAssignedTo());
         return query;
     }
 

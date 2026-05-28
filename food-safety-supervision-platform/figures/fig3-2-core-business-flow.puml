@@ -1,0 +1,37 @@
+@startuml
+' 图3-2 食品安全监管核心业务流程图（总览）
+' 用途：3.1.4 主要业务流程 — 概括四条主线关系
+skinparam shadowing false
+skinparam defaultFontName Microsoft YaHei
+skinparam activity {
+  BackgroundColor #ffffff
+  BorderColor #6b7280
+  DiamondBackgroundColor #f8fafc
+  DiamondBorderColor #6b7280
+  ArrowColor #6b7280
+}
+
+start
+
+:企业用户注册登录;
+:提交备案资料与附件;
+:区域管理员审核备案;
+
+if (审核通过?) then (是)
+  :企业进入纳管状态;
+  :维护产品档案;
+else (否)
+  stop
+endif
+
+fork
+  :检查与整改;
+fork again
+  :抽检与公示;
+fork again
+  :投诉处理;
+end fork
+
+stop
+
+@enduml

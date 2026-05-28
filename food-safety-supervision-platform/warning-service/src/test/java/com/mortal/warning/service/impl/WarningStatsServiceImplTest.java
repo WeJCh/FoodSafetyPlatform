@@ -10,11 +10,13 @@ import static org.mockito.Mockito.when;
 import com.mortal.warning.dto.WarningStatsQueryDTO;
 import com.mortal.warning.entity.WarningRecord;
 import com.mortal.warning.mapper.WarningRecordMapper;
+import com.mortal.warning.support.WarningStatsCacheSupport;
 import com.mortal.warning.vo.WarningEfficiencyStatsVO;
 import com.mortal.warning.vo.WarningStatsOverviewVO;
 import com.mortal.warning.vo.WarningTrendPointVO;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.function.Supplier;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -27,11 +29,20 @@ class WarningStatsServiceImplTest {
     @Mock
     private WarningRecordMapper warningRecordMapper;
 
+    @Mock
+    private WarningStatsCacheSupport warningStatsCacheSupport;
+
     private WarningStatsServiceImpl warningStatsService;
 
     @BeforeEach
     void setUp() {
-        warningStatsService = new WarningStatsServiceImpl(warningRecordMapper);
+        when(warningStatsCacheSupport.buildCacheKey(any(), any())).thenAnswer(invocation ->
+            invocation.getArgument(0) + ":" + invocation.getArgument(1));
+        when(warningStatsCacheSupport.getOrLoad(any(), any())).thenAnswer(invocation -> {
+            Supplier<?> loader = invocation.getArgument(1);
+            return loader.get();
+        });
+        warningStatsService = new WarningStatsServiceImpl(warningRecordMapper, warningStatsCacheSupport);
     }
 
     @Test

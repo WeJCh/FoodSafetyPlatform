@@ -37,11 +37,11 @@
           </select>
         </label>
         <label>
-          预警级别
+          预警档位
           <select v-model="filters.level">
             <option value="">全部</option>
-            <option value="L1">一级</option>
-            <option value="L2">二级</option>
+            <option value="L1">{{ warningLevelMap.L1 }}</option>
+            <option value="L2">{{ warningLevelMap.L2 }}</option>
           </select>
         </label>
         <label>
@@ -394,8 +394,8 @@ th {
   font-size: 11px;
   font-weight: 800;
 }
-.level-pill.is-l1 { background: #fee2e2; color: #991b1b; }
-.level-pill.is-l2 { background: #ffedd5; color: #9a3412; }
+.level-pill.is-l1 { background: #fff4eb; color: #9a3412; border-color: #fcd9b8; }
+.level-pill.is-l2 { background: #fee2e2; color: #991b1b; border-color: #fecaca; }
 .status-pill.is-open { background: #fff4eb; color: #9b3a0a; border-color: #f8d5bf; }
 .status-pill.is-processing { background: #ecfeff; color: #155e75; border-color: #a5f3fc; }
 .status-pill.is-resolved { background: #dcfce7; color: #166534; border-color: #86efac; }

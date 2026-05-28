@@ -26,14 +26,14 @@ public interface WarningServiceClient {
 
     @GetMapping("/api/warning/warnings/{id}")
     ApiResponse<WarningRecordDetailVO> detail(@PathVariable("id") Long id,
-                                              @RequestHeader(value = "X-Scope-Owner-Regulator-Id", required = false)
-                                              String ownerRegulatorId,
+                                              @RequestHeader(value = "X-Scope-Assigned-Regulator-Id", required = false)
+                                              String assignedRegulatorId,
                                               @RequestHeader(value = "X-Scope-Region-Ids", required = false)
                                               String regionIds);
 
     @GetMapping("/api/warning/warnings/logs/recent")
     ApiResponse<List<WarningProcessLogVO>> recentLogs(
-        @RequestHeader(value = "X-Scope-Owner-Regulator-Id", required = false) String ownerRegulatorId,
+        @RequestHeader(value = "X-Scope-Assigned-Regulator-Id", required = false) String assignedRegulatorId,
         @RequestHeader(value = "X-Scope-Region-Ids", required = false) String regionIds,
         @RequestParam(value = "limit", required = false) Integer limit
     );
@@ -41,8 +41,8 @@ public interface WarningServiceClient {
     @PostMapping("/api/warning/warnings/{id}/process")
     ApiResponse<WarningRecordDetailVO> process(@PathVariable("id") Long id,
                                                @RequestBody WarningActionCommentDTO dto,
-                                               @RequestHeader(value = "X-Scope-Owner-Regulator-Id", required = false)
-                                               String ownerRegulatorId,
+                                               @RequestHeader(value = "X-Scope-Assigned-Regulator-Id", required = false)
+                                               String assignedRegulatorId,
                                                @RequestHeader(value = "X-Scope-Region-Ids", required = false)
                                                String regionIds,
                                                @RequestHeader(value = "X-User-Id", required = false)
@@ -53,8 +53,8 @@ public interface WarningServiceClient {
     @PostMapping("/api/warning/warnings/{id}/resolve")
     ApiResponse<WarningRecordDetailVO> resolve(@PathVariable("id") Long id,
                                                @RequestBody WarningActionCommentDTO dto,
-                                               @RequestHeader(value = "X-Scope-Owner-Regulator-Id", required = false)
-                                               String ownerRegulatorId,
+                                               @RequestHeader(value = "X-Scope-Assigned-Regulator-Id", required = false)
+                                               String assignedRegulatorId,
                                                @RequestHeader(value = "X-Scope-Region-Ids", required = false)
                                                String regionIds,
                                                @RequestHeader(value = "X-User-Id", required = false)
@@ -65,8 +65,6 @@ public interface WarningServiceClient {
     @PostMapping("/api/warning/warnings/{id}/assign")
     ApiResponse<WarningRecordDetailVO> assign(@PathVariable("id") Long id,
                                               @RequestBody WarningAssignDTO dto,
-                                              @RequestHeader(value = "X-Scope-Owner-Regulator-Id", required = false)
-                                              String ownerRegulatorId,
                                               @RequestHeader(value = "X-Scope-Region-Ids", required = false)
                                               String regionIds,
                                               @RequestHeader(value = "X-User-Id", required = false)
@@ -74,4 +72,3 @@ public interface WarningServiceClient {
                                               @RequestHeader(value = "X-Username", required = false)
                                               String operatorName);
 }
-

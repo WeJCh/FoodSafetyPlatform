@@ -38,9 +38,29 @@ export const warningStatusMap = defineStatus({
 });
 
 export const warningLevelMap = defineStatus({
-  L1: "一级预警",
-  L2: "二级预警"
+  L1: "初发预警",
+  L2: "升级预警"
 });
+
+/**
+ * 预警档位标签色：L1 初发（较轻）/ L2 升级加重（更重）。
+ */
+export function getWarningLevelTone(level) {
+  const key = normalizeKey(level);
+  if (key === "L2") return "danger";
+  if (key === "L1") return "warning";
+  return "neutral";
+}
+
+/**
+ * 筛选项等场景的短标签（含档位代码）。
+ */
+export function getWarningLevelShortLabel(level, fallback = "-") {
+  const key = normalizeKey(level);
+  if (key === "L1") return "L1 初发";
+  if (key === "L2") return "L2 升级";
+  return level ? String(level) : fallback;
+}
 
 export const warningActionMap = defineStatus({
   EVENT_UPSERT: "系统上报",

@@ -79,11 +79,11 @@ public class WarningStatsScopeService {
         if (query.getRegionId() != null || StringUtils.hasText(query.getRegionIds())) {
             throw new ForbiddenException("enforcer cannot query by region");
         }
-        if (query.getOwnerRegulatorId() == null) {
-            query.setOwnerRegulatorId(regulatorId);
+        if (query.getAssignedTo() == null) {
+            query.setAssignedTo(regulatorId);
             return;
         }
-        if (!regulatorId.equals(query.getOwnerRegulatorId())) {
+        if (!regulatorId.equals(query.getAssignedTo())) {
             throw new ForbiddenException("enforcer cannot query other enforcer scope");
         }
     }
@@ -135,7 +135,7 @@ public class WarningStatsScopeService {
         copy.setStatus(source.getStatus());
         copy.setRegionId(source.getRegionId());
         copy.setRegionIds(source.getRegionIds());
-        copy.setOwnerRegulatorId(source.getOwnerRegulatorId());
+        copy.setAssignedTo(source.getAssignedTo());
         copy.setTopN(source.getTopN());
         copy.setTrendDays(source.getTrendDays());
         copy.setOverdueHours(source.getOverdueHours());

@@ -6,6 +6,7 @@ USE food_regulation_operation_db;
 
 DROP TABLE IF EXISTS sampling_result;
 DROP TABLE IF EXISTS sampling_task;
+DROP TABLE IF EXISTS audit_log;
 DROP TABLE IF EXISTS warning_event_outbox;
 DROP TABLE IF EXISTS rectification_action_log;
 DROP TABLE IF EXISTS rectification_task;
@@ -84,6 +85,33 @@ CREATE TABLE IF NOT EXISTS sampling_result (
   KEY idx_sampling_result_product (product_id),
   KEY idx_sampling_result_public (public_status)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='抽检结果表';
+
+CREATE TABLE IF NOT EXISTS audit_log (
+  id BIGINT PRIMARY KEY AUTO_INCREMENT,
+  service_name VARCHAR(64) NOT NULL COMMENT 'service name',
+  operator_user_id BIGINT COMMENT 'operator user id',
+  operator_user_type VARCHAR(32) COMMENT 'operator user type',
+  operator_name VARCHAR(100) COMMENT 'operator name',
+  target_type VARCHAR(32) NOT NULL COMMENT 'target type',
+  target_id BIGINT NOT NULL COMMENT 'target id',
+  target_user_id BIGINT COMMENT 'target user id',
+  target_name VARCHAR(200) COMMENT 'target name',
+  biz_type VARCHAR(32) NOT NULL COMMENT 'business type',
+  action_type VARCHAR(64) NOT NULL COMMENT 'action type',
+  action_name VARCHAR(100) COMMENT 'action name',
+  before_data LONGTEXT COMMENT 'before snapshot json',
+  after_data LONGTEXT COMMENT 'after snapshot json',
+  success_flag TINYINT DEFAULT 1 COMMENT '1 success 0 fail',
+  error_message VARCHAR(500) COMMENT 'error message',
+  remark VARCHAR(500) COMMENT 'remark',
+  client_ip VARCHAR(64) COMMENT 'client ip',
+  trace_id VARCHAR(128) COMMENT 'trace id',
+  create_time DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT 'create time',
+  KEY idx_audit_target (target_type, target_id),
+  KEY idx_audit_biz (biz_type, create_time),
+  KEY idx_audit_action (action_type, create_time),
+  KEY idx_audit_operator (operator_user_id, create_time)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='audit log';
 
 CREATE TABLE IF NOT EXISTS inspection_record (
   id BIGINT PRIMARY KEY AUTO_INCREMENT,

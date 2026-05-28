@@ -145,7 +145,6 @@ public class WarningProxyServiceImpl implements WarningProxyService {
         ApiResponse<WarningRecordDetailVO> response = warningServiceClient.assign(
             warningId,
             remoteAssign,
-            null,
             regionIds,
             String.valueOf(admin.getId()),
             StringUtils.hasText(username) ? username.trim() : "unknown"
@@ -172,7 +171,7 @@ public class WarningProxyServiceImpl implements WarningProxyService {
     public PageResult<WarningRecordVO> listMyWarnings(Long userId, WarningRecordQueryDTO queryDTO) {
         FoodRegulator enforcer = requireEnforcer(userId);
         WarningRecordQueryDTO remoteQuery = buildRemoteQuery(queryDTO);
-        remoteQuery.setOwnerRegulatorId(enforcer.getId());
+        remoteQuery.setAssignedTo(enforcer.getId());
         ApiResponse<PageResult<WarningRecordVO>> response = warningServiceClient.pageRecords(remoteQuery);
         return enrichPage(requireSuccess(response, "load warning records failed"));
     }
@@ -276,10 +275,8 @@ public class WarningProxyServiceImpl implements WarningProxyService {
             if (warning == null) {
                 continue;
             }
-            String ownerName = safeGet(regulatorNames, warning.getOwnerRegulatorId());
-            String assignedToName = safeGet(regulatorNames, warning.getAssignedTo());
-            warning.setOwnerName(ownerName);
-            warning.setAssignedToName(StringUtils.hasText(assignedToName) ? assignedToName : ownerName);
+            warning.setOwnerName(safeGet(regulatorNames, warning.getOwnerRegulatorId()));
+            warning.setAssignedToName(safeGet(regulatorNames, warning.getAssignedTo()));
             warning.setResolvedByName(safeGet(regulatorNames, warning.getResolvedBy()));
             warning.setRegionName(safeGet(regionNameMap, warning.getRegionId()));
             warning.setRegionPathText(safeGet(regionPathMap, warning.getRegionId()));
@@ -580,17 +577,17 @@ public class WarningProxyServiceImpl implements WarningProxyService {
     private ApiResponse<WarningRecordDetailVO> executeAction(Long warningId,
                                                              String actionType,
                                                              String actionComment,
-                                                             String ownerRegulatorId,
+                                                             String assignedRegulatorId,
                                                              String regionIds,
                                                              String operatorUserId,
                                                              String operatorName) {
         WarningActionCommentDTO body = buildActionCommentDTO(actionComment);
         return switch (actionType) {
             case "PROCESS" -> warningServiceClient.process(
-                warningId, body, ownerRegulatorId, regionIds, operatorUserId, operatorName
+                warningId, body, assignedRegulatorId, regionIds, operatorUserId, operatorName
             );
             case "RESOLVE" -> warningServiceClient.resolve(
-                warningId, body, ownerRegulatorId, regionIds, operatorUserId, operatorName
+                warningId, body, assignedRegulatorId, regionIds, operatorUserId, operatorName
             );
             default -> throw new IllegalArgumentException("unsupported actionType");
         };

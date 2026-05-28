@@ -37,14 +37,21 @@
     <section class="content-grid">
       <div class="table-card">
         <div class="table-wrap">
-          <table>
+          <table class="rectification-table">
+            <colgroup>
+              <col />
+              <col />
+              <col />
+              <col />
+              <col />
+            </colgroup>
             <thead>
               <tr>
                 <th>企业信息与整改摘要</th>
-                <th>当前状态</th>
+                <th class="is-center">当前状态</th>
                 <th>进度跟进</th>
                 <th>截止日期</th>
-                <th class="right">操作</th>
+                <th class="is-right">操作</th>
               </tr>
             </thead>
             <tbody>
@@ -58,7 +65,7 @@
                     <p :title="item.rectificationDesc || '-'">{{ item.rectificationDesc || "-" }}</p>
                   </div>
                 </td>
-                <td>
+                <td class="is-center">
                   <span class="status-chip" :class="`is-${String(item.status || '').toLowerCase()}`">
                     {{ formatRectificationStatus(item.status) }}
                   </span>
@@ -81,7 +88,7 @@
                     <span>{{ rectificationDeadlineLabel(item) }}</span>
                   </div>
                 </td>
-                <td class="right">
+                <td class="is-right">
                   <div class="row-actions">
                     <button class="ghost ghost--inline" type="button" @click="openDetail(item)">查看详情</button>
                     <button
@@ -429,19 +436,20 @@ onMounted(loadRectifications);
 .table-wrap {
   overflow: auto;
 }
-table {
+.rectification-table {
   width: 100%;
-  min-width: 920px;
+  min-width: 960px;
+  table-layout: fixed;
   border-collapse: collapse;
 }
-th,
-td {
+.rectification-table th,
+.rectification-table td {
   padding: 14px;
   border-bottom: 1px solid #eef2f7;
   font-size: 13px;
   vertical-align: middle;
 }
-th {
+.rectification-table th {
   background: #f3f6fb;
   color: #64748b;
   font-size: 11px;
@@ -449,19 +457,59 @@ th {
   text-transform: uppercase;
   text-align: left;
 }
-.right {
+.rectification-table th.is-center,
+.rectification-table td.is-center {
+  text-align: center;
+}
+.rectification-table th.is-right,
+.rectification-table td.is-right {
   text-align: right;
+  white-space: nowrap;
+}
+.rectification-table col:nth-child(1) {
+  width: 36%;
+}
+.rectification-table col:nth-child(2) {
+  width: 100px;
+}
+.rectification-table col:nth-child(3) {
+  width: 220px;
+}
+.rectification-table col:nth-child(4) {
+  width: 124px;
+}
+.rectification-table col:nth-child(5) {
+  width: 116px;
+}
+.enterprise-cell {
+  min-width: 0;
 }
 .enterprise-cell strong {
   display: block;
   color: #002660;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
-.enterprise-cell p,
+.enterprise-cell p {
+  margin: 4px 0 0;
+  color: #64748b;
+  font-size: 12px;
+  line-height: 1.5;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+  word-break: break-word;
+}
 .progress-note {
   margin: 4px 0 0;
   color: #64748b;
   font-size: 12px;
   line-height: 1.5;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .status-chip {
   display: inline-flex;
@@ -477,7 +525,7 @@ th {
 .status-chip.is-rework { background: #fee2e2; color: #b91c1c; }
 .status-chip.is-confirmed { background: #dcfce7; color: #166534; }
 .progress-cell {
-  min-width: 180px;
+  min-width: 0;
 }
 .progress-meta {
   display: flex;
@@ -505,12 +553,20 @@ th {
 .deadline-cell strong {
   display: block;
   color: #0f172a;
+  white-space: nowrap;
 }
 .deadline-cell span {
   display: block;
   margin-top: 4px;
   color: #64748b;
   font-size: 12px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.row-actions {
+  justify-content: flex-end;
+  flex-wrap: nowrap;
 }
 .empty {
   text-align: center;

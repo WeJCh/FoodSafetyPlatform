@@ -1,0 +1,55 @@
+@startuml
+' 图3-7 检查整改业务流程图
+' 用途：3.1.4 第二条主线 — 检查与整改闭环
+skinparam shadowing false
+skinparam defaultFontName Microsoft YaHei
+skinparam activity {
+  BackgroundColor #ffffff
+  BorderColor #6b7280
+  DiamondBackgroundColor #f8fafc
+  DiamondBorderColor #6b7280
+  ArrowColor #6b7280
+}
+
+|区域管理员|
+start
+:创建检查任务;
+:分派执法人员;
+
+|执法人员|
+:开始现场检查;
+:填写检查项并提交结果;
+
+|系统|
+if (是否存在不合格项?) then (是)
+  :生成整改任务;
+else (否)
+  :检查任务完成;
+  stop
+endif
+
+|企业用户|
+:提交整改说明与材料;
+
+|区域管理员|
+:复核整改结果;
+
+if (复核通过?) then (是)
+  :整改任务确认完成;
+  stop
+else (否)
+  :退回并说明复核意见;
+  |企业用户|
+  :补充材料并重新提交;
+  |区域管理员|
+  :再次复核整改结果;
+  if (再次复核通过?) then (是)
+    :整改任务确认完成;
+    stop
+  else (否)
+    :记录最终复核意见;
+    stop
+  endif
+endif
+
+@enduml

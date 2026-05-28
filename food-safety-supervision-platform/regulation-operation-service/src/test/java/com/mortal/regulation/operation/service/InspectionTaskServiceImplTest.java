@@ -17,12 +17,16 @@ import com.mortal.regulation.operation.mapper.InspectionItemMapper;
 import com.mortal.regulation.operation.mapper.InspectionRecordMapper;
 import com.mortal.regulation.operation.mapper.InspectionTaskMapper;
 import com.mortal.regulation.operation.service.impl.InspectionTaskServiceImpl;
+import com.mortal.regulation.operation.support.OperationAuditOperatorNameResolver;
+import com.mortal.regulation.operation.support.OperationLockSupport;
 import com.mortal.regulation.operation.support.OperationMasterDataSupport;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.mortal.regulation.operation.vo.InspectionTaskVO;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.Callable;
 import org.junit.jupiter.api.Test;
 
 class InspectionTaskServiceImplTest {
@@ -33,15 +37,24 @@ class InspectionTaskServiceImplTest {
         InspectionRecordMapper inspectionRecordMapper = mock(InspectionRecordMapper.class);
         InspectionItemMapper inspectionItemMapper = mock(InspectionItemMapper.class);
         OperationMasterDataSupport masterDataSupport = mock(OperationMasterDataSupport.class);
+        OperationLockSupport operationLockSupport = mock(OperationLockSupport.class);
         RectificationService rectificationService = mock(RectificationService.class);
         WarningEventOutboxService warningEventOutboxService = mock(WarningEventOutboxService.class);
+        when(operationLockSupport.executeWithLock(any(), any(), any())).thenAnswer(invocation -> {
+            Callable<?> callable = invocation.getArgument(2);
+            return callable.call();
+        });
         InspectionTaskServiceImpl service = new InspectionTaskServiceImpl(
             inspectionTaskMapper,
             inspectionRecordMapper,
             inspectionItemMapper,
             masterDataSupport,
+            operationLockSupport,
             rectificationService,
-            warningEventOutboxService
+            warningEventOutboxService,
+            mock(AuditLogService.class),
+            mock(OperationAuditOperatorNameResolver.class),
+            new ObjectMapper()
         );
 
         InternalRegulatorIdentityVO enforcer = new InternalRegulatorIdentityVO();

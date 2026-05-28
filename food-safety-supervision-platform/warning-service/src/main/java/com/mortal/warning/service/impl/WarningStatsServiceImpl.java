@@ -214,7 +214,7 @@ public class WarningStatsServiceImpl implements WarningStatsService {
             normalizeKeyText(query.getStatus()),
             query.getRegionId() == null ? "" : String.valueOf(query.getRegionId()),
             regionIds,
-            query.getOwnerRegulatorId() == null ? "" : String.valueOf(query.getOwnerRegulatorId()),
+            query.getAssignedTo() == null ? "" : String.valueOf(query.getAssignedTo()),
             String.valueOf(normalizeTopN(query.getTopN())),
             String.valueOf(normalizeTrendDays(query.getTrendDays())),
             String.valueOf(normalizeOverdueHours(query.getOverdueHours()))
@@ -267,8 +267,8 @@ public class WarningStatsServiceImpl implements WarningStatsService {
         if (!regionIds.isEmpty()) {
             wrapper.in(WarningRecord::getRegionId, regionIds);
         }
-        if (query.getOwnerRegulatorId() != null) {
-            wrapper.eq(WarningRecord::getOwnerRegulatorId, query.getOwnerRegulatorId());
+        if (query.getAssignedTo() != null) {
+            wrapper.eq(WarningRecord::getAssignedTo, query.getAssignedTo());
         }
         wrapper.orderByDesc(WarningRecord::getFirstOccurTime).orderByDesc(WarningRecord::getId);
         return warningRecordMapper.selectList(wrapper);
@@ -285,8 +285,8 @@ public class WarningStatsServiceImpl implements WarningStatsService {
 
     private List<WarningStatsItemVO> buildLevelDistribution(Map<String, Long> levelCount) {
         List<WarningStatsItemVO> result = new ArrayList<>();
-        result.add(createStatsItem(WarningLevel.L1.name(), "一级", levelCount));
-        result.add(createStatsItem(WarningLevel.L2.name(), "二级", levelCount));
+        result.add(createStatsItem(WarningLevel.L1.name(), WarningLevel.L1.displayLabel(), levelCount));
+        result.add(createStatsItem(WarningLevel.L2.name(), WarningLevel.L2.displayLabel(), levelCount));
         return result;
     }
 

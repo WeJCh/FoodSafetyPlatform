@@ -145,9 +145,6 @@
               <div class="panel-head">
                 <h2>问题说明</h2>
               </div>
-              <div class="notice-strip">
-                当前接口未提供独立“备注”字段，本区域内容会按后端语义写入“总体问题描述”。
-              </div>
               <label class="field-block">
                 <span>检查日期</span>
                 <input v-model="form.inspectionDate" type="date" required />
@@ -173,29 +170,20 @@
                 <button
                   type="button"
                   class="decision-btn"
-                  :class="{ 'is-active is-pass': form.decision === 'PASS' }"
-                  @click="form.decision = 'PASS'"
+                  :class="{ 'is-active is-pass': form.result === 'PASS' }"
+                  @click="form.result = 'PASS'"
                 >
                   <strong>检查合格</strong>
-                  <span>按 PASS 提交，不触发整改流程。</span>
+                  <span>不触发整改、重点监管与预警联动。</span>
                 </button>
                 <button
                   type="button"
                   class="decision-btn"
-                  :class="{ 'is-active is-rectify': form.decision === 'RECTIFY' }"
-                  @click="form.decision = 'RECTIFY'"
-                >
-                  <strong>限期整改</strong>
-                  <span>按不合格提交，并触发后续整改任务。</span>
-                </button>
-                <button
-                  type="button"
-                  class="decision-btn"
-                  :class="{ 'is-active is-fail': form.decision === 'FAIL' }"
-                  @click="form.decision = 'FAIL'"
+                  :class="{ 'is-active is-fail': form.result === 'FAIL' }"
+                  @click="form.result = 'FAIL'"
                 >
                   <strong>检查不合格</strong>
-                  <span>按 FAIL 提交，并进入风险与整改联动。</span>
+                  <span>自动生成整改任务，连续不合格时纳入重点监管并触发预警。</span>
                 </button>
               </div>
             </section>
@@ -207,8 +195,7 @@
               <ul class="tip-list">
                 <li>至少保留 1 个检查项，且检查项名称不能为空。</li>
                 <li>若存在不合格检查项，则最终结论不能提交为“检查合格”。</li>
-                <li>选择“限期整改”或“检查不合格”时，建议补充总体问题描述。</li>
-                <li>后端仅支持 `PASS/FAIL`，其中“限期整改”会映射为 `FAIL` 并触发整改任务。</li>
+                <li>结论为“检查不合格”时，请补充总体问题描述或至少标记 1 个不合格检查项。</li>
               </ul>
             </section>
 
@@ -263,7 +250,7 @@ const itemSeed = ref(3);
 
 const form = reactive({
   inspectionDate: "",
-  decision: "PASS",
+  result: "PASS",
   problemDesc: "",
   items: []
 });
@@ -341,10 +328,6 @@ function formatTodayLocal() {
   return `${year}-${month}-${day}`;
 }
 
-function resolveSubmitResult() {
-  return form.decision === "PASS" ? "PASS" : "FAIL";
-}
-
 function addItem() {
   form.items.push(createItem());
 }
@@ -393,7 +376,7 @@ async function loadPage() {
 
     task.value = row;
     form.inspectionDate = formatTodayLocal();
-    form.decision = "PASS";
+    form.result = "PASS";
     form.problemDesc = "";
     form.items = defaultItemTemplates.map((template) => createItem(template));
 
@@ -440,12 +423,12 @@ function validateBeforeSubmit() {
   }
 
   const hasFailedItems = normalizedItems.some((item) => item.itemResult === "FAIL");
-  if (form.decision === "PASS" && hasFailedItems) {
+  if (form.result === "PASS" && hasFailedItems) {
     setStatus("存在不合格检查项时，最终结论不能提交为“检查合格”。", "error");
     return false;
   }
-  if (form.decision !== "PASS" && !String(form.problemDesc || "").trim() && !hasFailedItems) {
-    setStatus("选择“限期整改”或“检查不合格”时，请补充总体问题描述或至少标记 1 个不合格检查项。", "error");
+  if (form.result === "FAIL" && !String(form.problemDesc || "").trim() && !hasFailedItems) {
+    setStatus("结论为“检查不合格”时，请补充总体问题描述或至少标记 1 个不合格检查项。", "error");
     return false;
   }
 
@@ -461,7 +444,7 @@ async function handleSubmit() {
   try {
     await submitInspectionTask(token.value, task.value.id, {
       inspectionDate: form.inspectionDate,
-      result: resolveSubmitResult(),
+      result: form.result,
       problemDesc: form.problemDesc.trim(),
       items: normalizedItems
     });
@@ -718,15 +701,7 @@ watch(() => route.params.taskId, loadPage, { immediate: true });
   background: #fef2f2;
   color: #991b1b;
 }
-.notice-strip {
-  margin: 14px 20px 0;
-  border-radius: 12px;
-  padding: 12px 14px;
-  background: #eff6ff;
-  color: #1d4ed8;
-  font-size: 13px;
-  line-height: 1.6;
-}
+
 .field-block {
   display: grid;
   gap: 8px;
@@ -760,9 +735,6 @@ watch(() => route.params.taskId, loadPage, { immediate: true });
 }
 .decision-btn.is-active.is-pass {
   background: rgba(34, 197, 94, 0.22);
-}
-.decision-btn.is-active.is-rectify {
-  background: rgba(251, 191, 36, 0.24);
 }
 .decision-btn.is-active.is-fail {
   background: rgba(248, 113, 113, 0.24);

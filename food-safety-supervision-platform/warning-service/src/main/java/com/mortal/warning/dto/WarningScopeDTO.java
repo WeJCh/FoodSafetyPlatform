@@ -9,9 +9,9 @@ import lombok.Data;
 public class WarningScopeDTO {
 
     /**
-     * 责任执法员ID：传值时仅可访问本人负责的预警。
+     * 分派处理人ID：传值时仅可访问已分派给该执法员的预警。
      */
-    private Long ownerRegulatorId;
+    private Long assignedRegulatorId;
 
     /**
      * 辖区ID列表（逗号分隔）：传值时仅可访问辖区内预警。

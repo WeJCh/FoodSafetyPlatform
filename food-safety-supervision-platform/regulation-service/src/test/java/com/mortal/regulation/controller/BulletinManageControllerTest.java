@@ -7,6 +7,7 @@ import static org.mockito.Mockito.when;
 
 import com.mortal.platform.common.ApiResponse;
 import com.mortal.platform.common.PageResult;
+import com.mortal.regulation.service.AuditLogService;
 import com.mortal.regulation.service.BulletinService;
 import com.mortal.regulation.util.JwtUserResolver;
 import com.mortal.regulation.vo.BulletinVO;
@@ -19,7 +20,7 @@ class BulletinManageControllerTest {
     void list_shouldReturnForbiddenWhenUserIsNotRegulator() {
         BulletinService service = mock(BulletinService.class);
         JwtUserResolver resolver = mock(JwtUserResolver.class);
-        BulletinManageController controller = new BulletinManageController(service, resolver);
+        BulletinManageController controller = new BulletinManageController(service, mock(AuditLogService.class), resolver);
 
         when(resolver.resolveUserId("Bearer test")).thenReturn(100L);
         when(resolver.resolveUserType("Bearer test")).thenReturn("PUBLIC");
@@ -34,7 +35,7 @@ class BulletinManageControllerTest {
     void list_shouldTranslateAdminOnlyToForbidden() {
         BulletinService service = mock(BulletinService.class);
         JwtUserResolver resolver = mock(JwtUserResolver.class);
-        BulletinManageController controller = new BulletinManageController(service, resolver);
+        BulletinManageController controller = new BulletinManageController(service, mock(AuditLogService.class), resolver);
 
         when(resolver.resolveUserId("Bearer test")).thenReturn(100L);
         when(resolver.resolveUserType("Bearer test")).thenReturn("REGULATOR");
@@ -52,7 +53,7 @@ class BulletinManageControllerTest {
     void list_shouldReturnPageWhenAuthorized() {
         BulletinService service = mock(BulletinService.class);
         JwtUserResolver resolver = mock(JwtUserResolver.class);
-        BulletinManageController controller = new BulletinManageController(service, resolver);
+        BulletinManageController controller = new BulletinManageController(service, mock(AuditLogService.class), resolver);
         BulletinVO record = new BulletinVO();
         record.setId(1L);
         record.setTitle("监管公告");

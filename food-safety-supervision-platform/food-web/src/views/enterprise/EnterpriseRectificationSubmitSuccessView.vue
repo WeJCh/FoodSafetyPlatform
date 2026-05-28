@@ -24,8 +24,8 @@
         </div>
       </div>
       <div class="action-buttons enterprise-success-actions" style="justify-content: center">
-        <RouterLink class="ghost enterprise-toolbar-button" :to="{ name: 'enterprise-rectifications' }">返回任务列表</RouterLink>
-        <RouterLink class="primary enterprise-link-button" :to="{ name: 'enterprise-rectification-detail', params: { rectificationId } }">查看任务详情</RouterLink>
+        <RouterLink class="ghost enterprise-toolbar-button" :to="{ name: 'enterprise-rectifications' }">返回整改列表</RouterLink>
+        <RouterLink class="primary enterprise-link-button" :to="{ name: 'enterprise-rectification-detail', params: { rectificationId } }">查看整改详情</RouterLink>
       </div>
     </div>
   </EnterpriseWorkspacePage>

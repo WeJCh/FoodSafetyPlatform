@@ -39,6 +39,8 @@ public class UserServiceImpl implements UserService {
 
     private static final String AUDIT_TARGET_TYPE_USER = "USER";
     private static final String AUDIT_BIZ_TYPE_USER = "USER";
+    private static final String AUDIT_TARGET_TYPE_LOGIN_IDENTIFIER = "LOGIN_IDENTIFIER";
+    private static final String AUDIT_BIZ_TYPE_AUTH = "AUTH";
     private static final String ACTION_USER_REGISTER = "USER_REGISTER";
     private static final String ACTION_USER_REGISTER_PUBLIC = "USER_REGISTER_PUBLIC";
     private static final String ACTION_USER_REGISTER_ENTERPRISE = "USER_REGISTER_ENTERPRISE";
@@ -47,6 +49,18 @@ public class UserServiceImpl implements UserService {
     private static final String ACTION_USER_SELF_UPDATE = "USER_SELF_UPDATE";
     private static final String ACTION_USER_PASSWORD_CHANGE = "USER_PASSWORD_CHANGE";
     private static final String ACTION_USER_DELETE = "USER_DELETE";
+    private static final String ACTION_AUTH_LOGIN_SUCCESS = "AUTH_LOGIN_SUCCESS";
+    private static final String ACTION_AUTH_LOGIN_FAILED = "AUTH_LOGIN_FAILED";
+    private static final String ACTION_AUTH_LOGOUT_SUCCESS = "AUTH_LOGOUT_SUCCESS";
+    private static final String ACTION_AUTH_PASSWORD_CHANGE_FAILED = "AUTH_PASSWORD_CHANGE_FAILED";
+    private static final long LOGIN_IDENTIFIER_TARGET_ID = 0L;
+    private static final List<String> ACCOUNT_AUDIT_ACTION_TYPES = List.of(
+        ACTION_USER_REGISTER_PUBLIC,
+        ACTION_USER_REGISTER_ENTERPRISE,
+        ACTION_USER_CREATE_REGULATOR,
+        ACTION_USER_SELF_UPDATE,
+        ACTION_USER_PASSWORD_CHANGE
+    );
 
     private final UserMapper userMapper;
     private final TokenUtil tokenUtil;
@@ -124,22 +138,34 @@ public class UserServiceImpl implements UserService {
         User user = userMapper.selectOne(new LambdaQueryWrapper<User>()
             .eq(User::getUsername, dto.getUsername()));
         if (user == null) {
-            throw new IllegalArgumentException("invalid credentials");
+            throw recordLoginFailure(dto, null, "invalid credentials");
         }
         if (!UserType.ADMIN.code().equals(user.getUserType())
             && !PasswordEncoderUtil.matches(dto.getPassword(), user.getPassword())) {
-            throw new IllegalArgumentException("invalid credentials");
+            throw recordLoginFailure(dto, user, "invalid credentials");
         }
         if (user.getStatus() != null && user.getStatus() == UserStatus.DISABLED.code()) {
-            throw new IllegalArgumentException("user disabled");
+            throw recordLoginFailure(dto, user, "user disabled");
         }
         if (user.getDeleted() != null && user.getDeleted() == 1) {
-            throw new IllegalArgumentException("user deleted");
+            throw recordLoginFailure(dto, user, "user deleted");
         }
         // 关键注释：登录时查询角色并写入 Token，减少网关与服务重复查库
         List<String> roles = loadRoleCodes(user.getId());
         String token = tokenUtil.generateToken(user.getId(), user.getUsername(), user.getUserType(), roles);
         cacheLoginSession(user, roles, token);
+        recordAuthAudit(
+            userAuditSupport.actorFromUser(user),
+            AUDIT_TARGET_TYPE_USER,
+            user.getId(),
+            user.getId(),
+            userAuditSupport.buildTargetName(user),
+            ACTION_AUTH_LOGIN_SUCCESS,
+            "\u767B\u5F55\u6210\u529F",
+            1,
+            null,
+            "\u767B\u5F55\u6210\u529F"
+        );
         LoginResult result = new LoginResult();
         result.setUserId(user.getId());
         result.setUsername(user.getUsername());
@@ -151,6 +177,21 @@ public class UserServiceImpl implements UserService {
 
     @Override
     public void logout(String token) {
+        User user = resolveUserFromToken(token);
+        if (user != null) {
+            recordAuthAudit(
+                userAuditSupport.actorFromUser(user),
+                AUDIT_TARGET_TYPE_USER,
+                user.getId(),
+                user.getId(),
+                userAuditSupport.buildTargetName(user),
+                ACTION_AUTH_LOGOUT_SUCCESS,
+                "\u9000\u51FA\u767B\u5F55",
+                1,
+                null,
+                "\u9000\u51FA\u767B\u5F55"
+            );
+        }
         if (StringUtils.hasText(token)) {
             String jti = tokenUtil.getJti(token);
             Long userId = tokenUtil.getUserId(token);
@@ -239,10 +280,10 @@ public class UserServiceImpl implements UserService {
         List<String> roleCodes = loadRoleCodes(user.getId());
         String beforeData = userAuditSupport.writeUserSnapshot(user, roleCodes);
         if (!PasswordEncoderUtil.matches(dto.getOldPassword(), user.getPassword())) {
-            throw new IllegalArgumentException("old password incorrect");
+            throw recordPasswordChangeFailure(user, "old password incorrect");
         }
         if (PasswordEncoderUtil.matches(dto.getNewPassword(), user.getPassword())) {
-            throw new IllegalArgumentException("new password must be different");
+            throw recordPasswordChangeFailure(user, "new password must be different");
         }
         user.setPassword(PasswordEncoderUtil.encode(dto.getNewPassword()));
         user.setUpdateTime(LocalDateTime.now());
@@ -262,7 +303,12 @@ public class UserServiceImpl implements UserService {
     @Override
     public List<AuditLogVO> listCurrentUserAuditLogs(String token, int limit) {
         User user = requireActiveUser(requireUserId(token));
-        return auditLogService.listTargetLogs(AUDIT_TARGET_TYPE_USER, user.getId(), limit);
+        return auditLogService.listTargetLogs(
+            AUDIT_TARGET_TYPE_USER,
+            user.getId(),
+            ACCOUNT_AUDIT_ACTION_TYPES,
+            limit
+        );
     }
 
     @Override
@@ -433,6 +479,75 @@ public class UserServiceImpl implements UserService {
         );
     }
 
+    private IllegalArgumentException recordLoginFailure(LoginDTO dto, User user, String message) {
+        String username = dto == null ? null : userAuditSupport.normalizeText(dto.getUsername());
+        UserAuditSupport.AuditActor actor = user == null
+            ? new UserAuditSupport.AuditActor(null, null, username)
+            : userAuditSupport.actorFromUser(user);
+        String targetType = user == null ? AUDIT_TARGET_TYPE_LOGIN_IDENTIFIER : AUDIT_TARGET_TYPE_USER;
+        Long targetId = user == null ? LOGIN_IDENTIFIER_TARGET_ID : user.getId();
+        Long targetUserId = user == null ? null : user.getId();
+        String targetName = user == null ? username : userAuditSupport.buildTargetName(user);
+        recordAuthAudit(
+            actor,
+            targetType,
+            targetId,
+            targetUserId,
+            targetName,
+            ACTION_AUTH_LOGIN_FAILED,
+            "\u767B\u5F55\u5931\u8D25",
+            0,
+            message,
+            "\u767B\u5F55\u5931\u8D25"
+        );
+        return new IllegalArgumentException(message);
+    }
+
+    private IllegalArgumentException recordPasswordChangeFailure(User user, String message) {
+        recordAuthAudit(
+            userAuditSupport.actorFromUser(user),
+            AUDIT_TARGET_TYPE_USER,
+            user.getId(),
+            user.getId(),
+            userAuditSupport.buildTargetName(user),
+            ACTION_AUTH_PASSWORD_CHANGE_FAILED,
+            "\u4FEE\u6539\u5BC6\u7801\u5931\u8D25",
+            0,
+            message,
+            "\u4FEE\u6539\u5BC6\u7801\u5931\u8D25"
+        );
+        return new IllegalArgumentException(message);
+    }
+
+    private void recordAuthAudit(UserAuditSupport.AuditActor actor,
+                                 String targetType,
+                                 Long targetId,
+                                 Long targetUserId,
+                                 String targetName,
+                                 String actionType,
+                                 String actionName,
+                                 int successFlag,
+                                 String errorMessage,
+                                 String remark) {
+        auditLogService.recordAudit(
+            actor == null ? null : actor.userId(),
+            actor == null ? null : actor.userType(),
+            actor == null ? null : actor.operatorName(),
+            targetType,
+            targetId,
+            targetUserId,
+            targetName,
+            AUDIT_BIZ_TYPE_AUTH,
+            actionType,
+            actionName,
+            "{}",
+            "{}",
+            successFlag,
+            errorMessage,
+            remark
+        );
+    }
+
     private Long requireUserId(String token) {
         Long userId = tokenUtil.getUserId(token);
         if (userId == null) {
@@ -448,6 +563,18 @@ public class UserServiceImpl implements UserService {
         }
         if (Objects.equals(user.getStatus(), UserStatus.DISABLED.code())) {
             throw new IllegalArgumentException("user disabled");
+        }
+        return user;
+    }
+
+    private User resolveUserFromToken(String token) {
+        Long userId = tokenUtil.getUserId(token);
+        if (userId == null) {
+            return null;
+        }
+        User user = userMapper.selectById(userId);
+        if (user == null || Objects.equals(user.getDeleted(), 1)) {
+            return null;
         }
         return user;
     }

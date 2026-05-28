@@ -106,13 +106,20 @@
 
       <div class="enterprise-data-table-wrap enterprise-rectification-list-page__table-wrap">
         <table v-if="rectificationRecords.length" class="enterprise-data-table enterprise-rectification-list-page__table">
+          <colgroup>
+            <col class="enterprise-rectification-list-page__col-id" />
+            <col class="enterprise-rectification-list-page__col-desc" />
+            <col class="enterprise-rectification-list-page__col-deadline" />
+            <col class="enterprise-rectification-list-page__col-status" />
+            <col class="enterprise-rectification-list-page__col-action" />
+          </colgroup>
           <thead>
             <tr>
               <th>任务编号</th>
               <th>整改项目内容</th>
               <th>截止日期</th>
-              <th style="text-align: center">当前状态</th>
-              <th style="text-align: right">操作行为</th>
+              <th class="is-center">当前状态</th>
+              <th class="is-right">操作行为</th>
             </tr>
           </thead>
           <tbody>
@@ -138,12 +145,12 @@
                   <i v-if="rectificationSlaTag(item)">{{ rectificationSlaTag(item) }}</i>
                 </div>
               </td>
-              <td style="text-align: center">
+              <td class="is-center">
                 <span :class="['enterprise-rectification-list-page__status-chip', `is-${rectificationStatusClass(item.status)}`]">
                   {{ rectificationStatusLabel(item.status) }}
                 </span>
               </td>
-              <td style="text-align: right">
+              <td class="is-right">
                 <RouterLink
                   v-if="item.status === 'ONGOING' || item.status === 'REWORK'"
                   class="enterprise-rectification-list-page__action-btn is-primary"
@@ -151,7 +158,21 @@
                 >
                   {{ item.status === "REWORK" ? "重新完善" : "立即提交" }}
                 </RouterLink>
-                <button v-else class="enterprise-rectification-list-page__action-btn is-muted" type="button" disabled>审核中...</button>
+                <button
+                  v-else-if="item.status === 'SUBMITTED'"
+                  class="enterprise-rectification-list-page__action-btn is-muted"
+                  type="button"
+                  disabled
+                >
+                  待复核
+                </button>
+                <RouterLink
+                  v-else-if="item.status === 'CONFIRMED'"
+                  class="enterprise-rectification-list-page__action-btn is-outline"
+                  :to="{ name: 'enterprise-rectification-detail', params: { rectificationId: item.id } }"
+                >
+                  查看详情
+                </RouterLink>
               </td>
             </tr>
           </tbody>

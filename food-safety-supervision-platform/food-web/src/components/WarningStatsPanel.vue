@@ -65,8 +65,8 @@
       </section>
 
       <section class="panel-block distribution-block">
-        <div class="panel-title">预警等级分布</div>
-        <div class="panel-subtitle">按风险等级 L1 / L2 展示当前预警分层情况。</div>
+        <div class="panel-title">预警档位分布</div>
+        <div class="panel-subtitle">按预警档位（初发 / 升级）展示当前预警分层情况。</div>
         <div class="level-grid">
           <article v-for="item in levelDistribution" :key="item.key" class="level-card" :class="`level-card--${item.key.toLowerCase()}`">
             <span>{{ item.label }}</span>
@@ -160,6 +160,7 @@ import {
   fetchWarningTrend,
   fetchWarningTypes
 } from "../api/regulation";
+import { formatStatusLabel, warningLevelMap, warningStatusMap } from "../utils/statusMaps";
 
 const props = defineProps({
   token: {
@@ -204,7 +205,7 @@ const cards = computed(() => ([
 
 const statusDistribution = computed(() => {
   const fallback = [
-    { key: "OPEN", label: "待处理", count: Number(overview.value.openCount) || 0 },
+    { key: "OPEN", label: warningStatusMap.OPEN, count: Number(overview.value.openCount) || 0 },
     { key: "PROCESSING", label: "处理中", count: Number(overview.value.processingCount) || 0 },
     { key: "RESOLVED", label: "已解决", count: Number(overview.value.resolvedCount) || 0 },
     { key: "CLOSED", label: "已归档", count: Number(overview.value.closedCount) || 0 }
@@ -213,15 +214,15 @@ const statusDistribution = computed(() => {
   if (!data.length) return fallback;
   return data.map((item) => ({
     key: String(item?.key || "").toUpperCase() || "UNKNOWN",
-    label: formatStatusLabel(item?.key),
+    label: formatStatusLabel(item?.key, warningStatusMap),
     count: Number(item?.count) || 0
   }));
 });
 
 const levelDistribution = computed(() => {
   const fallback = [
-    { key: "L1", label: "一级预警", count: 0 },
-    { key: "L2", label: "二级预警", count: 0 }
+    { key: "L1", label: warningLevelMap.L1, count: 0 },
+    { key: "L2", label: warningLevelMap.L2, count: 0 }
   ];
   const data = Array.isArray(overview.value.levelDistribution) ? overview.value.levelDistribution : [];
   if (!data.length) return fallback;
@@ -391,20 +392,8 @@ function formatWarningType(value) {
   return warningTypeLabelMap[key] || key;
 }
 
-function formatStatusLabel(value) {
-  const key = String(value || "").trim().toUpperCase();
-  if (key === "OPEN") return "待处理";
-  if (key === "PROCESSING") return "处理中";
-  if (key === "RESOLVED") return "已解决";
-  if (key === "CLOSED") return "已归档";
-  return key || "-";
-}
-
 function formatLevelLabel(value) {
-  const key = String(value || "").trim().toUpperCase();
-  if (key === "L1") return "一级预警";
-  if (key === "L2") return "二级预警";
-  return key || "-";
+  return formatStatusLabel(value, warningLevelMap);
 }
 
 function calcDistributionWidth(count, maxValue) {
@@ -487,8 +476,9 @@ onMounted(() => {
 .level-card span { font-size: 12px; color: var(--muted); }
 .level-card strong { font-size: 24px; line-height: 1.1; color: var(--ink); }
 .level-card em { font-style: normal; font-size: 12px; color: var(--muted); }
-.level-card--l1 { background: linear-gradient(135deg, #fff9f1 0%, #fff3e4 100%); }
-.level-card--l2 { background: linear-gradient(135deg, #fff2f2 0%, #ffe8e8 100%); }
+.level-card--l1 { background: linear-gradient(135deg, #fff9f1 0%, #fff3e4 100%); border-color: #fcd9b8; }
+.level-card--l2 { background: linear-gradient(135deg, #ffe8e8 0%, #ffd6d6 100%); border-color: #fecaca; }
+.level-card--l2 strong { color: #991b1b; }
 .warning-stats-body { display: grid; gap: 12px; grid-template-columns: 1.7fr 1fr 1fr; align-items: stretch; }
 .panel-block { border: 1px solid var(--stroke); border-radius: 12px; background: var(--card-strong); padding: 12px; display: grid; gap: 10px; }
 .panel-title { font-size: 14px; font-weight: 600; color: var(--ink); }

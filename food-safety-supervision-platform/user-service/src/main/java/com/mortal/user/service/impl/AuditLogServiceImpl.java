@@ -41,6 +41,41 @@ public class AuditLogServiceImpl implements AuditLogService {
                             String beforeData,
                             String afterData,
                             String remark) {
+        recordAudit(
+            operatorUserId,
+            operatorUserType,
+            operatorName,
+            targetType,
+            targetId,
+            targetUserId,
+            targetName,
+            bizType,
+            actionType,
+            actionName,
+            beforeData,
+            afterData,
+            1,
+            null,
+            remark
+        );
+    }
+
+    @Override
+    public void recordAudit(Long operatorUserId,
+                            String operatorUserType,
+                            String operatorName,
+                            String targetType,
+                            Long targetId,
+                            Long targetUserId,
+                            String targetName,
+                            String bizType,
+                            String actionType,
+                            String actionName,
+                            String beforeData,
+                            String afterData,
+                            Integer successFlag,
+                            String errorMessage,
+                            String remark) {
         if (!StringUtils.hasText(targetType) || targetId == null || !StringUtils.hasText(bizType)
             || !StringUtils.hasText(actionType)) {
             return;
@@ -59,7 +94,8 @@ public class AuditLogServiceImpl implements AuditLogService {
         log.setActionName(trimToNull(actionName));
         log.setBeforeData(normalizeJsonPayload(beforeData));
         log.setAfterData(normalizeJsonPayload(afterData));
-        log.setSuccessFlag(1);
+        log.setSuccessFlag(normalizeSuccessFlag(successFlag));
+        log.setErrorMessage(trimToNull(errorMessage));
         log.setRemark(trimToNull(remark));
         log.setClientIp(resolveClientIp());
         log.setTraceId(MDC.get("traceId"));
@@ -69,15 +105,25 @@ public class AuditLogServiceImpl implements AuditLogService {
 
     @Override
     public List<AuditLogVO> listTargetLogs(String targetType, Long targetId, int limit) {
+        return listTargetLogs(targetType, targetId, List.of(), limit);
+    }
+
+    @Override
+    public List<AuditLogVO> listTargetLogs(String targetType, Long targetId, List<String> actionTypes, int limit) {
         if (!StringUtils.hasText(targetType) || targetId == null) {
             return List.of();
         }
         int size = normalizeLimit(limit);
-        List<AuditLog> logs = auditLogMapper.selectList(new LambdaQueryWrapper<AuditLog>()
+        LambdaQueryWrapper<AuditLog> wrapper = new LambdaQueryWrapper<AuditLog>()
             .eq(AuditLog::getTargetType, targetType.trim())
             .eq(AuditLog::getTargetId, targetId)
             .orderByDesc(AuditLog::getId)
-            .last("LIMIT " + size));
+            .last("LIMIT " + size);
+        List<String> normalizedActionTypes = normalizeActionTypes(actionTypes);
+        if (!normalizedActionTypes.isEmpty()) {
+            wrapper.in(AuditLog::getActionType, normalizedActionTypes);
+        }
+        List<AuditLog> logs = auditLogMapper.selectList(wrapper);
         return logs.stream().map(this::toVO).toList();
     }
 
@@ -128,6 +174,21 @@ public class AuditLogServiceImpl implements AuditLogService {
 
     private int normalizeLimit(int limit) {
         return limit <= 0 ? 10 : Math.min(limit, 50);
+    }
+
+    private int normalizeSuccessFlag(Integer successFlag) {
+        return successFlag != null && successFlag == 0 ? 0 : 1;
+    }
+
+    private List<String> normalizeActionTypes(List<String> actionTypes) {
+        if (actionTypes == null || actionTypes.isEmpty()) {
+            return List.of();
+        }
+        return actionTypes.stream()
+            .filter(StringUtils::hasText)
+            .map(String::trim)
+            .distinct()
+            .toList();
     }
 
     private String normalizeJsonPayload(String value) {

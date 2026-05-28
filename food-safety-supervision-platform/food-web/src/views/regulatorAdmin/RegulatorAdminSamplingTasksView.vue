@@ -333,6 +333,10 @@ async function loadSamplingTasks() {
     samplingPages.value = data.pages || 1;
     const regionIds = samplingTasks.value.map((task) => task.regionId).filter(Boolean);
     await Promise.all(regionIds.map((id) => ensureEnforcers(id)));
+    for (const task of samplingTasks.value) {
+      if (!isSamplingTaskAssignable(task)) continue;
+      samplingAssignments[task.id] = task.assignedTo != null ? task.assignedTo : "";
+    }
   } catch (error) {
     setStatus(resolveErrorMessage(error, "加载抽检任务失败"), "error");
   } finally {

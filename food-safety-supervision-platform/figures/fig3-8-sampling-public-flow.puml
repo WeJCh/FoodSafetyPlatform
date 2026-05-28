@@ -1,0 +1,39 @@
+@startuml
+' 图3-8 抽检公示业务流程图
+' 用途：3.1.4 第三条主线 — 抽检与公示
+skinparam shadowing false
+skinparam defaultFontName Microsoft YaHei
+skinparam activity {
+  BackgroundColor #ffffff
+  BorderColor #6b7280
+  DiamondBackgroundColor #f8fafc
+  DiamondBorderColor #6b7280
+  ArrowColor #6b7280
+}
+
+|区域管理员|
+start
+:创建抽检任务;
+:指定企业与产品;
+:分派执法人员;
+
+|执法人员|
+:执行抽检;
+:提交抽检结论;
+
+|系统|
+:保存抽检结果;
+:结果状态置为草稿;
+
+|区域管理员|
+if (是否对外发布?) then (是)
+  :发布抽检结果;
+  |公众用户|
+  :查询已公示抽检结果;
+  stop
+else (否)
+  :结果保持未公开;
+  stop
+endif
+
+@enduml

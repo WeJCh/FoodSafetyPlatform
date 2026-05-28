@@ -342,13 +342,16 @@ export function fetchRectifications(token, params = {}) {
   );
 }
 
-export function reviewRectification(token, id, payload) {
+export function reviewRectification(token, id, payload = {}) {
+  const body = { action: payload.action };
+  const text = String(payload.comment ?? "").trim();
+  if (text) body.comment = text;
   return requestWithBase(REGULATION_OPERATION_BASE_URL, `/api/regulation-operation/rectifications/${id}/review`, {
     method: "POST",
     headers: {
       Authorization: `Bearer ${token}`
     },
-    body: JSON.stringify(payload)
+    body: JSON.stringify(body)
   });
 }
 

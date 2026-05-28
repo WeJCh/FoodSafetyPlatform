@@ -49,9 +49,9 @@ public class WarningRecordQueryDTO {
     private String keyword;
 
     /**
-     * 责任执法员ID（作用域过滤）
+     * 分派处理人ID（执法员「我的预警」列表过滤）
      */
-    private Long ownerRegulatorId;
+    private Long assignedTo;
 
     /**
      * 辖区ID列表（逗号分隔，作用域过滤）

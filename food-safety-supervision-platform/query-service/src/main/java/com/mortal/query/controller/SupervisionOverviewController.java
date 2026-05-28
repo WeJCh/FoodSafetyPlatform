@@ -64,11 +64,11 @@ public class SupervisionOverviewController {
         SupervisionOverviewVO overview = supervisionOverviewQueryService.getOverview(scopedQuery);
         long elapsed = System.currentTimeMillis() - startMillis;
         log.info(
-            "supervision-overview elapsedMs={} regionId={} regionIds={} ownerRegulatorId={}",
+            "supervision-overview elapsedMs={} regionId={} regionIds={} assignedTo={}",
             elapsed,
             scopedQuery.getRegionId(),
             scopedQuery.getRegionIds(),
-            scopedQuery.getOwnerRegulatorId()
+            scopedQuery.getAssignedTo()
         );
         return ApiResponse.success(overview);
     }
